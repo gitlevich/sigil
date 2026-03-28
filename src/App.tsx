@@ -1,0 +1,40 @@
+import { useEffect, useRef } from "react";
+import { useAppState } from "./state/AppContext";
+import { useTheme } from "./hooks/useTheme";
+import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
+import { useFileWatcher } from "./hooks/useFileWatcher";
+import { useAppMenu } from "./hooks/useAppMenu";
+import { useSpecTree } from "./hooks/useSpecTree";
+import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
+import { EditorShell } from "./components/Editor/EditorShell";
+import { SettingsDialog } from "./components/Settings/SettingsDialog";
+
+interface AppProps {
+  initialRootPath: string | null;
+}
+
+export function App({ initialRootPath }: AppProps) {
+  const state = useAppState();
+  const { openDocument } = useSpecTree();
+  const opened = useRef(false);
+
+  useTheme();
+  useSettingsPersistence();
+  useFileWatcher();
+  useAppMenu();
+
+  useEffect(() => {
+    if (opened.current) return;
+    if (initialRootPath) {
+      opened.current = true;
+      openDocument(initialRootPath).catch(console.error);
+    }
+  }, [initialRootPath, openDocument]);
+
+  return (
+    <>
+      {state.screen === "picker" ? <DocumentPicker /> : <EditorShell />}
+      <SettingsDialog />
+    </>
+  );
+}

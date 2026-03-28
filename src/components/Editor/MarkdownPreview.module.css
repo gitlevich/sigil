@@ -1,0 +1,88 @@
+.preview {
+  padding: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.preview h1, .preview h2, .preview h3,
+.preview h4, .preview h5, .preview h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.preview h1 { font-size: 1.8rem; }
+.preview h2 { font-size: 1.4rem; }
+.preview h3 { font-size: 1.15rem; }
+
+.preview p {
+  margin: 0.75rem 0;
+}
+
+.preview code {
+  background: var(--bg-secondary);
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.preview pre {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.preview pre code {
+  background: none;
+  padding: 0;
+}
+
+.preview blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0.75rem 0;
+  padding: 0.5rem 1rem;
+  color: var(--text-secondary);
+}
+
+.preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+}
+
+.preview th, .preview td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.8rem;
+  text-align: left;
+}
+
+.preview th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.preview hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
+.preview ul, .preview ol {
+  padding-left: 1.5rem;
+}
+
+.preview li {
+  margin: 0.25rem 0;
+}
+
+.preview a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.preview a:hover {
+  text-decoration: underline;
+}

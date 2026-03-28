@@ -1,0 +1,80 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.collapsed {
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.collapsed:hover {
+  background: var(--bg-hover);
+}
+
+.collapseIcon {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+}
+
+.tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.collapseBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.collapseBtn:hover {
+  color: var(--text-primary);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+}

@@ -1,0 +1,98 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.box {
+  padding: 0.4rem 0.8rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.box:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.addBtn {
+  padding: 0.4rem 0.7rem;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.addForm {
+  display: flex;
+}
+
+.addInput {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  width: 140px;
+}
+
+.contextMenu {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  min-width: 100px;
+}
+
+.contextMenuItemDefault {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.contextMenuItemDefault:hover {
+  background: var(--bg-hover);
+}
+
+.contextMenuItemDanger {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.contextMenuItemDanger:hover {
+  background: var(--bg-hover);
+}

@@ -1,0 +1,40 @@
+.container {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 300;
+  max-width: 400px;
+}
+
+.toast {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  animation: slideIn 0.2s ease-out;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+
+.error {
+  background: var(--danger);
+  color: #fff;
+}
+
+.info {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

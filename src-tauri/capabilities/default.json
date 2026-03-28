@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicbarker/tauri/main/crates/tauri-utils/schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Sigil",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-create",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-theme",
+    "core:webview:allow-create-webview-window",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "store:default",
+    "core:menu:default"
+  ]
+}

@@ -1,0 +1,31 @@
+.handle {
+  width: 4px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+
+.handle:hover,
+.handle:active {
+  background: var(--accent);
+}
+
+.handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  left: -4px;
+}
+
+.right {
+  margin-left: -2px;
+}
+
+.left {
+  margin-right: -2px;
+}

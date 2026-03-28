@@ -1,0 +1,113 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+export interface Context {
+  name: string;
+  path: string;
+  spec_body: string;
+  technical_decisions: string | null;
+  children: Context[];
+}
+
+export interface SpecTree {
+  name: string;
+  root_path: string;
+  vision: string;
+  root: Context;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface RecentDocument {
+  name: string;
+  path: string;
+  last_opened: number;
+}
+
+export interface Settings {
+  provider: "anthropic" | "openai";
+  api_key: string;
+  model: string;
+  system_prompt: string;
+}
+
+export const api = {
+  readSpecTree: (rootPath: string) =>
+    invoke<SpecTree>("read_spec_tree", { rootPath }),
+
+  readFile: (path: string) =>
+    invoke<string>("read_file", { path }),
+
+  writeFile: (path: string, content: string) =>
+    invoke<void>("write_file", { path, content }),
+
+  createContext: (parentPath: string, name: string) =>
+    invoke<Context>("create_context", { parentPath, name }),
+
+  renameContext: (path: string, newName: string) =>
+    invoke<string>("rename_context", { path, newName }),
+
+  deleteContext: (path: string) =>
+    invoke<void>("delete_context", { path }),
+
+  readChat: (rootPath: string) =>
+    invoke<ChatMessage[]>("read_chat", { rootPath }),
+
+  writeChat: (rootPath: string, messages: ChatMessage[]) =>
+    invoke<void>("write_chat", { rootPath, messages }),
+
+  sendChatMessage: (rootPath: string, message: string, settings: Settings) =>
+    invoke<void>("send_chat_message", { rootPath, message, settings }),
+
+  listRecentDocuments: () =>
+    invoke<RecentDocument[]>("list_recent_documents"),
+
+  addRecentDocument: (path: string) =>
+    invoke<void>("add_recent_document", { path }),
+
+  removeRecentDocument: (path: string) =>
+    invoke<void>("remove_recent_document", { path }),
+
+  exportSpec: (rootPath: string, outputPath: string) =>
+    invoke<void>("export_spec", { rootPath, outputPath }),
+
+  watchDirectory: (rootPath: string) =>
+    invoke<void>("watch_directory", { rootPath }),
+
+  stopWatching: () =>
+    invoke<void>("stop_watching"),
+};
+
+export const events = {
+  onChatToken: (handler: (token: string) => void): Promise<UnlistenFn> =>
+    listen<string>("chat-token", (event) => handler(event.payload)),
+
+  onChatStreamEnd: (handler: () => void): Promise<UnlistenFn> =>
+    listen("chat-stream-end", () => handler()),
+
+  onFsChange: (handler: (paths: string[]) => void): Promise<UnlistenFn> =>
+    listen<string[]>("fs-change", (event) => handler(event.payload)),
+};
+
+let windowCounter = 0;
+
+export function openInNewWindow(rootPath: string): void {
+  const label = `editor-${++windowCounter}-${Date.now()}`;
+  new WebviewWindow(label, {
+    url: `index.html?root=${encodeURIComponent(rootPath)}`,
+    title: rootPath.split("/").pop() || "Sigil",
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+  });
+}
+
+export function getInitialRootPath(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("root");
+}

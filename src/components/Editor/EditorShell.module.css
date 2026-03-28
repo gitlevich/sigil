@@ -1,0 +1,64 @@
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editorArea {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.fullEditor {
+  flex: 1;
+  overflow: auto;
+}
+
+.splitLeft {
+  flex: 1;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+}
+
+.splitRight {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.inherited {
+  padding: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.inheritedLabel {
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0 0 1rem;
+}
+
+.createTechBtn {
+  padding: 0.4rem 0.8rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.createTechBtn:hover {
+  background: var(--accent-hover);
+}
