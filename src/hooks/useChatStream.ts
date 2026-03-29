@@ -118,8 +118,8 @@ export function useChatStream() {
     }
 
     const stylePrefix = state.settings.response_style === "detailed"
-      ? "STYLE: Explain your reasoning thoroughly. Provide full context and justification for each observation.\n\n"
-      : "STYLE: Be concise. Short clear paragraphs, no lists. We are having a conversation, not writing a report. Stay at the current level of abstraction.\n\n";
+      ? ""
+      : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
     const systemPrompt = stylePrefix + state.settings.system_prompt;
 
     try {
