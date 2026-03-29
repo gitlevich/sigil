@@ -1,4 +1,8 @@
-# Sigil
+<p align="center">
+  <img src="icon.svg" width="128" height="128" alt="Sigil">
+</p>
+
+<h1 align="center">Sigil</h1>
 
 A desktop tool for writing hierarchical domain language before you write code — and for giving an AI agent enough structured context to think alongside you.
 
