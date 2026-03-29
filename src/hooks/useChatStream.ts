@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
+import { useToast } from "./useToast";
 
 export function useChatStream() {
   const dispatch = useAppDispatch();
   const state = useAppState();
+  const { addToast } = useToast();
   const accumulatorRef = useRef("");
+  // Use refs so event listeners always see current state without re-registering
+  const docRef = useRef(state.document);
+  docRef.current = state.document;
 
-  const doc = state.document;
-
+  // Register event listeners once, use refs to access current state
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
       accumulatorRef.current += token;
-      if (!doc) return;
-      const msgs = [...doc.chatMessages];
+      const currentDoc = docRef.current;
+      if (!currentDoc) return;
+      const msgs = [...currentDoc.chatMessages];
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
         msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
@@ -23,20 +28,33 @@ export function useChatStream() {
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatMessages: msgs } });
     });
 
-    const unlistenEnd = events.onChatStreamEnd(() => {
-      if (!doc) return;
+    const unlistenError = events.onChatError((error) => {
+      addToast(error, "error");
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-      api.writeChat(doc.sigil.root_path, doc.chatMessages).catch(console.error);
+      accumulatorRef.current = "";
+    });
+
+    const unlistenEnd = events.onChatStreamEnd(() => {
+      const currentDoc = docRef.current;
+      if (!currentDoc) return;
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      // Read messages from the ref to get the final accumulated state
+      const finalDoc = docRef.current;
+      if (finalDoc) {
+        api.writeChat(finalDoc.sigil.root_path, finalDoc.chatMessages).catch(console.error);
+      }
       accumulatorRef.current = "";
     });
 
     return () => {
       unlistenToken.then((fn) => fn());
+      unlistenError.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
-  }, [doc, dispatch]);
+  }, [dispatch]); // Only depends on dispatch (stable)
 
   const sendMessage = useCallback(async (message: string) => {
+    const doc = docRef.current;
     if (!doc) return;
 
     const newMessages: ChatMessage[] = [
@@ -52,15 +70,19 @@ export function useChatStream() {
     await api.writeChat(doc.sigil.root_path, newMessages);
     accumulatorRef.current = "";
 
-    api.sendChatMessage(
-      doc.sigil.root_path,
-      message,
-      state.settings
-    ).catch((err) => {
-      console.error("Chat error:", err);
+    try {
+      await api.sendChatMessage(
+        doc.sigil.root_path,
+        message,
+        state.settings
+      );
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("Chat error:", errorMsg);
+      addToast(errorMsg, "error");
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-    });
-  }, [doc, state.settings, dispatch]);
+    }
+  }, [state.settings, dispatch, addToast]);
 
   return { sendMessage };
 }

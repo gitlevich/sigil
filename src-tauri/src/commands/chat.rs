@@ -3,7 +3,7 @@ use std::path::Path;
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{ChatMessage, ChatRole};
-use crate::models::settings::{AiProvider, Settings};
+use crate::models::settings::{AiProvider, Settings, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 
 fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
@@ -62,30 +62,44 @@ pub async fn send_chat_message(
     settings: Settings,
 ) -> Result<(), String> {
     let spec_context = assemble_sigil_context(&root_path)?;
-    let mut history = read_chat(root_path.clone())?;
 
+    let system_prompt = if settings.system_prompt.trim().is_empty() {
+        DEFAULT_SYSTEM_PROMPT.to_string()
+    } else {
+        settings.system_prompt.clone()
+    };
+
+    let mut history = read_chat(root_path.clone())?;
     history.push(ChatMessage {
         role: ChatRole::User,
         content: message,
     });
 
-    match settings.provider {
+    let result = match settings.provider {
         AiProvider::Anthropic => {
-            stream_anthropic(&app, &spec_context, &history, &settings).await?;
+            stream_anthropic(&app, &spec_context, &history, &settings, &system_prompt).await
         }
         AiProvider::OpenAI => {
-            stream_openai(&app, &spec_context, &history, &settings).await?;
+            stream_openai(&app, &spec_context, &history, &settings, &system_prompt).await
         }
+    };
+
+    if let Err(ref err) = result {
+        // Emit the error so the frontend can display it even if the
+        // invoke promise rejection doesn't surface properly
+        let _ = app.emit("chat-error", err.clone());
+        let _ = app.emit("chat-stream-end", ());
     }
 
-    Ok(())
+    result
 }
 
 async fn stream_anthropic(
     app: &AppHandle,
-    spec_context: &str,
+    sigil_context: &str,
     history: &[ChatMessage],
     settings: &Settings,
+    system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
 
@@ -102,7 +116,7 @@ async fn stream_anthropic(
     let body = serde_json::json!({
         "model": settings.model,
         "max_tokens": 4096,
-        "system": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", settings.system_prompt, spec_context),
+        "system": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context),
         "messages": messages,
         "stream": true,
     });
@@ -115,7 +129,7 @@ async fn stream_anthropic(
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Network error: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -127,7 +141,7 @@ async fn stream_anthropic(
     let mut buffer = String::new();
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
+        let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
         while let Some(line_end) = buffer.find('\n') {
@@ -149,6 +163,12 @@ async fn stream_anthropic(
                         let _ = app.emit("chat-stream-end", ());
                         return Ok(());
                     }
+                    if event["type"] == "error" {
+                        let err_msg = event["error"]["message"]
+                            .as_str()
+                            .unwrap_or("Unknown streaming error");
+                        return Err(format!("Anthropic stream error: {}", err_msg));
+                    }
                 }
             }
         }
@@ -160,15 +180,16 @@ async fn stream_anthropic(
 
 async fn stream_openai(
     app: &AppHandle,
-    spec_context: &str,
+    sigil_context: &str,
     history: &[ChatMessage],
     settings: &Settings,
+    system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
 
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
-        "content": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", settings.system_prompt, spec_context),
+        "content": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context),
     })];
 
     for m in history {
@@ -191,7 +212,7 @@ async fn stream_openai(
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Network error: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -203,7 +224,7 @@ async fn stream_openai(
     let mut buffer = String::new();
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
+        let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
         while let Some(line_end) = buffer.find('\n') {

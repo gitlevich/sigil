@@ -89,6 +89,9 @@ export const events = {
   onChatStreamEnd: (handler: () => void): Promise<UnlistenFn> =>
     listen("chat-stream-end", () => handler()),
 
+  onChatError: (handler: (error: string) => void): Promise<UnlistenFn> =>
+    listen<string>("chat-error", (event) => handler(event.payload)),
+
   onFsChange: (handler: (paths: string[]) => void): Promise<UnlistenFn> =>
     listen<string[]>("fs-change", (event) => handler(event.payload)),
 };
