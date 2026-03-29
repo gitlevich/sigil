@@ -2,6 +2,28 @@
   padding: 0.5rem;
 }
 
+.treeHeader {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0.25rem 0.35rem;
+}
+
+.addBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  line-height: 1.4;
+}
+
+.addBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .node {
   user-select: none;
 }

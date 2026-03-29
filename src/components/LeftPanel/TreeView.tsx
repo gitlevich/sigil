@@ -128,8 +128,31 @@ export function TreeView() {
     }
   };
 
+  const currentCtx = findContextByPath(doc.sigil.root, doc.currentPath);
+  const canAdd = currentCtx ? currentCtx.children.length < 5 : false;
+
+  const handleAddHere = () => {
+    if (!currentCtx) return;
+    const name = prompt("New context name:");
+    if (!name?.trim()) return;
+    api.createContext(currentCtx.path, name.trim())
+      .then(() => reload(doc.sigil.root_path))
+      .catch(console.error);
+  };
+
   return (
     <div className={styles.tree}>
+      <div className={styles.treeHeader}>
+        {canAdd && (
+          <button
+            className={styles.addBtn}
+            onClick={handleAddHere}
+            title={`Add context inside ${currentCtx?.name}`}
+          >
+            +
+          </button>
+        )}
+      </div>
       <TreeNode
         context={doc.sigil.root}
         path={[]}
