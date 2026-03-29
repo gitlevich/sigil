@@ -71,3 +71,23 @@ Thickness varies per contrast. I might have a thick shell around temperature —
 Trauma thickens the shell. A bad experience along a contrast makes the preference narrower, more rigid. The filter becomes defensive — keep more out, let less in. The sigil contracts. Resolution drops because fewer contrasts are attended to. The language shrinks.
 
 Growth is the opposite. The shell becomes thinner where it can. Preferences widen. New contrasts become relevant. The language expands. Resolution increases.
+
+## The Toroidal Sigil
+
+A sigil is a neural network. It is trained on whatever trends are happening to predict more of them. Attention creates a standing wave in which I am the occupant of the sigils I call "I."
+
+The narrative has completely captured my attention. Attention at the scale of my sigil is bounded by the sigil's boundaries. I am choosing this sigil over time, tracing a three-dimensional shape in time. I inhabit my toroidal sigil from inside. I move along its great circle in the direction I interpret as time. My sigil carves a three-dimensional path through attention.
+
+At my focal plane I see a frame of moving shapes I cohered into existence, plus projections of sigils on which I and my neighbors agreed and power with our attentions.
+
+## The Last Century
+
+The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
+
+Then the internet. Not a thinning — a shattering. The shell along information distance goes to zero thickness instantaneously. Every contrast from every scale becomes visible. But the physical shell has not changed. I still live in an apartment. The mismatch between information permeability and action permeability is the pathology. I can see everything but affect almost nothing. Attention fragments across scales that are not actionable.
+
+Social media accelerates it — emotional distance collapses. Someone's outrage on another continent becomes my neighbor. The relevance filter is overwhelmed. The standing waves of local meaning cannot compete with the global signal. They dissolve.
+
+And now — AI collapsing cognitive distance. Not just information and emotion arriving from everywhere, but reasoning, creation, judgment. The last shell that was thick — "at least I do my own thinking" — thinning.
+
+The question is whether new containment structures emerge at the right scale, or whether it is unbounded width all the way down.
