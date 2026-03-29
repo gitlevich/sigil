@@ -12,9 +12,10 @@
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  width: 600px;
+  width: 700px;
   max-width: 90vw;
-  max-height: 80vh;
+  height: 85vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
