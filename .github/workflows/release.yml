@@ -36,10 +36,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      # Code signing — only runs if APPLE_CERTIFICATE secret is set.
-      # Without it, the build still succeeds but isn't signed/notarized.
+      # When APPLE_CERTIFICATE is set, import it for real code signing.
+      # Otherwise we ad-hoc sign (works for testing, not for distribution).
       - name: Import Apple certificate
-        if: env.APPLE_CERTIFICATE != ''
+        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -58,8 +58,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Apple signing — optional, set these when you have a Developer ID certificate
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Apple signing — leave empty for ad-hoc, set secrets for real signing
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
