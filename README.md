@@ -16,7 +16,11 @@ You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let yo
 
 A sigil is a structured representation of how you think about a system. It's a tree of bounded contexts, each with its own domain language and technical decisions, constrained to five sub-contexts per level. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
 
-When you chat with the AI review agent, it sees everything: the vision, every context's domain language, every technical decision, the full hierarchy. It inhabits your mental space. It can find the contradiction between what Auth promises and what SessionStore delivers. It can notice that your Billing context uses language that belongs in Notifications. It reviews not a document but a model of your thinking.
+The sigil becomes the AI agent's context. The entire tree — vision, domain language, technical decisions at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
+
+But the structure does something more fundamental than just providing context. When you navigate to a context — say, Auth — you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside that context becomes periphery. You don't think about Billing while you're defining Auth's language. The agent doesn't either. You both give full attention to the bounded problem in front of you, because the hierarchy has already handled the separation. The periphery isn't lost — it's held by the structure so neither of you has to hold it in mind.
+
+This is how attention works. Not by seeing everything at once, but by knowing what to ignore. The tree of contexts is a mutual contract between you and the agent about what matters right now.
 
 A sigil lives on your file system as a directory hierarchy — plain directories and markdown files. No proprietary format, no database, no lock-in. Put it in git and it versions like code.
 
