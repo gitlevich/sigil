@@ -10,20 +10,23 @@ When you talk to the AI agent, it inhabits your entire sigil. When you navigate 
 
 ### Sigil
 
-A sigil is a bounded context powered by attention. It has a name, domain language, and optionally machinery. It contains up to five other sigils. It is always contained in another sigil. There is no root in any absolute sense — what appears as "the root" in the tool is simply the sigil you opened, which itself exists in a larger context you're not looking at right now.
+A sigil is a named pattern that attention recognizes. It has a boundary, and inside that boundary you can define other sigils — up to five. The boundary is what makes it a bounded context. The name is what makes it addressable. The entanglements are its behavior — how it relates to its neighbors.
+
+A sigil is always contained in another sigil. There is no root in any absolute sense — what appears as "the root" in the tool is simply the sigil you opened, which itself exists in a larger context you're not looking at right now.
 
 A sigil without attention is inert. When an attention — human or AI — attends to a sigil, it comes alive. The attention powers it. Multiple attentions can attend to the same sigil simultaneously.
 
+Inside a containing sigil, you write sentences using the names of the sigils it contains. That's the domain language of that level — a narrative woven from up to five named concepts. Each of those concepts is itself a sigil, with its own interior, its own five concepts, its own narrative. But from outside, you only see the name and the entanglements.
+
 A sigil has:
 
-- **Name**: the directory name on disk.
-- **Domain language**: what this bounded context is, why it exists, what it means — in the language of this level of abstraction. Stored as `language.md`.
-- **Machinery**: how this bounded context is realized — architectural choices, technology stack, design patterns. Stored as `technical.md`. Optional — if absent, the containing sigil's machinery applies.
+- **Name**: the directory name on disk. What makes it addressable.
+- **Domain language**: the narrative at this level of abstraction — sentences woven from the names of the sigils it contains. Stored as `language.md`.
 - **Contained sigils**: up to 5 sigils inside this one.
 
 ### Containment
 
-A sigil contains sigils. This is not a parent-child relationship — it is containment. The contained sigils are inhabitants of the space the containing sigil defines. They share that space. The containing sigil's domain language is the bounded context within which they all operate.
+A sigil contains sigils. This is not a parent-child relationship — it is containment. The contained sigils inhabit the space the containing sigil defines. They share that space.
 
 The language of a containing sigil is not imposed from above. It emerges from the entanglements its inhabitants declare with each other. The inhabitants define the language of the space they share.
 
