@@ -18,6 +18,7 @@
     "dialog:allow-ask",
     "dialog:allow-confirm",
     "store:default",
-    "core:menu:default"
+    "core:menu:default",
+    "updater:default"
   ]
 }

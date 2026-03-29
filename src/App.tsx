@@ -4,6 +4,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useAppMenu } from "./hooks/useAppMenu";
+import { useUpdater } from "./hooks/useUpdater";
 import { useSigil } from "./hooks/useSigil";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { EditorShell } from "./components/Editor/EditorShell";
@@ -24,6 +25,7 @@ export function App({ initialRootPath }: AppProps) {
   useSettingsPersistence();
   useFileWatcher();
   useAppMenu();
+  useUpdater();
 
   useEffect(() => {
     if (opened.current) return;

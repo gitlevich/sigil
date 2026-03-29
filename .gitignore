@@ -25,6 +25,9 @@ src-tauri/icons/appx/
 # Tauri generated schemas
 src-tauri/gen/
 
+# Updater private key (NEVER commit)
+src-tauri/.tauri-updater-key
+
 # Temporary
 app-icon.png
 spec/
