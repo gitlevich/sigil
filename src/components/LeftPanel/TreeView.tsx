@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
@@ -131,7 +132,7 @@ function GhostInput({ onSubmit, parentPath }: { onSubmit: (name: string) => Prom
         placeholder="new context..."
         onKeyDown={(e) => {
           if (e.key === "Enter") handleSubmit();
-          if (e.key === "Escape") { setValue(""); e.currentTarget.blur(); }
+          if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setValue(""); e.currentTarget.blur(); }
         }}
       />
     </div>
@@ -160,6 +161,18 @@ export function TreeView() {
       renameInputRef.current.select();
     }
   }, [renaming]);
+
+  // Listen for menu-triggered rename/move
+  useEffect(() => {
+    const unlistenRename = listen("rename-sigil-request", () => {
+      if (!doc) return;
+      const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
+      if (ctx) {
+        setRenaming({ path: doc.currentPath, name: ctx.name });
+      }
+    });
+    return () => { unlistenRename.then((fn) => fn()); };
+  }, [doc]);
 
   if (!doc) return null;
 
@@ -278,7 +291,7 @@ export function TreeView() {
                   const ctx = findContextByPath(doc.sigil.root, renaming.path);
                   if (ctx) handleRename(ctx.path, renaming.name, e.currentTarget.value);
                 }
-                if (e.key === "Escape") setRenaming(null);
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenaming(null); }
               }}
               onBlur={(e) => {
                 const ctx = findContextByPath(doc.sigil.root, renaming.path);

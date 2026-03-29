@@ -67,7 +67,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
                 onChange={(e) => setRenameName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleRename();
-                  if (e.key === "Escape") setRenaming(false);
+                  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenaming(false); }
                 }}
                 onBlur={handleRename}
               />

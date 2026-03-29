@@ -145,20 +145,9 @@ async function buildMenu(
         accelerator: "Alt+CmdOrCtrl+R",
         action: async () => {
           const doc = getDoc();
-          if (!doc || doc.currentPath.length === 0) return;
-          // Emit a custom event that the tree/editor can listen for
+          if (!doc) return;
           const { emit } = await import("@tauri-apps/api/event");
           await emit("rename-sigil-request");
-        },
-      }),
-      await MenuItem.new({
-        text: "Move Sigil...",
-        accelerator: "Alt+CmdOrCtrl+M",
-        action: async () => {
-          const doc = getDoc();
-          if (!doc || doc.currentPath.length === 0) return;
-          const { emit } = await import("@tauri-apps/api/event");
-          await emit("move-sigil-request");
         },
       }),
     ],
