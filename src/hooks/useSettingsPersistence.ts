@@ -6,10 +6,14 @@ import { Settings } from "../tauri";
 const STORE_FILE = "settings.json";
 
 interface PersistedDocState {
+  rootPath: string;
+  currentPath: string[];
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "tree";
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
+  contentTab: "language" | "entanglements";
+  activeChatId: string;
 }
 
 export function useSettingsPersistence() {
@@ -89,10 +93,7 @@ export function useSettingsPersistence() {
         if (ui) {
           dispatch({ type: "SET_UI", ui });
         }
-        const docState = await store.get<PersistedDocState>("doc_state");
-        if (docState) {
-          dispatch({ type: "UPDATE_DOCUMENT", updates: docState });
-        }
+        // Doc state is loaded by App.tsx via getPersistedDocState()
         loaded.current = true;
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -155,14 +156,17 @@ export function useSettingsPersistence() {
     if (!state.document) return;
     const doc = state.document;
 
-    // Only save if relevant fields changed
     const prev = prevDoc.current;
     if (
       prev &&
       prev.leftPanelOpen === doc.leftPanelOpen &&
       prev.leftPanelTab === doc.leftPanelTab &&
       prev.rightPanelOpen === doc.rightPanelOpen &&
-      prev.editorMode === doc.editorMode
+      prev.editorMode === doc.editorMode &&
+      prev.contentTab === doc.contentTab &&
+      prev.activeChatId === doc.activeChatId &&
+      JSON.stringify(prev.currentPath) === JSON.stringify(doc.currentPath) &&
+      prev.sigil.root_path === doc.sigil.root_path
     ) {
       return;
     }
@@ -172,15 +176,28 @@ export function useSettingsPersistence() {
       try {
         const store = await load(STORE_FILE);
         await store.set("doc_state", {
+          rootPath: doc.sigil.root_path,
+          currentPath: doc.currentPath,
           leftPanelOpen: doc.leftPanelOpen,
           leftPanelTab: doc.leftPanelTab,
           rightPanelOpen: doc.rightPanelOpen,
           editorMode: doc.editorMode,
-        });
+          contentTab: doc.contentTab,
+          activeChatId: doc.activeChatId,
+        } as PersistedDocState);
         await store.save();
       } catch (err) {
         console.error("Failed to save doc state:", err);
       }
     })();
   }, [state.document]);
+}
+
+export async function getPersistedDocState(): Promise<PersistedDocState | null> {
+  try {
+    const store = await load(STORE_FILE);
+    return await store.get<PersistedDocState>("doc_state") || null;
+  } catch {
+    return null;
+  }
 }
