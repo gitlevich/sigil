@@ -77,6 +77,9 @@ export const api = {
   writeFile: (path: string, content: string) =>
     invoke<void>("write_file", { path, content }),
 
+  revealInFinder: (path: string) =>
+    invoke<void>("reveal_in_finder", { path }),
+
   createContext: (parentPath: string, name: string) =>
     invoke<Context>("create_context", { parentPath, name }),
 

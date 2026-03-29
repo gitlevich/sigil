@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 #[tauri::command]
 pub fn read_file(path: String) -> Result<String, String> {
@@ -15,4 +16,13 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
         }
     }
     fs::write(&path, content).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+#[tauri::command]
+pub fn reveal_in_finder(path: String) -> Result<(), String> {
+    Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| format!("Failed to open Finder: {}", e))?;
+    Ok(())
 }

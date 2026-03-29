@@ -143,6 +143,21 @@ export function TreeView() {
           className={styles.contextMenu}
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          {contextMenu.context.children.length < 5 && (
+            <button
+              className={styles.menuItem}
+              onClick={() => {
+                const name = prompt("New context name:");
+                if (!name?.trim()) { setContextMenu(null); return; }
+                api.createContext(contextMenu.context.path, name.trim())
+                  .then(() => reload(doc.sigil.root_path))
+                  .catch(console.error);
+                setContextMenu(null);
+              }}
+            >
+              Add Context
+            </button>
+          )}
           <button
             className={styles.menuItem}
             onClick={() => {
@@ -154,6 +169,15 @@ export function TreeView() {
             }}
           >
             Rename
+          </button>
+          <button
+            className={styles.menuItem}
+            onClick={() => {
+              api.revealInFinder(contextMenu.context.path).catch(console.error);
+              setContextMenu(null);
+            }}
+          >
+            Open in Finder
           </button>
           {contextMenu.path.length > 0 && (
             <button
