@@ -1,3 +1,6 @@
+---
+status: wip
+---
 # Integration
 
 Sibling contexts can declare integrations — formal relationships with strategic design policies:

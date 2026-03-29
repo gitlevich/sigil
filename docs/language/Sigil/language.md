@@ -1,3 +1,6 @@
+---
+status: ready
+---
 # Sigil
 
 A sigil is a bounded context with recursive containment. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right.
