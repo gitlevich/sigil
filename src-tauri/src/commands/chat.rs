@@ -55,6 +55,74 @@ pub fn write_chat(root_path: String, messages: Vec<ChatMessage>) -> Result<(), S
 }
 
 #[tauri::command]
+pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+
+    match provider.as_str() {
+        "anthropic" => {
+            let response = client
+                .get("https://api.anthropic.com/v1/models?limit=100")
+                .header("x-api-key", &api_key)
+                .header("anthropic-version", "2023-06-01")
+                .send()
+                .await
+                .map_err(|e| format!("Network error: {}", e))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(format!("Anthropic API error {}: {}", status, body));
+            }
+
+            let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+            let models = body["data"]
+                .as_array()
+                .map(|arr| {
+                    let mut ids: Vec<String> = arr
+                        .iter()
+                        .filter_map(|m| m["id"].as_str().map(String::from))
+                        .collect();
+                    ids.sort();
+                    ids
+                })
+                .unwrap_or_default();
+            Ok(models)
+        }
+        "openai" => {
+            let response = client
+                .get("https://api.openai.com/v1/models")
+                .header("Authorization", format!("Bearer {}", api_key))
+                .send()
+                .await
+                .map_err(|e| format!("Network error: {}", e))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(format!("OpenAI API error {}: {}", status, body));
+            }
+
+            let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+            let models = body["data"]
+                .as_array()
+                .map(|arr| {
+                    let mut ids: Vec<String> = arr
+                        .iter()
+                        .filter_map(|m| m["id"].as_str().map(String::from))
+                        // Filter to chat-capable models
+                        .filter(|id| id.starts_with("gpt-") || id.starts_with("o1") || id.starts_with("o3") || id.starts_with("o4"))
+                        .collect();
+                    ids.sort();
+                    ids
+                })
+                .unwrap_or_default();
+            Ok(models)
+        }
+        _ => Err(format!("Unknown provider: {}", provider)),
+    }
+}
+
+#[tauri::command]
 pub async fn send_chat_message(
     app: AppHandle,
     root_path: String,

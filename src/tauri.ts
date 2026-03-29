@@ -54,6 +54,9 @@ export const api = {
   deleteContext: (path: string) =>
     invoke<void>("delete_context", { path }),
 
+  listModels: (provider: string, apiKey: string) =>
+    invoke<string[]>("list_models", { provider, apiKey }),
+
   readChat: (rootPath: string) =>
     invoke<ChatMessage[]>("read_chat", { rootPath }),
 

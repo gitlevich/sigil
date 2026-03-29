@@ -83,6 +83,18 @@
   margin-bottom: 0.3rem;
 }
 
+.hint {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.hintError {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--danger);
+}
+
 .select, .input {
   width: 100%;
   padding: 0.5rem;

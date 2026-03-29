@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAppState, useAppDispatch, ThemePreference } from "../../state/AppContext";
-import { Settings } from "../../tauri";
+import { Settings, api } from "../../tauri";
 import styles from "./SettingsDialog.module.css";
 
 const DEFAULT_SYSTEM_PROMPT = `You are reviewing a hierarchical application sigil. A sigil is structured as a tree of bounded contexts. Each context defines domain language at its level of abstraction and may contain up to five sub-contexts. Each context has a domain language document describing what it is and why it exists, and optionally technical decisions describing architectural and implementation choices. Technical decisions inherit from parent to child unless overridden. The root includes a vision statement defining the application's purpose. Your role is to review this sigil for coherence, completeness, and readiness for implementation. Identify gaps, ambiguities, contradictions, missing contexts, and unclear language.`;
@@ -10,11 +10,39 @@ export function SettingsDialog() {
   const dispatch = useAppDispatch();
   const [local, setLocal] = useState<Settings>(state.settings);
   const [localTheme, setLocalTheme] = useState<ThemePreference>(state.themePreference);
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
 
   useEffect(() => {
     setLocal(state.settings);
     setLocalTheme(state.themePreference);
   }, [state.settings, state.themePreference]);
+
+  // Fetch models when provider or API key changes
+  useEffect(() => {
+    if (!state.settingsOpen) return;
+    if (!local.api_key.trim()) {
+      setModels([]);
+      setModelsError(null);
+      return;
+    }
+
+    setModelsLoading(true);
+    setModelsError(null);
+
+    api.listModels(local.provider, local.api_key)
+      .then((result) => {
+        setModels(result);
+        // If current model isn't in the list, keep it (user may have typed a valid one)
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setModelsError(msg);
+        setModels([]);
+      })
+      .finally(() => setModelsLoading(false));
+  }, [local.provider, local.api_key, state.settingsOpen]);
 
   if (!state.settingsOpen) return null;
 
@@ -75,13 +103,32 @@ export function SettingsDialog() {
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label}>Model</label>
-            <input
-              className={styles.input}
-              value={local.model}
-              onChange={(e) => setLocal({ ...local, model: e.target.value })}
-              placeholder="e.g., claude-sonnet-4-20250514"
-            />
+            <label className={styles.label}>
+              Model
+              {modelsLoading && <span className={styles.hint}> (loading...)</span>}
+              {modelsError && <span className={styles.hintError}> (failed to fetch models)</span>}
+            </label>
+            {models.length > 0 ? (
+              <select
+                className={styles.select}
+                value={local.model}
+                onChange={(e) => setLocal({ ...local, model: e.target.value })}
+              >
+                {!models.includes(local.model) && local.model && (
+                  <option value={local.model}>{local.model}</option>
+                )}
+                {models.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className={styles.input}
+                value={local.model}
+                onChange={(e) => setLocal({ ...local, model: e.target.value })}
+                placeholder={local.api_key ? "Enter API key to load models" : "e.g., claude-sonnet-4-20250514"}
+              />
+            )}
           </div>
 
           <div className={styles.field}>
