@@ -5,6 +5,7 @@ use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
+use crate::commands::tools;
 
 fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     let sigil = read_sigil(root_path.to_string())?;
@@ -263,8 +264,9 @@ async fn stream_anthropic(
     system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
+    let tool_defs = tools::tool_definitions();
 
-    let messages: Vec<serde_json::Value> = history
+    let mut messages: Vec<serde_json::Value> = history
         .iter()
         .map(|m| {
             serde_json::json!({
@@ -274,65 +276,107 @@ async fn stream_anthropic(
         })
         .collect();
 
-    let body = serde_json::json!({
-        "model": profile.model,
-        "max_tokens": 4096,
-        "system": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context),
-        "messages": messages,
-        "stream": true,
-    });
+    let system = format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context);
 
-    let response = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", &profile.api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Network error: {}", e))?;
+    // Tool use loop: keep calling until the model responds with text only (no tool_use)
+    loop {
+        let body = serde_json::json!({
+            "model": profile.model,
+            "max_tokens": 4096,
+            "system": system,
+            "messages": messages,
+            "tools": tool_defs,
+        });
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_body = response.text().await.unwrap_or_default();
-        return Err(format!("Anthropic API error {}: {}", status, error_body));
-    }
+        let response = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &profile.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
 
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response.text().await.unwrap_or_default();
+            return Err(format!("Anthropic API error {}: {}", status, error_body));
+        }
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        let resp_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        let stop_reason = resp_body["stop_reason"].as_str().unwrap_or("");
+        let content = resp_body["content"].as_array().cloned().unwrap_or_default();
 
-        while let Some(line_end) = buffer.find('\n') {
-            let line = buffer[..line_end].to_string();
-            buffer = buffer[line_end + 1..].to_string();
-
-            if let Some(data) = line.strip_prefix("data: ") {
-                if data == "[DONE]" {
-                    let _ = app.emit("chat-stream-end", ());
-                    return Ok(());
-                }
-                if let Ok(event) = serde_json::from_str::<serde_json::Value>(data) {
-                    if event["type"] == "content_block_delta" {
-                        if let Some(text) = event["delta"]["text"].as_str() {
-                            let _ = app.emit("chat-token", text.to_string());
-                        }
-                    }
-                    if event["type"] == "message_stop" {
-                        let _ = app.emit("chat-stream-end", ());
-                        return Ok(());
-                    }
-                    if event["type"] == "error" {
-                        let err_msg = event["error"]["message"]
-                            .as_str()
-                            .unwrap_or("Unknown streaming error");
-                        return Err(format!("Anthropic stream error: {}", err_msg));
-                    }
+        // Emit any text blocks to the frontend
+        for block in &content {
+            if block["type"] == "text" {
+                if let Some(text) = block["text"].as_str() {
+                    let _ = app.emit("chat-token", text.to_string());
                 }
             }
         }
+
+        // If the model wants to use tools, execute them and continue the loop
+        if stop_reason == "tool_use" {
+            let tool_blocks: Vec<&serde_json::Value> = content
+                .iter()
+                .filter(|b| b["type"] == "tool_use")
+                .collect();
+
+            if tool_blocks.is_empty() {
+                break;
+            }
+
+            // Add the assistant message with all content blocks
+            messages.push(serde_json::json!({
+                "role": "assistant",
+                "content": content,
+            }));
+
+            // Execute each tool and collect results
+            let mut tool_results = Vec::new();
+            for tool_block in &tool_blocks {
+                let tool_name = tool_block["name"].as_str().unwrap_or("");
+                let tool_id = tool_block["id"].as_str().unwrap_or("");
+                let tool_input = &tool_block["input"];
+
+                let _ = app.emit("chat-tool-use", serde_json::json!({
+                    "name": tool_name,
+                    "input": tool_input,
+                }));
+
+                let result = match tools::execute_tool(tool_name, tool_input) {
+                    Ok(output) => serde_json::json!({
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": output,
+                    }),
+                    Err(err) => serde_json::json!({
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": format!("Error: {}", err),
+                        "is_error": true,
+                    }),
+                };
+                tool_results.push(result);
+            }
+
+            // Add tool results as user message
+            messages.push(serde_json::json!({
+                "role": "user",
+                "content": tool_results,
+            }));
+
+            // Notify frontend that the sigil may have changed
+            let _ = app.emit("sigil-changed", ());
+
+            // Continue the loop — the model will see the tool results
+            continue;
+        }
+
+        // No tool use — we're done
+        break;
     }
 
     let _ = app.emit("chat-stream-end", ());

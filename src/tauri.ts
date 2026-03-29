@@ -135,6 +135,12 @@ export const events = {
   onChatError: (handler: (error: string) => void): Promise<UnlistenFn> =>
     listen<string>("chat-error", (event) => handler(event.payload)),
 
+  onChatToolUse: (handler: (tool: { name: string; input: Record<string, unknown> }) => void): Promise<UnlistenFn> =>
+    listen("chat-tool-use", (event) => handler(event.payload as { name: string; input: Record<string, unknown> })),
+
+  onSigilChanged: (handler: () => void): Promise<UnlistenFn> =>
+    listen("sigil-changed", () => handler()),
+
   onFsChange: (handler: (paths: string[]) => void): Promise<UnlistenFn> =>
     listen<string[]>("fs-change", (event) => handler(event.payload)),
 };

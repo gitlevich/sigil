@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { useToast } from "./useToast";
+import { useSigil } from "./useSigil";
 
 export function useChatStream() {
   const dispatch = useAppDispatch();
   const state = useAppState();
   const { addToast } = useToast();
+  const { reload } = useSigil();
   const accumulatorRef = useRef("");
   const docRef = useRef(state.document);
   docRef.current = state.document;
@@ -32,6 +34,28 @@ export function useChatStream() {
       accumulatorRef.current = "";
     });
 
+    const unlistenToolUse = events.onChatToolUse((tool) => {
+      // Show tool use as a system message in the chat
+      accumulatorRef.current += `\n\n*Using tool: ${tool.name}*\n`;
+      const currentDoc = docRef.current;
+      if (!currentDoc) return;
+      const msgs = [...currentDoc.chatMessages];
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.role === "assistant") {
+        msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
+      } else {
+        msgs.push({ role: "assistant", content: accumulatorRef.current });
+      }
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatMessages: msgs } });
+    });
+
+    const unlistenSigilChanged = events.onSigilChanged(() => {
+      const currentDoc = docRef.current;
+      if (currentDoc) {
+        reload(currentDoc.sigil.root_path).catch(console.error);
+      }
+    });
+
     const unlistenEnd = events.onChatStreamEnd(() => {
       const finalDoc = docRef.current;
       if (!finalDoc) return;
@@ -49,6 +73,8 @@ export function useChatStream() {
     return () => {
       unlistenToken.then((fn) => fn());
       unlistenError.then((fn) => fn());
+      unlistenToolUse.then((fn) => fn());
+      unlistenSigilChanged.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
   }, [dispatch]);
