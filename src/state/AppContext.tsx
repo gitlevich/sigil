@@ -42,7 +42,7 @@ type Action =
 
 export const DEFAULT_UI: UIState = {
   leftPanelWidth: 260,
-  rightPanelWidth: 600,
+  rightPanelWidth: 400,
 };
 
 const initialState: AppState = {

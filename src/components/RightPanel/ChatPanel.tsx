@@ -65,7 +65,7 @@ export function ChatPanel() {
       <div className={styles.panel} style={{ width }}>
         <div className={styles.header}>
           <span className={styles.title}>AI Review</span>
-          {state.settings.profiles.length > 1 && (
+          {(state.settings.profiles?.length ?? 0) > 1 && (
             <select
               className={styles.profileSwitch}
               value={state.settings.active_profile_id}
@@ -81,7 +81,7 @@ export function ChatPanel() {
               ))}
             </select>
           )}
-          {state.settings.profiles.length === 1 && (
+          {state.settings.profiles?.length === 1 && (
             <span className={styles.profileLabel}>{state.settings.profiles[0].name}</span>
           )}
           <button

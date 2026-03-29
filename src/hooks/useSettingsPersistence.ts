@@ -22,9 +22,35 @@ export function useSettingsPersistence() {
     (async () => {
       try {
         const store = await load(STORE_FILE);
-        const settings = await store.get<Settings>("ai_settings");
-        if (settings) {
-          dispatch({ type: "SET_SETTINGS", settings });
+        const raw = await store.get<Record<string, unknown>>("ai_settings");
+        if (raw) {
+          // Migrate old flat format to profiles format
+          if (!Array.isArray(raw.profiles)) {
+            const oldProvider = (raw.provider as string) || "anthropic";
+            const oldKey = (raw.api_key as string) || "";
+            const oldModel = (raw.model as string) || "";
+            const oldPrompt = (raw.system_prompt as string) || "";
+            const migrated: Settings = {
+              profiles: oldKey ? [{
+                id: `migrated-${Date.now()}`,
+                name: oldProvider === "anthropic" ? "Claude" : "ChatGPT",
+                provider: oldProvider as "anthropic" | "openai",
+                api_key: oldKey,
+                model: oldModel,
+              }] : [],
+              active_profile_id: oldKey ? `migrated-${Date.now()}` : "",
+              system_prompt: oldPrompt,
+            };
+            // Fix the id reference
+            if (migrated.profiles.length > 0) {
+              migrated.active_profile_id = migrated.profiles[0].id;
+            }
+            dispatch({ type: "SET_SETTINGS", settings: migrated });
+            await store.set("ai_settings", migrated);
+            await store.save();
+          } else {
+            dispatch({ type: "SET_SETTINGS", settings: raw as unknown as Settings });
+          }
         }
         const theme = await store.get<ThemePreference>("theme");
         if (theme) {
