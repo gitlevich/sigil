@@ -19,10 +19,12 @@ interface TreeNodeProps {
   onNavigate: (path: string[]) => void;
   onContextMenu: (e: React.MouseEvent, context: Context, path: string[]) => void;
   onAdd: (parentPath: string) => Promise<void>;
+  onDrop: (sourcePath: string, targetPath: string) => void;
 }
 
-function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd }: TreeNodeProps) {
+function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd, onDrop }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
+  const [dropTarget, setDropTarget] = useState(false);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
   // Highlighted if this node is the highlightedChild of the active node's parent
   const isHighlighted = !isActive && highlightedChild === context.name
@@ -33,12 +35,31 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   return (
     <div className={styles.node}>
       <div
-        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""}`}
+        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${dropTarget ? styles.dropTarget : ""}`}
         onClick={() => onNavigate(path)}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onContextMenu(e, context, path);
+        }}
+        draggable={path.length > 0}
+        onDragStart={(e) => {
+          e.dataTransfer.setData("sigil-path", context.path);
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDropTarget(true);
+        }}
+        onDragLeave={() => setDropTarget(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDropTarget(false);
+          const sourcePath = e.dataTransfer.getData("sigil-path");
+          if (sourcePath && sourcePath !== context.path) {
+            onDrop(sourcePath, context.path);
+          }
         }}
       >
         {hasChildren && (
@@ -67,6 +88,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
               onNavigate={onNavigate}
               onContextMenu={onContextMenu}
               onAdd={onAdd}
+              onDrop={onDrop}
             />
           ))}
           {isActive && !atLimit && (
@@ -156,12 +178,21 @@ export function TreeView() {
       return;
     }
     try {
-      await api.renameContext(oldPath, trimmed);
+      await api.renameSigil(doc.sigil.root_path, oldPath, trimmed);
       await reload(doc.sigil.root_path);
       setRenaming(null);
     } catch (err) {
       console.error("Rename failed:", err);
       setRenaming(null);
+    }
+  };
+
+  const handleMove = async (sourcePath: string, targetPath: string) => {
+    try {
+      await api.moveSigil(doc.sigil.root_path, sourcePath, targetPath);
+      await reload(doc.sigil.root_path);
+    } catch (err) {
+      console.error("Move failed:", err);
     }
   };
 
@@ -191,6 +222,7 @@ export function TreeView() {
         onNavigate={handleNavigate}
         onContextMenu={handleContextMenu}
         onAdd={handleAdd}
+        onDrop={handleMove}
       />
 
       {contextMenu && (

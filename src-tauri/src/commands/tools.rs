@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use crate::commands::sigil::{create_context, delete_context, rename_context};
+use crate::commands::sigil::{create_context, delete_context, rename_context, rename_sigil, move_sigil};
 
 /// Define the tools available to the AI agent
 pub fn tool_definitions() -> Vec<serde_json::Value> {
@@ -88,6 +88,50 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "rename_sigil",
+            "description": "Rename a sigil and update all @references to it across the entire sigil tree.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "root_path": {
+                        "type": "string",
+                        "description": "Absolute path to the sigil root directory"
+                    },
+                    "context_path": {
+                        "type": "string",
+                        "description": "Absolute path to the sigil to rename"
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": "The new name for the sigil"
+                    }
+                },
+                "required": ["root_path", "context_path", "new_name"]
+            }
+        }),
+        serde_json::json!({
+            "name": "move_sigil",
+            "description": "Move a sigil to a different container. The sigil's interior stays intact.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "root_path": {
+                        "type": "string",
+                        "description": "Absolute path to the sigil root directory"
+                    },
+                    "context_path": {
+                        "type": "string",
+                        "description": "Absolute path to the sigil to move"
+                    },
+                    "new_parent_path": {
+                        "type": "string",
+                        "description": "Absolute path to the new container"
+                    }
+                },
+                "required": ["root_path", "context_path", "new_parent_path"]
+            }
+        }),
+        serde_json::json!({
             "name": "write_vision",
             "description": "Write or replace the vision statement (vision.md) at the sigil root.",
             "input_schema": {
@@ -134,6 +178,20 @@ pub fn execute_tool(name: &str, input: &serde_json::Value) -> Result<String, Str
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
             delete_context(ctx_path.to_string())?;
             Ok(format!("Deleted context at {}", ctx_path))
+        }
+        "rename_sigil" => {
+            let root = input["root_path"].as_str().ok_or("Missing root_path")?;
+            let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
+            let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
+            let result = rename_sigil(root.to_string(), ctx_path.to_string(), new_name.to_string())?;
+            Ok(result)
+        }
+        "move_sigil" => {
+            let root = input["root_path"].as_str().ok_or("Missing root_path")?;
+            let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
+            let new_parent = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
+            let new_path = move_sigil(root.to_string(), ctx_path.to_string(), new_parent.to_string())?;
+            Ok(format!("Moved to {}", new_path))
         }
         "read_context" => {
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
