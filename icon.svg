@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="#2a2a2a"/>
+
+  <g transform="translate(512, 512)" fill="none" stroke="#e8e0d4" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Circle -->
+    <circle cx="0" cy="0" r="400"/>
+
+    <!-- Diamond (square rotated 45deg) -->
+    <path d="M 0,-245 L 245,0 L 0,245 L -245,0 Z"/>
+
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="30" fill="#e8e0d4" stroke="none"/>
+  </g>
+</svg>

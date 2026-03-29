@@ -2,6 +2,16 @@ import { useAppState, useAppDispatch } from "../../state/AppContext";
 import { MarkdownPreview } from "../Editor/MarkdownPreview";
 import styles from "./HelpDialog.module.css";
 
+function SigilIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 1024 1024" width={size} height={size} style={{ verticalAlign: "middle", opacity: 0.7 }}>
+      <circle cx="512" cy="512" r="400" fill="none" stroke="currentColor" strokeWidth="48"/>
+      <path d="M512,267 L757,512 L512,757 L267,512 Z" fill="none" stroke="currentColor" strokeWidth="48" strokeLinejoin="round"/>
+      <circle cx="512" cy="512" r="30" fill="currentColor"/>
+    </svg>
+  );
+}
+
 const HELP_CONTENT = `# Sigil
 
 A desktop tool for writing hierarchical domain language before you write code — and for giving an AI agent enough structured context to think alongside you.
@@ -56,6 +66,9 @@ export function HelpDialog() {
     <div className={styles.overlay} onClick={() => dispatch({ type: "SET_HELP_OPEN", open: false })}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.body}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+            <SigilIcon size={32} />
+          </div>
           <MarkdownPreview content={HELP_CONTENT} />
         </div>
         <div className={styles.footer}>
