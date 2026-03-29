@@ -12,8 +12,9 @@ interface PersistedDocState {
   leftPanelTab: "vision" | "tree";
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "entanglements";
+  contentTab: "language" | "integrations";
   activeChatId: string;
+  wordWrap: boolean;
 }
 
 export function useSettingsPersistence() {
@@ -32,14 +33,17 @@ export function useSettingsPersistence() {
           const r = raw as Record<string, unknown>;
           let settings: Settings;
 
-          if (Array.isArray(r.attention_providers)) {
+          if (Array.isArray(r.ai_providers)) {
             // Current format
             settings = r as unknown as Settings;
+          } else if (Array.isArray(r.attention_providers)) {
+            // Migrate from old attention_providers key -> ai_providers
+            settings = { ...r, ai_providers: r.attention_providers } as unknown as Settings;
           } else if (Array.isArray(r.profiles)) {
-            // Previous profiles format -> attention_providers
+            // Previous profiles format -> ai_providers
             const oldProfiles = r.profiles as Array<Record<string, unknown>>;
             settings = {
-              attention_providers: oldProfiles.map((p) => ({
+              ai_providers: oldProfiles.map((p) => ({
                 id: (p.id as string) || `migrated-${Date.now()}`,
                 name: (p.name as string) || "Unknown",
                 provider: (p.provider as "anthropic" | "openai") || "anthropic",
@@ -58,7 +62,7 @@ export function useSettingsPersistence() {
             const oldModel = (r.model as string) || "";
             const id = `migrated-${Date.now()}`;
             settings = {
-              attention_providers: oldKey ? [{
+              ai_providers: oldKey ? [{
                 id,
                 name: oldProvider === "anthropic" ? "Claude" : "ChatGPT",
                 provider: oldProvider as "anthropic" | "openai",
@@ -74,9 +78,9 @@ export function useSettingsPersistence() {
 
           // Ensure defaults for new fields
           if (!settings.response_style || (settings.response_style as string) === "default") settings.response_style = "laconic";
-          if (!settings.attention_providers) settings.attention_providers = [];
+          if (!settings.ai_providers) settings.ai_providers = [];
           // Ensure all providers have the enabled field
-          settings.attention_providers = settings.attention_providers.map((p) => ({
+          settings.ai_providers = settings.ai_providers.map((p) => ({
             ...p,
             enabled: p.enabled !== undefined ? p.enabled : true,
           }));
@@ -165,6 +169,7 @@ export function useSettingsPersistence() {
       prev.editorMode === doc.editorMode &&
       prev.contentTab === doc.contentTab &&
       prev.activeChatId === doc.activeChatId &&
+      prev.wordWrap === doc.wordWrap &&
       JSON.stringify(prev.currentPath) === JSON.stringify(doc.currentPath) &&
       prev.sigil.root_path === doc.sigil.root_path
     ) {
@@ -184,6 +189,7 @@ export function useSettingsPersistence() {
           editorMode: doc.editorMode,
           contentTab: doc.contentTab,
           activeChatId: doc.activeChatId,
+          wordWrap: doc.wordWrap,
         } as PersistedDocState);
         await store.save();
       } catch (err) {

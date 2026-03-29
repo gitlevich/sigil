@@ -1,6 +1,7 @@
 /* ===== Light theme ===== */
 :root,
 [data-theme="light"] {
+  --content-font-size: 16px;
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f7;
   --bg-hover: #e8e8ec;

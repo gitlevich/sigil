@@ -219,7 +219,7 @@ export function ChatPanel() {
             </button>
           )}
           {(() => {
-            const enabled = (state.settings.attention_providers || []).filter((p) => p.enabled);
+            const enabled = (state.settings.ai_providers || []).filter((p) => p.enabled);
             if (enabled.length > 1) {
               return (
                 <select

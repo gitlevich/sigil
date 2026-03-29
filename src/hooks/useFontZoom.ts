@@ -10,9 +10,9 @@ export function useFontZoom() {
   const dispatch = useAppDispatch();
   const fontSize = state.ui.fontSize || 16;
 
-  // Apply font size to root element
+  // Apply font size as a CSS custom property for content areas only
   useEffect(() => {
-    document.documentElement.style.fontSize = `${fontSize}px`;
+    document.documentElement.style.setProperty("--content-font-size", `${fontSize}px`);
   }, [fontSize]);
 
   // Listen for Cmd+/Cmd- keyboard shortcuts

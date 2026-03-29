@@ -42,6 +42,7 @@ export function useSigil() {
         chatMessages,
         chatStreaming: false,
         highlightedChild: null,
+        wordWrap: false,
       },
     });
   }, [dispatch]);

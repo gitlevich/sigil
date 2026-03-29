@@ -23,6 +23,15 @@ const PreviewIcon = () => (
   </svg>
 );
 
+const WrapIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <line x1="3" y1="4" x2="13" y2="4" />
+    <line x1="3" y1="8" x2="11" y2="8" />
+    <path d="M11 8C12.5 8 13 9 13 10C13 11 12.5 12 11 12H7" />
+    <polyline points="8.5,10.5 7,12 8.5,13.5" />
+  </svg>
+);
+
 export function EditorToolbar() {
   const dispatch = useAppDispatch();
   const doc = useDocument();
@@ -30,7 +39,7 @@ export function EditorToolbar() {
 
   const contentTab = doc.contentTab || "language";
 
-  const setTab = (tab: "language" | "entanglements") => {
+  const setTab = (tab: "language" | "integrations") => {
     dispatch({
       type: "UPDATE_DOCUMENT",
       updates: { contentTab: tab },
@@ -39,6 +48,10 @@ export function EditorToolbar() {
 
   const setMode = (mode: "edit" | "split" | "preview") => {
     dispatch({ type: "UPDATE_DOCUMENT", updates: { editorMode: mode } });
+  };
+
+  const toggleWrap = () => {
+    dispatch({ type: "UPDATE_DOCUMENT", updates: { wordWrap: !doc.wordWrap } });
   };
 
   return (
@@ -52,15 +65,15 @@ export function EditorToolbar() {
           Language
         </button>
         <button
-          className={`${styles.contentTab} ${contentTab === "entanglements" ? styles.contentTabActive : ""}`}
-          onClick={() => setTab("entanglements")}
+          className={`${styles.contentTab} ${contentTab === "integrations" ? styles.contentTabActive : ""}`}
+          onClick={() => setTab("integrations")}
           title="Bounded context integration map — drag between contexts to declare relationships"
         >
-          Entanglements
+          Integrations
         </button>
       </div>
 
-      {contentTab !== "entanglements" && (
+      {contentTab !== "integrations" && (
         <div className={styles.viewModes}>
           <button
             className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}
@@ -82,6 +95,14 @@ export function EditorToolbar() {
             title="Rendered preview"
           >
             <PreviewIcon />
+          </button>
+          <span className={styles.separator} />
+          <button
+            className={`${styles.modeBtn} ${doc.wordWrap ? styles.active : ""}`}
+            onClick={toggleWrap}
+            title="Toggle word wrap (Alt+Z)"
+          >
+            <WrapIcon />
           </button>
         </div>
       )}
