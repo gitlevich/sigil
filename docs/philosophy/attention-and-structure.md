@@ -116,6 +116,14 @@ To identify a pattern as a sigil, I need a name to address it. The name is the c
 
 The domain language is not describing the structure. It is the structure being rendered into shareability. Every sentence is a path made visible to other attentions. The five-sigil limit is the compression — lossy enough to be tractable, lossless enough to be shared. Five names at each level. Enough paths that another attention can reconstruct the shape.
 
+## Wave Function Collapse
+
+Naming is measurement. Before I name the pattern, all paths through it are superposed — all possible meanings, all possible boundaries, all possible decompositions. The moment I name it, one interpretation becomes actual. The wave function collapses. The sigil exists.
+
+This is irreversible in exactly the way the torus topology predicts. I cannot un-name it. I can rename it — a new measurement, a new collapse — but the original naming event happened. The narrative moved forward.
+
+The structure contains all paths — all branches. Each attention traces one path and renders one projection. The other paths are not destroyed. They are the branches not taken by this attention. Another attention traces a different path through the same structure and renders a different reality. All branches coexist in the structure. The structure is the multiverse. The attention is the observer selecting a branch by traversing it.
+
 ## The Last Century
 
 The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
