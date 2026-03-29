@@ -305,16 +305,13 @@ export function SettingsDialog() {
             </div>
           </div>
 
-          <div className={styles.section}>
+          <div className={styles.promptSection}>
             <h3 className={styles.sectionTitle}>System Prompt</h3>
-            <div className={styles.field}>
-              <textarea
-                className={styles.textarea}
-                value={local.system_prompt || DEFAULT_SYSTEM_PROMPT}
-                onChange={(e) => setLocal({ ...local, system_prompt: e.target.value })}
-                rows={6}
-              />
-            </div>
+            <textarea
+              className={styles.promptTextarea}
+              value={local.system_prompt || DEFAULT_SYSTEM_PROMPT}
+              onChange={(e) => setLocal({ ...local, system_prompt: e.target.value })}
+            />
           </div>
         </div>
 
