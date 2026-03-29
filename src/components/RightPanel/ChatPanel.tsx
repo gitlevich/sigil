@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { useChatStream } from "../../hooks/useChatStream";
 import { MarkdownPreview } from "../Editor/MarkdownPreview";
 import { ResizeHandle } from "../shared/ResizeHandle";
@@ -7,23 +7,35 @@ import styles from "./ChatPanel.module.css";
 
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
-const DEFAULT_WIDTH = 340;
 
 export function ChatPanel() {
+  const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();
   const { sendMessage } = useChatStream();
   const [input, setInput] = useState("");
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevOpen = useRef(doc?.rightPanelOpen ?? false);
+
+  const width = state.ui.rightPanelWidth;
 
   const handleResize = useCallback((delta: number) => {
-    setWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + delta)));
-  }, []);
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width + delta));
+    dispatch({ type: "SET_UI", ui: { rightPanelWidth: newWidth } });
+  }, [width, dispatch]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [doc?.chatMessages]);
+
+  // Auto-focus input when panel opens
+  useEffect(() => {
+    if (doc?.rightPanelOpen && !prevOpen.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+    prevOpen.current = doc?.rightPanelOpen ?? false;
+  }, [doc?.rightPanelOpen]);
 
   if (!doc) return null;
 
@@ -91,6 +103,7 @@ export function ChatPanel() {
 
         <div className={styles.inputArea}>
           <textarea
+            ref={inputRef}
             className={styles.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}

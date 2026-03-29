@@ -1,9 +1,16 @@
 import { useEffect, useRef } from "react";
 import { load } from "@tauri-apps/plugin-store";
-import { useAppState, useAppDispatch, ThemePreference } from "../state/AppContext";
+import { useAppState, useAppDispatch, ThemePreference, UIState } from "../state/AppContext";
 import { Settings } from "../tauri";
 
 const STORE_FILE = "settings.json";
+
+interface PersistedDocState {
+  leftPanelOpen: boolean;
+  leftPanelTab: "vision" | "tree";
+  rightPanelOpen: boolean;
+  editorMode: "edit" | "split" | "preview";
+}
 
 export function useSettingsPersistence() {
   const state = useAppState();
@@ -23,6 +30,14 @@ export function useSettingsPersistence() {
         if (theme) {
           dispatch({ type: "SET_THEME", theme });
         }
+        const ui = await store.get<UIState>("ui");
+        if (ui) {
+          dispatch({ type: "SET_UI", ui });
+        }
+        const docState = await store.get<PersistedDocState>("doc_state");
+        if (docState) {
+          dispatch({ type: "UPDATE_DOCUMENT", updates: docState });
+        }
         loaded.current = true;
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -31,7 +46,7 @@ export function useSettingsPersistence() {
     })();
   }, [dispatch]);
 
-  // Save when settings or theme change (skip the initial load)
+  // Save settings and theme
   const prevSettings = useRef(state.settings);
   const prevTheme = useRef(state.themePreference);
 
@@ -57,4 +72,60 @@ export function useSettingsPersistence() {
       }
     })();
   }, [state.settings, state.themePreference]);
+
+  // Save UI state (panel widths)
+  const prevUI = useRef(state.ui);
+
+  useEffect(() => {
+    if (!loaded.current) return;
+    if (prevUI.current === state.ui) return;
+    prevUI.current = state.ui;
+
+    (async () => {
+      try {
+        const store = await load(STORE_FILE);
+        await store.set("ui", state.ui);
+        await store.save();
+      } catch (err) {
+        console.error("Failed to save UI state:", err);
+      }
+    })();
+  }, [state.ui]);
+
+  // Save document UI state (panel open/closed, editor mode, active tab)
+  const prevDoc = useRef(state.document);
+
+  useEffect(() => {
+    if (!loaded.current) return;
+    if (!state.document) return;
+    const doc = state.document;
+
+    // Only save if relevant fields changed
+    const prev = prevDoc.current;
+    if (
+      prev &&
+      prev.leftPanelOpen === doc.leftPanelOpen &&
+      prev.leftPanelTab === doc.leftPanelTab &&
+      prev.rightPanelOpen === doc.rightPanelOpen &&
+      prev.editorMode === doc.editorMode
+    ) {
+      return;
+    }
+    prevDoc.current = doc;
+
+    (async () => {
+      try {
+        const store = await load(STORE_FILE);
+        await store.set("doc_state", {
+          leftPanelOpen: doc.leftPanelOpen,
+          leftPanelTab: doc.leftPanelTab,
+          rightPanelOpen: doc.rightPanelOpen,
+          editorMode: doc.editorMode,
+        });
+        await store.save();
+      } catch (err) {
+        console.error("Failed to save doc state:", err);
+      }
+    })();
+  }, [state.document]);
 }

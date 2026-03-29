@@ -55,6 +55,7 @@ export function SettingsDialog() {
   return (
     <div className={styles.overlay} onClick={() => dispatch({ type: "SET_SETTINGS_OPEN", open: false })}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.dialogBody}>
         <h2 className={styles.title}>Settings</h2>
 
         <div className={styles.section}>
@@ -142,6 +143,7 @@ export function SettingsDialog() {
           </div>
         </div>
 
+        </div>
         <div className={styles.actions}>
           <button className={styles.cancelBtn} onClick={() => dispatch({ type: "SET_SETTINGS_OPEN", open: false })}>
             Cancel

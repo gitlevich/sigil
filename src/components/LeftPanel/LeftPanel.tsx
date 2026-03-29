@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useCallback } from "react";
+import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
 import { TreeView } from "./TreeView";
 import { ResizeHandle } from "../shared/ResizeHandle";
@@ -7,16 +7,18 @@ import styles from "./LeftPanel.module.css";
 
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 500;
-const DEFAULT_WIDTH = 260;
 
 export function LeftPanel() {
+  const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
+
+  const width = state.ui.leftPanelWidth;
 
   const handleResize = useCallback((delta: number) => {
-    setWidth((w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w + delta)));
-  }, []);
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width + delta));
+    dispatch({ type: "SET_UI", ui: { leftPanelWidth: newWidth } });
+  }, [width, dispatch]);
 
   if (!doc) return null;
 

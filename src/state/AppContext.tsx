@@ -13,6 +13,11 @@ export interface OpenDocument {
   chatStreaming: boolean;
 }
 
+export interface UIState {
+  leftPanelWidth: number;
+  rightPanelWidth: number;
+}
+
 export type ThemePreference = "light" | "dark" | "system";
 
 interface AppState {
@@ -21,6 +26,7 @@ interface AppState {
   settings: Settings;
   settingsOpen: boolean;
   themePreference: ThemePreference;
+  ui: UIState;
 }
 
 type Action =
@@ -31,7 +37,13 @@ type Action =
   | { type: "UPDATE_SIGIL"; sigil: Sigil }
   | { type: "SET_SETTINGS"; settings: Settings }
   | { type: "SET_SETTINGS_OPEN"; open: boolean }
-  | { type: "SET_THEME"; theme: ThemePreference };
+  | { type: "SET_THEME"; theme: ThemePreference }
+  | { type: "SET_UI"; ui: Partial<UIState> };
+
+export const DEFAULT_UI: UIState = {
+  leftPanelWidth: 260,
+  rightPanelWidth: 600,
+};
 
 const initialState: AppState = {
   screen: "picker",
@@ -44,6 +56,7 @@ const initialState: AppState = {
   },
   settingsOpen: false,
   themePreference: "system",
+  ui: DEFAULT_UI,
 };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -73,6 +86,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_THEME":
       return { ...state, themePreference: action.theme };
+
+    case "SET_UI":
+      return { ...state, ui: { ...state.ui, ...action.ui } };
 
     default:
       return state;
