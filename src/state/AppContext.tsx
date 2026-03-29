@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
-import { Sigil, Settings, ChatMessage } from "../tauri";
+import { Sigil, Settings, ChatMessage, ChatInfo } from "../tauri";
 
 export interface OpenDocument {
   sigil: Sigil;
@@ -9,6 +9,8 @@ export interface OpenDocument {
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "tree";
   rightPanelOpen: boolean;
+  chats: ChatInfo[];
+  activeChatId: string;
   chatMessages: ChatMessage[];
   chatStreaming: boolean;
 }

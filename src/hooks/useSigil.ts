@@ -14,9 +14,18 @@ export function useSigil() {
 
   const openDocument = useCallback(async (rootPath: string) => {
     const sigil: Sigil = await api.readSigil(rootPath);
-    const chatMessages = await api.readChat(rootPath);
+    const chats = await api.listChats(rootPath);
     await api.addRecentDocument(rootPath);
     await api.watchDirectory(rootPath);
+
+    // Load the first chat if any exist, otherwise start empty
+    let activeChatId = "";
+    let chatMessages: { role: "user" | "assistant"; content: string }[] = [];
+    if (chats.length > 0) {
+      activeChatId = chats[0].id;
+      const chat = await api.readChat(rootPath, chats[0].id);
+      chatMessages = chat.messages;
+    }
 
     dispatch({
       type: "SET_DOCUMENT",
@@ -28,6 +37,8 @@ export function useSigil() {
         leftPanelOpen: true,
         leftPanelTab: "tree",
         rightPanelOpen: false,
+        chats,
+        activeChatId,
         chatMessages,
         chatStreaming: false,
       },

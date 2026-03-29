@@ -8,11 +8,9 @@ export function useChatStream() {
   const state = useAppState();
   const { addToast } = useToast();
   const accumulatorRef = useRef("");
-  // Use refs so event listeners always see current state without re-registering
   const docRef = useRef(state.document);
   docRef.current = state.document;
 
-  // Register event listeners once, use refs to access current state
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
       accumulatorRef.current += token;
@@ -35,13 +33,15 @@ export function useChatStream() {
     });
 
     const unlistenEnd = events.onChatStreamEnd(() => {
-      const currentDoc = docRef.current;
-      if (!currentDoc) return;
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-      // Read messages from the ref to get the final accumulated state
       const finalDoc = docRef.current;
-      if (finalDoc) {
-        api.writeChat(finalDoc.sigil.root_path, finalDoc.chatMessages).catch(console.error);
+      if (!finalDoc) return;
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      if (finalDoc.activeChatId) {
+        api.writeChat(finalDoc.sigil.root_path, {
+          id: finalDoc.activeChatId,
+          name: finalDoc.chats.find((c) => c.id === finalDoc.activeChatId)?.name || "Chat",
+          messages: finalDoc.chatMessages,
+        }).catch(console.error);
       }
       accumulatorRef.current = "";
     });
@@ -51,11 +51,20 @@ export function useChatStream() {
       unlistenError.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
-  }, [dispatch]); // Only depends on dispatch (stable)
+  }, [dispatch]);
 
   const sendMessage = useCallback(async (message: string) => {
     const doc = docRef.current;
     if (!doc) return;
+
+    // If no active chat, create one
+    let chatId = doc.activeChatId;
+    if (!chatId) {
+      chatId = `chat-${Date.now()}`;
+      const chatName = `Chat ${doc.chats.length + 1}`;
+      const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0 }];
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats, activeChatId: chatId } });
+    }
 
     const newMessages: ChatMessage[] = [
       ...doc.chatMessages,
@@ -67,7 +76,12 @@ export function useChatStream() {
       updates: { chatMessages: newMessages, chatStreaming: true },
     });
 
-    await api.writeChat(doc.sigil.root_path, newMessages);
+    const chatName = doc.chats.find((c) => c.id === chatId)?.name || `Chat ${doc.chats.length + 1}`;
+    await api.writeChat(doc.sigil.root_path, {
+      id: chatId,
+      name: chatName,
+      messages: newMessages,
+    });
     accumulatorRef.current = "";
 
     const profile = activeProfile(state.settings);
@@ -85,6 +99,7 @@ export function useChatStream() {
     try {
       await api.sendChatMessage(
         doc.sigil.root_path,
+        chatId,
         message,
         profile,
         systemPrompt

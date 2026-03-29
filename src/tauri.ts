@@ -22,6 +22,18 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface Chat {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+}
+
+export interface ChatInfo {
+  id: string;
+  name: string;
+  message_count: number;
+}
+
 export interface RecentDocument {
   name: string;
   path: string;
@@ -71,14 +83,23 @@ export const api = {
   listModels: (provider: string, apiKey: string) =>
     invoke<string[]>("list_models", { provider, apiKey }),
 
-  readChat: (rootPath: string) =>
-    invoke<ChatMessage[]>("read_chat", { rootPath }),
+  listChats: (rootPath: string) =>
+    invoke<ChatInfo[]>("list_chats", { rootPath }),
 
-  writeChat: (rootPath: string, messages: ChatMessage[]) =>
-    invoke<void>("write_chat", { rootPath, messages }),
+  readChat: (rootPath: string, chatId: string) =>
+    invoke<Chat>("read_chat", { rootPath, chatId }),
 
-  sendChatMessage: (rootPath: string, message: string, profile: AiProfile, systemPrompt: string) =>
-    invoke<void>("send_chat_message", { rootPath, message, profile, systemPrompt }),
+  writeChat: (rootPath: string, chat: Chat) =>
+    invoke<void>("write_chat", { rootPath, chat }),
+
+  deleteChat: (rootPath: string, chatId: string) =>
+    invoke<void>("delete_chat", { rootPath, chatId }),
+
+  renameChat: (rootPath: string, chatId: string, newName: string) =>
+    invoke<void>("rename_chat", { rootPath, chatId, newName }),
+
+  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProfile, systemPrompt: string) =>
+    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt }),
 
   listRecentDocuments: () =>
     invoke<RecentDocument[]>("list_recent_documents"),

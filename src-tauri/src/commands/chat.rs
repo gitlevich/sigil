@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};
-use crate::models::chat::{ChatMessage, ChatRole};
+use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 
@@ -37,21 +37,111 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     Ok(output)
 }
 
+fn chats_dir(root_path: &str) -> std::path::PathBuf {
+    Path::new(root_path).join("chats")
+}
+
+fn chat_file(root_path: &str, chat_id: &str) -> std::path::PathBuf {
+    chats_dir(root_path).join(format!("{}.json", chat_id))
+}
+
+/// Migrate legacy chat.json to chats/ directory if needed.
+fn migrate_legacy_chat(root_path: &str) -> Result<(), String> {
+    let legacy = Path::new(root_path).join("chat.json");
+    if !legacy.exists() {
+        return Ok(());
+    }
+    let dir = chats_dir(root_path);
+    if !dir.exists() {
+        fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    }
+    let content = fs::read_to_string(&legacy).map_err(|e| e.to_string())?;
+    let messages: Vec<ChatMessage> = serde_json::from_str(&content).unwrap_or_default();
+    if !messages.is_empty() {
+        let chat = Chat {
+            id: "default".to_string(),
+            name: "Chat 1".to_string(),
+            messages,
+        };
+        let json = serde_json::to_string_pretty(&chat).map_err(|e| e.to_string())?;
+        fs::write(chat_file(root_path, "default"), json).map_err(|e| e.to_string())?;
+    }
+    fs::remove_file(&legacy).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
-pub fn read_chat(root_path: String) -> Result<Vec<ChatMessage>, String> {
-    let chat_path = Path::new(&root_path).join("chat.json");
-    if !chat_path.exists() {
+pub fn list_chats(root_path: String) -> Result<Vec<ChatInfo>, String> {
+    migrate_legacy_chat(&root_path)?;
+    let dir = chats_dir(&root_path);
+    if !dir.exists() {
         return Ok(Vec::new());
     }
-    let content = fs::read_to_string(&chat_path).map_err(|e| e.to_string())?;
+    let mut chats = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        if let Ok(chat) = serde_json::from_str::<Chat>(&content) {
+            chats.push(ChatInfo {
+                id: chat.id,
+                name: chat.name,
+                message_count: chat.messages.len(),
+            });
+        }
+    }
+    chats.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(chats)
+}
+
+#[tauri::command]
+pub fn read_chat(root_path: String, chat_id: String) -> Result<Chat, String> {
+    let path = chat_file(&root_path, &chat_id);
+    if !path.exists() {
+        return Ok(Chat {
+            id: chat_id,
+            name: "New Chat".to_string(),
+            messages: Vec::new(),
+        });
+    }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
     serde_json::from_str(&content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn write_chat(root_path: String, messages: Vec<ChatMessage>) -> Result<(), String> {
-    let chat_path = Path::new(&root_path).join("chat.json");
-    let content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
-    fs::write(&chat_path, content).map_err(|e| e.to_string())
+pub fn write_chat(root_path: String, chat: Chat) -> Result<(), String> {
+    let dir = chats_dir(&root_path);
+    if !dir.exists() {
+        fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    }
+    let path = chat_file(&root_path, &chat.id);
+    let content = serde_json::to_string_pretty(&chat).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_chat(root_path: String, chat_id: String) -> Result<(), String> {
+    let path = chat_file(&root_path, &chat_id);
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn rename_chat(root_path: String, chat_id: String, new_name: String) -> Result<(), String> {
+    let path = chat_file(&root_path, &chat_id);
+    if !path.exists() {
+        return Err("Chat not found".to_string());
+    }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut chat: Chat = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    chat.name = new_name;
+    let json = serde_json::to_string_pretty(&chat).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -126,6 +216,7 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
 pub async fn send_chat_message(
     app: AppHandle,
     root_path: String,
+    chat_id: String,
     message: String,
     profile: AiProfile,
     system_prompt: String,
@@ -138,7 +229,8 @@ pub async fn send_chat_message(
         system_prompt
     };
 
-    let mut history = read_chat(root_path.clone())?;
+    let chat = read_chat(root_path.clone(), chat_id)?;
+    let mut history = chat.messages;
     history.push(ChatMessage {
         role: ChatRole::User,
         content: message,

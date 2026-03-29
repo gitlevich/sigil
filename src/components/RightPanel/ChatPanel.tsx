@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { useChatStream } from "../../hooks/useChatStream";
+import { api } from "../../tauri";
 import { MarkdownPreview } from "../Editor/MarkdownPreview";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./ChatPanel.module.css";
@@ -15,6 +16,7 @@ export function ChatPanel() {
   const { sendMessage } = useChatStream();
   const [input, setInput] = useState("");
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevOpen = useRef(doc?.rightPanelOpen ?? false);
@@ -49,6 +51,14 @@ export function ChatPanel() {
     prevOpen.current = doc?.rightPanelOpen ?? false;
   }, [doc?.rightPanelOpen]);
 
+  useEffect(() => {
+    const handleClick = () => setChatMenu(null);
+    if (chatMenu) {
+      document.addEventListener("click", handleClick);
+      return () => document.removeEventListener("click", handleClick);
+    }
+  }, [chatMenu]);
+
   if (!doc) return null;
 
   if (!doc.rightPanelOpen) {
@@ -71,12 +81,109 @@ export function ChatPanel() {
     setInput("");
   };
 
+  const switchChat = async (chatId: string) => {
+    try {
+      const chat = await api.readChat(doc.sigil.root_path, chatId);
+      dispatch({
+        type: "UPDATE_DOCUMENT",
+        updates: { activeChatId: chatId, chatMessages: chat.messages },
+      });
+    } catch (err) {
+      console.error("Failed to switch chat:", err);
+    }
+  };
+
+  const createChat = () => {
+    const chatId = `chat-${Date.now()}`;
+    const chatName = `Chat ${doc.chats.length + 1}`;
+    const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0 }];
+    dispatch({
+      type: "UPDATE_DOCUMENT",
+      updates: { chats: newChats, activeChatId: chatId, chatMessages: [] },
+    });
+  };
+
+  const deleteChat = async (chatId: string) => {
+    try {
+      await api.deleteChat(doc.sigil.root_path, chatId);
+      const newChats = doc.chats.filter((c) => c.id !== chatId);
+      if (doc.activeChatId === chatId) {
+        if (newChats.length > 0) {
+          const next = newChats[0];
+          const chat = await api.readChat(doc.sigil.root_path, next.id);
+          dispatch({
+            type: "UPDATE_DOCUMENT",
+            updates: { chats: newChats, activeChatId: next.id, chatMessages: chat.messages },
+          });
+        } else {
+          dispatch({
+            type: "UPDATE_DOCUMENT",
+            updates: { chats: newChats, activeChatId: "", chatMessages: [] },
+          });
+        }
+      } else {
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats } });
+      }
+    } catch (err) {
+      console.error("Failed to delete chat:", err);
+    }
+  };
+
+  const renameChat = async (chatId: string) => {
+    const chat = doc.chats.find((c) => c.id === chatId);
+    if (!chat) return;
+    const newName = prompt("Rename chat:", chat.name);
+    if (!newName || !newName.trim()) return;
+    try {
+      await api.renameChat(doc.sigil.root_path, chatId, newName.trim());
+      const newChats = doc.chats.map((c) =>
+        c.id === chatId ? { ...c, name: newName.trim() } : c
+      );
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats } });
+    } catch (err) {
+      console.error("Failed to rename chat:", err);
+    }
+  };
+
+  const activeChatName = doc.chats.find((c) => c.id === doc.activeChatId)?.name;
+
   return (
     <>
       <ResizeHandle side="left" onResize={handleResize} onResizeEnd={handleResizeEnd} />
       <div className={styles.panel} style={{ width }}>
         <div className={styles.header}>
-          <span className={styles.title}>AI Review</span>
+          {doc.chats.length > 1 ? (
+            <select
+              className={styles.chatSwitch}
+              value={doc.activeChatId}
+              onChange={(e) => switchChat(e.target.value)}
+            >
+              {doc.chats.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span className={styles.title}>{activeChatName || "AI Review"}</span>
+          )}
+          <button
+            className={styles.newChatBtn}
+            onClick={createChat}
+            title="New chat"
+          >
+            +
+          </button>
+          {doc.activeChatId && doc.chats.length > 0 && (
+            <button
+              className={styles.chatMenuBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: doc.activeChatId });
+              }}
+              title="Chat options"
+            >
+              ...
+            </button>
+          )}
           {(state.settings.profiles?.length ?? 0) > 1 && (
             <select
               className={styles.profileSwitch}
@@ -93,9 +200,6 @@ export function ChatPanel() {
               ))}
             </select>
           )}
-          {state.settings.profiles?.length === 1 && (
-            <span className={styles.profileLabel}>{state.settings.profiles[0].name}</span>
-          )}
           <button
             className={`${styles.styleToggle} ${state.settings.response_style === "laconic" ? styles.styleToggleActive : ""}`}
             onClick={() =>
@@ -107,7 +211,7 @@ export function ChatPanel() {
                 },
               })
             }
-            title={state.settings.response_style === "laconic" ? "Laconic mode (click to switch to default)" : "Default mode (click to switch to laconic)"}
+            title={state.settings.response_style === "laconic" ? "Laconic mode" : "Default mode"}
           >
             {state.settings.response_style === "laconic" ? "L" : "D"}
           </button>
@@ -120,6 +224,26 @@ export function ChatPanel() {
             &rsaquo;
           </button>
         </div>
+
+        {chatMenu && (
+          <div
+            className={styles.chatContextMenu}
+            style={{ right: 8, top: 36 }}
+          >
+            <button
+              className={styles.chatMenuItem}
+              onClick={() => { renameChat(chatMenu.chatId); setChatMenu(null); }}
+            >
+              Rename
+            </button>
+            <button
+              className={styles.chatMenuItemDanger}
+              onClick={() => { deleteChat(chatMenu.chatId); setChatMenu(null); }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
 
         <div className={styles.messages}>
           {doc.chatMessages.map((msg, i) => (
