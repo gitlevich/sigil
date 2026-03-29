@@ -167,3 +167,7 @@ File > Export (Cmd+E) flattens the sigil into a single markdown document with he
 - **AI**: Anthropic tool_use API with sigil manipulation tools. OpenAI streaming for text responses.
 - **Persistence**: `tauri-plugin-store` for settings, UI state, theme. localStorage for chat drafts. File system for all sigil data.
 - **Distribution**: GitHub Actions builds `.dmg` for Apple Silicon and Intel. `tauri-plugin-updater` for auto-updates.
+
+
+
+when goo

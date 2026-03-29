@@ -3,17 +3,25 @@ import { EditorState, Compartment, RangeSetBuilder } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
   Decoration, DecorationSet, ViewPlugin, ViewUpdate,
+  hoverTooltip,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
 import styles from "./MarkdownEditor.module.css";
 
+export interface SiblingInfo {
+  name: string;
+  summary: string;
+}
+
 interface MarkdownEditorProps {
   content: string;
   onChange: (content: string) => void;
   siblingNames?: string[];
+  siblings?: SiblingInfo[];
 }
 
 const themeCompartment = new Compartment();
@@ -56,13 +64,15 @@ function getThemeExtension(): typeof oneDark | typeof lightTheme {
 
 const siblingMark = Decoration.mark({ class: "cm-sibling-ref" });
 
-function buildSiblingHighlighter(names: string[]) {
+let globalSiblings: SiblingInfo[] = [];
+
+function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
+  globalSiblings = siblings;
   if (names.length === 0) return [];
 
-  // Build a case-insensitive regex that matches sibling names as whole words
-  // Also matches name.something (affordance notation)
+  // Match @name and @name.affordance — explicit sibling references
   const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const pattern = new RegExp(`\\b(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+  const pattern = new RegExp(`@(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
 
   return [
     ViewPlugin.fromClass(
@@ -97,11 +107,80 @@ function buildSiblingHighlighter(names: string[]) {
         borderRadius: "1px",
         paddingBottom: "1px",
       },
+      ".cm-tooltip-sibling": {
+        padding: "6px 10px",
+        maxWidth: "300px",
+        fontSize: "12px",
+        lineHeight: "1.4",
+        background: "var(--bg-primary)",
+        border: "1px solid var(--border)",
+        borderRadius: "4px",
+        color: "var(--text-primary)",
+        boxShadow: "0 2px 8px var(--shadow)",
+      },
+      ".cm-tooltip-sibling .cm-tooltip-sibling-name": {
+        fontWeight: "600",
+        marginBottom: "4px",
+      },
+      ".cm-tooltip-sibling .cm-tooltip-sibling-summary": {
+        color: "var(--text-secondary)",
+        whiteSpace: "pre-wrap",
+      },
+    }),
+    hoverTooltip((view, pos) => {
+      const line = view.state.doc.lineAt(pos);
+      const text = line.text;
+      const localPattern = new RegExp(`@(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+      let match;
+      while ((match = localPattern.exec(text)) !== null) {
+        const from = line.from + match.index;
+        const to = from + match[0].length;
+        if (pos >= from && pos <= to) {
+          const baseName = match[1];
+          const sib = globalSiblings.find((s) => s.name.toLowerCase() === baseName.toLowerCase());
+          if (!sib) return null;
+          return {
+            pos: from,
+            end: to,
+            above: true,
+            create() {
+              const dom = document.createElement("div");
+              dom.className = "cm-tooltip-sibling";
+              const nameEl = document.createElement("div");
+              nameEl.className = "cm-tooltip-sibling-name";
+              nameEl.textContent = sib.name;
+              dom.appendChild(nameEl);
+              if (sib.summary) {
+                const summaryEl = document.createElement("div");
+                summaryEl.className = "cm-tooltip-sibling-summary";
+                summaryEl.textContent = sib.summary;
+                dom.appendChild(summaryEl);
+              }
+              return { dom };
+            },
+          };
+        }
+      }
+      return null;
     }),
   ];
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [] }: MarkdownEditorProps) {
+function siblingCompletion(context: CompletionContext) {
+  const before = context.matchBefore(/@\w*/);
+  if (!before) return null;
+  if (before.from === before.to && !context.explicit) return null;
+  return {
+    from: before.from,
+    options: globalSiblings.map((s) => ({
+      label: `@${s.name}`,
+      detail: s.summary.split("\n")[0]?.slice(0, 50) || "",
+      type: "variable" as const,
+    })),
+  };
+}
+
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [] }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -120,7 +199,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [] }: Markdow
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
-        siblingCompartment.of(buildSiblingHighlighter(siblingNames)),
+        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings)),
+        autocompletion({ override: [siblingCompletion], activateOnTyping: true }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             localEditRef.current = true;
@@ -171,7 +251,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [] }: Markdow
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames)),
+      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings)),
     });
   }, [siblingNames]);
 

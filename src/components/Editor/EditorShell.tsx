@@ -75,18 +75,19 @@ export function EditorShell() {
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
-  // Compute sibling names: the other children of the containing sigil
-  const siblingNames = (() => {
-    if (doc.currentPath.length === 0) {
-      // At root — no siblings, but children are visible as sub-contexts
-      return [];
-    }
+  // Compute siblings: the other sigils in the containing sigil, with summaries
+  const siblings = (() => {
+    if (doc.currentPath.length === 0) return [];
     const containingPath = doc.currentPath.slice(0, -1);
     const containingSigil = findContext(doc.sigil.root, containingPath);
     return containingSigil.children
-      .map((c) => c.name)
-      .filter((name) => name !== currentCtx.name);
+      .filter((c) => c.name !== currentCtx.name)
+      .map((c) => ({
+        name: c.name,
+        summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
+      }));
   })();
+  const siblingNames = siblings.map((s) => s.name);
 
   const content = currentCtx.domain_language;
 
@@ -112,12 +113,13 @@ export function EditorShell() {
                     content={content}
                     onChange={handleContentChange}
                     siblingNames={siblingNames}
+                    siblings={siblings}
                   />
                 </div>
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} siblingNames={siblingNames} />
+                  <MarkdownPreview content={content} siblingNames={siblingNames} siblings={siblings} />
                 </div>
               )}
             </>
