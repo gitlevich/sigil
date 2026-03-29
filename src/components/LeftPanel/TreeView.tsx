@@ -45,7 +45,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         draggable={path.length > 0}
         onDragStart={(e) => {
           e.stopPropagation();
-          e.dataTransfer.setData("text/plain", context.path);
+          e.dataTransfer.setData("application/x-sigil-path", context.path);
           e.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(e) => {
@@ -69,10 +69,13 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
           e.preventDefault();
           e.stopPropagation();
           setDropTarget(false);
-          const sourcePath = e.dataTransfer.getData("text/plain");
-          if (sourcePath && sourcePath !== context.path && !sourcePath.startsWith(context.path + "/") && !context.path.startsWith(sourcePath + "/")) {
-            onDrop(sourcePath, context.path);
-          }
+          const sourcePath = e.dataTransfer.getData("application/x-sigil-path");
+          console.log("Drop:", { sourcePath, targetPath: context.path });
+          if (!sourcePath) { console.log("Drop rejected: no source path"); return; }
+          if (sourcePath === context.path) { console.log("Drop rejected: same node"); return; }
+          if (sourcePath.startsWith(context.path + "/")) { console.log("Drop rejected: source is descendant of target"); return; }
+          if (context.path.startsWith(sourcePath + "/")) { console.log("Drop rejected: target is descendant of source"); return; }
+          onDrop(sourcePath, context.path);
         }}
       >
         {hasChildren && (
