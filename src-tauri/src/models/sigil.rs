@@ -13,7 +13,6 @@ pub struct Context {
     pub name: String,
     pub path: String,
     pub domain_language: String,
-    pub technical_decisions: Option<String>,
     pub children: Vec<Context>,
 }
 

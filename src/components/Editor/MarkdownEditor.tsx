@@ -270,7 +270,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     view.dispatch({
       effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings)),
     });
-  }, [siblingNames]);
+  }, [siblingNames, siblings]);
 
   // Sync external content changes into CodeMirror.
   useEffect(() => {

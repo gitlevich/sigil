@@ -23,12 +23,6 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
         output.push_str(&ctx.domain_language);
         output.push_str("\n\n");
 
-        if let Some(ref tech) = ctx.technical_decisions {
-            output.push_str(&format!("{} Technical Decisions\n\n", "#".repeat(depth + 2)));
-            output.push_str(tech);
-            output.push_str("\n\n");
-        }
-
         for child in &ctx.children {
             render_context(child, depth + 1, output);
         }

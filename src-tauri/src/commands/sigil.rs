@@ -31,13 +31,6 @@ fn read_context(dir: &Path) -> Result<Context, String> {
     let domain_language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
 
-    let tech_path = dir.join("technical.md");
-    let technical_decisions = if tech_path.exists() {
-        Some(fs::read_to_string(&tech_path).map_err(|e| e.to_string())?)
-    } else {
-        None
-    };
-
     let mut children = Vec::new();
     if let Ok(entries) = fs::read_dir(dir) {
         let mut dirs: Vec<_> = entries
@@ -64,7 +57,6 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         name,
         path: dir.to_string_lossy().to_string(),
         domain_language,
-        technical_decisions,
         children,
     })
 }
@@ -116,7 +108,6 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         name,
         path: context_path.to_string_lossy().to_string(),
         domain_language: String::new(),
-        technical_decisions: None,
         children: Vec::new(),
     })
 }
@@ -156,7 +147,6 @@ mod tests {
         fs::create_dir(&root).unwrap();
         fs::write(root.join("vision.md"), "Build the best app").unwrap();
         fs::write(root.join("language.md"), "# MyApp\nRoot domain language").unwrap();
-        fs::write(root.join("technical.md"), "Use Rust").unwrap();
 
         let auth = root.join("Auth");
         fs::create_dir(&auth).unwrap();
@@ -179,7 +169,6 @@ mod tests {
         assert_eq!(sigil.name, "MyApp");
         assert_eq!(sigil.vision, "Build the best app");
         assert_eq!(sigil.root.domain_language, "# MyApp\nRoot domain language");
-        assert_eq!(sigil.root.technical_decisions, Some("Use Rust".to_string()));
         assert_eq!(sigil.root.children.len(), 2);
 
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();

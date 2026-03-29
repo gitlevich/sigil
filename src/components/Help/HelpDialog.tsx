@@ -22,7 +22,6 @@ The sigil becomes the AI agent's context. When you navigate to a context, you an
 
 Each context is a directory containing:
 - **language.md** — the domain language for this bounded context
-- **technical.md** — architectural choices and constraints (optional, inherits from parent)
 - Up to 5 sub-context directories
 
 Put it in git and it versions like code.

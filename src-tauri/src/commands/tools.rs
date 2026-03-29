@@ -42,24 +42,6 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
-            "name": "write_machinery",
-            "description": "Write or replace the machinery (technical.md) for a context. Describes architectural choices, technology stack, design patterns.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "context_path": {
-                        "type": "string",
-                        "description": "Absolute path to the context directory"
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "The machinery content in markdown"
-                    }
-                },
-                "required": ["context_path", "content"]
-            }
-        }),
-        serde_json::json!({
             "name": "rename_context",
             "description": "Rename a context (renames its directory on disk).",
             "input_schema": {
@@ -79,7 +61,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "read_context",
-            "description": "Read the domain language and machinery of a specific context.",
+            "description": "Read the domain language of a specific context.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -142,13 +124,6 @@ pub fn execute_tool(name: &str, input: &serde_json::Value) -> Result<String, Str
             fs::write(&file_path, content).map_err(|e| e.to_string())?;
             Ok(format!("Wrote language.md at {}", ctx_path))
         }
-        "write_machinery" => {
-            let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
-            let content = input["content"].as_str().ok_or("Missing content")?;
-            let file_path = Path::new(ctx_path).join("technical.md");
-            fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            Ok(format!("Wrote technical.md at {}", ctx_path))
-        }
         "rename_context" => {
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
             let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
@@ -163,14 +138,8 @@ pub fn execute_tool(name: &str, input: &serde_json::Value) -> Result<String, Str
         "read_context" => {
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
             let lang_path = Path::new(ctx_path).join("language.md");
-            let tech_path = Path::new(ctx_path).join("technical.md");
             let language = fs::read_to_string(&lang_path).unwrap_or_default();
-            let machinery = if tech_path.exists() {
-                fs::read_to_string(&tech_path).unwrap_or_default()
-            } else {
-                String::from("(none)")
-            };
-            Ok(format!("## Language\n\n{}\n\n## Machinery\n\n{}", language, machinery))
+            Ok(format!("## Domain Language\n\n{}", language))
         }
         "write_vision" => {
             let root_path = input["root_path"].as_str().ok_or("Missing root_path")?;

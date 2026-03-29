@@ -34,7 +34,6 @@ export function useSigil() {
         currentPath: [],
         editorMode: "split",
         contentTab: "language",
-        showTechnical: false,
         leftPanelOpen: true,
         leftPanelTab: "tree",
         rightPanelOpen: false,

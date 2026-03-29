@@ -33,7 +33,7 @@ export function EditorToolbar() {
   const setTab = (tab: "language" | "entanglements") => {
     dispatch({
       type: "UPDATE_DOCUMENT",
-      updates: { contentTab: tab, showTechnical: false },
+      updates: { contentTab: tab },
     });
   };
 
