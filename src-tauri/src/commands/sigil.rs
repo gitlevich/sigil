@@ -128,28 +128,54 @@ pub fn rename_context(path: String, new_name: String) -> Result<String, String> 
     Ok(new_path.to_string_lossy().to_string())
 }
 
-/// Walk all language.md (and spec.md) files under root and replace @old_name with @new_name
-/// (including @old_name.affordance patterns).
+/// Walk all text files under root and replace old_name with new_name everywhere.
+/// Also renames any sub-directories that match old_name (except the root itself).
 fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usize, String> {
     let mut count = 0;
+
+    // First pass: replace text in all readable files
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            let name = e.file_name().to_str().unwrap_or("");
-            name == "language.md" || name == "spec.md"
-        })
+        .filter(|e| e.path().is_file())
     {
         let path = entry.path();
-        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-        // Replace @OldName and @OldName.affordance — case-sensitive, whole-word
-        let pattern = format!("@{}", old_name);
-        if content.contains(&pattern) {
-            let updated = content.replace(&pattern, &format!("@{}", new_name));
+        // Skip binary files and hidden files
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !matches!(ext, "md" | "json" | "txt" | "") {
+            continue;
+        }
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        if content.contains(old_name) {
+            let updated = content.replace(old_name, new_name);
             fs::write(path, updated).map_err(|e| e.to_string())?;
             count += 1;
         }
     }
+
+    // Second pass: rename sub-directories matching old_name (bottom-up to avoid path issues)
+    let mut dirs_to_rename: Vec<std::path::PathBuf> = Vec::new();
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir() && e.path() != root)
+    {
+        if entry.file_name().to_str() == Some(old_name) {
+            dirs_to_rename.push(entry.path().to_path_buf());
+        }
+    }
+    // Rename deepest first
+    dirs_to_rename.sort_by(|a, b| b.components().count().cmp(&a.components().count()));
+    for dir in dirs_to_rename {
+        let new_dir = dir.parent().unwrap().join(new_name);
+        if !new_dir.exists() {
+            fs::rename(&dir, &new_dir).map_err(|e| e.to_string())?;
+        }
+    }
+
     Ok(count)
 }
 
