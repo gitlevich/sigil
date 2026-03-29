@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Menu } from "@tauri-apps/api/menu/menu";
 import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
@@ -11,9 +11,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 export function useAppMenu() {
   const dispatch = useAppDispatch();
   const state = useAppState();
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
-    buildMenu(dispatch, () => state.document, () => state.ui).catch(console.error);
+    buildMenu(dispatch, () => stateRef.current.document, () => stateRef.current.ui).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
