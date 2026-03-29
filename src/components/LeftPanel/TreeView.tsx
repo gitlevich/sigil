@@ -15,21 +15,25 @@ interface TreeNodeProps {
   context: Context;
   path: string[];
   currentPath: string[];
+  highlightedChild: string | null;
   onNavigate: (path: string[]) => void;
   onContextMenu: (e: React.MouseEvent, context: Context, path: string[]) => void;
   onAdd: (parentPath: string) => Promise<void>;
 }
 
-function TreeNode({ context, path, currentPath, onNavigate, onContextMenu, onAdd }: TreeNodeProps) {
+function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
+  // Highlighted if this node is the highlightedChild of the active node's parent
+  const isHighlighted = !isActive && highlightedChild === context.name
+    && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
   const atLimit = context.children.length >= 5;
 
   return (
     <div className={styles.node}>
       <div
-        className={`${styles.nodeRow} ${isActive ? styles.active : ""}`}
+        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""}`}
         onClick={() => onNavigate(path)}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -59,6 +63,7 @@ function TreeNode({ context, path, currentPath, onNavigate, onContextMenu, onAdd
               context={child}
               path={[...path, child.name]}
               currentPath={currentPath}
+              highlightedChild={highlightedChild}
               onNavigate={onNavigate}
               onContextMenu={onContextMenu}
               onAdd={onAdd}
@@ -182,6 +187,7 @@ export function TreeView() {
         context={doc.sigil.root}
         path={[]}
         currentPath={doc.currentPath}
+        highlightedChild={doc.highlightedChild ?? null}
         onNavigate={handleNavigate}
         onContextMenu={handleContextMenu}
         onAdd={handleAdd}

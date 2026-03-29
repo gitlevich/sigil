@@ -14,6 +14,7 @@ export interface OpenDocument {
   activeChatId: string;
   chatMessages: ChatMessage[];
   chatStreaming: boolean;
+  highlightedChild: string | null;
 }
 
 export interface UIState {

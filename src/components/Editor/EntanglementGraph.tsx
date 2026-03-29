@@ -205,7 +205,11 @@ export function EntanglementGraph() {
         className={styles.svg}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onClick={() => { setSelectedEdge(null); setSelectedNode(null); }}
+        onClick={() => {
+          setSelectedEdge(null);
+          setSelectedNode(null);
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { highlightedChild: null } });
+        }}
       >
         <defs>
           <marker
@@ -306,14 +310,12 @@ export function EntanglementGraph() {
             }}
             onClick={(e) => {
               e.stopPropagation();
-              setSelectedNode(node.name);
-              // Navigate tree to this child so it highlights there
-              if (doc) {
-                dispatch({
-                  type: "UPDATE_DOCUMENT",
-                  updates: { currentPath: [...doc.currentPath, node.name] },
-                });
-              }
+              const next = selectedNode === node.name ? null : node.name;
+              setSelectedNode(next);
+              dispatch({
+                type: "UPDATE_DOCUMENT",
+                updates: { highlightedChild: next },
+              });
             }}
             onContextMenu={(e) => {
               e.preventDefault();
