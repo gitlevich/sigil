@@ -186,8 +186,8 @@ function siblingCompletion(context: CompletionContext) {
     from: before.from,
     options: globalSiblings.map((s) => ({
       label: `@${s.name}`,
-      detail: s.summary.split("\n")[0]?.slice(0, 60) || "",
-      type: "variable" as const,
+      detail: `${s.kind === "sibling" ? "[neighbor] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
+      type: s.kind === "sibling" ? "property" as const : "variable" as const,
     })),
     filter: true,
   };
