@@ -3,7 +3,9 @@ status: wip
 ---
 # Relationship
 
-Neighboring contexts can declare integrations — formal relationships with strategic design policies:
+A sigil can have relationship with its neighbors. This is how they talk to each other.
+
+Strategic Design patterns constrain what relationships are allowed:
 
 - **Shared Kernel** — symmetric, shared code/model
 - **Published Language** — symmetric, agreed interchange format

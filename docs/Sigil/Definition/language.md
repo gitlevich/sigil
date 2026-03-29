@@ -3,8 +3,6 @@ status: wip
 ---
 # Definition
 
-The act of articulating what a sigil is. A sigil's language opens with a vision — why it exists — followed by a narrative written in the vocabulary of this context. The narrative uses the names of contained sigils and their affordances. If I need a word that doesn't belong to any contained sigil, I'm missing a sigil or the boundary is wrong.
+When I define a sigil, I name what it contains and how the parts relate. I establish @Containment by decomposing into up to five contained sigils. I articulate each sigil's @Affordance — what it exposes across its boundary. I declare how @Neighbors relate to each other. As the definition matures, the sigil moves through its @Lifecycle from idea to implementation.
 
-A sigil is recursive: it is made of sigils (@Containment). It exposes capabilities across its boundary (@Affordance). @Neighbors declare formal relationships with each other (@Integration). A sigil progresses from idea through definition to implementation (@Lifecycle).
-
-One approach the author finds effective: inhabit the sigil. I close my eyes and imagine attending to this context. What do I reach for? What interactions should be effortless? What constraints do I feel? I describe that experience in the first person. The affordances emerge from articulating what I need when I'm inside — not from listing what the system should do from outside. 
+I inhabit the sigil to define it. I close my eyes and imagine attending to this context. What do I reach for? What should be effortless? What constraints do I feel? The affordances emerge from articulating what I need when I'm inside — not from listing what the system should do from outside.
