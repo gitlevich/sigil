@@ -15,6 +15,7 @@ export interface OpenDocument {
   chatStreaming: boolean;
   highlightedChild: string | null;
   wordWrap: boolean;
+  renamingRequest: boolean;
 }
 
 export interface UIState {

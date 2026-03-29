@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
@@ -162,17 +161,15 @@ export function TreeView() {
     }
   }, [renaming]);
 
-  // Listen for menu-triggered rename/move
+  // React to menu/shortcut rename request
   useEffect(() => {
-    const unlistenRename = listen("rename-sigil-request", () => {
-      if (!doc) return;
-      const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
-      if (ctx) {
-        setRenaming({ path: doc.currentPath, name: ctx.name });
-      }
-    });
-    return () => { unlistenRename.then((fn) => fn()); };
-  }, [doc]);
+    if (!doc?.renamingRequest) return;
+    dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: false } });
+    const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
+    if (ctx) {
+      setRenaming({ path: doc.currentPath, name: ctx.name });
+    }
+  }, [doc?.renamingRequest, doc?.currentPath, doc?.sigil.root, dispatch]);
 
   if (!doc) return null;
 

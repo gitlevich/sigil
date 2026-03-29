@@ -43,6 +43,7 @@ export function useSigil() {
         chatStreaming: false,
         highlightedChild: null,
         wordWrap: false,
+        renamingRequest: false,
       },
     });
   }, [dispatch]);
