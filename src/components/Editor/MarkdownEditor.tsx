@@ -301,17 +301,27 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   }, [siblingNames, siblings]);
 
   // Sync external content changes into CodeMirror.
+  // Skip if the change is an echo of a local edit (localEditRef).
+  // But always sync if the content is completely different (navigation).
   useEffect(() => {
-    if (localEditRef.current) {
-      localEditRef.current = false;
-      return;
-    }
     const view = viewRef.current;
     if (!view) return;
-    const currentContent = view.state.doc.toString();
-    if (currentContent !== content) {
+    const currentDoc = view.state.doc.toString();
+
+    if (localEditRef.current) {
+      // Check if this is truly an echo (content matches what we just typed)
+      // vs a navigation to a different context (content is completely different)
+      if (currentDoc === content) {
+        localEditRef.current = false;
+        return;
+      }
+      // Content is different from what's in the editor — this is navigation, not echo
+      localEditRef.current = false;
+    }
+
+    if (currentDoc !== content) {
       view.dispatch({
-        changes: { from: 0, to: currentContent.length, insert: content },
+        changes: { from: 0, to: currentDoc.length, insert: content },
       });
     }
   }, [content]);
