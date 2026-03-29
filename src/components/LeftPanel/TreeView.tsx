@@ -17,12 +17,14 @@ interface TreeNodeProps {
   currentPath: string[];
   onNavigate: (path: string[]) => void;
   onContextMenu: (e: React.MouseEvent, context: Context, path: string[]) => void;
+  onAdd: (parentPath: string) => Promise<void>;
 }
 
-function TreeNode({ context, path, currentPath, onNavigate, onContextMenu }: TreeNodeProps) {
+function TreeNode({ context, path, currentPath, onNavigate, onContextMenu, onAdd }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
+  const atLimit = context.children.length >= 5;
 
   return (
     <div className={styles.node}>
@@ -49,7 +51,7 @@ function TreeNode({ context, path, currentPath, onNavigate, onContextMenu }: Tre
         {!hasChildren && <span className={styles.expandPlaceholder} />}
         <span className={styles.nodeName}>{context.name}</span>
       </div>
-      {expanded && hasChildren && (
+      {expanded && (
         <div className={styles.children}>
           {context.children.map((child) => (
             <TreeNode
@@ -59,10 +61,52 @@ function TreeNode({ context, path, currentPath, onNavigate, onContextMenu }: Tre
               currentPath={currentPath}
               onNavigate={onNavigate}
               onContextMenu={onContextMenu}
+              onAdd={onAdd}
             />
           ))}
+          {isActive && !atLimit && (
+            <GhostInput
+              onSubmit={() => onAdd(context.path)}
+              parentPath={context.path}
+            />
+          )}
+          {isActive && atLimit && (
+            <div className={styles.limitHint}>
+              5 sigils — consider your abstractions
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function GhostInput({ onSubmit, parentPath }: { onSubmit: (name: string) => Promise<void>; parentPath: string }) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    await api.createContext(parentPath, trimmed).catch(console.error);
+    setValue("");
+    await onSubmit(trimmed);
+  };
+
+  return (
+    <div className={styles.ghostRow}>
+      <span className={styles.expandPlaceholder} />
+      <input
+        ref={inputRef}
+        className={styles.ghostInput}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="new context..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSubmit();
+          if (e.key === "Escape") { setValue(""); e.currentTarget.blur(); }
+        }}
+      />
     </div>
   );
 }
@@ -128,37 +172,19 @@ export function TreeView() {
     }
   };
 
-  const currentCtx = findContextByPath(doc.sigil.root, doc.currentPath);
-  const canAdd = currentCtx ? currentCtx.children.length < 5 : false;
-
-  const handleAddHere = () => {
-    if (!currentCtx) return;
-    const name = prompt("New context name:");
-    if (!name?.trim()) return;
-    api.createContext(currentCtx.path, name.trim())
-      .then(() => reload(doc.sigil.root_path))
-      .catch(console.error);
+  const handleAdd = async () => {
+    await reload(doc.sigil.root_path);
   };
 
   return (
     <div className={styles.tree}>
-      <div className={styles.treeHeader}>
-        {canAdd && (
-          <button
-            className={styles.addBtn}
-            onClick={handleAddHere}
-            title={`Add context inside ${currentCtx?.name}`}
-          >
-            +
-          </button>
-        )}
-      </div>
       <TreeNode
         context={doc.sigil.root}
         path={[]}
         currentPath={doc.currentPath}
         onNavigate={handleNavigate}
         onContextMenu={handleContextMenu}
+        onAdd={handleAdd}
       />
 
       {contextMenu && (
@@ -166,21 +192,6 @@ export function TreeView() {
           className={styles.contextMenu}
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          {contextMenu.context.children.length < 5 && (
-            <button
-              className={styles.menuItem}
-              onClick={() => {
-                const name = prompt("New context name:");
-                if (!name?.trim()) { setContextMenu(null); return; }
-                api.createContext(contextMenu.context.path, name.trim())
-                  .then(() => reload(doc.sigil.root_path))
-                  .catch(console.error);
-                setContextMenu(null);
-              }}
-            >
-              Add Context
-            </button>
-          )}
           <button
             className={styles.menuItem}
             onClick={() => {
