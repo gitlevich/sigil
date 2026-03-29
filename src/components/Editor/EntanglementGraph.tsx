@@ -392,8 +392,8 @@ export function EntanglementGraph() {
 
       {nodeMenu && (
         <div
-          className={styles.policyPopover}
-          style={{ left: nodeMenu.x, top: nodeMenu.y, transform: "none" }}
+          className={styles.nodeContextMenu}
+          style={{ left: nodeMenu.x, top: nodeMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className={styles.policyHeader}>{nodeMenu.name}</div>
