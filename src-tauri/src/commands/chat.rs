@@ -85,16 +85,21 @@ pub fn list_chats(root_path: String) -> Result<Vec<ChatInfo>, String> {
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
             continue;
         }
+        let modified = path.metadata()
+            .and_then(|m| m.modified())
+            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+            .unwrap_or(0);
         let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
         if let Ok(chat) = serde_json::from_str::<Chat>(&content) {
             chats.push(ChatInfo {
                 id: chat.id,
                 name: chat.name,
                 message_count: chat.messages.len(),
+                last_modified: modified,
             });
         }
     }
-    chats.sort_by(|a, b| a.name.cmp(&b.name));
+    chats.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
     Ok(chats)
 }
 

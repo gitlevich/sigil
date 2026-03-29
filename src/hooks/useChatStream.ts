@@ -88,7 +88,7 @@ export function useChatStream() {
     if (!chatId) {
       chatId = `chat-${Date.now()}`;
       const chatName = `Chat ${doc.chats.length + 1}`;
-      const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0 }];
+      const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats, activeChatId: chatId } });
     }
 

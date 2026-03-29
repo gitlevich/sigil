@@ -25,4 +25,5 @@ pub struct ChatInfo {
     pub id: String,
     pub name: String,
     pub message_count: usize,
+    pub last_modified: u64,
 }

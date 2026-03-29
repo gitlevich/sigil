@@ -32,6 +32,7 @@ export interface ChatInfo {
   id: string;
   name: string;
   message_count: number;
+  last_modified: number;
 }
 
 export interface RecentDocument {

@@ -9,12 +9,20 @@ import styles from "./ChatPanel.module.css";
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
 
+function draftKey(rootPath: string, chatId: string): string {
+  return `sigil-draft:${rootPath}:${chatId}`;
+}
+
 export function ChatPanel() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();
   const { sendMessage } = useChatStream();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => {
+    if (!doc) return "";
+    try { return localStorage.getItem(draftKey(doc.sigil.root_path, doc.activeChatId)) || ""; }
+    catch { return ""; }
+  });
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,6 +59,23 @@ export function ChatPanel() {
     prevOpen.current = doc?.rightPanelOpen ?? false;
   }, [doc?.rightPanelOpen]);
 
+  // Save draft on every keystroke
+  useEffect(() => {
+    if (!doc) return;
+    try { localStorage.setItem(draftKey(doc.sigil.root_path, doc.activeChatId), input); }
+    catch { /* ignore */ }
+  }, [input, doc?.sigil.root_path, doc?.activeChatId]);
+
+  // Restore draft when switching chats
+  const prevChatId = useRef(doc?.activeChatId);
+  useEffect(() => {
+    if (!doc || doc.activeChatId === prevChatId.current) return;
+    prevChatId.current = doc.activeChatId;
+    try {
+      setInput(localStorage.getItem(draftKey(doc.sigil.root_path, doc.activeChatId)) || "");
+    } catch { setInput(""); }
+  }, [doc?.activeChatId, doc?.sigil.root_path]);
+
   useEffect(() => {
     const handleClick = () => setChatMenu(null);
     if (chatMenu) {
@@ -79,6 +104,8 @@ export function ChatPanel() {
     if (!trimmed || doc.chatStreaming) return;
     sendMessage(trimmed);
     setInput("");
+    try { localStorage.removeItem(draftKey(doc.sigil.root_path, doc.activeChatId)); }
+    catch { /* ignore */ }
   };
 
   const switchChat = async (chatId: string) => {
@@ -96,7 +123,7 @@ export function ChatPanel() {
   const createChat = () => {
     const chatId = `chat-${Date.now()}`;
     const chatName = `Chat ${doc.chats.length + 1}`;
-    const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0 }];
+    const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
     dispatch({
       type: "UPDATE_DOCUMENT",
       updates: { chats: newChats, activeChatId: chatId, chatMessages: [] },
@@ -164,7 +191,13 @@ export function ChatPanel() {
               ))}
             </select>
           ) : (
-            <span className={styles.title}>{activeChatName || "AI Review"}</span>
+            <span
+              className={styles.title}
+              onDoubleClick={() => doc.activeChatId && renameChat(doc.activeChatId)}
+              title="Double-click to rename"
+            >
+              {activeChatName || "AI Review"}
+            </span>
           )}
           <button
             className={styles.newChatBtn}
