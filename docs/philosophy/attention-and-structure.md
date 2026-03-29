@@ -80,6 +80,8 @@ The narrative has completely captured my attention. Attention at the scale of my
 
 At my focal plane I see a frame of moving shapes I cohered into existence, plus projections of sigils on which I and my neighbors agreed and power with our attentions.
 
+My intersections with other sigils look like spheres. Each is a named pattern that is important — about which I can have one of two attitudes: I want more of it or less. A preference along a contrast. These preferences, taken together across all the contrasts I care about, constitute the full relevance filter — my sigil.
+
 ## The Last Century
 
 The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
