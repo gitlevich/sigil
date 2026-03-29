@@ -22,7 +22,7 @@ A sigil is a bounded context. It has a name, a boundary, and domain language wri
 
 The sigil becomes the AI agent's context. The entire tree — vision and domain language at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
 
-But the structure does something more fundamental than just providing context. When you navigate to a context — say, Auth — you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside that context becomes periphery. You don't think about Billing while you're defining Auth's language. The agent doesn't either. You both give full attention to the bounded problem in front of you, because the hierarchy has already handled the separation. The periphery isn't lost — it's held by the structure so neither of you has to hold it in mind.
+But the structure does something more fundamental than just providing context. When you navigate to a context — say, Attention — you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside that context becomes periphery. You don't think about Conversation while you're defining Attention's language. The agent doesn't either. You both give full attention to the bounded problem in front of you, because the hierarchy has already handled the separation. The periphery isn't lost — it's held by the structure so neither of you has to hold it in mind.
 
 This is how attention works. Not by seeing everything at once, but by knowing what to ignore. The tree of contexts is a mutual contract between you and the agent about what matters right now.
 
