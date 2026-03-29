@@ -65,6 +65,10 @@ export function IntegrationGraph() {
   const currentCtx = doc ? findContext(doc.sigil.root, doc.currentPath) : null;
   const children = currentCtx?.children ?? [];
 
+  // Size circles to fit the longest label
+  const longestName = Math.max(...children.map((c) => c.name.length), 1);
+  const NODE_R = Math.max(40, longestName * 5 + 16);
+
   // Load integrations from disk
   useEffect(() => {
     if (!currentCtx) return;
@@ -150,7 +154,7 @@ export function IntegrationGraph() {
     const target = nodePositions.find((n) => {
       const dx = n.x - mx;
       const dy = n.y - my;
-      return Math.sqrt(dx * dx + dy * dy) < 30;
+      return Math.sqrt(dx * dx + dy * dy) < NODE_R;
     });
 
     if (target && target.name !== dragging.from) {
@@ -196,12 +200,10 @@ export function IntegrationGraph() {
   if (!doc || children.length === 0) {
     return (
       <div className={styles.empty}>
-        No sub-contexts to show. Add contexts to see integrations.
+        No sub-contexts to show. Add contexts to see the context map.
       </div>
     );
   }
-
-  const NODE_R = 34;
 
   return (
     <div className={styles.container}>
@@ -392,7 +394,7 @@ export function IntegrationGraph() {
               fontWeight="500"
               style={{ pointerEvents: "none" }}
             >
-              {node.name.length > 8 ? node.name.slice(0, 7) + "\u2026" : node.name}
+              {node.name}
             </text>
           </g>
         ))}

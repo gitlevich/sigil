@@ -67,9 +67,9 @@ export function EditorToolbar() {
         <button
           className={`${styles.contentTab} ${contentTab === "integrations" ? styles.contentTabActive : ""}`}
           onClick={() => setTab("integrations")}
-          title="Bounded context integration map — drag between contexts to declare relationships"
+          title="Context map — drag between contexts to declare relationships"
         >
-          Integrations
+          Context Map
         </button>
       </div>
 

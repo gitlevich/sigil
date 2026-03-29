@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Sigil
+# Sigil (the tool)
 
 Sigil is a tool for structuring how I think about a system and sharing that structure with a design partner.
 

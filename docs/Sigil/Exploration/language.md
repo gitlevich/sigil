@@ -5,4 +5,6 @@ status: wip
 
 Moving through a sigil's containment hierarchy, understanding its structure, and seeing how its contexts relate.
 
-I @Navigate between sigils — moving up, down, and across the hierarchy. I @Visualize the structure and the integration relationships between neighbors.
+I @Navigate between sigils — moving up, down, and across the hierarchy. 
+
+I use @Visualization to see a sigil's structure and manipulate its  relationships with neighbors.
