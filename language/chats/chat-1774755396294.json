@@ -1,0 +1,14 @@
+{
+  "id": "chat-1774755396294",
+  "name": "Chat 3",
+  "messages": [
+    {
+      "role": "user",
+      "content": "we want to break it up into a sigil"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes. The whole document should become a spec tree, with the current monolith turned into the root context plus a small set of top-level sub-contexts.\n\nA clean split would be:\n\n- **Sigil** (root)\n  - root `spec.md`: product-level purpose and overall behavior\n  - root `technical.md`: global architecture choices\n  - `vision.md`: north star\n\nThen up to 5 children:\n\n1. **Spec Model**\n   - spec tree, context rules, inheritance, file structure\n\n2. **Editor Experience**\n   - screen layout, navigation, editing, sub-context interactions\n\n3. **Document Management**\n   - create/open/recent docs, tabs, multi-document behavior, export\n\n4. **AI Review**\n   - chat panel, prompt assembly, persistence, provider behavior\n\n5. **Platform Architecture**\n   - Tauri, Rust commands, frontend stack, settings, watching, storage\n\nThat keeps each child at one abstraction level. If you want, I can do the next step and rewrite your current spec into a concrete Sigil tree with draft `spec.md` / `technical"
+    }
+  ]
+}
