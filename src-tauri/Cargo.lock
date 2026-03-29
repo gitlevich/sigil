@@ -3563,7 +3563,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "sigil"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "futures-util",
  "notify",
@@ -3575,6 +3575,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-store",
  "tauri-plugin-updater",
+ "tauri-plugin-window-state",
  "tempfile",
  "tokio",
  "tokio-stream",
@@ -4117,6 +4118,21 @@ dependencies = [
  "url",
  "windows-sys 0.60.2",
  "zip",
+]
+
+[[package]]
+name = "tauri-plugin-window-state"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73736611e14142408d15353e21e3cca2f12a3cfb523ad0ce85999b6d2ef1a704"
+dependencies = [
+ "bitflags 2.11.0",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
