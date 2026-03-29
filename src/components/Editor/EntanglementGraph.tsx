@@ -140,12 +140,12 @@ export function EntanglementGraph() {
           (e.from === target.name && e.to === dragging.from)
       );
       if (!exists) {
-        const newEntanglements = [
-          ...entanglements,
-          { from: dragging.from, to: target.name, policy: "customer-supplier" as Policy },
-        ];
+        // Create edge with default policy and immediately open policy picker
+        const newEdge: Entanglement = { from: dragging.from, to: target.name, policy: "customer-supplier" };
+        const newEntanglements = [...entanglements, newEdge];
         setEntanglements(newEntanglements);
         saveEntanglements(newEntanglements);
+        setSelectedEdge({ from: dragging.from, to: target.name });
       }
     }
 
@@ -236,9 +236,10 @@ export function EntanglementGraph() {
               <line
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 stroke={isSelected ? "var(--accent)" : "var(--text-secondary)"}
-                strokeWidth={isSelected ? 2.5 : 1.5}
+                strokeWidth={isSelected ? 3 : 2}
                 markerEnd={isSymmetric ? undefined : "url(#arrowhead)"}
                 style={{ cursor: "pointer" }}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedEdge({ from: ent.from, to: ent.to });
@@ -353,6 +354,10 @@ export function EntanglementGraph() {
           </div>
         );
       })()}
+
+      <div className={styles.instructions}>
+        Drag between sigils to entangle. Click an edge to change policy. Double-click a sigil to enter it.
+      </div>
     </div>
   );
 }

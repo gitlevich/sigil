@@ -1,0 +1,29 @@
+{
+  "entanglements": [
+    {
+      "from": "goo",
+      "to": "boo",
+      "policy": "customer-supplier"
+    },
+    {
+      "from": "epsilon",
+      "to": "boo",
+      "policy": "conformist"
+    },
+    {
+      "from": "z",
+      "to": "boo",
+      "policy": "customer-supplier"
+    },
+    {
+      "from": "z",
+      "to": "xxx",
+      "policy": "customer-supplier"
+    },
+    {
+      "from": "xxx",
+      "to": "goo",
+      "policy": "customer-supplier"
+    }
+  ]
+}
