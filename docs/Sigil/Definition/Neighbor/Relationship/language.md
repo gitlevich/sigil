@@ -1,9 +1,9 @@
 ---
 status: wip
 ---
-# Integration
+# Relationship
 
-Sibling contexts can declare integrations — formal relationships with strategic design policies:
+Neighboring contexts can declare integrations — formal relationships with strategic design policies:
 
 - **Shared Kernel** — symmetric, shared code/model
 - **Published Language** — symmetric, agreed interchange format
