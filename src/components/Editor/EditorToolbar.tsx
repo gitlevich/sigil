@@ -18,7 +18,7 @@ export function EditorToolbar() {
 
   const handleExport = async () => {
     const outputPath = await save({
-      title: "Export specification",
+      title: "Export sigil",
       defaultPath: `${doc.sigil.name}.md`,
       filters: [{ name: "Markdown", extensions: ["md"] }],
     });

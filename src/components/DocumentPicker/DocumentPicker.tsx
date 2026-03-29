@@ -18,7 +18,7 @@ export function DocumentPicker() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    const selected = await open({ directory: true, title: "Choose location for spec tree" });
+    const selected = await open({ directory: true, title: "Choose location for new sigil" });
     if (!selected) return;
 
     const rootPath = `${selected}/${newName.trim()}`;
@@ -29,7 +29,7 @@ export function DocumentPicker() {
   };
 
   const handleOpen = async () => {
-    const selected = await open({ directory: true, title: "Open spec tree root directory" });
+    const selected = await open({ directory: true, title: "Open sigil root directory" });
     if (!selected) return;
     // Open in the current window
     await openDocument(selected as string);
@@ -48,7 +48,7 @@ export function DocumentPicker() {
     <div className={styles.picker}>
       <div className={styles.header}>
         <h1 className={styles.title}>Sigil</h1>
-        <p className={styles.subtitle}>Hierarchical Specification Editor</p>
+        <p className={styles.subtitle}>Hierarchical Domain Language Editor</p>
       </div>
 
       <div className={styles.actions}>
@@ -62,7 +62,7 @@ export function DocumentPicker() {
               className={styles.nameInput}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Spec tree name"
+              placeholder="Sigil name"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleCreate();

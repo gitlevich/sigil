@@ -138,7 +138,7 @@ export function ChatPanel() {
             className={styles.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask the AI to review your spec..."
+            placeholder="Ask the AI to review your sigil..."
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

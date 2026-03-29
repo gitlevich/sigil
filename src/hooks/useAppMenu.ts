@@ -30,14 +30,14 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
   }
 
   const recentSubmenu = await Submenu.new({
-    text: "Recent Specs",
+    text: "Recent Sigils",
     items: recentItems.length > 0
       ? recentItems
-      : [await MenuItem.new({ text: "No Recent Specs", enabled: false })],
+      : [await MenuItem.new({ text: "No Recent Sigils", enabled: false })],
   });
 
   const openItem = await MenuItem.new({
-    text: "Open Spec...",
+    text: "Open Sigil...",
     accelerator: "CmdOrCtrl+O",
     action: async () => {
       const selected = await open({ directory: true, title: "Open sigil root directory" });
