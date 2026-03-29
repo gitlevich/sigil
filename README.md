@@ -1,6 +1,6 @@
 # Sigil
 
-A desktop tool for writing hierarchical domain language before you write code.
+A desktop tool for writing hierarchical domain language before you write code — and for giving an AI agent enough structured context to think alongside you.
 
 ## Who this is for
 
@@ -8,11 +8,15 @@ You're a software architect, technical lead, or senior engineer who believes tha
 
 You think in bounded contexts. You decompose problems into domains, sub-domains, and features, each with their own language and their own boundaries. You know that a specification that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one level of abstraction at a time, with hard limits that force clarity instead of allowing sprawl.
 
+You also know that AI can be a powerful thinking partner — but only when it has real context. Not a chat window where you paste fragments. Not a copilot guessing from the file you happen to have open. You want to give another intelligence your entire mental model of a system, structured the way you structured it, so it can reason about the whole and challenge the parts.
+
 You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let you write anything anywhere, which is precisely the problem. You need structure that pushes back — that tells you "if you need a sixth sub-context, your abstraction is wrong."
 
 ## What Sigil does
 
-Sigil is a domain language editor organized as a tree of bounded contexts. Each context has a name, a domain language document written in markdown, optional technical decisions, and up to five sub-contexts. The hard limit of five is the point. It enforces the cognitive discipline that keeps domain models coherent as they grow.
+A sigil is a structured representation of how you think about a system. It's a tree of bounded contexts, each with its own domain language and technical decisions, constrained to five sub-contexts per level. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
+
+When you chat with the AI review agent, it sees everything: the vision, every context's domain language, every technical decision, the full hierarchy. It inhabits your mental space. It can find the contradiction between what Auth promises and what SessionStore delivers. It can notice that your Billing context uses language that belongs in Notifications. It reviews not a document but a model of your thinking.
 
 A sigil lives on your file system as a directory hierarchy — plain directories and markdown files. No proprietary format, no database, no lock-in. Put it in git and it versions like code.
 
@@ -25,7 +29,7 @@ Each context contains:
 
 - **Hierarchical editing** — navigate a tree of contexts, each with its own domain language and technical decisions. Technical decisions inherit downward unless overridden.
 - **Vision statement** — a persistent reminder of what the application is for, visible from any depth in the tree. Prevents drift.
-- **AI review** — a built-in chat panel where an AI agent reviews your entire sigil for coherence, gaps, contradictions, and implementation readiness. Supports Anthropic and OpenAI.
+- **AI review** — a built-in chat panel where an AI agent inhabits your entire sigil and reviews it for coherence, gaps, contradictions, and implementation readiness. Supports Anthropic and OpenAI.
 - **Multi-window** — each sigil opens in its own native window. Compare two sigils side by side.
 - **Export** — flatten the entire tree into a single markdown document for handoff or review.
 - **Auto-save** — every edit writes to disk immediately. No save button, no lost work.
