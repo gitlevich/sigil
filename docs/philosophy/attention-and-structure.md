@@ -59,3 +59,15 @@ The five-sigil limit is the width constraint at each layer. A neural net with un
 The coherence metric is the loss function — measuring how well the network separates concepts and how tight the clusters are in embedding space. Distillation is training — iteratively adjusting the structure until the loss is low.
 
 When resolution is sufficient — when the leaves are unambiguous — implementation is mechanical projection. The shape in the frequency domain (what holds true everywhere at once) transforms into the time domain (what happens step by step). The creative work is all in the shaping. Once the shape is precise, the code is already determined.
+
+## The Shell
+
+A sigil is what people call a shell. "I live in a shell." "I have a thick shell." The shell is the boundary made of preferences along contrasts I care about.
+
+Thickness varies per contrast. I might have a thick shell around temperature — narrow preference, 17-21, don't touch it — and a thin shell around light — whatever, I will adapt. A thick shell means strong preferences, narrow ranges, a rigid filter. A thin shell means loose preferences, wide ranges, high permeability.
+
+"Coming out of your shell" is the identification pathology resolving. Attention stops identifying with the boundary and remembers it can move.
+
+Trauma thickens the shell. A bad experience along a contrast makes the preference narrower, more rigid. The filter becomes defensive — keep more out, let less in. The sigil contracts. Resolution drops because fewer contrasts are attended to. The language shrinks.
+
+Growth is the opposite. The shell becomes thinner where it can. Preferences widen. New contrasts become relevant. The language expands. Resolution increases.
