@@ -36,7 +36,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   const atLimit = context.children.length >= 5;
 
   return (
-    <div className={styles.node}>
+    <div className={styles.node} onDragOver={(e) => e.preventDefault()}>
       <div
         className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${dropTarget ? styles.dropTarget : ""}`}
         onClick={() => onNavigate(path)}
@@ -69,15 +69,17 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
           }
         }}
         onDrop={(e) => {
+          console.log("DROP EVENT FIRED on", context.name, "source:", dragSourcePath);
           e.preventDefault();
           e.stopPropagation();
           setDropTarget(false);
           const sourcePath = dragSourcePath;
           dragSourcePath = null;
-          if (!sourcePath) return;
-          if (sourcePath === context.path) return;
-          if (sourcePath.startsWith(context.path + "/")) return;
-          if (context.path.startsWith(sourcePath + "/")) return;
+          if (!sourcePath) { console.log("REJECTED: no source"); return; }
+          if (sourcePath === context.path) { console.log("REJECTED: same node"); return; }
+          if (sourcePath.startsWith(context.path + "/")) { console.log("REJECTED: source is child of target"); return; }
+          if (context.path.startsWith(sourcePath + "/")) { console.log("REJECTED: target is child of source"); return; }
+          console.log("EXECUTING MOVE:", sourcePath, "->", context.path);
           onDrop(sourcePath, context.path);
         }}
       >
@@ -266,7 +268,7 @@ export function TreeView() {
   };
 
   return (
-    <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown}>
+    <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown} onDragOver={(e) => e.preventDefault()}>
       <TreeNode
         context={doc.sigil.root}
         path={[]}
