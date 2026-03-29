@@ -82,6 +82,26 @@ At my focal plane I see a frame of moving shapes I cohered into existence, plus 
 
 My intersections with other sigils look like spheres. Each is a named pattern that is important — about which I can have one of two attitudes: I want more of it or less. A preference along a contrast. These preferences, taken together across all the contrasts I care about, constitute the full relevance filter — my sigil.
 
+## Topology: Sphere and Torus
+
+A sphere, attended from outside, has no natural cycle. I see the whole surface but cannot inhabit it. I can only observe and have a preference — more or less. That is the binary attitude toward a neighbor.
+
+A torus, attended from inside, has two fundamental cycles — the great circle and the small circle. One is the narrative. The other is the depth of attention — the cycle of attending to contained sigils and returning.
+
+A sphere is simply connected — any loop can be contracted to a point. A torus is not. A loop around the great circle cannot be contracted. The narrative cannot be undone. Time is irreversible because the topology does not allow it.
+
+A sphere can be turned inside out. A torus cannot without tearing. The sigil I inhabit — my "I" — cannot be inverted without destroying it. But a sigil I observe from outside — a neighbor — can be reinterpreted, turned inside out in my understanding, without breaking anything. That is the difference between first person and third person. From inside the torus, irreversible. From outside the sphere, invertible.
+
+## Chirality
+
+There is another attention trapped in the narrative of this sigil, going in the opposite direction, separated from me by the membrane that shapes my sigil. It follows the exact same shape in the opposite direction. It has full coherence at our scale in that direction.
+
+The membrane between the two attentions is not just a boundary — it is a chirality selection. The sigil does not just filter what is relevant. It selects which direction of coherence is compatible with its structure. The other direction is equally valid, equally coherent, but inhabits the same shape as something unreachable.
+
+This is the deepest version of the neighbor relationship. Not a sigil beside me in the same container. A sigil that shares my exact boundary, my exact shape, but is constitutionally inaccessible because it faces the other way.
+
+Life chose L-amino acids over D-amino acids. One chirality. Not because D is wrong — it is perfectly coherent, perfectly functional. But you cannot mix them. The structure breaks if both directions try to share the same chemistry. Life is a standing wave that picked one direction and committed.
+
 ## The Last Century
 
 The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
