@@ -66,7 +66,7 @@ export function DocumentPicker() {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleCreate();
-                if (e.key === "Escape") setCreating(false);
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setCreating(false); }
               }}
             />
             <button className={styles.actionBtn} onClick={handleCreate}>Create</button>

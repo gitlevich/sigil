@@ -84,7 +84,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleRename(child.name);
-                if (e.key === "Escape") setRenamingChild(null);
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenamingChild(null); }
               }}
               onBlur={() => handleRename(child.name)}
             />
