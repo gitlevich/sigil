@@ -61,7 +61,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     if (!doc) return;
     dispatch({
       type: "UPDATE_DOCUMENT",
-      updates: { currentPath: [...doc.currentPath, childName], showTechnical: false },
+      updates: { currentPath: [...doc.currentPath, childName], contentTab: "language", showTechnical: false },
     });
   };
 

@@ -33,6 +33,7 @@ export function useSigil() {
         sigil,
         currentPath: [],
         editorMode: "split",
+        contentTab: "language",
         showTechnical: false,
         leftPanelOpen: true,
         leftPanelTab: "tree",

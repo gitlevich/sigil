@@ -1,7 +1,6 @@
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import styles from "./EditorToolbar.module.css";
 
-// SVG icons matching IntelliJ-style editor mode icons
 const MarkupIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
     <line x1="3" y1="4" x2="13" y2="4" />
@@ -29,6 +28,18 @@ export function EditorToolbar() {
   const doc = useDocument();
   if (!doc) return null;
 
+  const contentTab = doc.contentTab || "language";
+
+  const setTab = (tab: "language" | "machinery" | "entanglements") => {
+    dispatch({
+      type: "UPDATE_DOCUMENT",
+      updates: {
+        contentTab: tab,
+        showTechnical: tab === "machinery",
+      },
+    });
+  };
+
   const setMode = (mode: "edit" | "split" | "preview") => {
     dispatch({ type: "UPDATE_DOCUMENT", updates: { editorMode: mode } });
   };
@@ -37,44 +48,53 @@ export function EditorToolbar() {
     <div className={styles.toolbar}>
       <div className={styles.contentTabs}>
         <button
-          className={`${styles.contentTab} ${!doc.showTechnical ? styles.contentTabActive : ""}`}
-          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { showTechnical: false } })}
+          className={`${styles.contentTab} ${contentTab === "language" ? styles.contentTabActive : ""}`}
+          onClick={() => setTab("language")}
           title="Domain language for this bounded context"
         >
           Language
         </button>
         <button
-          className={`${styles.contentTab} ${doc.showTechnical ? styles.contentTabActive : ""}`}
-          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { showTechnical: true } })}
+          className={`${styles.contentTab} ${contentTab === "machinery" ? styles.contentTabActive : ""}`}
+          onClick={() => setTab("machinery")}
           title="Architectural choices, technology stack, design patterns"
         >
           Machinery
         </button>
+        <button
+          className={`${styles.contentTab} ${contentTab === "entanglements" ? styles.contentTabActive : ""}`}
+          onClick={() => setTab("entanglements")}
+          title="Bounded context integration map — drag between contexts to declare relationships"
+        >
+          Entanglements
+        </button>
       </div>
 
-      <div className={styles.viewModes}>
-        <button
-          className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}
-          onClick={() => setMode("edit")}
-          title="Markup source"
-        >
-          <MarkupIcon />
-        </button>
-        <button
-          className={`${styles.modeBtn} ${doc.editorMode === "split" ? styles.active : ""}`}
-          onClick={() => setMode("split")}
-          title="Side-by-side markup and preview"
-        >
-          <SplitIcon />
-        </button>
-        <button
-          className={`${styles.modeBtn} ${doc.editorMode === "preview" ? styles.active : ""}`}
-          onClick={() => setMode("preview")}
-          title="Rendered preview"
-        >
-          <PreviewIcon />
-        </button>
-      </div>
+      {contentTab !== "entanglements" && (
+        <div className={styles.viewModes}>
+          <button
+            className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}
+            onClick={() => setMode("edit")}
+            title="Markup source"
+          >
+            <MarkupIcon />
+          </button>
+          <button
+            className={`${styles.modeBtn} ${doc.editorMode === "split" ? styles.active : ""}`}
+            onClick={() => setMode("split")}
+            title="Side-by-side markup and preview"
+          >
+            <SplitIcon />
+          </button>
+          <button
+            className={`${styles.modeBtn} ${doc.editorMode === "preview" ? styles.active : ""}`}
+            onClick={() => setMode("preview")}
+            title="Rendered preview"
+          >
+            <PreviewIcon />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

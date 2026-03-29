@@ -9,6 +9,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
 import { Context, api } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
+import { EntanglementGraph } from "./EntanglementGraph";
 import styles from "./EditorShell.module.css";
 
 function findContext(root: Context, path: string[]): Context {
@@ -138,7 +139,9 @@ export function EditorShell() {
         />
         <EditorToolbar />
         <div className={styles.editorArea}>
-          {doc.showTechnical && currentCtx.technical_decisions === null && inheritedTech ? (
+          {(doc.contentTab || "language") === "entanglements" ? (
+            <EntanglementGraph />
+          ) : doc.showTechnical && currentCtx.technical_decisions === null && inheritedTech ? (
             <div className={styles.inherited}>
               <p className={styles.inheritedLabel}>
                 Inherited from: {inheritedTech.name}

@@ -5,6 +5,7 @@ export interface OpenDocument {
   sigil: Sigil;
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
+  contentTab: "language" | "machinery" | "entanglements";
   showTechnical: boolean;
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "tree";
