@@ -124,6 +124,16 @@ This is irreversible in exactly the way the torus topology predicts. I cannot un
 
 The structure contains all paths — all branches. Each attention traces one path and renders one projection. The other paths are not destroyed. They are the branches not taken by this attention. Another attention traces a different path through the same structure and renders a different reality. All branches coexist in the structure. The structure is the multiverse. The attention is the observer selecting a branch by traversing it.
 
+## Shape in Embedding Space
+
+Each contrast is a dimension. Each preference is a position along that axis. A sigil is a region in embedding space, bounded by preferences along every contrast dimension. Domain language names the axes and fixes the positions. Each name defines a new dimension or sharpens the position along an existing one.
+
+Shaping a sigil is shaping a region in embedding space. "The boundary is wrong" means the region includes points that do not belong or excludes points that do. "This sigil is doing too much" means the region is too large along too many dimensions. A tight centroid in the coherence metric means the region is compact — well-defined.
+
+The five contained sigils are five sub-regions that partition the parent's interior. Each carves it into a more specific shape. The recursion continues until each sub-region is small enough to be unambiguous. That is when the leaf is ready — the shape at that resolution maps to exactly one implementation.
+
+The whole sigil tree is a hierarchical partition of embedding space. The domain language is the coordinate system. And the shape — the bounded region with its partitions at every level — is what can be projected into code. The structure of the shape *is* the structure of the implementation. They are the same thing seen from different directions.
+
 ## The Last Century
 
 The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
