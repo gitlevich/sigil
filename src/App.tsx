@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
-import { useAppState } from "./state/AppContext";
+import { useAppState, useAppDispatch } from "./state/AppContext";
 import { useTheme } from "./hooks/useTheme";
-import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
+import { useSettingsPersistence, getPersistedDocState } from "./hooks/useSettingsPersistence";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useUpdater } from "./hooks/useUpdater";
 import { useSigil } from "./hooks/useSigil";
+import { api } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { EditorShell } from "./components/Editor/EditorShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -18,6 +19,7 @@ interface AppProps {
 
 export function App({ initialRootPath }: AppProps) {
   const state = useAppState();
+  const dispatch = useAppDispatch();
   const { openDocument } = useSigil();
   const opened = useRef(false);
 
@@ -29,11 +31,44 @@ export function App({ initialRootPath }: AppProps) {
 
   useEffect(() => {
     if (opened.current) return;
-    if (initialRootPath) {
-      opened.current = true;
-      openDocument(initialRootPath).catch(console.error);
-    }
-  }, [initialRootPath, openDocument]);
+    opened.current = true;
+
+    (async () => {
+      if (initialRootPath) {
+        // Opened from menu/URL — open that specific sigil
+        await openDocument(initialRootPath).catch(console.error);
+        return;
+      }
+
+      // No explicit path — restore last session
+      const saved = await getPersistedDocState();
+      if (saved?.rootPath) {
+        try {
+          await openDocument(saved.rootPath);
+          // Restore the full UI state after the document loads
+          const chatMessages = saved.activeChatId
+            ? (await api.readChat(saved.rootPath, saved.activeChatId).catch(() => ({ messages: [] }))).messages
+            : [];
+
+          dispatch({
+            type: "UPDATE_DOCUMENT",
+            updates: {
+              currentPath: saved.currentPath || [],
+              leftPanelOpen: saved.leftPanelOpen,
+              leftPanelTab: saved.leftPanelTab,
+              rightPanelOpen: saved.rightPanelOpen,
+              editorMode: saved.editorMode,
+              contentTab: saved.contentTab || "language",
+              activeChatId: saved.activeChatId || "",
+              chatMessages,
+            },
+          });
+        } catch {
+          // Sigil no longer exists — show picker
+        }
+      }
+    })();
+  }, [initialRootPath, openDocument, dispatch]);
 
   return (
     <>
