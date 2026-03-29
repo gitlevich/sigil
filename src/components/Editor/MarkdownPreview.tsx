@@ -3,34 +3,46 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./MarkdownPreview.module.css";
 
+export interface SiblingInfo {
+  name: string;
+  summary: string;
+}
+
 interface MarkdownPreviewProps {
   content: string;
   siblingNames?: string[];
+  siblings?: SiblingInfo[];
 }
 
-export function MarkdownPreview({ content, siblingNames = [] }: MarkdownPreviewProps) {
-  // Build a regex to match sibling names (with optional .affordance)
+export function MarkdownPreview({ content, siblingNames = [], siblings = [] }: MarkdownPreviewProps) {
   const siblingPattern = useMemo(() => {
     if (siblingNames.length === 0) return null;
     const escaped = siblingNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    return new RegExp(`\\b(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+    return new RegExp(`@(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
   }, [siblingNames]);
+
+  const summaryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const s of siblings) {
+      map[s.name.toLowerCase()] = s.summary;
+    }
+    return map;
+  }, [siblings]);
 
   return (
     <div className={styles.preview}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={siblingPattern ? {
-          // Override text rendering to highlight sibling references
           text: ({ children }) => {
             if (typeof children !== "string") return <>{children}</>;
-            return <>{highlightSiblings(children, siblingPattern)}</>;
+            return <>{highlightSiblings(children, siblingPattern, summaryMap)}</>;
           },
           p: ({ children, ...props }) => (
-            <p {...props}>{highlightChildStrings(children, siblingPattern)}</p>
+            <p {...props}>{highlightChildStrings(children, siblingPattern, summaryMap)}</p>
           ),
           li: ({ children, ...props }) => (
-            <li {...props}>{highlightChildStrings(children, siblingPattern)}</li>
+            <li {...props}>{highlightChildStrings(children, siblingPattern, summaryMap)}</li>
           ),
         } : undefined}
       >{content}</ReactMarkdown>
@@ -38,7 +50,11 @@ export function MarkdownPreview({ content, siblingNames = [] }: MarkdownPreviewP
   );
 }
 
-function highlightSiblings(text: string, pattern: RegExp): (string | JSX.Element)[] {
+function highlightSiblings(
+  text: string,
+  pattern: RegExp,
+  summaryMap: Record<string, string>
+): (string | JSX.Element)[] {
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
   pattern.lastIndex = 0;
@@ -47,8 +63,16 @@ function highlightSiblings(text: string, pattern: RegExp): (string | JSX.Element
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
+    const baseName = match[1]; // the sibling name without .affordance
+    const summary = summaryMap[baseName.toLowerCase()];
     parts.push(
-      <span key={match.index} className="sibling-ref">{match[0]}</span>
+      <span
+        key={match.index}
+        className="sibling-ref"
+        title={summary || baseName}
+      >
+        {match[0]}
+      </span>
     );
     lastIndex = match.index + match[0].length;
   }
@@ -58,14 +82,18 @@ function highlightSiblings(text: string, pattern: RegExp): (string | JSX.Element
   return parts;
 }
 
-function highlightChildStrings(children: React.ReactNode, pattern: RegExp): React.ReactNode {
+function highlightChildStrings(
+  children: React.ReactNode,
+  pattern: RegExp,
+  summaryMap: Record<string, string>
+): React.ReactNode {
   if (typeof children === "string") {
-    return <>{highlightSiblings(children, pattern)}</>;
+    return <>{highlightSiblings(children, pattern, summaryMap)}</>;
   }
   if (Array.isArray(children)) {
     return children.map((child, i) => {
       if (typeof child === "string") {
-        return <span key={i}>{highlightSiblings(child, pattern)}</span>;
+        return <span key={i}>{highlightSiblings(child, pattern, summaryMap)}</span>;
       }
       return child;
     });

@@ -28,7 +28,12 @@
     {
       "from": "z",
       "to": "epsilon",
-      "policy": "customer-supplier"
+      "policy": "separate-ways"
+    },
+    {
+      "from": "epsilon",
+      "to": "goo",
+      "policy": "anticorruption-layer"
     }
   ]
 }
