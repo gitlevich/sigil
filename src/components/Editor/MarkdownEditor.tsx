@@ -128,8 +128,8 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
         color: "var(--text-primary)",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
-        background: "var(--accent)",
-        color: "var(--accent-text)",
+        background: "#2860a8 !important",
+        color: "#ffffff !important",
       },
       ".cm-tooltip-autocomplete .cm-completionDetail": {
         color: "var(--text-secondary)",
@@ -137,8 +137,11 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
         marginLeft: "8px",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
-        color: "var(--accent-text)",
-        opacity: "0.8",
+        color: "#ffffff !important",
+        opacity: "0.7",
+      },
+      ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionIcon": {
+        color: "#ffffff !important",
       },
       ".cm-tooltip-sibling": {
         padding: "6px 10px",
