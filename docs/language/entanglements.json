@@ -24,6 +24,11 @@
       "from": "xxx",
       "to": "goo",
       "policy": "customer-supplier"
+    },
+    {
+      "from": "z",
+      "to": "epsilon",
+      "policy": "customer-supplier"
     }
   ]
 }
