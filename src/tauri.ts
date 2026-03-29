@@ -6,7 +6,6 @@ export interface Context {
   name: string;
   path: string;
   domain_language: string;
-  technical_decisions: string | null;
   children: Context[];
 }
 

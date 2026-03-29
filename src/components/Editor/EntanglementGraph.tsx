@@ -181,7 +181,7 @@ export function EntanglementGraph() {
     if (!doc) return;
     dispatch({
       type: "UPDATE_DOCUMENT",
-      updates: { currentPath: [...doc.currentPath, name], showTechnical: false },
+      updates: { currentPath: [...doc.currentPath, name] },
     });
   };
 
