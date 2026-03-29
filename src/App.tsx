@@ -8,6 +8,8 @@ import { useSigil } from "./hooks/useSigil";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { EditorShell } from "./components/Editor/EditorShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
+import { AboutDialog } from "./components/About/AboutDialog";
+import { HelpDialog } from "./components/Help/HelpDialog";
 
 interface AppProps {
   initialRootPath: string | null;
@@ -35,6 +37,8 @@ export function App({ initialRootPath }: AppProps) {
     <>
       {state.screen === "picker" ? <DocumentPicker /> : <EditorShell />}
       <SettingsDialog />
+      <AboutDialog />
+      <HelpDialog />
     </>
   );
 }

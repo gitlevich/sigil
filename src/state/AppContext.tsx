@@ -25,6 +25,8 @@ interface AppState {
   document: OpenDocument | null;
   settings: Settings;
   settingsOpen: boolean;
+  aboutOpen: boolean;
+  helpOpen: boolean;
   themePreference: ThemePreference;
   ui: UIState;
 }
@@ -37,6 +39,8 @@ type Action =
   | { type: "UPDATE_SIGIL"; sigil: Sigil }
   | { type: "SET_SETTINGS"; settings: Settings }
   | { type: "SET_SETTINGS_OPEN"; open: boolean }
+  | { type: "SET_ABOUT_OPEN"; open: boolean }
+  | { type: "SET_HELP_OPEN"; open: boolean }
   | { type: "SET_THEME"; theme: ThemePreference }
   | { type: "SET_UI"; ui: Partial<UIState> };
 
@@ -54,6 +58,8 @@ const initialState: AppState = {
     system_prompt: "",
   },
   settingsOpen: false,
+  aboutOpen: false,
+  helpOpen: false,
   themePreference: "system",
   ui: DEFAULT_UI,
 };
@@ -82,6 +88,12 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_SETTINGS_OPEN":
       return { ...state, settingsOpen: action.open };
+
+    case "SET_ABOUT_OPEN":
+      return { ...state, aboutOpen: action.open };
+
+    case "SET_HELP_OPEN":
+      return { ...state, helpOpen: action.open };
 
     case "SET_THEME":
       return { ...state, themePreference: action.theme };

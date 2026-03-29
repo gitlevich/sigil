@@ -18,6 +18,38 @@ export function useAppMenu() {
 }
 
 async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
+  // ── Sigil (app) menu ──
+  const aboutItem = await MenuItem.new({
+    text: "About Sigil...",
+    action: () => {
+      dispatch({ type: "SET_ABOUT_OPEN", open: true });
+    },
+  });
+
+  const settingsItem = await MenuItem.new({
+    text: "Settings...",
+    accelerator: "CmdOrCtrl+,",
+    action: () => {
+      dispatch({ type: "SET_SETTINGS_OPEN", open: true });
+    },
+  });
+
+  const appSubmenu = await Submenu.new({
+    text: "Sigil",
+    items: [
+      aboutItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      settingsItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      await PredefinedMenuItem.new({ item: "Hide" }),
+      await PredefinedMenuItem.new({ item: "HideOthers" }),
+      await PredefinedMenuItem.new({ item: "ShowAll" }),
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      await PredefinedMenuItem.new({ item: "Quit" }),
+    ],
+  });
+
+  // ── File menu ──
   const recentDocs = await api.listRecentDocuments().catch(() => []);
   const recentItems: MenuItem[] = [];
 
@@ -36,6 +68,12 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
       : [await MenuItem.new({ text: "No Recent Sigils", enabled: false })],
   });
 
+  const newItem = await MenuItem.new({
+    text: "New Window",
+    accelerator: "CmdOrCtrl+N",
+    action: () => openInNewWindow(""),
+  });
+
   const openItem = await MenuItem.new({
     text: "Open Sigil...",
     accelerator: "CmdOrCtrl+O",
@@ -47,27 +85,11 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
     },
   });
 
-  const newItem = await MenuItem.new({
-    text: "New Window",
-    accelerator: "CmdOrCtrl+N",
-    action: () => {
-      openInNewWindow("");
-    },
-  });
-
   const closeItem = await MenuItem.new({
     text: "Close Window",
     accelerator: "CmdOrCtrl+W",
     action: async () => {
       await getCurrentWindow().close();
-    },
-  });
-
-  const settingsItem = await MenuItem.new({
-    text: "Settings...",
-    accelerator: "CmdOrCtrl+,",
-    action: () => {
-      dispatch({ type: "SET_SETTINGS_OPEN", open: true });
     },
   });
 
@@ -79,12 +101,11 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
       await PredefinedMenuItem.new({ item: "Separator" }),
       recentSubmenu,
       await PredefinedMenuItem.new({ item: "Separator" }),
-      settingsItem,
-      await PredefinedMenuItem.new({ item: "Separator" }),
       closeItem,
     ],
   });
 
+  // ── Edit menu ──
   const editSubmenu = await Submenu.new({
     text: "Edit",
     items: [
@@ -98,6 +119,7 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
     ],
   });
 
+  // ── Window menu ──
   const windowSubmenu = await Submenu.new({
     text: "Window",
     items: [
@@ -109,8 +131,22 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
   });
   await windowSubmenu.setAsWindowsMenuForNSApp();
 
+  // ── Help menu ──
+  const helpItem = await MenuItem.new({
+    text: "Sigil Help",
+    action: () => {
+      dispatch({ type: "SET_HELP_OPEN", open: true });
+    },
+  });
+
+  const helpSubmenu = await Submenu.new({
+    text: "Help",
+    items: [helpItem],
+  });
+  await helpSubmenu.setAsHelpMenuForNSApp();
+
   const menu = await Menu.new({
-    items: [fileSubmenu, editSubmenu, windowSubmenu],
+    items: [appSubmenu, fileSubmenu, editSubmenu, windowSubmenu, helpSubmenu],
   });
 
   await menu.setAsAppMenu();

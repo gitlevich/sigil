@@ -1,0 +1,80 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 400px;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.version {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 1.25rem;
+}
+
+.body {
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.body p {
+  margin: 0 0 0.75rem;
+}
+
+.body p:last-child {
+  margin-bottom: 0;
+}
+
+.contactBtn {
+  display: inline-block;
+  padding: 0.5rem 1.2rem;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.contactBtn:hover {
+  background: var(--accent-hover);
+}
+
+.closeBtn {
+  display: block;
+  width: 100%;
+  padding: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+}
