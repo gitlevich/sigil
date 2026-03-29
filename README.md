@@ -22,6 +22,8 @@ But the structure does something more fundamental than just providing context. W
 
 This is how attention works. Not by seeing everything at once, but by knowing what to ignore. The tree of contexts is a mutual contract between you and the agent about what matters right now.
 
+A context can address its siblings — the other contexts that share the same containing sigil. You can use a neighbor's name in your domain language to describe how you relate to it: `focus.slice` means you're addressing Focus's public affordance from within your own context. These cross-references are highlighted in the editor, making the local language of the containing sigil visible as you write. You can't reach inside a sibling. You can only address it by name and use what it exposes. If you find yourself wanting to reference something deeper, that's a signal the boundary needs work.
+
 A sigil lives on your file system as a directory hierarchy — plain directories and markdown files. No proprietary format, no database, no lock-in. Put it in git and it versions like code.
 
 Each context contains:

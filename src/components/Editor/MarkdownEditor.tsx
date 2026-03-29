@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
-import { EditorState, Compartment } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import { EditorState, Compartment, RangeSetBuilder } from "@codemirror/state";
+import {
+  EditorView, keymap, lineNumbers, highlightActiveLine,
+  Decoration, DecorationSet, ViewPlugin, ViewUpdate,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
@@ -10,9 +13,11 @@ import styles from "./MarkdownEditor.module.css";
 interface MarkdownEditorProps {
   content: string;
   onChange: (content: string) => void;
+  siblingNames?: string[];
 }
 
 const themeCompartment = new Compartment();
+const siblingCompartment = new Compartment();
 
 const lightTheme = EditorView.theme({
   "&": {
@@ -49,15 +54,58 @@ function getThemeExtension(): typeof oneDark | typeof lightTheme {
   return theme === "dark" ? oneDark : lightTheme;
 }
 
-export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
+const siblingMark = Decoration.mark({ class: "cm-sibling-ref" });
+
+function buildSiblingHighlighter(names: string[]) {
+  if (names.length === 0) return [];
+
+  // Build a case-insensitive regex that matches sibling names as whole words
+  // Also matches name.something (affordance notation)
+  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const pattern = new RegExp(`\\b(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+
+  return [
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+        constructor(view: EditorView) {
+          this.decorations = this.build(view);
+        }
+        update(update: ViewUpdate) {
+          if (update.docChanged || update.viewportChanged) {
+            this.decorations = this.build(update.view);
+          }
+        }
+        build(view: EditorView): DecorationSet {
+          const builder = new RangeSetBuilder<Decoration>();
+          for (const { from, to } of view.visibleRanges) {
+            const text = view.state.doc.sliceString(from, to);
+            let match;
+            pattern.lastIndex = 0;
+            while ((match = pattern.exec(text)) !== null) {
+              builder.add(from + match.index, from + match.index + match[0].length, siblingMark);
+            }
+          }
+          return builder.finish();
+        }
+      },
+      { decorations: (v) => v.decorations }
+    ),
+    EditorView.theme({
+      ".cm-sibling-ref": {
+        borderBottom: "2px solid var(--accent)",
+        borderRadius: "1px",
+        paddingBottom: "1px",
+      },
+    }),
+  ];
+}
+
+export function MarkdownEditor({ content, onChange, siblingNames = [] }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-
-  // Track whether the last change originated from the editor itself.
-  // When true, the content-sync effect should skip updating CodeMirror
-  // because it already has the right content (and may have newer keystrokes).
   const localEditRef = useRef(false);
 
   useEffect(() => {
@@ -72,6 +120,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
+        siblingCompartment.of(buildSiblingHighlighter(siblingNames)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             localEditRef.current = true;
@@ -99,7 +148,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Watch for theme changes via MutationObserver on data-theme attribute
+  // Watch for theme changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
       const view = viewRef.current;
@@ -117,8 +166,16 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Update sibling highlighting when siblings change
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames)),
+    });
+  }, [siblingNames]);
+
   // Sync external content changes into CodeMirror.
-  // Skip if the change came from the editor itself (localEditRef).
   useEffect(() => {
     if (localEditRef.current) {
       localEditRef.current = false;

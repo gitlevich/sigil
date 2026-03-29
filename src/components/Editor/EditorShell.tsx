@@ -91,6 +91,19 @@ export function EditorShell() {
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
+  // Compute sibling names: the other children of the containing sigil
+  const siblingNames = (() => {
+    if (doc.currentPath.length === 0) {
+      // At root — no siblings, but children are visible as sub-contexts
+      return [];
+    }
+    const containingPath = doc.currentPath.slice(0, -1);
+    const containingSigil = findContext(doc.sigil.root, containingPath);
+    return containingSigil.children
+      .map((c) => c.name)
+      .filter((name) => name !== currentCtx.name);
+  })();
+
   const content = doc.showTechnical
     ? currentCtx.technical_decisions ?? ""
     : currentCtx.domain_language;
@@ -155,12 +168,13 @@ export function EditorShell() {
                   <MarkdownEditor
                     content={content}
                     onChange={handleContentChange}
+                    siblingNames={siblingNames}
                   />
                 </div>
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} />
+                  <MarkdownPreview content={content} siblingNames={siblingNames} />
                 </div>
               )}
             </>
