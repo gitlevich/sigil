@@ -6,8 +6,13 @@
   color: var(--text-primary);
 }
 
-.preview :global(.sibling-ref) {
+.preview :global(.ref-contained) {
   border-bottom: 2px solid var(--accent);
+  padding-bottom: 1px;
+}
+
+.preview :global(.ref-sibling) {
+  border-bottom: 2px dashed #e8a040;
   padding-bottom: 1px;
 }
 

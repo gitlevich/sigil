@@ -79,6 +79,7 @@ export function EditorShell() {
   const contained = currentCtx.children.map((c) => ({
     name: c.name,
     summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
+    kind: "contained" as const,
   }));
   const siblings = (() => {
     if (doc.currentPath.length === 0) return [];
@@ -89,6 +90,7 @@ export function EditorShell() {
       .map((c) => ({
         name: c.name,
         summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
+        kind: "sibling" as const,
       }));
   })();
   const allRefs = [...contained, ...siblings];

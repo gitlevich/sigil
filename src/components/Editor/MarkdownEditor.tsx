@@ -15,6 +15,7 @@ import styles from "./MarkdownEditor.module.css";
 export interface SiblingInfo {
   name: string;
   summary: string;
+  kind?: "contained" | "sibling";
 }
 
 interface MarkdownEditorProps {
@@ -62,7 +63,8 @@ function getThemeExtension(): typeof oneDark | typeof lightTheme {
   return theme === "dark" ? oneDark : lightTheme;
 }
 
-const siblingMark = Decoration.mark({ class: "cm-sibling-ref" });
+const containedMark = Decoration.mark({ class: "cm-ref-contained" });
+const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
 
 let globalSiblings: SiblingInfo[] = [];
 
@@ -93,7 +95,10 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
             let match;
             pattern.lastIndex = 0;
             while ((match = pattern.exec(text)) !== null) {
-              builder.add(from + match.index, from + match.index + match[0].length, siblingMark);
+              const baseName = match[1];
+              const info = globalSiblings.find((s) => s.name.toLowerCase() === baseName.toLowerCase());
+              const mark = info?.kind === "sibling" ? siblingMark : containedMark;
+              builder.add(from + match.index, from + match.index + match[0].length, mark);
             }
           }
           return builder.finish();
@@ -102,8 +107,13 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
       { decorations: (v) => v.decorations }
     ),
     EditorView.theme({
-      ".cm-sibling-ref": {
+      ".cm-ref-contained": {
         borderBottom: "2px solid var(--accent)",
+        borderRadius: "1px",
+        paddingBottom: "1px",
+      },
+      ".cm-ref-sibling": {
+        borderBottom: "2px dashed #e8a040",
         borderRadius: "1px",
         paddingBottom: "1px",
       },

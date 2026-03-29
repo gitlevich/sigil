@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use crate::commands::sigil::{create_context, rename_context};
+use crate::commands::sigil::{create_context, delete_context, rename_context};
 
 /// Define the tools available to the AI agent
 pub fn tool_definitions() -> Vec<serde_json::Value> {
@@ -92,6 +92,20 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "delete_context",
+            "description": "Delete a context and all its sub-contexts. Removes the directory and everything inside it.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "context_path": {
+                        "type": "string",
+                        "description": "Absolute path to the context directory to delete"
+                    }
+                },
+                "required": ["context_path"]
+            }
+        }),
+        serde_json::json!({
             "name": "write_vision",
             "description": "Write or replace the vision statement (vision.md) at the sigil root.",
             "input_schema": {
@@ -140,6 +154,11 @@ pub fn execute_tool(name: &str, input: &serde_json::Value) -> Result<String, Str
             let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
             let new_path = rename_context(ctx_path.to_string(), new_name.to_string())?;
             Ok(format!("Renamed to '{}' at {}", new_name, new_path))
+        }
+        "delete_context" => {
+            let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
+            delete_context(ctx_path.to_string())?;
+            Ok(format!("Deleted context at {}", ctx_path))
         }
         "read_context" => {
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
