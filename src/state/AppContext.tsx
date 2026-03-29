@@ -49,9 +49,8 @@ const initialState: AppState = {
   screen: "picker",
   document: null,
   settings: {
-    provider: "anthropic",
-    api_key: "",
-    model: "claude-sonnet-4-20250514",
+    profiles: [],
+    active_profile_id: "",
     system_prompt: "",
   },
   settingsOpen: false,

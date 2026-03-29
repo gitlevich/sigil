@@ -14,19 +14,27 @@ impl Default for AiProvider {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Settings {
+pub struct AiProfile {
+    pub id: String,
+    pub name: String,
     pub provider: AiProvider,
     pub api_key: String,
     pub model: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Settings {
+    pub profiles: Vec<AiProfile>,
+    pub active_profile_id: String,
     pub system_prompt: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            provider: AiProvider::Anthropic,
-            api_key: String::new(),
-            model: "claude-sonnet-4-20250514".to_string(),
+            profiles: Vec::new(),
+            active_profile_id: String::new(),
             system_prompt: DEFAULT_SYSTEM_PROMPT.to_string(),
         }
     }

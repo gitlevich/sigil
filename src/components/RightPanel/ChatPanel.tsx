@@ -65,6 +65,25 @@ export function ChatPanel() {
       <div className={styles.panel} style={{ width }}>
         <div className={styles.header}>
           <span className={styles.title}>AI Review</span>
+          {state.settings.profiles.length > 1 && (
+            <select
+              className={styles.profileSwitch}
+              value={state.settings.active_profile_id}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_SETTINGS",
+                  settings: { ...state.settings, active_profile_id: e.target.value },
+                })
+              }
+            >
+              {state.settings.profiles.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+          {state.settings.profiles.length === 1 && (
+            <span className={styles.profileLabel}>{state.settings.profiles[0].name}</span>
+          )}
           <button
             className={styles.collapseBtn}
             onClick={() =>

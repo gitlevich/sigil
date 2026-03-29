@@ -30,7 +30,7 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -41,7 +41,29 @@
   font-weight: 600;
 }
 
+.profileSwitch {
+  flex: 1;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  outline: none;
+  min-width: 0;
+}
+
+.profileLabel {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .collapseBtn {
+  margin-left: auto;
   background: none;
   border: none;
   color: var(--text-secondary);

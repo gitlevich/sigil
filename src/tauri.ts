@@ -28,11 +28,22 @@ export interface RecentDocument {
   last_opened: number;
 }
 
-export interface Settings {
+export interface AiProfile {
+  id: string;
+  name: string;
   provider: "anthropic" | "openai";
   api_key: string;
   model: string;
+}
+
+export interface Settings {
+  profiles: AiProfile[];
+  active_profile_id: string;
   system_prompt: string;
+}
+
+export function activeProfile(settings: Settings): AiProfile | undefined {
+  return settings.profiles.find((p) => p.id === settings.active_profile_id);
 }
 
 export const api = {
@@ -63,8 +74,8 @@ export const api = {
   writeChat: (rootPath: string, messages: ChatMessage[]) =>
     invoke<void>("write_chat", { rootPath, messages }),
 
-  sendChatMessage: (rootPath: string, message: string, settings: Settings) =>
-    invoke<void>("send_chat_message", { rootPath, message, settings }),
+  sendChatMessage: (rootPath: string, message: string, profile: AiProfile, systemPrompt: string) =>
+    invoke<void>("send_chat_message", { rootPath, message, profile, systemPrompt }),
 
   listRecentDocuments: () =>
     invoke<RecentDocument[]>("list_recent_documents"),

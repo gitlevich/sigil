@@ -3,7 +3,7 @@ use std::path::Path;
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{ChatMessage, ChatRole};
-use crate::models::settings::{AiProvider, Settings, DEFAULT_SYSTEM_PROMPT};
+use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 
 fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
@@ -127,14 +127,15 @@ pub async fn send_chat_message(
     app: AppHandle,
     root_path: String,
     message: String,
-    settings: Settings,
+    profile: AiProfile,
+    system_prompt: String,
 ) -> Result<(), String> {
     let spec_context = assemble_sigil_context(&root_path)?;
 
-    let system_prompt = if settings.system_prompt.trim().is_empty() {
+    let system_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
     } else {
-        settings.system_prompt.clone()
+        system_prompt
     };
 
     let mut history = read_chat(root_path.clone())?;
@@ -143,12 +144,12 @@ pub async fn send_chat_message(
         content: message,
     });
 
-    let result = match settings.provider {
+    let result = match profile.provider {
         AiProvider::Anthropic => {
-            stream_anthropic(&app, &spec_context, &history, &settings, &system_prompt).await
+            stream_anthropic(&app, &spec_context, &history, &profile, &system_prompt).await
         }
         AiProvider::OpenAI => {
-            stream_openai(&app, &spec_context, &history, &settings, &system_prompt).await
+            stream_openai(&app, &spec_context, &history, &profile, &system_prompt).await
         }
     };
 
@@ -166,7 +167,7 @@ async fn stream_anthropic(
     app: &AppHandle,
     sigil_context: &str,
     history: &[ChatMessage],
-    settings: &Settings,
+    profile: &AiProfile,
     system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
@@ -182,7 +183,7 @@ async fn stream_anthropic(
         .collect();
 
     let body = serde_json::json!({
-        "model": settings.model,
+        "model": profile.model,
         "max_tokens": 4096,
         "system": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context),
         "messages": messages,
@@ -191,7 +192,7 @@ async fn stream_anthropic(
 
     let response = client
         .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", &settings.api_key)
+        .header("x-api-key", &profile.api_key)
         .header("anthropic-version", "2023-06-01")
         .header("content-type", "application/json")
         .json(&body)
@@ -250,7 +251,7 @@ async fn stream_openai(
     app: &AppHandle,
     sigil_context: &str,
     history: &[ChatMessage],
-    settings: &Settings,
+    profile: &AiProfile,
     system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
@@ -268,14 +269,14 @@ async fn stream_openai(
     }
 
     let body = serde_json::json!({
-        "model": settings.model,
+        "model": profile.model,
         "messages": messages,
         "stream": true,
     });
 
     let response = client
         .post("https://api.openai.com/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", settings.api_key))
+        .header("Authorization", format!("Bearer {}", profile.api_key))
         .header("Content-Type", "application/json")
         .json(&body)
         .send()

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { api, events, ChatMessage } from "../tauri";
+import { api, events, ChatMessage, activeProfile } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { useToast } from "./useToast";
 
@@ -70,11 +70,19 @@ export function useChatStream() {
     await api.writeChat(doc.sigil.root_path, newMessages);
     accumulatorRef.current = "";
 
+    const profile = activeProfile(state.settings);
+    if (!profile) {
+      addToast("No AI profile configured. Open Settings to add one.", "error");
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      return;
+    }
+
     try {
       await api.sendChatMessage(
         doc.sigil.root_path,
         message,
-        state.settings
+        profile,
+        state.settings.system_prompt
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
