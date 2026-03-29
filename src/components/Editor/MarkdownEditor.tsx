@@ -117,6 +117,29 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
         borderRadius: "1px",
         paddingBottom: "1px",
       },
+      ".cm-tooltip-autocomplete": {
+        background: "var(--bg-primary)",
+        border: "1px solid var(--border)",
+        borderRadius: "4px",
+        fontSize: "13px",
+      },
+      ".cm-tooltip-autocomplete ul li": {
+        padding: "4px 8px",
+        color: "var(--text-primary)",
+      },
+      ".cm-tooltip-autocomplete ul li[aria-selected]": {
+        background: "var(--accent)",
+        color: "var(--accent-text)",
+      },
+      ".cm-tooltip-autocomplete .cm-completionDetail": {
+        color: "var(--text-secondary)",
+        fontStyle: "italic",
+        marginLeft: "8px",
+      },
+      ".cm-tooltip-autocomplete ul li[aria-selected] .cm-completionDetail": {
+        color: "var(--accent-text)",
+        opacity: "0.8",
+      },
       ".cm-tooltip-sibling": {
         padding: "6px 10px",
         maxWidth: "300px",
