@@ -269,8 +269,20 @@ export function ChatPanel() {
               key={i}
               className={`${styles.message} ${msg.role === "user" ? styles.userMsg : styles.assistantMsg}`}
             >
-              <div className={styles.messageRole}>
-                {msg.role === "user" ? "You" : "AI"}
+              <div className={styles.messageHeader}>
+                <span className={styles.messageRole}>
+                  {msg.role === "user" ? "You" : "AI"}
+                </span>
+                <button
+                  className={styles.copyBtn}
+                  onClick={() => navigator.clipboard.writeText(msg.content)}
+                  title="Copy to clipboard"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="5" y="5" width="8" height="8" rx="1" />
+                    <path d="M11 5V3.5C11 2.95 10.55 2.5 10 2.5H3.5C2.95 2.5 2.5 2.95 2.5 3.5V10C2.5 10.55 2.95 11 3.5 11H5" />
+                  </svg>
+                </button>
               </div>
               {msg.role === "assistant" ? (
                 <MarkdownPreview content={msg.content} />

@@ -226,13 +226,41 @@
   background: transparent;
 }
 
+.messageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
 .messageRole {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
-  margin-bottom: 0.25rem;
+}
+
+.copyBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.1rem;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.1s;
+  display: flex;
+  align-items: center;
+}
+
+.message:hover .copyBtn {
+  opacity: 1;
+}
+
+.copyBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .messageContent {
