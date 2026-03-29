@@ -157,6 +157,7 @@ export function ChatPanel() {
               className={styles.chatSwitch}
               value={doc.activeChatId}
               onChange={(e) => switchChat(e.target.value)}
+              title="Switch between chat conversations"
             >
               {doc.chats.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -168,7 +169,7 @@ export function ChatPanel() {
           <button
             className={styles.newChatBtn}
             onClick={createChat}
-            title="New chat"
+            title="Start a new chat conversation"
           >
             +
           </button>
@@ -179,7 +180,7 @@ export function ChatPanel() {
                 e.stopPropagation();
                 setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: doc.activeChatId });
               }}
-              title="Chat options"
+              title="Rename or delete this chat"
             >
               ...
             </button>
@@ -197,6 +198,7 @@ export function ChatPanel() {
                       settings: { ...state.settings, selected_provider_id: e.target.value },
                     })
                   }
+                  title="Choose which AI attention provider responds next"
                 >
                   {enabled.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -209,8 +211,8 @@ export function ChatPanel() {
             }
             return null;
           })()}
-          <button
-            className={`${styles.styleToggle} ${state.settings.response_style === "detailed" ? styles.styleToggleActive : ""}`}
+          <div
+            className={styles.styleSwitch}
             onClick={() =>
               dispatch({
                 type: "SET_SETTINGS",
@@ -220,15 +222,22 @@ export function ChatPanel() {
                 },
               })
             }
-            title={state.settings.response_style === "detailed" ? "Detailed mode (click for laconic)" : "Laconic mode (click for detailed)"}
+            title={state.settings.response_style === "detailed"
+              ? "Detailed: thorough explanations with full reasoning"
+              : "Laconic: a few short sentences, conversation not report"}
           >
-            {state.settings.response_style === "detailed" ? "D" : "L"}
-          </button>
+            <span className={state.settings.response_style !== "detailed" ? styles.styleLabelActive : styles.styleLabel}>laconic</span>
+            <span className={styles.switchTrack}>
+              <span className={`${styles.switchThumb} ${state.settings.response_style === "detailed" ? styles.switchThumbRight : ""}`} />
+            </span>
+            <span className={state.settings.response_style === "detailed" ? styles.styleLabelActive : styles.styleLabel}>detailed</span>
+          </div>
           <button
             className={styles.collapseBtn}
             onClick={() =>
               dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelOpen: false } })
             }
+            title="Collapse chat panel"
           >
             &rsaquo;
           </button>
