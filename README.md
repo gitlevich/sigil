@@ -10,7 +10,7 @@ A desktop tool for writing hierarchical domain language before you write code �
 
 You're a software architect, technical lead, or senior engineer who believes that unclear domain language produces unclear systems. You've seen projects where the team started coding before anyone agreed on what the system actually is — and you've watched the slow, expensive reckoning that follows.
 
-You think in bounded contexts. You decompose problems into named concepts, each with their own language and their own boundaries. You know that a mental model that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one level of abstraction at a time, with hard limits that force clarity instead of allowing sprawl.
+You think in bounded contexts. You decompose systems into contexts, each with its own ubiquitous language and its own boundary. You know that a mental model that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one bounded context at a time, with hard limits that force clarity instead of allowing sprawl.
 
 You also know that AI can be a powerful thinking partner — but only when it has real context. Not a chat window where you paste fragments. Not a copilot guessing from the file you happen to have open. You want to give another intelligence your entire mental model of a system, structured the way you structured it, so it can reason about the whole and challenge the parts.
 
@@ -18,7 +18,7 @@ You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let yo
 
 ## What Sigil does
 
-A sigil is a structured representation of how you think about a system. It's a tree of bounded contexts, each with its own domain language, constrained to five sub-contexts per level. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
+A sigil is a bounded context. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
 
 The sigil becomes the AI agent's context. The entire tree — vision and domain language at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
 
@@ -26,7 +26,7 @@ But the structure does something more fundamental than just providing context. W
 
 This is how attention works. Not by seeing everything at once, but by knowing what to ignore. The tree of contexts is a mutual contract between you and the agent about what matters right now.
 
-A context can address its siblings — the other contexts that share the same containing sigil. You can use a neighbor's name in your domain language to describe how you relate to it: `focus.slice` means you're addressing Focus's public affordance from within your own context. These cross-references are highlighted in the editor, making the local language of the containing sigil visible as you write. You can't reach inside a sibling. You can only address it by name and use what it exposes. If you find yourself wanting to reference something deeper, that's a signal the boundary needs work.
+A context can address its siblings — the other contexts that share the same containing sigil. Sibling names are highlighted in the editor when used in domain language. You can't reach inside a sibling. You can only address it by name. If you find yourself wanting to reference something deeper, that's a signal the boundary needs work.
 
 A sigil lives on your file system as a directory hierarchy — plain directories and markdown files. No proprietary format, no database, no lock-in. Put it in git and it versions like code.
 
