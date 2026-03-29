@@ -143,11 +143,10 @@ async function buildMenu(
       await MenuItem.new({
         text: "Rename Sigil...",
         accelerator: "Alt+CmdOrCtrl+R",
-        action: async () => {
+        action: () => {
           const doc = getDoc();
           if (!doc) return;
-          const { emit } = await import("@tauri-apps/api/event");
-          await emit("rename-sigil-request");
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: true, leftPanelOpen: true, leftPanelTab: "tree" } });
         },
       }),
     ],
