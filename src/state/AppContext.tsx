@@ -58,7 +58,7 @@ const initialState: AppState = {
     attention_providers: [],
     selected_provider_id: "",
     system_prompt: "",
-    response_style: "default",
+    response_style: "laconic",
   },
   settingsOpen: false,
   aboutOpen: false,

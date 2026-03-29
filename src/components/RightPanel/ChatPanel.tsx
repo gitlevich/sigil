@@ -210,19 +210,19 @@ export function ChatPanel() {
             return null;
           })()}
           <button
-            className={`${styles.styleToggle} ${state.settings.response_style === "laconic" ? styles.styleToggleActive : ""}`}
+            className={`${styles.styleToggle} ${state.settings.response_style === "detailed" ? styles.styleToggleActive : ""}`}
             onClick={() =>
               dispatch({
                 type: "SET_SETTINGS",
                 settings: {
                   ...state.settings,
-                  response_style: state.settings.response_style === "laconic" ? "default" : "laconic",
+                  response_style: state.settings.response_style === "detailed" ? "laconic" : "detailed",
                 },
               })
             }
-            title={state.settings.response_style === "laconic" ? "Laconic mode" : "Default mode"}
+            title={state.settings.response_style === "detailed" ? "Detailed mode (click for laconic)" : "Laconic mode (click for detailed)"}
           >
-            {state.settings.response_style === "laconic" ? "L" : "D"}
+            {state.settings.response_style === "detailed" ? "D" : "L"}
           </button>
           <button
             className={styles.collapseBtn}

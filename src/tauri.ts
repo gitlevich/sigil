@@ -49,7 +49,7 @@ export interface AttentionProvider {
   enabled: boolean;
 }
 
-export type ResponseStyle = "default" | "laconic";
+export type ResponseStyle = "laconic" | "detailed";
 
 export interface Settings {
   attention_providers: AttentionProvider[];

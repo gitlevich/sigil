@@ -285,22 +285,22 @@ export function SettingsDialog() {
             <div className={styles.field}>
               <div className={styles.themeOptions}>
                 <button
-                  className={`${styles.themeBtn} ${(local.response_style || "default") === "default" ? styles.themeBtnActive : ""}`}
-                  onClick={() => setLocal({ ...local, response_style: "default" })}
-                >
-                  Default
-                </button>
-                <button
-                  className={`${styles.themeBtn} ${local.response_style === "laconic" ? styles.themeBtnActive : ""}`}
+                  className={`${styles.themeBtn} ${(local.response_style || "laconic") !== "detailed" ? styles.themeBtnActive : ""}`}
                   onClick={() => setLocal({ ...local, response_style: "laconic" })}
                 >
                   Laconic
                 </button>
+                <button
+                  className={`${styles.themeBtn} ${local.response_style === "detailed" ? styles.themeBtnActive : ""}`}
+                  onClick={() => setLocal({ ...local, response_style: "detailed" })}
+                >
+                  Detailed
+                </button>
               </div>
               <p className={styles.styleHint}>
-                {local.response_style === "laconic"
-                  ? "Concise. As few words as required to convey the information losslessly."
-                  : "Full explanations and reasoning."}
+                {local.response_style === "detailed"
+                  ? "Thorough explanations with full reasoning."
+                  : "A few short sentences. Conversation, not a report."}
               </p>
             </div>
           </div>

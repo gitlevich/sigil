@@ -34,7 +34,7 @@ Put it in git and it versions like code.
 - **AI review** — chat with an AI that inhabits your entire sigil
 - **Multi-window** — each sigil in its own window
 - **Profiles** — switch between AI providers mid-conversation
-- **Response style** — Default for full explanations, Laconic for minimum words maximum signal. Toggle with the D/L button in the chat header
+- **Response style** — Laconic by default (a few sentences, conversation not report). Toggle D/L in the chat header for detailed mode
 - **Export** — flatten to a single markdown document
 - **Auto-save** — every edit writes to disk immediately
 

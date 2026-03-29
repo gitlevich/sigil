@@ -45,7 +45,7 @@ export function useSettingsPersistence() {
               })),
               selected_provider_id: (r.active_profile_id as string) || "",
               system_prompt: (r.system_prompt as string) || "",
-              response_style: (r.response_style as Settings["response_style"]) || "default",
+              response_style: "laconic" as Settings["response_style"],
             };
           } else {
             // Oldest flat format
@@ -64,12 +64,12 @@ export function useSettingsPersistence() {
               }] : [],
               selected_provider_id: oldKey ? id : "",
               system_prompt: (r.system_prompt as string) || "",
-              response_style: "default",
+              response_style: "laconic",
             };
           }
 
           // Ensure defaults for new fields
-          if (!settings.response_style) settings.response_style = "default";
+          if (!settings.response_style || (settings.response_style as string) === "default") settings.response_style = "laconic";
           if (!settings.attention_providers) settings.attention_providers = [];
           // Ensure all providers have the enabled field
           settings.attention_providers = settings.attention_providers.map((p) => ({
