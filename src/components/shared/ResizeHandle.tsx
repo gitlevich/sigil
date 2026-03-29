@@ -4,10 +4,15 @@ import styles from "./ResizeHandle.module.css";
 interface ResizeHandleProps {
   side: "left" | "right";
   onResize: (delta: number) => void;
+  onResizeEnd?: () => void;
 }
 
-export function ResizeHandle({ side, onResize }: ResizeHandleProps) {
+export function ResizeHandle({ side, onResize, onResizeEnd }: ResizeHandleProps) {
   const startXRef = useRef(0);
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+  const onResizeEndRef = useRef(onResizeEnd);
+  onResizeEndRef.current = onResizeEnd;
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -17,9 +22,7 @@ export function ResizeHandle({ side, onResize }: ResizeHandleProps) {
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const delta = moveEvent.clientX - startXRef.current;
         startXRef.current = moveEvent.clientX;
-        // For a right-edge handle: positive delta = grow
-        // For a left-edge handle: negative delta = grow (inverted)
-        onResize(side === "right" ? delta : -delta);
+        onResizeRef.current(side === "right" ? delta : -delta);
       };
 
       const handleMouseUp = () => {
@@ -27,6 +30,7 @@ export function ResizeHandle({ side, onResize }: ResizeHandleProps) {
         document.removeEventListener("mouseup", handleMouseUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        onResizeEndRef.current?.();
       };
 
       document.body.style.cursor = "col-resize";
@@ -34,7 +38,7 @@ export function ResizeHandle({ side, onResize }: ResizeHandleProps) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [onResize, side]
+    [side] // Only depends on side, which never changes
   );
 
   return (

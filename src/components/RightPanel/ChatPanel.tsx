@@ -14,22 +14,34 @@ export function ChatPanel() {
   const doc = useDocument();
   const { sendMessage } = useChatStream();
   const [input, setInput] = useState("");
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevOpen = useRef(doc?.rightPanelOpen ?? false);
 
-  const width = state.ui.rightPanelWidth;
+  const committedWidth = state.ui.rightPanelWidth;
+  const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
-    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width + delta));
-    dispatch({ type: "SET_UI", ui: { rightPanelWidth: newWidth } });
-  }, [width, dispatch]);
+    setDragWidth((prev) => {
+      const base = prev ?? committedWidth;
+      return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, base + delta));
+    });
+  }, [committedWidth]);
+
+  const handleResizeEnd = useCallback(() => {
+    setDragWidth((prev) => {
+      if (prev !== null) {
+        dispatch({ type: "SET_UI", ui: { rightPanelWidth: prev } });
+      }
+      return null;
+    });
+  }, [dispatch]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [doc?.chatMessages]);
 
-  // Auto-focus input when panel opens
   useEffect(() => {
     if (doc?.rightPanelOpen && !prevOpen.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -61,7 +73,7 @@ export function ChatPanel() {
 
   return (
     <>
-      <ResizeHandle side="left" onResize={handleResize} />
+      <ResizeHandle side="left" onResize={handleResize} onResizeEnd={handleResizeEnd} />
       <div className={styles.panel} style={{ width }}>
         <div className={styles.header}>
           <span className={styles.title}>AI Review</span>

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
 import { TreeView } from "./TreeView";
@@ -12,13 +12,26 @@ export function LeftPanel() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
 
-  const width = state.ui.leftPanelWidth;
+  const committedWidth = state.ui.leftPanelWidth;
+  const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
-    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width + delta));
-    dispatch({ type: "SET_UI", ui: { leftPanelWidth: newWidth } });
-  }, [width, dispatch]);
+    setDragWidth((prev) => {
+      const base = prev ?? committedWidth;
+      return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, base + delta));
+    });
+  }, [committedWidth]);
+
+  const handleResizeEnd = useCallback(() => {
+    setDragWidth((prev) => {
+      if (prev !== null) {
+        dispatch({ type: "SET_UI", ui: { leftPanelWidth: prev } });
+      }
+      return null;
+    });
+  }, [dispatch]);
 
   if (!doc) return null;
 
@@ -71,7 +84,7 @@ export function LeftPanel() {
           {doc.leftPanelTab === "vision" ? <VisionEditor /> : <TreeView />}
         </div>
       </div>
-      <ResizeHandle side="right" onResize={handleResize} />
+      <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />
     </>
   );
 }
