@@ -7,7 +7,7 @@ import { MarkdownEditor } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
-import { Context, api } from "../../tauri";
+import { Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { EntanglementGraph } from "./EntanglementGraph";
 import styles from "./EditorShell.module.css";
@@ -57,35 +57,18 @@ export function EditorShell() {
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const fileName = doc.showTechnical ? "technical.md" : "language.md";
-    const filePath = `${ctx.path}/${fileName}`;
+    const filePath = `${ctx.path}/language.md`;
     save(filePath, content);
 
-    const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) =>
-      doc.showTechnical
-        ? { ...c, technical_decisions: content }
-        : { ...c, domain_language: content }
-    );
-    dispatch({
-      type: "UPDATE_SIGIL",
-      sigil: { ...doc.sigil, root: updatedRoot },
-    });
-  }, [doc, save, dispatch]);
-
-  const handleCreateTechnical = useCallback(() => {
-    if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const filePath = `${ctx.path}/technical.md`;
-    api.writeFile(filePath, "").catch(console.error);
     const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
       ...c,
-      technical_decisions: "",
+      domain_language: content,
     }));
     dispatch({
       type: "UPDATE_SIGIL",
       sigil: { ...doc.sigil, root: updatedRoot },
     });
-  }, [doc, dispatch]);
+  }, [doc, save, dispatch]);
 
   if (!doc) return null;
 
@@ -105,27 +88,7 @@ export function EditorShell() {
       .filter((name) => name !== currentCtx.name);
   })();
 
-  const content = doc.showTechnical
-    ? currentCtx.technical_decisions ?? ""
-    : currentCtx.domain_language;
-
-  const inheritedTech = !doc.showTechnical ? null : (() => {
-    if (currentCtx.technical_decisions !== null) return null;
-    let current = doc.sigil.root;
-    let lastTech: { content: string; name: string } | null = null;
-    if (current.technical_decisions) {
-      lastTech = { content: current.technical_decisions, name: current.name };
-    }
-    for (const seg of doc.currentPath) {
-      const child = current.children.find((c) => c.name === seg);
-      if (!child) break;
-      if (child.technical_decisions) {
-        lastTech = { content: child.technical_decisions, name: child.name };
-      }
-      current = child;
-    }
-    return lastTech;
-  })();
+  const content = currentCtx.domain_language;
 
   return (
     <div className={styles.shell}>
@@ -141,29 +104,6 @@ export function EditorShell() {
         <div className={styles.editorArea}>
           {(doc.contentTab || "language") === "entanglements" ? (
             <EntanglementGraph />
-          ) : doc.showTechnical && currentCtx.technical_decisions === null && inheritedTech ? (
-            <div className={styles.inherited}>
-              <p className={styles.inheritedLabel}>
-                Inherited from: {inheritedTech.name}
-              </p>
-              <MarkdownPreview content={inheritedTech.content} />
-              <button
-                className={styles.createTechBtn}
-                onClick={handleCreateTechnical}
-              >
-                Create machinery for this context
-              </button>
-            </div>
-          ) : doc.showTechnical && currentCtx.technical_decisions === null && !inheritedTech ? (
-            <div className={styles.inherited}>
-              <p className={styles.inheritedLabel}>No machinery defined</p>
-              <button
-                className={styles.createTechBtn}
-                onClick={handleCreateTechnical}
-              >
-                Create machinery for this context
-              </button>
-            </div>
           ) : (
             <>
               {(doc.editorMode === "edit" || doc.editorMode === "split") && (

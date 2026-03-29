@@ -30,13 +30,10 @@ export function EditorToolbar() {
 
   const contentTab = doc.contentTab || "language";
 
-  const setTab = (tab: "language" | "machinery" | "entanglements") => {
+  const setTab = (tab: "language" | "entanglements") => {
     dispatch({
       type: "UPDATE_DOCUMENT",
-      updates: {
-        contentTab: tab,
-        showTechnical: tab === "machinery",
-      },
+      updates: { contentTab: tab, showTechnical: false },
     });
   };
 
@@ -53,13 +50,6 @@ export function EditorToolbar() {
           title="Domain language for this bounded context"
         >
           Language
-        </button>
-        <button
-          className={`${styles.contentTab} ${contentTab === "machinery" ? styles.contentTabActive : ""}`}
-          onClick={() => setTab("machinery")}
-          title="Architectural choices, technology stack, design patterns"
-        >
-          Machinery
         </button>
         <button
           className={`${styles.contentTab} ${contentTab === "entanglements" ? styles.contentTabActive : ""}`}
