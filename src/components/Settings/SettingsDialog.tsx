@@ -249,6 +249,31 @@ export function SettingsDialog() {
           </div>
 
           <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Response Style</h3>
+            <div className={styles.field}>
+              <div className={styles.themeOptions}>
+                <button
+                  className={`${styles.themeBtn} ${(local.response_style || "default") === "default" ? styles.themeBtnActive : ""}`}
+                  onClick={() => setLocal({ ...local, response_style: "default" })}
+                >
+                  Default
+                </button>
+                <button
+                  className={`${styles.themeBtn} ${local.response_style === "laconic" ? styles.themeBtnActive : ""}`}
+                  onClick={() => setLocal({ ...local, response_style: "laconic" })}
+                >
+                  Laconic
+                </button>
+              </div>
+              <p className={styles.styleHint}>
+                {local.response_style === "laconic"
+                  ? "Concise. As few words as required to convey the information losslessly."
+                  : "Full explanations and reasoning."}
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.section}>
             <h3 className={styles.sectionTitle}>System Prompt</h3>
             <div className={styles.field}>
               <textarea

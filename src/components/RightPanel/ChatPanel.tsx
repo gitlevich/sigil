@@ -97,6 +97,21 @@ export function ChatPanel() {
             <span className={styles.profileLabel}>{state.settings.profiles[0].name}</span>
           )}
           <button
+            className={`${styles.styleToggle} ${state.settings.response_style === "laconic" ? styles.styleToggleActive : ""}`}
+            onClick={() =>
+              dispatch({
+                type: "SET_SETTINGS",
+                settings: {
+                  ...state.settings,
+                  response_style: state.settings.response_style === "laconic" ? "default" : "laconic",
+                },
+              })
+            }
+            title={state.settings.response_style === "laconic" ? "Laconic mode (click to switch to default)" : "Default mode (click to switch to laconic)"}
+          >
+            {state.settings.response_style === "laconic" ? "L" : "D"}
+          </button>
+          <button
             className={styles.collapseBtn}
             onClick={() =>
               dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelOpen: false } })

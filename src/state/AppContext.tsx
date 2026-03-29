@@ -56,6 +56,7 @@ const initialState: AppState = {
     profiles: [],
     active_profile_id: "",
     system_prompt: "",
+    response_style: "default",
   },
   settingsOpen: false,
   aboutOpen: false,

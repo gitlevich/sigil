@@ -40,6 +40,7 @@ export function useSettingsPersistence() {
               }] : [],
               active_profile_id: oldKey ? `migrated-${Date.now()}` : "",
               system_prompt: oldPrompt,
+              response_style: "default",
             };
             // Fix the id reference
             if (migrated.profiles.length > 0) {
@@ -49,7 +50,10 @@ export function useSettingsPersistence() {
             await store.set("ai_settings", migrated);
             await store.save();
           } else {
-            dispatch({ type: "SET_SETTINGS", settings: raw as unknown as Settings });
+            const settings = raw as unknown as Settings;
+            // Ensure new fields have defaults
+            if (!settings.response_style) settings.response_style = "default";
+            dispatch({ type: "SET_SETTINGS", settings });
           }
         }
         const theme = await store.get<ThemePreference>("theme");

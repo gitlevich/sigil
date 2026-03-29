@@ -36,10 +36,13 @@ export interface AiProfile {
   model: string;
 }
 
+export type ResponseStyle = "default" | "laconic";
+
 export interface Settings {
   profiles: AiProfile[];
   active_profile_id: string;
   system_prompt: string;
+  response_style: ResponseStyle;
 }
 
 export function activeProfile(settings: Settings): AiProfile | undefined {

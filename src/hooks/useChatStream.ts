@@ -77,12 +77,17 @@ export function useChatStream() {
       return;
     }
 
+    const stylePrefix = state.settings.response_style === "laconic"
+      ? "STYLE: Be concise. Use as few words as required to convey the information losslessly. No filler, no hedging, no preamble.\n\n"
+      : "";
+    const systemPrompt = stylePrefix + state.settings.system_prompt;
+
     try {
       await api.sendChatMessage(
         doc.sigil.root_path,
         message,
         profile,
-        state.settings.system_prompt
+        systemPrompt
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);

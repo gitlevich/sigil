@@ -103,6 +103,13 @@
   color: var(--danger);
 }
 
+.styleHint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0.4rem 0 0;
+  font-style: italic;
+}
+
 .select, .input {
   width: 100%;
   padding: 0.5rem;
