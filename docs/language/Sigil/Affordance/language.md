@@ -1,3 +1,6 @@
+---
+status: wip
+---
 # Affordance
 
 An affordance is a capability that a sigil makes visible across its boundary. It is not what happens inside — it is what can be addressed from outside. Every affordance belongs to a sigil — you cannot name a capability without naming who exposes it. This is how sigils get their names: whenever you articulate an affordance, you need a subject.
