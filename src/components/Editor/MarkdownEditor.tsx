@@ -167,16 +167,19 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
 }
 
 function siblingCompletion(context: CompletionContext) {
-  const before = context.matchBefore(/@\w*/);
+  // Match @word or just @ at cursor
+  const before = context.matchBefore(/@[\w-]*/);
   if (!before) return null;
-  if (before.from === before.to && !context.explicit) return null;
+  // Allow bare @ to trigger (from includes the @)
+  if (globalSiblings.length === 0) return null;
   return {
     from: before.from,
     options: globalSiblings.map((s) => ({
       label: `@${s.name}`,
-      detail: s.summary.split("\n")[0]?.slice(0, 50) || "",
+      detail: s.summary.split("\n")[0]?.slice(0, 60) || "",
       type: "variable" as const,
     })),
+    filter: true,
   };
 }
 
@@ -200,7 +203,11 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings)),
-        autocompletion({ override: [siblingCompletion], activateOnTyping: true }),
+        autocompletion({
+          override: [siblingCompletion],
+          activateOnTyping: true,
+          activateOnTypingDelay: 0,
+        }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             localEditRef.current = true;
