@@ -56,6 +56,7 @@ export function EntanglementGraph() {
   const [entanglements, setEntanglements] = useState<Entanglement[]>([]);
   const [dragging, setDragging] = useState<{ from: string; mx: number; my: number } | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
+  const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
   const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; name: string; path: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
@@ -152,12 +153,8 @@ export function EntanglementGraph() {
           (e.from === target.name && e.to === dragging.from)
       );
       if (!exists) {
-        // Create edge with default policy and immediately open policy picker
-        const newEdge: Entanglement = { from: dragging.from, to: target.name, policy: "customer-supplier" };
-        const newEntanglements = [...entanglements, newEdge];
-        setEntanglements(newEntanglements);
-        saveEntanglements(newEntanglements);
-        setSelectedEdge({ from: dragging.from, to: target.name });
+        // Show policy picker at drop point before creating
+        setPendingEdge({ from: dragging.from, to: target.name, x: e.clientX, y: e.clientY });
       }
     }
 
@@ -196,7 +193,7 @@ export function EntanglementGraph() {
     );
   }
 
-  const NODE_R = 28;
+  const NODE_R = 34;
 
   return (
     <div className={styles.container}>
@@ -280,16 +277,39 @@ export function EntanglementGraph() {
                   style={{ pointerEvents: "none" }}
                 />
               )}
-              <text
-                x={midX}
-                y={midY - 8}
-                textAnchor="middle"
-                fill="var(--text-secondary)"
-                fontSize="10"
-                style={{ pointerEvents: "none" }}
+              {/* Clickable label — opens policy picker */}
+              <foreignObject
+                x={midX - 80}
+                y={midY - 16}
+                width="160"
+                height="28"
+                style={{ overflow: "visible" }}
               >
-                {POLICY_LABELS[ent.policy]}
-              </text>
+                <select
+                  value={ent.policy}
+                  onChange={(e) => {
+                    handlePolicyChange(ent.from, ent.to, e.target.value as Policy);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: "var(--bg-primary)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "4px",
+                    fontSize: "13px",
+                    padding: "2px 6px",
+                    cursor: "pointer",
+                    width: "100%",
+                    textAlign: "center",
+                    outline: "none",
+                  }}
+                >
+                  {(Object.keys(POLICY_LABELS) as Policy[]).map((p) => (
+                    <option key={p} value={p}>{POLICY_LABELS[p]}</option>
+                  ))}
+                </select>
+              </foreignObject>
             </g>
           );
         })}
@@ -360,7 +380,7 @@ export function EntanglementGraph() {
               textAnchor="middle"
               dominantBaseline="middle"
               fill={selectedNode === node.name ? "var(--accent-text)" : "var(--text-primary)"}
-              fontSize="11"
+              fontSize="13"
               fontWeight="500"
               style={{ pointerEvents: "none" }}
             >
@@ -370,15 +390,12 @@ export function EntanglementGraph() {
         ))}
       </svg>
 
-      {/* Policy editor popover */}
+      {/* Edge selected — show remove option */}
       {selectedEdge && (() => {
         const ent = entanglements.find(
           (e) => e.from === selectedEdge.from && e.to === selectedEdge.to
         );
         if (!ent) return null;
-        const fromPos = getPos(ent.from);
-        const toPos = getPos(ent.to);
-        if (!fromPos || !toPos) return null;
 
         return (
           <div
@@ -388,22 +405,11 @@ export function EntanglementGraph() {
             <div className={styles.policyHeader}>
               {ent.from} &rarr; {ent.to}
             </div>
-            <div className={styles.policyList}>
-              {(Object.keys(POLICY_LABELS) as Policy[]).map((p) => (
-                <button
-                  key={p}
-                  className={`${styles.policyOption} ${ent.policy === p ? styles.policyActive : ""}`}
-                  onClick={() => handlePolicyChange(ent.from, ent.to, p)}
-                >
-                  {POLICY_LABELS[p]}
-                </button>
-              ))}
-            </div>
             <button
               className={styles.deleteEdgeBtn}
               onClick={() => handleDeleteEdge(ent.from, ent.to)}
             >
-              Remove
+              Remove entanglement
             </button>
           </div>
         );
@@ -452,6 +458,41 @@ export function EntanglementGraph() {
               Delete
             </button>
           </div>
+        </div>
+      )}
+
+      {pendingEdge && (
+        <div
+          className={styles.nodeContextMenu}
+          style={{ left: pendingEdge.x, top: pendingEdge.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.policyHeader}>
+            {pendingEdge.from} &rarr; {pendingEdge.to}
+          </div>
+          <div className={styles.policyList}>
+            {(Object.keys(POLICY_LABELS) as Policy[]).map((p) => (
+              <button
+                key={p}
+                className={styles.policyOption}
+                onClick={() => {
+                  const newEdge: Entanglement = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
+                  const newEntanglements = [...entanglements, newEdge];
+                  setEntanglements(newEntanglements);
+                  saveEntanglements(newEntanglements);
+                  setPendingEdge(null);
+                }}
+              >
+                {POLICY_LABELS[p]}
+              </button>
+            ))}
+          </div>
+          <button
+            className={styles.deleteEdgeBtn}
+            onClick={() => setPendingEdge(null)}
+          >
+            Cancel
+          </button>
         </div>
       )}
 
