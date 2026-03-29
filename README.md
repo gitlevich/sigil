@@ -10,17 +10,17 @@ A desktop tool for writing hierarchical domain language before you write code �
 
 You're a software architect, technical lead, or senior engineer who believes that unclear domain language produces unclear systems. You've seen projects where the team started coding before anyone agreed on what the system actually is — and you've watched the slow, expensive reckoning that follows.
 
-You think in bounded contexts. You decompose problems into domains, sub-domains, and features, each with their own language and their own boundaries. You know that a specification that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one level of abstraction at a time, with hard limits that force clarity instead of allowing sprawl.
+You think in bounded contexts. You decompose problems into named concepts, each with their own language and their own boundaries. You know that a mental model that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one level of abstraction at a time, with hard limits that force clarity instead of allowing sprawl.
 
 You also know that AI can be a powerful thinking partner — but only when it has real context. Not a chat window where you paste fragments. Not a copilot guessing from the file you happen to have open. You want to give another intelligence your entire mental model of a system, structured the way you structured it, so it can reason about the whole and challenge the parts.
 
-You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let you write anything anywhere, which is precisely the problem. You need structure that pushes back — that tells you "if you need a sixth sub-context, your abstraction is wrong."
+You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let you write anything anywhere, which is precisely the problem. You need structure that pushes back — that tells you "if you need a sixth sigil, your abstraction is wrong."
 
 ## What Sigil does
 
-A sigil is a structured representation of how you think about a system. It's a tree of bounded contexts, each with its own domain language and technical decisions, constrained to five sub-contexts per level. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
+A sigil is a structured representation of how you think about a system. It's a tree of bounded contexts, each with its own domain language, constrained to five sub-contexts per level. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
 
-The sigil becomes the AI agent's context. The entire tree — vision, domain language, technical decisions at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
+The sigil becomes the AI agent's context. The entire tree — vision and domain language at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
 
 But the structure does something more fundamental than just providing context. When you navigate to a context — say, Auth — you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside that context becomes periphery. You don't think about Billing while you're defining Auth's language. The agent doesn't either. You both give full attention to the bounded problem in front of you, because the hierarchy has already handled the separation. The periphery isn't lost — it's held by the structure so neither of you has to hold it in mind.
 
@@ -32,14 +32,13 @@ A sigil lives on your file system as a directory hierarchy — plain directories
 
 Each context contains:
 - `language.md` — the domain language for this bounded context
-- `technical.md` — architectural choices and constraints (optional, inherits from parent)
 - Up to 5 sub-context directories, each with its own `language.md`
 
 **Core features:**
 
-- **Hierarchical editing** — navigate a tree of contexts, each with its own domain language and technical decisions. Technical decisions inherit downward unless overridden.
+- **Hierarchical editing** — navigate a tree of contexts, each with its own domain language.
 - **Vision statement** — a persistent reminder of what the application is for, visible from any depth in the tree. Prevents drift.
-- **AI review** — a built-in chat panel where an AI agent inhabits your entire sigil and reviews it for coherence, gaps, contradictions, and implementation readiness. Supports Anthropic and OpenAI.
+- **AI design partner** — a built-in chat panel where an AI agent inhabits your entire sigil and helps weave domain language — maintaining coherence, suggesting clearer terms, sharper boundaries, better names. The agent can directly modify the sigil: create and delete contexts, write domain language, rename contexts. Supports Anthropic and OpenAI.
 - **Multi-window** — each sigil opens in its own native window. Compare two sigils side by side.
 - **Export** — flatten the entire tree into a single markdown document for handoff or review.
 - **Auto-save** — every edit writes to disk immediately. No save button, no lost work.
@@ -47,7 +46,7 @@ Each context contains:
 
 ## Technology
 
-Tauri 2 desktop application. Rust backend for file system operations and AI API streaming. React + TypeScript frontend with CodeMirror 6 for markdown editing. macOS first.
+Tauri 2 desktop application. Rust backend for file system operations and AI API integration with tool use. React + TypeScript frontend with CodeMirror 6 for markdown editing. macOS first.
 
 ## Getting started
 

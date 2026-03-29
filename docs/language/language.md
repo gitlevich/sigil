@@ -57,7 +57,7 @@ Multiple persistent chat conversations per sigil, stored as individual files in 
 
 The AI agent is not a reviewer. It is a design partner helping weave domain language. It maintains coherence across contexts, suggests clearer terms, sharper boundaries, better names. It thinks in the language of the domain, not in implementation.
 
-The agent can directly modify the sigil through tool calls: create contexts, write domain language, write machinery, rename contexts, read specific contexts, write the vision statement. Changes appear in the UI immediately.
+The agent can directly modify the sigil through tool calls: create contexts, write domain language, rename contexts, delete contexts, read specific contexts, write the vision statement. Changes appear in the UI immediately.
 
 Response style is configurable: **laconic** (default) for short conversational paragraphs, or **detailed** for thorough reasoning.
 
@@ -67,14 +67,12 @@ Response style is configurable: **laconic** (default) for short conversational p
 MyApp/
   vision.md
   language.md
-  technical.md
   entanglements.json
   chats/
     chat-1711672800000.json
     chat-1711673400000.json
   Auth/
     language.md
-    technical.md
     TokenManager/
       language.md
     SessionStore/
@@ -83,7 +81,6 @@ MyApp/
     language.md
   Notifications/
     language.md
-    technical.md
     EmailService/
       language.md
     PushService/
@@ -93,7 +90,6 @@ MyApp/
 Rules:
 
 - Every context directory contains `language.md` (or `spec.md` for backward compatibility).
-- `technical.md` is optional. When absent, the containing sigil's machinery governs.
 - `vision.md` exists only at the root.
 - `entanglements.json` can exist at any level that has sub-contexts.
 - `chats/` directory at the root holds all chat conversations.
@@ -115,7 +111,7 @@ Two tabs:
 **Center** (top to bottom):
 
 1. **Breadcrumb bar** — path from root to current context. Click segments to navigate. Click last segment to rename.
-2. **Content toolbar** — left side: `[Language | Machinery | Entanglements]` segmented control. Right side: view mode icons (markup, split, preview). View mode icons hidden in Entanglements view.
+2. **Content toolbar** — left side: `[Language | Entanglements]` segmented control. Right side: view mode icons (markup, split, preview). View mode icons hidden in Entanglements view.
 3. **Editor area** — CodeMirror 6 markdown editor with sibling name highlighting. Three modes: markup source, side-by-side split, rendered preview. In Entanglements mode: SVG graph of sub-contexts with draggable edges and policy assignment.
 4. **Sub-context bar** — bottom strip with named boxes for navigation. Double-click to enter. Right-click for rename/delete. Add button when fewer than 5 exist.
 
@@ -158,10 +154,6 @@ File > Export (Cmd+E) flattens the sigil into a single markdown document with he
 
 - **Frontend**: React 18, Vite, CodeMirror 6, react-markdown, CSS Modules.
 - **Backend**: Rust commands for file system operations, AI API streaming with tool use, file watching via `notify` crate.
-- **AI**: Anthropic tool_use API with sigil manipulation tools. OpenAI streaming for text responses.
-- **Persistence**: `tauri-plugin-store` for settings, UI state, theme. localStorage for chat drafts. File system for all sigil data.
+- **AI**: Anthropic and OpenAI APIs with tool use for sigil manipulation.
+- **Persistence**: `tauri-plugin-store` for settings, UI state, theme. `tauri-plugin-window-state` for window position and size. localStorage for chat drafts. File system for all sigil data.
 - **Distribution**: GitHub Actions builds `.dmg` for Apple Silicon and Intel. `tauri-plugin-updater` for auto-updates.
-
-
-
-when @goo and @
