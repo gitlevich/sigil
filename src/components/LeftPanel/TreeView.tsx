@@ -69,17 +69,15 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
           }
         }}
         onDrop={(e) => {
-          console.log("DROP EVENT FIRED on", context.name, "source:", dragSourcePath);
           e.preventDefault();
           e.stopPropagation();
           setDropTarget(false);
           const sourcePath = dragSourcePath;
           dragSourcePath = null;
-          if (!sourcePath) { console.log("REJECTED: no source"); return; }
-          if (sourcePath === context.path) { console.log("REJECTED: same node"); return; }
-          if (sourcePath.startsWith(context.path + "/")) { console.log("REJECTED: source is child of target"); return; }
-          if (context.path.startsWith(sourcePath + "/")) { console.log("REJECTED: target is child of source"); return; }
-          console.log("EXECUTING MOVE:", sourcePath, "->", context.path);
+          if (!sourcePath) return;
+          if (sourcePath === context.path) return;
+          if (sourcePath.startsWith(context.path + "/")) return;
+          if (context.path.startsWith(sourcePath + "/")) return;
           onDrop(sourcePath, context.path);
         }}
       >
