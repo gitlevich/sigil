@@ -60,7 +60,10 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         }}
         onDragLeave={(e) => {
           e.stopPropagation();
-          setDropTarget(false);
+          // Only clear if actually leaving this row, not entering a child
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDropTarget(false);
+          }
         }}
         onDrop={(e) => {
           e.preventDefault();
@@ -155,6 +158,7 @@ export function TreeView() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<{ path: string[]; name: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -232,8 +236,31 @@ export function TreeView() {
     await reload(doc.sigil.root_path);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (renaming) return;
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter") return;
+    e.preventDefault();
+
+    const allPaths = flattenPaths(doc.sigil.root, []);
+    const currentKey = JSON.stringify(doc.currentPath);
+    const currentIndex = allPaths.findIndex((p) => JSON.stringify(p) === currentKey);
+
+    if (e.key === "ArrowUp" && currentIndex > 0) {
+      handleNavigate(allPaths[currentIndex - 1]);
+    } else if (e.key === "ArrowDown" && currentIndex < allPaths.length - 1) {
+      handleNavigate(allPaths[currentIndex + 1]);
+    } else if (e.key === "Enter") {
+      const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
+      if (ctx && ctx.children.length < 5) {
+        // Focus the ghost input if it exists
+        const ghost = treeRef.current?.querySelector(`.${styles.ghostInput}`) as HTMLInputElement | null;
+        if (ghost) ghost.focus();
+      }
+    }
+  };
+
   return (
-    <div className={styles.tree}>
+    <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown}>
       <TreeNode
         context={doc.sigil.root}
         path={[]}
@@ -320,4 +347,13 @@ function findContextByPath(root: Context, path: string[]): Context | null {
     current = child;
   }
   return current;
+}
+
+/** Flatten the tree into a list of paths in visible (depth-first) order. */
+function flattenPaths(context: Context, path: string[]): string[][] {
+  const result: string[][] = [path];
+  for (const child of context.children) {
+    result.push(...flattenPaths(child, [...path, child.name]));
+  }
+  return result;
 }
