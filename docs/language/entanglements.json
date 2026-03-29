@@ -18,7 +18,7 @@
     {
       "from": "z",
       "to": "xxx",
-      "policy": "customer-supplier"
+      "policy": "anticorruption-layer"
     },
     {
       "from": "xxx",

@@ -21,6 +21,17 @@
   pointer-events: none;
 }
 
+.nodeContextMenu {
+  position: fixed;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px var(--shadow);
+  padding: 0.5rem;
+  min-width: 160px;
+  z-index: 100;
+}
+
 .empty {
   flex: 1;
   display: flex;
