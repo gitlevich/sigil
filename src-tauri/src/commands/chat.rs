@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::Path;
-use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
@@ -11,13 +10,15 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     let sigil = read_sigil(root_path.to_string())?;
     let mut output = String::new();
 
+    output.push_str(&format!("Sigil root: {}\n\n", root_path));
+
     output.push_str("# Vision\n\n");
     output.push_str(&sigil.vision);
     output.push_str("\n\n");
 
     fn render_context(ctx: &crate::models::sigil::Context, depth: usize, output: &mut String) {
         let prefix = "#".repeat(depth + 1);
-        output.push_str(&format!("{} {}\n\n", prefix, ctx.name));
+        output.push_str(&format!("{} {} (path: {})\n\n", prefix, ctx.name, ctx.path));
 
         output.push_str(&format!("{}# Domain Language\n\n", "#".repeat(depth + 2)));
         output.push_str(&ctx.domain_language);
@@ -390,6 +391,19 @@ async fn stream_openai(
     system_prompt: &str,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
+    let tool_defs = tools::tool_definitions();
+
+    let openai_tools: Vec<serde_json::Value> = tool_defs
+        .iter()
+        .map(|t| serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": t["name"],
+                "description": t["description"],
+                "parameters": t["input_schema"],
+            }
+        }))
+        .collect();
 
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
@@ -403,50 +417,82 @@ async fn stream_openai(
         }));
     }
 
-    let body = serde_json::json!({
-        "model": profile.model,
-        "messages": messages,
-        "stream": true,
-    });
+    loop {
+        let body = serde_json::json!({
+            "model": profile.model,
+            "messages": messages,
+            "tools": openai_tools,
+        });
 
-    let response = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", profile.api_key))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        let response = client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", profile.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Network error: {}", e))?;
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_body = response.text().await.unwrap_or_default();
-        return Err(format!("OpenAI API error {}: {}", status, error_body));
-    }
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response.text().await.unwrap_or_default();
+            return Err(format!("OpenAI API error {}: {}", status, error_body));
+        }
 
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
+        let resp_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        let choice = &resp_body["choices"][0];
+        let message = &choice["message"];
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("Stream error: {}", e))?;
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        let tool_calls = message["tool_calls"]
+            .as_array()
+            .filter(|arr| !arr.is_empty());
 
-        while let Some(line_end) = buffer.find('\n') {
-            let line = buffer[..line_end].to_string();
-            buffer = buffer[line_end + 1..].to_string();
-
-            if let Some(data) = line.strip_prefix("data: ") {
-                if data == "[DONE]" {
-                    let _ = app.emit("chat-stream-end", ());
-                    return Ok(());
-                }
-                if let Ok(event) = serde_json::from_str::<serde_json::Value>(data) {
-                    if let Some(text) = event["choices"][0]["delta"]["content"].as_str() {
-                        let _ = app.emit("chat-token", text.to_string());
-                    }
+        if let Some(calls) = tool_calls {
+            // Emit any accompanying text before handling tools
+            if let Some(text) = message["content"].as_str() {
+                if !text.is_empty() {
+                    let _ = app.emit("chat-token", text.to_string());
                 }
             }
+
+            messages.push(message.clone());
+
+            for call in calls {
+                let tool_name = call["function"]["name"].as_str().unwrap_or("");
+                let tool_id = call["id"].as_str().unwrap_or("");
+                let args_str = call["function"]["arguments"].as_str().unwrap_or("{}");
+                let tool_input: serde_json::Value =
+                    serde_json::from_str(args_str).unwrap_or_default();
+
+                let _ = app.emit("chat-tool-use", serde_json::json!({
+                    "name": tool_name,
+                    "input": &tool_input,
+                }));
+
+                let result = match tools::execute_tool(tool_name, &tool_input) {
+                    Ok(output) => output,
+                    Err(err) => format!("Error: {}", err),
+                };
+
+                messages.push(serde_json::json!({
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "content": result,
+                }));
+            }
+
+            let _ = app.emit("sigil-changed", ());
+            continue;
         }
+
+        // No tool calls — emit text and finish
+        if let Some(text) = message["content"].as_str() {
+            if !text.is_empty() {
+                let _ = app.emit("chat-token", text.to_string());
+            }
+        }
+
+        break;
     }
 
     let _ = app.emit("chat-stream-end", ());
