@@ -182,7 +182,7 @@
   cursor: not-allowed;
 }
 
-/* Profiles */
+/* Attention Providers */
 
 .emptyProfiles {
   color: var(--text-secondary);
@@ -212,6 +212,45 @@
   border-color: var(--accent);
 }
 
+.profileRow.profileDisabled {
+  opacity: 0.5;
+}
+
+.profileToggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.profileCheckbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--accent-text);
+  background: transparent;
+}
+
+.profileActive .profileCheckbox {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.profileSelectedBadge {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--accent);
+  margin-left: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .profileSelect {
   flex: 1;
   display: flex;
@@ -224,12 +263,6 @@
   text-align: left;
   padding: 0;
   min-width: 0;
-}
-
-.profileRadio {
-  font-size: 0.9rem;
-  color: var(--accent);
-  flex-shrink: 0;
 }
 
 .profileName {

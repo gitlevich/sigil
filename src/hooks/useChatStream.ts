@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { api, events, ChatMessage, activeProfile } from "../tauri";
+import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { useToast } from "./useToast";
 
@@ -84,9 +84,9 @@ export function useChatStream() {
     });
     accumulatorRef.current = "";
 
-    const profile = activeProfile(state.settings);
-    if (!profile) {
-      addToast("No AI profile configured. Open Settings to add one.", "error");
+    const provider = selectedProvider(state.settings);
+    if (!provider) {
+      addToast("No attention provider enabled. Open Settings to add one.", "error");
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
       return;
     }
@@ -101,7 +101,7 @@ export function useChatStream() {
         doc.sigil.root_path,
         chatId,
         message,
-        profile,
+        provider,
         systemPrompt
       );
     } catch (err) {

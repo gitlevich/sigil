@@ -55,8 +55,8 @@ const initialState: AppState = {
   screen: "picker",
   document: null,
   settings: {
-    profiles: [],
-    active_profile_id: "",
+    attention_providers: [],
+    selected_provider_id: "",
     system_prompt: "",
     response_style: "default",
   },

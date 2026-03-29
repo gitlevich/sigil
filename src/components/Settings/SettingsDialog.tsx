@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAppState, useAppDispatch, ThemePreference } from "../../state/AppContext";
-import { Settings, AiProfile, api } from "../../tauri";
+import { Settings, AttentionProvider, api } from "../../tauri";
 import styles from "./SettingsDialog.module.css";
 
 const DEFAULT_SYSTEM_PROMPT = `You are reviewing a hierarchical application sigil. A sigil is structured as a tree of bounded contexts. Each context defines domain language at its level of abstraction and may contain up to five sub-contexts. Each context has a domain language document describing what it is and why it exists, and optionally technical decisions describing architectural and implementation choices. Technical decisions inherit from parent to child unless overridden. The root includes a vision statement defining the application's purpose. Your role is to review this sigil for coherence, completeness, and readiness for implementation. Identify gaps, ambiguities, contradictions, missing contexts, and unclear language.`;
 
 function generateId() {
-  return `profile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `ap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function SettingsDialog() {
@@ -14,7 +14,7 @@ export function SettingsDialog() {
   const dispatch = useAppDispatch();
   const [local, setLocal] = useState<Settings>(state.settings);
   const [localTheme, setLocalTheme] = useState<ThemePreference>(state.themePreference);
-  const [editingProfile, setEditingProfile] = useState<AiProfile | null>(null);
+  const [editing, setEditing] = useState<AttentionProvider | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
 
@@ -23,18 +23,17 @@ export function SettingsDialog() {
     setLocalTheme(state.themePreference);
   }, [state.settings, state.themePreference]);
 
-  // Fetch models when editing a profile with an API key
   useEffect(() => {
-    if (!editingProfile || !editingProfile.api_key.trim()) {
+    if (!editing || !editing.api_key.trim()) {
       setModels([]);
       return;
     }
     setModelsLoading(true);
-    api.listModels(editingProfile.provider, editingProfile.api_key)
+    api.listModels(editing.provider, editing.api_key)
       .then(setModels)
       .catch(() => setModels([]))
       .finally(() => setModelsLoading(false));
-  }, [editingProfile?.provider, editingProfile?.api_key]);
+  }, [editing?.provider, editing?.api_key]);
 
   if (!state.settingsOpen) return null;
 
@@ -44,71 +43,89 @@ export function SettingsDialog() {
     dispatch({ type: "SET_SETTINGS_OPEN", open: false });
   };
 
-  const addProfile = () => {
-    const newProfile: AiProfile = {
+  const providers = local.attention_providers || [];
+
+  const addProvider = () => {
+    setEditing({
       id: generateId(),
       name: "",
       provider: "anthropic",
       api_key: "",
       model: "",
-    };
-    setEditingProfile(newProfile);
+      enabled: true,
+    });
     setModels([]);
   };
 
-  const saveProfile = () => {
-    if (!editingProfile || !editingProfile.name.trim()) return;
-    const existing = local.profiles.findIndex((p) => p.id === editingProfile.id);
-    let profiles: AiProfile[];
+  const saveProvider = () => {
+    if (!editing || !editing.name.trim()) return;
+    const existing = providers.findIndex((p) => p.id === editing.id);
+    let updated: AttentionProvider[];
     if (existing >= 0) {
-      profiles = local.profiles.map((p) => (p.id === editingProfile.id ? editingProfile : p));
+      updated = providers.map((p) => (p.id === editing.id ? editing : p));
     } else {
-      profiles = [...local.profiles, editingProfile];
+      updated = [...providers, editing];
     }
-    // If this is the first profile or no active profile, make it active
-    const activeId = local.active_profile_id && profiles.some((p) => p.id === local.active_profile_id)
-      ? local.active_profile_id
-      : editingProfile.id;
-    setLocal({ ...local, profiles, active_profile_id: activeId });
-    setEditingProfile(null);
+    const selectedId = local.selected_provider_id && updated.some((p) => p.id === local.selected_provider_id && p.enabled)
+      ? local.selected_provider_id
+      : (updated.find((p) => p.enabled)?.id ?? "");
+    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
+    setEditing(null);
   };
 
-  const deleteProfile = (id: string) => {
-    const profiles = local.profiles.filter((p) => p.id !== id);
-    const activeId = local.active_profile_id === id
-      ? (profiles[0]?.id ?? "")
-      : local.active_profile_id;
-    setLocal({ ...local, profiles, active_profile_id: activeId });
+  const deleteProvider = (id: string) => {
+    const updated = providers.filter((p) => p.id !== id);
+    const selectedId = local.selected_provider_id === id
+      ? (updated.find((p) => p.enabled)?.id ?? "")
+      : local.selected_provider_id;
+    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
   };
 
-  // Profile editing view
-  if (editingProfile) {
+  const toggleEnabled = (id: string) => {
+    const updated = providers.map((p) =>
+      p.id === id ? { ...p, enabled: !p.enabled } : p
+    );
+    // If we disabled the selected provider, pick another enabled one
+    const toggled = updated.find((p) => p.id === id);
+    let selectedId = local.selected_provider_id;
+    if (toggled && !toggled.enabled && selectedId === id) {
+      selectedId = updated.find((p) => p.enabled)?.id ?? "";
+    }
+    // If we enabled one and there's no selection, select it
+    if (toggled && toggled.enabled && !selectedId) {
+      selectedId = id;
+    }
+    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
+  };
+
+  // Provider editing view
+  if (editing) {
     return (
-      <div className={styles.overlay} onClick={() => setEditingProfile(null)}>
+      <div className={styles.overlay} onClick={() => setEditing(null)}>
         <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
           <div className={styles.dialogBody}>
             <h2 className={styles.title}>
-              {local.profiles.some((p) => p.id === editingProfile.id) ? "Edit Profile" : "New Profile"}
+              {providers.some((p) => p.id === editing.id) ? "Edit Attention Provider" : "New Attention Provider"}
             </h2>
 
             <div className={styles.field}>
-              <label className={styles.label}>Profile Name</label>
+              <label className={styles.label}>Name</label>
               <input
                 className={styles.input}
-                value={editingProfile.name}
-                onChange={(e) => setEditingProfile({ ...editingProfile, name: e.target.value })}
-                placeholder="e.g., Claude, ChatGPT"
+                value={editing.name}
+                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                placeholder="e.g., Claude Sonnet, GPT-4o"
                 autoFocus
               />
             </div>
 
             <div className={styles.field}>
-              <label className={styles.label}>Provider</label>
+              <label className={styles.label}>API Provider</label>
               <select
                 className={styles.select}
-                value={editingProfile.provider}
-                onChange={(e) => setEditingProfile({
-                  ...editingProfile,
+                value={editing.provider}
+                onChange={(e) => setEditing({
+                  ...editing,
                   provider: e.target.value as "anthropic" | "openai",
                   model: "",
                 })}
@@ -123,8 +140,8 @@ export function SettingsDialog() {
               <input
                 className={styles.input}
                 type="password"
-                value={editingProfile.api_key}
-                onChange={(e) => setEditingProfile({ ...editingProfile, api_key: e.target.value })}
+                value={editing.api_key}
+                onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
                 placeholder="Enter your API key"
               />
             </div>
@@ -137,12 +154,12 @@ export function SettingsDialog() {
               {models.length > 0 ? (
                 <select
                   className={styles.select}
-                  value={editingProfile.model}
-                  onChange={(e) => setEditingProfile({ ...editingProfile, model: e.target.value })}
+                  value={editing.model}
+                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
                 >
                   <option value="">Select a model</option>
-                  {!models.includes(editingProfile.model) && editingProfile.model && (
-                    <option value={editingProfile.model}>{editingProfile.model}</option>
+                  {!models.includes(editing.model) && editing.model && (
+                    <option value={editing.model}>{editing.model}</option>
                   )}
                   {models.map((m) => (
                     <option key={m} value={m}>{m}</option>
@@ -151,24 +168,24 @@ export function SettingsDialog() {
               ) : (
                 <input
                   className={styles.input}
-                  value={editingProfile.model}
-                  onChange={(e) => setEditingProfile({ ...editingProfile, model: e.target.value })}
-                  placeholder={editingProfile.api_key ? "Loading models..." : "Enter API key first"}
+                  value={editing.model}
+                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  placeholder={editing.api_key ? "Loading models..." : "Enter API key first"}
                 />
               )}
             </div>
           </div>
 
           <div className={styles.actions}>
-            <button className={styles.cancelBtn} onClick={() => setEditingProfile(null)}>
+            <button className={styles.cancelBtn} onClick={() => setEditing(null)}>
               Cancel
             </button>
             <button
               className={styles.saveBtn}
-              onClick={saveProfile}
-              disabled={!editingProfile.name.trim() || !editingProfile.model.trim()}
+              onClick={saveProvider}
+              disabled={!editing.name.trim() || !editing.model.trim()}
             >
-              Save Profile
+              Save
             </button>
           </div>
         </div>
@@ -202,39 +219,54 @@ export function SettingsDialog() {
           </div>
 
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>AI Profiles</h3>
+            <h3 className={styles.sectionTitle}>Attention Providers</h3>
 
-            {local.profiles.length === 0 ? (
-              <p className={styles.emptyProfiles}>No profiles configured yet.</p>
+            {providers.length === 0 ? (
+              <p className={styles.emptyProfiles}>No attention providers configured yet.</p>
             ) : (
               <div className={styles.profileList}>
-                {local.profiles.map((p) => (
+                {providers.map((p) => (
                   <div
                     key={p.id}
-                    className={`${styles.profileRow} ${p.id === local.active_profile_id ? styles.profileActive : ""}`}
+                    className={`${styles.profileRow} ${p.enabled ? styles.profileActive : styles.profileDisabled}`}
                   >
                     <button
-                      className={styles.profileSelect}
-                      onClick={() => setLocal({ ...local, active_profile_id: p.id })}
-                      title="Set as active"
+                      className={styles.profileToggle}
+                      onClick={() => toggleEnabled(p.id)}
+                      title={p.enabled ? "Disable" : "Enable"}
                     >
-                      <span className={styles.profileRadio}>
-                        {p.id === local.active_profile_id ? "\u25C9" : "\u25CB"}
+                      <span className={styles.profileCheckbox}>
+                        {p.enabled ? "\u2713" : ""}
                       </span>
-                      <span className={styles.profileName}>{p.name}</span>
+                    </button>
+                    <button
+                      className={styles.profileSelect}
+                      onClick={() => {
+                        if (p.enabled) {
+                          setLocal({ ...local, selected_provider_id: p.id });
+                        }
+                      }}
+                      title={p.enabled ? "Set as active responder" : "Enable first"}
+                    >
+                      <span className={styles.profileName}>
+                        {p.name}
+                        {p.id === local.selected_provider_id && p.enabled && (
+                          <span className={styles.profileSelectedBadge}>active</span>
+                        )}
+                      </span>
                       <span className={styles.profileMeta}>
                         {p.provider === "anthropic" ? "Anthropic" : "OpenAI"} / {p.model}
                       </span>
                     </button>
                     <button
                       className={styles.profileEditBtn}
-                      onClick={() => { setEditingProfile({ ...p }); setModels([]); }}
+                      onClick={() => { setEditing({ ...p }); setModels([]); }}
                     >
                       Edit
                     </button>
                     <button
                       className={styles.profileDeleteBtn}
-                      onClick={() => deleteProfile(p.id)}
+                      onClick={() => deleteProvider(p.id)}
                     >
                       x
                     </button>
@@ -243,8 +275,8 @@ export function SettingsDialog() {
               </div>
             )}
 
-            <button className={styles.addProfileBtn} onClick={addProfile}>
-              + Add Profile
+            <button className={styles.addProfileBtn} onClick={addProvider}>
+              + Add Attention Provider
             </button>
           </div>
 

@@ -184,22 +184,31 @@ export function ChatPanel() {
               ...
             </button>
           )}
-          {(state.settings.profiles?.length ?? 0) > 1 && (
-            <select
-              className={styles.profileSwitch}
-              value={state.settings.active_profile_id}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_SETTINGS",
-                  settings: { ...state.settings, active_profile_id: e.target.value },
-                })
-              }
-            >
-              {state.settings.profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          )}
+          {(() => {
+            const enabled = (state.settings.attention_providers || []).filter((p) => p.enabled);
+            if (enabled.length > 1) {
+              return (
+                <select
+                  className={styles.profileSwitch}
+                  value={state.settings.selected_provider_id}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_SETTINGS",
+                      settings: { ...state.settings, selected_provider_id: e.target.value },
+                    })
+                  }
+                >
+                  {enabled.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              );
+            }
+            if (enabled.length === 1) {
+              return <span className={styles.profileLabel}>{enabled[0].name}</span>;
+            }
+            return null;
+          })()}
           <button
             className={`${styles.styleToggle} ${state.settings.response_style === "laconic" ? styles.styleToggleActive : ""}`}
             onClick={() =>

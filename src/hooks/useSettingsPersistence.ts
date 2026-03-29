@@ -24,37 +24,62 @@ export function useSettingsPersistence() {
         const store = await load(STORE_FILE);
         const raw = await store.get<Record<string, unknown>>("ai_settings");
         if (raw) {
-          // Migrate old flat format to profiles format
-          if (!Array.isArray(raw.profiles)) {
-            const oldProvider = (raw.provider as string) || "anthropic";
-            const oldKey = (raw.api_key as string) || "";
-            const oldModel = (raw.model as string) || "";
-            const oldPrompt = (raw.system_prompt as string) || "";
-            const migrated: Settings = {
-              profiles: oldKey ? [{
-                id: `migrated-${Date.now()}`,
+          // Migrate from any previous format to current
+          const r = raw as Record<string, unknown>;
+          let settings: Settings;
+
+          if (Array.isArray(r.attention_providers)) {
+            // Current format
+            settings = r as unknown as Settings;
+          } else if (Array.isArray(r.profiles)) {
+            // Previous profiles format -> attention_providers
+            const oldProfiles = r.profiles as Array<Record<string, unknown>>;
+            settings = {
+              attention_providers: oldProfiles.map((p) => ({
+                id: (p.id as string) || `migrated-${Date.now()}`,
+                name: (p.name as string) || "Unknown",
+                provider: (p.provider as "anthropic" | "openai") || "anthropic",
+                api_key: (p.api_key as string) || "",
+                model: (p.model as string) || "",
+                enabled: true,
+              })),
+              selected_provider_id: (r.active_profile_id as string) || "",
+              system_prompt: (r.system_prompt as string) || "",
+              response_style: (r.response_style as Settings["response_style"]) || "default",
+            };
+          } else {
+            // Oldest flat format
+            const oldProvider = (r.provider as string) || "anthropic";
+            const oldKey = (r.api_key as string) || "";
+            const oldModel = (r.model as string) || "";
+            const id = `migrated-${Date.now()}`;
+            settings = {
+              attention_providers: oldKey ? [{
+                id,
                 name: oldProvider === "anthropic" ? "Claude" : "ChatGPT",
                 provider: oldProvider as "anthropic" | "openai",
                 api_key: oldKey,
                 model: oldModel,
+                enabled: true,
               }] : [],
-              active_profile_id: oldKey ? `migrated-${Date.now()}` : "",
-              system_prompt: oldPrompt,
+              selected_provider_id: oldKey ? id : "",
+              system_prompt: (r.system_prompt as string) || "",
               response_style: "default",
             };
-            // Fix the id reference
-            if (migrated.profiles.length > 0) {
-              migrated.active_profile_id = migrated.profiles[0].id;
-            }
-            dispatch({ type: "SET_SETTINGS", settings: migrated });
-            await store.set("ai_settings", migrated);
-            await store.save();
-          } else {
-            const settings = raw as unknown as Settings;
-            // Ensure new fields have defaults
-            if (!settings.response_style) settings.response_style = "default";
-            dispatch({ type: "SET_SETTINGS", settings });
           }
+
+          // Ensure defaults for new fields
+          if (!settings.response_style) settings.response_style = "default";
+          if (!settings.attention_providers) settings.attention_providers = [];
+          // Ensure all providers have the enabled field
+          settings.attention_providers = settings.attention_providers.map((p) => ({
+            ...p,
+            enabled: p.enabled !== undefined ? p.enabled : true,
+          }));
+
+          dispatch({ type: "SET_SETTINGS", settings });
+          await store.set("ai_settings", settings);
+          await store.save();
         }
         const theme = await store.get<ThemePreference>("theme");
         if (theme) {

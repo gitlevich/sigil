@@ -40,25 +40,30 @@ export interface RecentDocument {
   last_opened: number;
 }
 
-export interface AiProfile {
+export interface AttentionProvider {
   id: string;
   name: string;
   provider: "anthropic" | "openai";
   api_key: string;
   model: string;
+  enabled: boolean;
 }
 
 export type ResponseStyle = "default" | "laconic";
 
 export interface Settings {
-  profiles: AiProfile[];
-  active_profile_id: string;
+  attention_providers: AttentionProvider[];
+  selected_provider_id: string;
   system_prompt: string;
   response_style: ResponseStyle;
 }
 
-export function activeProfile(settings: Settings): AiProfile | undefined {
-  return settings.profiles.find((p) => p.id === settings.active_profile_id);
+export function selectedProvider(settings: Settings): AttentionProvider | undefined {
+  return settings.attention_providers.find((p) => p.id === settings.selected_provider_id);
+}
+
+export function enabledProviders(settings: Settings): AttentionProvider[] {
+  return settings.attention_providers.filter((p) => p.enabled);
 }
 
 export const api = {
@@ -98,7 +103,7 @@ export const api = {
   renameChat: (rootPath: string, chatId: string, newName: string) =>
     invoke<void>("rename_chat", { rootPath, chatId, newName }),
 
-  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProfile, systemPrompt: string) =>
+  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AttentionProvider, systemPrompt: string) =>
     invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt }),
 
   listRecentDocuments: () =>
