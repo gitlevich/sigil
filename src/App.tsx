@@ -6,6 +6,7 @@ import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
+import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
 import { api } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
@@ -30,6 +31,7 @@ export function App({ initialRootPath }: AppProps) {
   useAppMenu();
   useUpdater();
   useFontZoom();
+  useSelectAll();
 
   useEffect(() => {
     if (opened.current) return;
