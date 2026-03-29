@@ -48,7 +48,7 @@ export function DocumentPicker() {
     <div className={styles.picker}>
       <div className={styles.header}>
         <h1 className={styles.title}>Sigil</h1>
-        <p className={styles.subtitle}>Hierarchical Domain Language Editor</p>
+        <p className={styles.subtitle}>Structure your thinking. Inhabit it with AI.</p>
       </div>
 
       <div className={styles.actions}>
