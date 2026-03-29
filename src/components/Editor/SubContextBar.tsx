@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
-import { useSpecTree } from "../../hooks/useSpecTree";
+import { useSigil } from "../../hooks/useSigil";
 import styles from "./SubContextBar.module.css";
 
 interface SubContextBarProps {
@@ -17,7 +17,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const dispatch = useAppDispatch();
-  const { reload } = useSpecTree();
+  const { reload } = useSigil();
   const doc = useDocument();
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     }
     try {
       await api.createContext(context.path, newName.trim());
-      await reload(doc.specTree.root_path);
+      await reload(doc.sigil.root_path);
       setNewName("");
       setAdding(false);
     } catch (err) {
@@ -75,7 +75,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     try {
       const childPath = `${context.path}/${oldName}`;
       await api.renameContext(childPath, trimmed);
-      await reload(doc.specTree.root_path);
+      await reload(doc.sigil.root_path);
       setRenamingChild(null);
     } catch (err) {
       console.error("Rename failed:", err);
@@ -91,7 +91,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     }
     try {
       await api.deleteContext(childPath);
-      await reload(doc.specTree.root_path);
+      await reload(doc.sigil.root_path);
     } catch (err) {
       console.error("Delete failed:", err);
     }

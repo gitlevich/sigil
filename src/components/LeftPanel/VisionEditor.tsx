@@ -13,11 +13,11 @@ export function VisionEditor() {
   if (!doc) return null;
 
   const handleChange = (value: string) => {
-    const path = `${doc.specTree.root_path}/vision.md`;
+    const path = `${doc.sigil.root_path}/vision.md`;
     save(path, value);
     dispatch({
-      type: "UPDATE_SPEC_TREE",
-      specTree: { ...doc.specTree, vision: value },
+      type: "UPDATE_SIGIL",
+      sigil: { ...doc.sigil, vision: value },
     });
   };
 
@@ -42,14 +42,14 @@ export function VisionEditor() {
         {mode === "edit" ? (
           <textarea
             className={styles.textarea}
-            value={doc.specTree.vision}
+            value={doc.sigil.vision}
             onChange={(e) => handleChange(e.target.value)}
             placeholder="Write the vision statement for this application..."
           />
         ) : (
           <div className={styles.previewArea}>
-            {doc.specTree.vision ? (
-              <MarkdownPreview content={doc.specTree.vision} />
+            {doc.sigil.vision ? (
+              <MarkdownPreview content={doc.sigil.vision} />
             ) : (
               <p className={styles.placeholder}>
                 No vision statement yet. Switch to Edit to write one.

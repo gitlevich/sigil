@@ -65,7 +65,7 @@ export function TreeView() {
   return (
     <div className={styles.tree}>
       <TreeNode
-        context={doc.specTree.root}
+        context={doc.sigil.root}
         path={[]}
         currentPath={doc.currentPath}
         onNavigate={handleNavigate}

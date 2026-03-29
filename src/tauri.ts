@@ -5,12 +5,12 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 export interface Context {
   name: string;
   path: string;
-  spec_body: string;
+  domain_language: string;
   technical_decisions: string | null;
   children: Context[];
 }
 
-export interface SpecTree {
+export interface Sigil {
   name: string;
   root_path: string;
   vision: string;
@@ -36,8 +36,8 @@ export interface Settings {
 }
 
 export const api = {
-  readSpecTree: (rootPath: string) =>
-    invoke<SpecTree>("read_spec_tree", { rootPath }),
+  readSigil: (rootPath: string) =>
+    invoke<Sigil>("read_sigil", { rootPath }),
 
   readFile: (path: string) =>
     invoke<string>("read_file", { path }),
@@ -72,8 +72,8 @@ export const api = {
   removeRecentDocument: (path: string) =>
     invoke<void>("remove_recent_document", { path }),
 
-  exportSpec: (rootPath: string, outputPath: string) =>
-    invoke<void>("export_spec", { rootPath, outputPath }),
+  exportSigil: (rootPath: string, outputPath: string) =>
+    invoke<void>("export_sigil", { rootPath, outputPath }),
 
   watchDirectory: (rootPath: string) =>
     invoke<void>("watch_directory", { rootPath }),

@@ -4,7 +4,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useAppMenu } from "./hooks/useAppMenu";
-import { useSpecTree } from "./hooks/useSpecTree";
+import { useSigil } from "./hooks/useSigil";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { EditorShell } from "./components/Editor/EditorShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -15,7 +15,7 @@ interface AppProps {
 
 export function App({ initialRootPath }: AppProps) {
   const state = useAppState();
-  const { openDocument } = useSpecTree();
+  const { openDocument } = useSigil();
   const opened = useRef(false);
 
   useTheme();

@@ -40,7 +40,7 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
     text: "Open Spec...",
     accelerator: "CmdOrCtrl+O",
     action: async () => {
-      const selected = await open({ directory: true, title: "Open spec tree root directory" });
+      const selected = await open({ directory: true, title: "Open sigil root directory" });
       if (selected) {
         openInNewWindow(selected as string);
       }

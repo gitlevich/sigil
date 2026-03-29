@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::models::spec_tree::RecentDocument;
+use crate::models::sigil::RecentDocument;
 
 fn recent_docs_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let app_data = app

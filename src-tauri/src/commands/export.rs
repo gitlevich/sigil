@@ -1,6 +1,6 @@
 use std::fs;
-use crate::commands::spec_tree::read_spec_tree;
-use crate::models::spec_tree::Context;
+use crate::commands::sigil::read_sigil;
+use crate::models::sigil::Context;
 
 fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool) {
     let heading = "#".repeat(depth + 1);
@@ -12,13 +12,13 @@ fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool
     let sub_heading = "#".repeat(depth + 2);
 
     if is_root {
-        output.push_str(&format!("{} Specification\n\n", sub_heading));
+        output.push_str(&format!("{} Domain Language\n\n", sub_heading));
     } else {
         output.push_str(&format!("{} {}\n\n", heading, ctx.name));
-        output.push_str(&format!("{} Specification\n\n", sub_heading));
+        output.push_str(&format!("{} Domain Language\n\n", sub_heading));
     }
 
-    output.push_str(&ctx.spec_body);
+    output.push_str(&ctx.domain_language);
     output.push_str("\n\n");
 
     if let Some(ref tech) = ctx.technical_decisions {
@@ -36,19 +36,19 @@ fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool
 }
 
 #[tauri::command]
-pub fn export_spec(root_path: String, output_path: String) -> Result<(), String> {
-    let tree = read_spec_tree(root_path)?;
+pub fn export_sigil(root_path: String, output_path: String) -> Result<(), String> {
+    let sigil = read_sigil(root_path)?;
     let mut output = String::new();
 
-    output.push_str(&format!("# {}\n\n", tree.name));
+    output.push_str(&format!("# {}\n\n", sigil.name));
 
-    if !tree.vision.is_empty() {
+    if !sigil.vision.is_empty() {
         output.push_str("## Vision\n\n");
-        output.push_str(&tree.vision);
+        output.push_str(&sigil.vision);
         output.push_str("\n\n");
     }
 
-    render_export(&tree.root, 0, &mut output, true);
+    render_export(&sigil.root, 0, &mut output, true);
 
     fs::write(&output_path, output).map_err(|e| e.to_string())
 }
@@ -59,16 +59,16 @@ mod tests {
     use tempfile::TempDir;
     use std::fs;
 
-    fn setup_tree(tmp: &TempDir) -> String {
+    fn setup_sigil(tmp: &TempDir) -> String {
         let root = tmp.path().join("TestApp");
         fs::create_dir(&root).unwrap();
         fs::write(root.join("vision.md"), "Make it great").unwrap();
-        fs::write(root.join("spec.md"), "Root spec body").unwrap();
+        fs::write(root.join("language.md"), "Root domain language").unwrap();
         fs::write(root.join("technical.md"), "Use Tauri").unwrap();
 
         let auth = root.join("Auth");
         fs::create_dir(&auth).unwrap();
-        fs::write(auth.join("spec.md"), "Auth spec").unwrap();
+        fs::write(auth.join("language.md"), "Auth language").unwrap();
 
         root.to_string_lossy().to_string()
     }
@@ -76,10 +76,10 @@ mod tests {
     #[test]
     fn test_export_contains_vision() {
         let tmp = TempDir::new().unwrap();
-        let root_path = setup_tree(&tmp);
+        let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_spec(root_path, output_path.clone()).unwrap();
+        export_sigil(root_path, output_path.clone()).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("# TestApp"));
@@ -88,29 +88,30 @@ mod tests {
     }
 
     #[test]
-    fn test_export_contains_spec_and_technical() {
+    fn test_export_contains_language_and_technical() {
         let tmp = TempDir::new().unwrap();
-        let root_path = setup_tree(&tmp);
+        let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_spec(root_path, output_path.clone()).unwrap();
+        export_sigil(root_path, output_path.clone()).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
-        assert!(content.contains("Root spec body"));
+        assert!(content.contains("Root domain language"));
         assert!(content.contains("Use Tauri"));
         assert!(content.contains("Technical Decisions"));
+        assert!(content.contains("Domain Language"));
     }
 
     #[test]
     fn test_export_contains_children() {
         let tmp = TempDir::new().unwrap();
-        let root_path = setup_tree(&tmp);
+        let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_spec(root_path, output_path.clone()).unwrap();
+        export_sigil(root_path, output_path.clone()).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("Auth"));
-        assert!(content.contains("Auth spec"));
+        assert!(content.contains("Auth language"));
     }
 }

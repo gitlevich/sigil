@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { api } from "../../tauri";
-import { useSpecTree } from "../../hooks/useSpecTree";
+import { useSigil } from "../../hooks/useSigil";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import styles from "./Breadcrumb.module.css";
 
@@ -13,7 +13,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const [renaming, setRenaming] = useState(false);
   const [renameName, setRenameName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { reload } = useSpecTree();
+  const { reload } = useSigil();
   const dispatch = useAppDispatch();
   const doc = useDocument();
 
@@ -34,8 +34,8 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
       return;
     }
     try {
-      const target = findChild(doc.specTree.root, lastCrumb.path);
-      const contextPath = target ? target.path : doc.specTree.root.path;
+      const target = findChild(doc.sigil.root, lastCrumb.path);
+      const contextPath = target ? target.path : doc.sigil.root.path;
       await api.renameContext(contextPath, trimmed);
 
       const newPath = [...lastCrumb.path];
@@ -44,7 +44,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
       }
       dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: newPath } });
 
-      await reload(doc.specTree.root_path);
+      await reload(doc.sigil.root_path);
       setRenaming(false);
     } catch (err) {
       console.error("Rename failed:", err);

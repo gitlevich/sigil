@@ -1,8 +1,8 @@
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
-import { SpecTree, Settings, ChatMessage } from "../tauri";
+import { Sigil, Settings, ChatMessage } from "../tauri";
 
 export interface OpenDocument {
-  specTree: SpecTree;
+  sigil: Sigil;
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
   showTechnical: boolean;
@@ -28,7 +28,7 @@ type Action =
   | { type: "SET_DOCUMENT"; doc: OpenDocument }
   | { type: "CLEAR_DOCUMENT" }
   | { type: "UPDATE_DOCUMENT"; updates: Partial<OpenDocument> }
-  | { type: "UPDATE_SPEC_TREE"; specTree: SpecTree }
+  | { type: "UPDATE_SIGIL"; sigil: Sigil }
   | { type: "SET_SETTINGS"; settings: Settings }
   | { type: "SET_SETTINGS_OPEN"; open: boolean }
   | { type: "SET_THEME"; theme: ThemePreference };
@@ -61,9 +61,9 @@ function reducer(state: AppState, action: Action): AppState {
       if (!state.document) return state;
       return { ...state, document: { ...state.document, ...action.updates } };
 
-    case "UPDATE_SPEC_TREE":
+    case "UPDATE_SIGIL":
       if (!state.document) return state;
-      return { ...state, document: { ...state.document, specTree: action.specTree } };
+      return { ...state, document: { ...state.document, sigil: action.sigil } };
 
     case "SET_SETTINGS":
       return { ...state, settings: action.settings };

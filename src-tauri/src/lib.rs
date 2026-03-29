@@ -10,10 +10,10 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
-            commands::spec_tree::read_spec_tree,
-            commands::spec_tree::create_context,
-            commands::spec_tree::rename_context,
-            commands::spec_tree::delete_context,
+            commands::sigil::read_sigil,
+            commands::sigil::create_context,
+            commands::sigil::rename_context,
+            commands::sigil::delete_context,
             commands::file_ops::read_file,
             commands::file_ops::write_file,
             commands::chat::read_chat,
@@ -22,7 +22,7 @@ pub fn run() {
             commands::documents::list_recent_documents,
             commands::documents::add_recent_document,
             commands::documents::remove_recent_document,
-            commands::export::export_spec,
+            commands::export::export_sigil,
             commands::watcher::watch_directory,
             commands::watcher::stop_watching,
         ])

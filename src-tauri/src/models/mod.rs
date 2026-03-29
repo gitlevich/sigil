@@ -1,3 +1,3 @@
-pub mod spec_tree;
+pub mod sigil;
 pub mod chat;
 pub mod settings;

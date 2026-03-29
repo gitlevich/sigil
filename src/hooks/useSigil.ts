@@ -1,19 +1,19 @@
 import { useCallback } from "react";
-import { api, SpecTree } from "../tauri";
+import { api, Sigil } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 
-export function useSpecTree() {
+export function useSigil() {
   const dispatch = useAppDispatch();
   const state = useAppState();
 
   const reload = useCallback(async (rootPath: string) => {
-    const specTree = await api.readSpecTree(rootPath);
-    dispatch({ type: "UPDATE_SPEC_TREE", specTree });
-    return specTree;
+    const sigil = await api.readSigil(rootPath);
+    dispatch({ type: "UPDATE_SIGIL", sigil });
+    return sigil;
   }, [dispatch]);
 
   const openDocument = useCallback(async (rootPath: string) => {
-    const specTree: SpecTree = await api.readSpecTree(rootPath);
+    const sigil: Sigil = await api.readSigil(rootPath);
     const chatMessages = await api.readChat(rootPath);
     await api.addRecentDocument(rootPath);
     await api.watchDirectory(rootPath);
@@ -21,7 +21,7 @@ export function useSpecTree() {
     dispatch({
       type: "SET_DOCUMENT",
       doc: {
-        specTree,
+        sigil,
         currentPath: [],
         editorMode: "split",
         showTechnical: false,

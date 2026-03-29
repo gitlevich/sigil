@@ -26,7 +26,7 @@ export function useChatStream() {
     const unlistenEnd = events.onChatStreamEnd(() => {
       if (!doc) return;
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-      api.writeChat(doc.specTree.root_path, doc.chatMessages).catch(console.error);
+      api.writeChat(doc.sigil.root_path, doc.chatMessages).catch(console.error);
       accumulatorRef.current = "";
     });
 
@@ -49,11 +49,11 @@ export function useChatStream() {
       updates: { chatMessages: newMessages, chatStreaming: true },
     });
 
-    await api.writeChat(doc.specTree.root_path, newMessages);
+    await api.writeChat(doc.sigil.root_path, newMessages);
     accumulatorRef.current = "";
 
     api.sendChatMessage(
-      doc.specTree.root_path,
+      doc.sigil.root_path,
       message,
       state.settings
     ).catch((err) => {

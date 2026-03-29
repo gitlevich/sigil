@@ -3,7 +3,7 @@ import { useAppState, useAppDispatch, ThemePreference } from "../../state/AppCon
 import { Settings } from "../../tauri";
 import styles from "./SettingsDialog.module.css";
 
-const DEFAULT_SYSTEM_PROMPT = `You are reviewing a hierarchical application specification. This specification is structured as a tree of bounded contexts. Each context defines ubiquitous language at its level of abstraction and may contain up to five sub-contexts. Each context has a spec body describing what it is and why it exists, and optionally technical decisions describing architectural and implementation choices. Technical decisions inherit from parent to child unless overridden. The root includes a vision statement defining the application's purpose. Your role is to review this specification for coherence, completeness, and readiness for implementation. Identify gaps, ambiguities, contradictions, missing contexts, and unclear language.`;
+const DEFAULT_SYSTEM_PROMPT = `You are reviewing a hierarchical application sigil. A sigil is structured as a tree of bounded contexts. Each context defines domain language at its level of abstraction and may contain up to five sub-contexts. Each context has a domain language document describing what it is and why it exists, and optionally technical decisions describing architectural and implementation choices. Technical decisions inherit from parent to child unless overridden. The root includes a vision statement defining the application's purpose. Your role is to review this sigil for coherence, completeness, and readiness for implementation. Identify gaps, ambiguities, contradictions, missing contexts, and unclear language.`;
 
 export function SettingsDialog() {
   const state = useAppState();

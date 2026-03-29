@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api, RecentDocument } from "../../tauri";
-import { useSpecTree } from "../../hooks/useSpecTree";
+import { useSigil } from "../../hooks/useSigil";
 import { useAppDispatch } from "../../state/AppContext";
 import styles from "./DocumentPicker.module.css";
 
@@ -9,7 +9,7 @@ export function DocumentPicker() {
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const { openDocument } = useSpecTree();
+  const { openDocument } = useSigil();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function DocumentPicker() {
 
     const rootPath = `${selected}/${newName.trim()}`;
     await api.writeFile(`${rootPath}/vision.md`, "");
-    await api.writeFile(`${rootPath}/spec.md`, "");
+    await api.writeFile(`${rootPath}/language.md`, "");
     // Open in the current window (this is the picker window)
     await openDocument(rootPath);
   };

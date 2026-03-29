@@ -19,12 +19,12 @@ export function EditorToolbar() {
   const handleExport = async () => {
     const outputPath = await save({
       title: "Export specification",
-      defaultPath: `${doc.specTree.name}.md`,
+      defaultPath: `${doc.sigil.name}.md`,
       filters: [{ name: "Markdown", extensions: ["md"] }],
     });
     if (!outputPath) return;
     try {
-      await api.exportSpec(doc.specTree.root_path, outputPath);
+      await api.exportSigil(doc.sigil.root_path, outputPath);
     } catch (err) {
       console.error("Export failed:", err);
     }
@@ -58,7 +58,7 @@ export function EditorToolbar() {
           className={`${styles.toggleBtn} ${doc.showTechnical ? styles.active : ""}`}
           onClick={toggleTechnical}
         >
-          {doc.showTechnical ? "Spec Body" : "Technical"}
+          {doc.showTechnical ? "Domain Language" : "Technical"}
         </button>
 
         <button className={styles.exportBtn} onClick={handleExport}>

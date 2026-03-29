@@ -1,4 +1,4 @@
-pub mod spec_tree;
+pub mod sigil;
 pub mod file_ops;
 pub mod chat;
 pub mod documents;

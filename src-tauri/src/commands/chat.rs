@@ -4,22 +4,22 @@ use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{ChatMessage, ChatRole};
 use crate::models::settings::{AiProvider, Settings};
-use crate::commands::spec_tree::read_spec_tree;
+use crate::commands::sigil::read_sigil;
 
-fn assemble_spec_context(root_path: &str) -> Result<String, String> {
-    let tree = read_spec_tree(root_path.to_string())?;
+fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
+    let sigil = read_sigil(root_path.to_string())?;
     let mut output = String::new();
 
     output.push_str("# Vision\n\n");
-    output.push_str(&tree.vision);
+    output.push_str(&sigil.vision);
     output.push_str("\n\n");
 
-    fn render_context(ctx: &crate::models::spec_tree::Context, depth: usize, output: &mut String) {
+    fn render_context(ctx: &crate::models::sigil::Context, depth: usize, output: &mut String) {
         let prefix = "#".repeat(depth + 1);
         output.push_str(&format!("{} {}\n\n", prefix, ctx.name));
 
-        output.push_str(&format!("{}# Specification\n\n", "#".repeat(depth + 2)));
-        output.push_str(&ctx.spec_body);
+        output.push_str(&format!("{}# Domain Language\n\n", "#".repeat(depth + 2)));
+        output.push_str(&ctx.domain_language);
         output.push_str("\n\n");
 
         if let Some(ref tech) = ctx.technical_decisions {
@@ -33,7 +33,7 @@ fn assemble_spec_context(root_path: &str) -> Result<String, String> {
         }
     }
 
-    render_context(&tree.root, 0, &mut output);
+    render_context(&sigil.root, 0, &mut output);
     Ok(output)
 }
 
@@ -61,7 +61,7 @@ pub async fn send_chat_message(
     message: String,
     settings: Settings,
 ) -> Result<(), String> {
-    let spec_context = assemble_spec_context(&root_path)?;
+    let spec_context = assemble_sigil_context(&root_path)?;
     let mut history = read_chat(root_path.clone())?;
 
     history.push(ChatMessage {
@@ -102,7 +102,7 @@ async fn stream_anthropic(
     let body = serde_json::json!({
         "model": settings.model,
         "max_tokens": 4096,
-        "system": format!("{}\n\n---\n\nHere is the full specification tree:\n\n{}", settings.system_prompt, spec_context),
+        "system": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", settings.system_prompt, spec_context),
         "messages": messages,
         "stream": true,
     });
@@ -168,7 +168,7 @@ async fn stream_openai(
 
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
-        "content": format!("{}\n\n---\n\nHere is the full specification tree:\n\n{}", settings.system_prompt, spec_context),
+        "content": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", settings.system_prompt, spec_context),
     })];
 
     for m in history {

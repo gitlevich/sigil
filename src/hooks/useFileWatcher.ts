@@ -1,12 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
 import { events } from "../tauri";
 import { useAppState } from "../state/AppContext";
-import { useSpecTree } from "./useSpecTree";
+import { useSigil } from "./useSigil";
 import { isAutoSaveDirty } from "./useAutoSave";
 
 export function useFileWatcher() {
   const state = useAppState();
-  const { reload } = useSpecTree();
+  const { reload } = useSigil();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFsChange = useCallback(() => {
@@ -14,7 +14,7 @@ export function useFileWatcher() {
     debounceRef.current = setTimeout(() => {
       if (isAutoSaveDirty()) return;
       if (!state.document) return;
-      reload(state.document.specTree.root_path).catch(console.error);
+      reload(state.document.sigil.root_path).catch(console.error);
     }, 1000);
   }, [state.document, reload]);
 

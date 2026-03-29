@@ -55,49 +55,49 @@ export function EditorShell() {
 
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.specTree.root, doc.currentPath);
-    const fileName = doc.showTechnical ? "technical.md" : "spec.md";
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const fileName = doc.showTechnical ? "technical.md" : "language.md";
     const filePath = `${ctx.path}/${fileName}`;
     save(filePath, content);
 
-    const updatedRoot = updateContextInTree(doc.specTree.root, doc.currentPath, (c) =>
+    const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) =>
       doc.showTechnical
         ? { ...c, technical_decisions: content }
-        : { ...c, spec_body: content }
+        : { ...c, domain_language: content }
     );
     dispatch({
-      type: "UPDATE_SPEC_TREE",
-      specTree: { ...doc.specTree, root: updatedRoot },
+      type: "UPDATE_SIGIL",
+      sigil: { ...doc.sigil, root: updatedRoot },
     });
   }, [doc, save, dispatch]);
 
   const handleCreateTechnical = useCallback(() => {
     if (!doc) return;
-    const ctx = findContext(doc.specTree.root, doc.currentPath);
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
     const filePath = `${ctx.path}/technical.md`;
     api.writeFile(filePath, "").catch(console.error);
-    const updatedRoot = updateContextInTree(doc.specTree.root, doc.currentPath, (c) => ({
+    const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
       ...c,
       technical_decisions: "",
     }));
     dispatch({
-      type: "UPDATE_SPEC_TREE",
-      specTree: { ...doc.specTree, root: updatedRoot },
+      type: "UPDATE_SIGIL",
+      sigil: { ...doc.sigil, root: updatedRoot },
     });
   }, [doc, dispatch]);
 
   if (!doc) return null;
 
-  const currentCtx = findContext(doc.specTree.root, doc.currentPath);
-  const breadcrumbs = buildBreadcrumb(doc.specTree.root, doc.currentPath);
+  const currentCtx = findContext(doc.sigil.root, doc.currentPath);
+  const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
   const content = doc.showTechnical
     ? currentCtx.technical_decisions ?? ""
-    : currentCtx.spec_body;
+    : currentCtx.domain_language;
 
   const inheritedTech = !doc.showTechnical ? null : (() => {
     if (currentCtx.technical_decisions !== null) return null;
-    let current = doc.specTree.root;
+    let current = doc.sigil.root;
     let lastTech: { content: string; name: string } | null = null;
     if (current.technical_decisions) {
       lastTech = { content: current.technical_decisions, name: current.name };

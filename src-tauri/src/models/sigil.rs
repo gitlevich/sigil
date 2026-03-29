@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpecTree {
+pub struct Sigil {
     pub name: String,
     pub root_path: String,
     pub vision: String,
@@ -12,7 +12,7 @@ pub struct SpecTree {
 pub struct Context {
     pub name: String,
     pub path: String,
-    pub spec_body: String,
+    pub domain_language: String,
     pub technical_decisions: Option<String>,
     pub children: Vec<Context>,
 }
