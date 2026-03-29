@@ -21,6 +21,7 @@ export function SettingsDialog() {
   const [editing, setEditing] = useState<AttentionProvider | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
 
   useEffect(() => {
     setLocal(state.settings);
@@ -202,6 +203,7 @@ export function SettingsDialog() {
     <div className={styles.overlay} onClick={() => dispatch({ type: "SET_SETTINGS_OPEN", open: false })}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <div className={styles.dialogBody}>
+          {!promptExpanded && (<>
           <h2 className={styles.title}>Settings</h2>
 
           <div className={styles.section}>
@@ -308,9 +310,35 @@ export function SettingsDialog() {
               </p>
             </div>
           </div>
+          </>)}
 
-          <div className={styles.promptSection}>
-            <h3 className={styles.sectionTitle}>System Prompt</h3>
+          <div className={promptExpanded ? styles.promptSectionFull : styles.promptSection}>
+            <div className={styles.promptHeader}>
+              <h3 className={styles.sectionTitle}>System Prompt</h3>
+              <button
+                className={styles.promptExpandBtn}
+                onClick={() => setPromptExpanded(!promptExpanded)}
+                title={promptExpanded ? "Collapse to show all settings" : "Expand to full editor"}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  {promptExpanded ? (
+                    <>
+                      <polyline points="5 1 1 1 1 5" />
+                      <polyline points="11 15 15 15 15 11" />
+                      <line x1="1" y1="1" x2="6" y2="6" />
+                      <line x1="15" y1="15" x2="10" y2="10" />
+                    </>
+                  ) : (
+                    <>
+                      <polyline points="10 1 15 1 15 6" />
+                      <polyline points="6 15 1 15 1 10" />
+                      <line x1="15" y1="1" x2="9" y2="7" />
+                      <line x1="1" y1="15" x2="7" y2="9" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
             <textarea
               className={styles.promptTextarea}
               value={local.system_prompt || DEFAULT_SYSTEM_PROMPT}
