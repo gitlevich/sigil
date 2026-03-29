@@ -247,13 +247,23 @@ export function EntanglementGraph() {
           const midX = (fromPos.x + toPos.x) / 2;
           const midY = (fromPos.y + toPos.y) / 2;
 
+          const isACL = ent.policy === "anticorruption-layer";
+          const showArrow = !isSymmetric && !isACL;
+
+          // ACL perpendicular mark: a short line near the "to" node (the translator)
+          const aclMarkDist = NODE_R + 12;
+          const aclX = toPos.x - ux * aclMarkDist;
+          const aclY = toPos.y - uy * aclMarkDist;
+          const perpX = -uy * 10; // perpendicular
+          const perpY = ux * 10;
+
           return (
             <g key={`${ent.from}-${ent.to}`}>
               <line
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 stroke={isSelected ? "var(--accent)" : "var(--text-secondary)"}
                 strokeWidth={isSelected ? 3 : 2}
-                markerEnd={isSymmetric ? undefined : "url(#arrowhead)"}
+                markerEnd={showArrow ? "url(#arrowhead)" : undefined}
                 style={{ cursor: "pointer" }}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
@@ -261,6 +271,15 @@ export function EntanglementGraph() {
                   setSelectedEdge({ from: ent.from, to: ent.to });
                 }}
               />
+              {isACL && (
+                <line
+                  x1={aclX - perpX} y1={aclY - perpY}
+                  x2={aclX + perpX} y2={aclY + perpY}
+                  stroke={isSelected ? "var(--accent)" : "var(--text-secondary)"}
+                  strokeWidth={isSelected ? 3 : 2}
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
               <text
                 x={midX}
                 y={midY - 8}
