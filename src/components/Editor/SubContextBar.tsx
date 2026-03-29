@@ -9,22 +9,13 @@ interface SubContextBarProps {
 }
 
 export function SubContextBar({ context }: SubContextBarProps) {
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
   const [renamingChild, setRenamingChild] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; childName: string } | null>(null);
-  const addInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const dispatch = useAppDispatch();
   const { reload } = useSigil();
   const doc = useDocument();
-
-  useEffect(() => {
-    if (adding && addInputRef.current) {
-      addInputRef.current.focus();
-    }
-  }, [adding]);
 
   useEffect(() => {
     if (renamingChild && renameInputRef.current) {
@@ -40,22 +31,6 @@ export function SubContextBar({ context }: SubContextBarProps) {
       return () => document.removeEventListener("click", handleClick);
     }
   }, [contextMenu]);
-
-  const handleAdd = async () => {
-    if (!doc) return;
-    if (!newName.trim()) {
-      setAdding(false);
-      return;
-    }
-    try {
-      await api.createContext(context.path, newName.trim());
-      await reload(doc.sigil.root_path);
-      setNewName("");
-      setAdding(false);
-    } catch (err) {
-      console.error("Create context failed:", err);
-    }
-  };
 
   const handleNavigate = (childName: string) => {
     if (!doc) return;
@@ -129,26 +104,6 @@ export function SubContextBar({ context }: SubContextBarProps) {
         )
       ))}
 
-      {adding ? (
-        <div className={styles.addForm}>
-          <input
-            ref={addInputRef}
-            className={styles.addInput}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Context name"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-              if (e.key === "Escape") setAdding(false);
-            }}
-            onBlur={handleAdd}
-          />
-        </div>
-      ) : context.children.length < 5 ? (
-        <button className={styles.addBtn} onClick={() => setAdding(true)}>
-          +
-        </button>
-      ) : null}
 
       {contextMenu && (
         <div
