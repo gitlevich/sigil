@@ -2,6 +2,25 @@ use std::fs;
 use std::path::Path;
 use crate::models::sigil::{Context, Sigil};
 
+/// Returns the path to the domain language file in a context directory.
+/// Prefers language.md but falls back to spec.md for backward compatibility.
+fn language_file(dir: &Path) -> std::path::PathBuf {
+    let lang = dir.join("language.md");
+    if lang.exists() {
+        return lang;
+    }
+    let spec = dir.join("spec.md");
+    if spec.exists() {
+        return spec;
+    }
+    lang // default to language.md for new contexts
+}
+
+/// Returns true if the directory is a valid context (has language.md or spec.md).
+fn is_context_dir(dir: &Path) -> bool {
+    dir.join("language.md").exists() || dir.join("spec.md").exists()
+}
+
 fn read_context(dir: &Path) -> Result<Context, String> {
     let name = dir
         .file_name()
@@ -9,8 +28,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         .unwrap_or("Unknown")
         .to_string();
 
-    let lang_path = dir.join("language.md");
-    let domain_language = fs::read_to_string(&lang_path)
+    let domain_language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
 
     let tech_path = dir.join("technical.md");
@@ -36,7 +54,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
 
         for entry in dirs {
             let child_path = entry.path();
-            if child_path.join("language.md").exists() {
+            if is_context_dir(&child_path) {
                 children.push(read_context(&child_path)?);
             }
         }
@@ -79,7 +97,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_dir())
-        .filter(|e| e.path().join("language.md").exists())
+        .filter(|e| is_context_dir(&e.path()))
         .collect();
 
     if existing_dirs.len() >= 5 {
@@ -278,5 +296,36 @@ mod tests {
         let sigil = read_sigil(root_path).unwrap();
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(!names.contains(&"random"));
+    }
+
+    #[test]
+    fn test_read_sigil_with_legacy_spec_md() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Legacy");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "Legacy vision").unwrap();
+        fs::write(root.join("spec.md"), "Legacy root content").unwrap();
+
+        let child = root.join("OldChild");
+        fs::create_dir(&child).unwrap();
+        fs::write(child.join("spec.md"), "Old child content").unwrap();
+
+        let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
+        assert_eq!(sigil.root.domain_language, "Legacy root content");
+        assert_eq!(sigil.root.children.len(), 1);
+        assert_eq!(sigil.root.children[0].domain_language, "Old child content");
+    }
+
+    #[test]
+    fn test_language_md_takes_precedence_over_spec_md() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Both");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("spec.md"), "old content").unwrap();
+        fs::write(root.join("language.md"), "new content").unwrap();
+
+        let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
+        assert_eq!(sigil.root.domain_language, "new content");
     }
 }
