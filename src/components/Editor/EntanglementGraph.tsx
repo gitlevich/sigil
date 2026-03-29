@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useDocument, useAppDispatch } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
+import { useSigil } from "../../hooks/useSigil";
 import styles from "./EntanglementGraph.module.css";
 
 export type Policy =
@@ -55,7 +56,10 @@ export function EntanglementGraph() {
   const [entanglements, setEntanglements] = useState<Entanglement[]>([]);
   const [dragging, setDragging] = useState<{ from: string; mx: number; my: number } | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
+  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; name: string; path: string } | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
+  const { reload } = useSigil();
 
   const currentCtx = doc ? findContext(doc.sigil.root, doc.currentPath) : null;
   const children = currentCtx?.children ?? [];
@@ -87,6 +91,14 @@ export function EntanglementGraph() {
     observer.observe(svg);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const handleClick = () => setNodeMenu(null);
+    if (nodeMenu) {
+      document.addEventListener("click", handleClick);
+      return () => document.removeEventListener("click", handleClick);
+    }
+  }, [nodeMenu]);
 
   const saveEntanglements = useCallback(async (data: Entanglement[]) => {
     if (!currentCtx) return;
@@ -193,7 +205,7 @@ export function EntanglementGraph() {
         className={styles.svg}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onClick={() => setSelectedEdge(null)}
+        onClick={() => { setSelectedEdge(null); setSelectedNode(null); }}
       >
         <defs>
           <marker
@@ -282,13 +294,34 @@ export function EntanglementGraph() {
             key={node.name}
             style={{ cursor: "grab" }}
             onMouseDown={(e) => {
+              if (e.button !== 2) {
+                e.preventDefault();
+                const rect = svgRef.current!.getBoundingClientRect();
+                setDragging({
+                  from: node.name,
+                  mx: e.clientX - rect.left,
+                  my: e.clientY - rect.top,
+                });
+              }
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedNode(node.name);
+              // Navigate tree to this child so it highlights there
+              if (doc) {
+                dispatch({
+                  type: "UPDATE_DOCUMENT",
+                  updates: { currentPath: [...doc.currentPath, node.name] },
+                });
+              }
+            }}
+            onContextMenu={(e) => {
               e.preventDefault();
-              const rect = svgRef.current!.getBoundingClientRect();
-              setDragging({
-                from: node.name,
-                mx: e.clientX - rect.left,
-                my: e.clientY - rect.top,
-              });
+              e.stopPropagation();
+              const child = children.find((c) => c.name === node.name);
+              if (child) {
+                setNodeMenu({ x: e.clientX, y: e.clientY, name: node.name, path: child.path });
+              }
             }}
             onDoubleClick={() => handleNodeDoubleClick(node.name)}
           >
@@ -296,7 +329,7 @@ export function EntanglementGraph() {
               cx={node.x}
               cy={node.y}
               r={NODE_R}
-              fill="var(--bg-secondary)"
+              fill={selectedNode === node.name ? "var(--accent)" : "var(--bg-secondary)"}
               stroke="var(--accent)"
               strokeWidth="2"
             />
@@ -305,7 +338,7 @@ export function EntanglementGraph() {
               y={node.y + 1}
               textAnchor="middle"
               dominantBaseline="middle"
-              fill="var(--text-primary)"
+              fill={selectedNode === node.name ? "var(--accent-text)" : "var(--text-primary)"}
               fontSize="11"
               fontWeight="500"
               style={{ pointerEvents: "none" }}
@@ -354,6 +387,52 @@ export function EntanglementGraph() {
           </div>
         );
       })()}
+
+      {nodeMenu && (
+        <div
+          className={styles.policyPopover}
+          style={{ left: nodeMenu.x, top: nodeMenu.y, transform: "none" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.policyHeader}>{nodeMenu.name}</div>
+          <div className={styles.policyList}>
+            <button
+              className={styles.policyOption}
+              onClick={() => {
+                const name = prompt("Rename:", nodeMenu.name);
+                if (!name?.trim()) { setNodeMenu(null); return; }
+                api.renameContext(nodeMenu.path, name.trim())
+                  .then(() => doc && reload(doc.sigil.root_path))
+                  .catch(console.error);
+                setNodeMenu(null);
+              }}
+            >
+              Rename
+            </button>
+            <button
+              className={styles.policyOption}
+              onClick={() => {
+                api.revealInFinder(nodeMenu.path).catch(console.error);
+                setNodeMenu(null);
+              }}
+            >
+              Open in Finder
+            </button>
+            <button
+              className={styles.deleteEdgeBtn}
+              onClick={() => {
+                if (!confirm(`Delete "${nodeMenu.name}" and all its contents?`)) { setNodeMenu(null); return; }
+                api.deleteContext(nodeMenu.path)
+                  .then(() => doc && reload(doc.sigil.root_path))
+                  .catch(console.error);
+                setNodeMenu(null);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.instructions}>
         Drag between sigils to entangle. Click an edge to change policy. Double-click a sigil to enter it.
