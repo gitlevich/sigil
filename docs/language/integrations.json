@@ -1,5 +1,5 @@
 {
-  "entanglements": [
+  "integrations": [
     {
       "from": "goo",
       "to": "boo",

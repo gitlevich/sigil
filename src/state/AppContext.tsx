@@ -5,7 +5,7 @@ export interface OpenDocument {
   sigil: Sigil;
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "entanglements";
+  contentTab: "language" | "integrations";
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "tree";
   rightPanelOpen: boolean;
@@ -14,6 +14,7 @@ export interface OpenDocument {
   chatMessages: ChatMessage[];
   chatStreaming: boolean;
   highlightedChild: string | null;
+  wordWrap: boolean;
 }
 
 export interface UIState {
@@ -58,7 +59,7 @@ const initialState: AppState = {
   screen: "picker",
   document: null,
   settings: {
-    attention_providers: [],
+    ai_providers: [],
     selected_provider_id: "",
     system_prompt: "",
     response_style: "laconic",

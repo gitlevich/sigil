@@ -9,7 +9,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
 import { Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
-import { EntanglementGraph } from "./EntanglementGraph";
+import { IntegrationGraph } from "./IntegrationGraph";
 import styles from "./EditorShell.module.css";
 
 function findContext(root: Context, path: string[]): Context {
@@ -110,8 +110,8 @@ export function EditorShell() {
         />
         <EditorToolbar />
         <div className={styles.editorArea}>
-          {(doc.contentTab || "language") === "entanglements" ? (
-            <EntanglementGraph />
+          {(doc.contentTab || "language") === "integrations" ? (
+            <IntegrationGraph />
           ) : (
             <>
               {(doc.editorMode === "edit" || doc.editorMode === "split") && (
@@ -121,6 +121,7 @@ export function EditorShell() {
                     onChange={handleContentChange}
                     siblingNames={allRefNames}
                     siblings={allRefs}
+                    wordWrap={doc.wordWrap}
                   />
                 </div>
               )}

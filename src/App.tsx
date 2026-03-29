@@ -60,9 +60,10 @@ export function App({ initialRootPath }: AppProps) {
               leftPanelTab: saved.leftPanelTab,
               rightPanelOpen: saved.rightPanelOpen,
               editorMode: saved.editorMode,
-              contentTab: saved.contentTab || "language",
+              contentTab: (saved.contentTab as string) === "entanglements" ? "integrations" : (saved.contentTab || "language"),
               activeChatId: saved.activeChatId || "",
               chatMessages,
+              wordWrap: saved.wordWrap ?? false,
             },
           });
         } catch {

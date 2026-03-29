@@ -23,10 +23,12 @@ interface MarkdownEditorProps {
   onChange: (content: string) => void;
   siblingNames?: string[];
   siblings?: SiblingInfo[];
+  wordWrap?: boolean;
 }
 
 const themeCompartment = new Compartment();
 const siblingCompartment = new Compartment();
+const wrapCompartment = new Compartment();
 
 const lightTheme = EditorView.theme({
   "&": {
@@ -221,7 +223,7 @@ function siblingCompletion(context: CompletionContext) {
   };
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [] }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -241,6 +243,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings)),
+        wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         autocompletion({
           override: [siblingCompletion],
           activateOnTyping: true,
@@ -253,7 +256,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
           }
         }),
         EditorView.theme({
-          "&": { height: "100%", fontSize: "14px" },
+          "&": { height: "100%", fontSize: "var(--content-font-size, 16px)" },
           ".cm-scroller": { overflow: "auto" },
           ".cm-content": { fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace" },
         }),
@@ -299,6 +302,15 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
       effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings)),
     });
   }, [siblingNames, siblings]);
+
+  // Toggle word wrap
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: wrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
+    });
+  }, [wordWrap]);
 
   // Sync external content changes into CodeMirror.
   // Skip if the change is an echo of a local edit (localEditRef).

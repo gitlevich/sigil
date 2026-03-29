@@ -40,7 +40,7 @@ export interface RecentDocument {
   last_opened: number;
 }
 
-export interface AttentionProvider {
+export interface AiProvider {
   id: string;
   name: string;
   provider: "anthropic" | "openai";
@@ -52,18 +52,18 @@ export interface AttentionProvider {
 export type ResponseStyle = "laconic" | "detailed";
 
 export interface Settings {
-  attention_providers: AttentionProvider[];
+  ai_providers: AiProvider[];
   selected_provider_id: string;
   system_prompt: string;
   response_style: ResponseStyle;
 }
 
-export function selectedProvider(settings: Settings): AttentionProvider | undefined {
-  return settings.attention_providers.find((p) => p.id === settings.selected_provider_id);
+export function selectedProvider(settings: Settings): AiProvider | undefined {
+  return settings.ai_providers.find((p) => p.id === settings.selected_provider_id);
 }
 
-export function enabledProviders(settings: Settings): AttentionProvider[] {
-  return settings.attention_providers.filter((p) => p.enabled);
+export function enabledProviders(settings: Settings): AiProvider[] {
+  return settings.ai_providers.filter((p) => p.enabled);
 }
 
 export const api = {
@@ -106,7 +106,7 @@ export const api = {
   renameChat: (rootPath: string, chatId: string, newName: string) =>
     invoke<void>("rename_chat", { rootPath, chatId, newName }),
 
-  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AttentionProvider, systemPrompt: string) =>
+  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, systemPrompt: string) =>
     invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt }),
 
   listRecentDocuments: () =>

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useDocument, useAppDispatch } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
-import styles from "./EntanglementGraph.module.css";
+import styles from "./IntegrationGraph.module.css";
 
 export type Policy =
   | "shared-kernel"
@@ -12,14 +12,14 @@ export type Policy =
   | "anticorruption-layer"
   | "separate-ways";
 
-export interface Entanglement {
+export interface Integration {
   from: string; // context name (upstream / source)
   to: string;   // context name (downstream / target)
   policy: Policy;
 }
 
-export interface EntanglementData {
-  entanglements: Entanglement[];
+export interface IntegrationData {
+  integrations: Integration[];
 }
 
 const POLICY_LABELS: Record<Policy, string> = {
@@ -49,11 +49,11 @@ function findContext(root: Context, path: string[]): Context {
   return current;
 }
 
-export function EntanglementGraph() {
+export function IntegrationGraph() {
   const doc = useDocument();
   const dispatch = useAppDispatch();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [entanglements, setEntanglements] = useState<Entanglement[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [dragging, setDragging] = useState<{ from: string; mx: number; my: number } | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
@@ -65,16 +65,24 @@ export function EntanglementGraph() {
   const currentCtx = doc ? findContext(doc.sigil.root, doc.currentPath) : null;
   const children = currentCtx?.children ?? [];
 
-  // Load entanglements from disk
+  // Load integrations from disk
   useEffect(() => {
     if (!currentCtx) return;
-    const path = `${currentCtx.path}/entanglements.json`;
+    const path = `${currentCtx.path}/integrations.json`;
+    const legacyPath = `${currentCtx.path}/entanglements.json`;
     api.readFile(path)
       .then((content) => {
-        const data: EntanglementData = JSON.parse(content);
-        setEntanglements(data.entanglements || []);
+        const data: IntegrationData = JSON.parse(content);
+        setIntegrations(data.integrations || []);
       })
-      .catch(() => setEntanglements([]));
+      .catch(() =>
+        api.readFile(legacyPath)
+          .then((content) => {
+            const data = JSON.parse(content);
+            setIntegrations(data.entanglements || data.integrations || []);
+          })
+          .catch(() => setIntegrations([]))
+      );
   }, [currentCtx?.path]);
 
   // Measure container
@@ -101,10 +109,10 @@ export function EntanglementGraph() {
     }
   }, [nodeMenu]);
 
-  const saveEntanglements = useCallback(async (data: Entanglement[]) => {
+  const saveIntegrations = useCallback(async (data: Integration[]) => {
     if (!currentCtx) return;
-    const path = `${currentCtx.path}/entanglements.json`;
-    const content = JSON.stringify({ entanglements: data }, null, 2);
+    const path = `${currentCtx.path}/integrations.json`;
+    const content = JSON.stringify({ integrations: data }, null, 2);
     await api.writeFile(path, content);
   }, [currentCtx]);
 
@@ -147,7 +155,7 @@ export function EntanglementGraph() {
 
     if (target && target.name !== dragging.from) {
       // Check if edge already exists (in either direction)
-      const exists = entanglements.some(
+      const exists = integrations.some(
         (e) =>
           (e.from === dragging.from && e.to === target.name) ||
           (e.from === target.name && e.to === dragging.from)
@@ -159,21 +167,21 @@ export function EntanglementGraph() {
     }
 
     setDragging(null);
-  }, [dragging, nodePositions, entanglements, saveEntanglements]);
+  }, [dragging, nodePositions, integrations, saveIntegrations]);
 
   const handlePolicyChange = (from: string, to: string, policy: Policy) => {
-    const updated = entanglements.map((e) =>
+    const updated = integrations.map((e) =>
       e.from === from && e.to === to ? { ...e, policy } : e
     );
-    setEntanglements(updated);
-    saveEntanglements(updated);
+    setIntegrations(updated);
+    saveIntegrations(updated);
     setSelectedEdge(null);
   };
 
   const handleDeleteEdge = (from: string, to: string) => {
-    const updated = entanglements.filter((e) => !(e.from === from && e.to === to));
-    setEntanglements(updated);
-    saveEntanglements(updated);
+    const updated = integrations.filter((e) => !(e.from === from && e.to === to));
+    setIntegrations(updated);
+    saveIntegrations(updated);
     setSelectedEdge(null);
   };
 
@@ -188,7 +196,7 @@ export function EntanglementGraph() {
   if (!doc || children.length === 0) {
     return (
       <div className={styles.empty}>
-        No sub-contexts to show. Add contexts to see entanglements.
+        No sub-contexts to show. Add contexts to see integrations.
       </div>
     );
   }
@@ -222,7 +230,7 @@ export function EntanglementGraph() {
         </defs>
 
         {/* Edges */}
-        {entanglements.map((ent) => {
+        {integrations.map((ent) => {
           const fromPos = getPos(ent.from);
           const toPos = getPos(ent.to);
           if (!fromPos || !toPos) return null;
@@ -392,7 +400,7 @@ export function EntanglementGraph() {
 
       {/* Edge selected — show remove option */}
       {selectedEdge && (() => {
-        const ent = entanglements.find(
+        const ent = integrations.find(
           (e) => e.from === selectedEdge.from && e.to === selectedEdge.to
         );
         if (!ent) return null;
@@ -409,7 +417,7 @@ export function EntanglementGraph() {
               className={styles.deleteEdgeBtn}
               onClick={() => handleDeleteEdge(ent.from, ent.to)}
             >
-              Remove entanglement
+              Remove integration
             </button>
           </div>
         );
@@ -476,10 +484,10 @@ export function EntanglementGraph() {
                 key={p}
                 className={styles.policyOption}
                 onClick={() => {
-                  const newEdge: Entanglement = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
-                  const newEntanglements = [...entanglements, newEdge];
-                  setEntanglements(newEntanglements);
-                  saveEntanglements(newEntanglements);
+                  const newEdge: Integration = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
+                  const newIntegrations = [...integrations, newEdge];
+                  setIntegrations(newIntegrations);
+                  saveIntegrations(newIntegrations);
                   setPendingEdge(null);
                 }}
               >

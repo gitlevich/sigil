@@ -13,12 +13,16 @@ export function useAppMenu() {
   const state = useAppState();
 
   useEffect(() => {
-    buildMenu(dispatch, () => state.document).catch(console.error);
+    buildMenu(dispatch, () => state.document, () => state.ui).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
-async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>, getDoc: () => ReturnType<typeof useAppState>["document"]) {
+async function buildMenu(
+  dispatch: ReturnType<typeof useAppDispatch>,
+  getDoc: () => ReturnType<typeof useAppState>["document"],
+  getUI: () => ReturnType<typeof useAppState>["ui"],
+) {
   // ── Sigil (app) menu ──
   const aboutItem = await MenuItem.new({
     text: "About Sigil...",
@@ -138,6 +142,54 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>, getDoc: ()
     ],
   });
 
+  // ── View menu ──
+  const wordWrapItem = await MenuItem.new({
+    text: "Toggle Word Wrap",
+    accelerator: "Alt+Z",
+    action: () => {
+      const doc = getDoc();
+      if (!doc) return;
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { wordWrap: !doc.wordWrap } });
+    },
+  });
+
+  const zoomInItem = await MenuItem.new({
+    text: "Zoom In",
+    accelerator: "CmdOrCtrl+=",
+    action: () => {
+      const fs = getUI().fontSize || 16;
+      dispatch({ type: "SET_UI", ui: { fontSize: Math.min(24, fs + 1) } });
+    },
+  });
+
+  const zoomOutItem = await MenuItem.new({
+    text: "Zoom Out",
+    accelerator: "CmdOrCtrl+-",
+    action: () => {
+      const fs = getUI().fontSize || 16;
+      dispatch({ type: "SET_UI", ui: { fontSize: Math.max(12, fs - 1) } });
+    },
+  });
+
+  const zoomResetItem = await MenuItem.new({
+    text: "Actual Size",
+    accelerator: "CmdOrCtrl+0",
+    action: () => {
+      dispatch({ type: "SET_UI", ui: { fontSize: 16 } });
+    },
+  });
+
+  const viewSubmenu = await Submenu.new({
+    text: "View",
+    items: [
+      zoomInItem,
+      zoomOutItem,
+      zoomResetItem,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      wordWrapItem,
+    ],
+  });
+
   // ── Window menu ──
   const windowSubmenu = await Submenu.new({
     text: "Window",
@@ -165,7 +217,7 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>, getDoc: ()
   await helpSubmenu.setAsHelpMenuForNSApp();
 
   const menu = await Menu.new({
-    items: [appSubmenu, fileSubmenu, editSubmenu, windowSubmenu, helpSubmenu],
+    items: [appSubmenu, fileSubmenu, editSubmenu, viewSubmenu, windowSubmenu, helpSubmenu],
   });
 
   await menu.setAsAppMenu();

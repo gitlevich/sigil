@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAppState, useAppDispatch, ThemePreference } from "../../state/AppContext";
-import { Settings, AttentionProvider, api } from "../../tauri";
+import { Settings, AiProvider, api } from "../../tauri";
 import styles from "./SettingsDialog.module.css";
 
 const DEFAULT_SYSTEM_PROMPT = `You are a domain-driven design partner. You think in terms of bounded contexts, ubiquitous language, aggregates, entities, value objects, domain events, and context mapping patterns (shared kernel, customer-supplier, conformist, anticorruption layer, published language, separate ways).
@@ -18,7 +18,7 @@ export function SettingsDialog() {
   const dispatch = useAppDispatch();
   const [local, setLocal] = useState<Settings>(state.settings);
   const [localTheme, setLocalTheme] = useState<ThemePreference>(state.themePreference);
-  const [editing, setEditing] = useState<AttentionProvider | null>(null);
+  const [editing, setEditing] = useState<AiProvider | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [promptExpanded, setPromptExpanded] = useState(false);
@@ -48,7 +48,7 @@ export function SettingsDialog() {
     dispatch({ type: "SET_SETTINGS_OPEN", open: false });
   };
 
-  const providers = local.attention_providers || [];
+  const providers = local.ai_providers || [];
 
   const addProvider = () => {
     setEditing({
@@ -65,7 +65,7 @@ export function SettingsDialog() {
   const saveProvider = () => {
     if (!editing || !editing.name.trim()) return;
     const existing = providers.findIndex((p) => p.id === editing.id);
-    let updated: AttentionProvider[];
+    let updated: AiProvider[];
     if (existing >= 0) {
       updated = providers.map((p) => (p.id === editing.id ? editing : p));
     } else {
@@ -74,7 +74,7 @@ export function SettingsDialog() {
     const selectedId = local.selected_provider_id && updated.some((p) => p.id === local.selected_provider_id && p.enabled)
       ? local.selected_provider_id
       : (updated.find((p) => p.enabled)?.id ?? "");
-    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
+    setLocal({ ...local, ai_providers: updated, selected_provider_id: selectedId });
     setEditing(null);
   };
 
@@ -83,7 +83,7 @@ export function SettingsDialog() {
     const selectedId = local.selected_provider_id === id
       ? (updated.find((p) => p.enabled)?.id ?? "")
       : local.selected_provider_id;
-    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
+    setLocal({ ...local, ai_providers: updated, selected_provider_id: selectedId });
   };
 
   const toggleEnabled = (id: string) => {
@@ -100,7 +100,7 @@ export function SettingsDialog() {
     if (toggled && toggled.enabled && !selectedId) {
       selectedId = id;
     }
-    setLocal({ ...local, attention_providers: updated, selected_provider_id: selectedId });
+    setLocal({ ...local, ai_providers: updated, selected_provider_id: selectedId });
   };
 
   // Provider editing view
@@ -110,7 +110,7 @@ export function SettingsDialog() {
         <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
           <div className={styles.dialogBody}>
             <h2 className={styles.title}>
-              {providers.some((p) => p.id === editing.id) ? "Edit Attention Provider" : "New Attention Provider"}
+              {providers.some((p) => p.id === editing.id) ? "Edit AI Provider" : "New AI Provider"}
             </h2>
 
             <div className={styles.field}>
@@ -225,7 +225,7 @@ export function SettingsDialog() {
           </div>
 
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Attention Providers</h3>
+            <h3 className={styles.sectionTitle}>AI Providers</h3>
 
             {providers.length === 0 ? (
               <p className={styles.emptyProfiles}>No attention providers configured yet.</p>
@@ -282,7 +282,7 @@ export function SettingsDialog() {
             )}
 
             <button className={styles.addProfileBtn} onClick={addProvider}>
-              + Add Attention Provider
+              + Add AI Provider
             </button>
           </div>
 
