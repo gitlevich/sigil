@@ -4,13 +4,11 @@
 
 ### Sigil
 
-A sigil is a bounded context with recursive containment. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right. The name is what makes it addressable. The integrations are how it relates to its neighbors.
+A sigil is a bounded context with recursive containment. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right.
 
 A sigil is always contained in another sigil. There is no root in any absolute sense — what appears as "the root" in the tool is simply the sigil you opened, which itself exists in a larger context you're not looking at right now.
 
-Inside a containing sigil, you write sentences using the names of the sigils it contains. That's the domain language of that level — a narrative woven from up to five named concepts. Each of those concepts is itself a sigil, with its own interior, its own five concepts, its own narrative. But from outside, you only see the name and the integrations.
-
-The limitation of 5 comes from how human attention cannot hold more than 5 to 7 separate concepts at the same time, at any level of detail. This way, complexity visible in any context is always limited.
+The limit of five comes from how human attention works: you cannot hold more than five to seven separate concepts at any level of detail. Complexity visible in any one context is always bounded.
 
 A sigil has:
 
@@ -18,15 +16,22 @@ A sigil has:
 - **Domain language**: the narrative at this level of abstraction — sentences woven from the names of the sigils it contains. Stored as `language.md`.
 - **Contained sigils**: up to 5 sigils inside this one.
 
-### Structure
+### Containment
 
-A sigil structure is recursive: it contains sigils of which it's made. This is not a parent-child relationship — it is containment. The contained sigils inhabit the context of the containing sigil. They share that context.
+A sigil is recursive: it is made of sigils. This is not a parent-child relationship — it is containment. The contained sigils inhabit the context of the containing sigil. They share that context.
 
-The language of a containing sigil emerges from the integration relationships its inhabitants declare with each other. It consists of their names and public affordances they expose. 
+The domain language of a containing sigil is woven from the names of the sigils it contains and the affordances they expose.
 
-### Sibling References
+### Affordances
 
-A context can address its siblings — the other contexts that share the same containing sigil. Sibling names are highlighted in the editor when used in domain language. The notation `neighbor.affordance` addresses a neighbor's public capability. You cannot reach inside a sibling. If you need to, the boundary is wrong.
+An affordance is a capability that a sigil makes visible across its boundary. It is not what happens inside — it is what can be addressed from outside. You cannot reach inside another sigil. You can only address it by name and use what it exposes. If you need to reach deeper, the boundary is wrong.
+
+Affordances are referenced in two directions:
+
+- **Down** — a containing sigil addresses the affordances of the sigils it contains. The container's domain language is woven from their names and their affordances.
+- **Across** — a sibling addresses a neighbor's affordance. The notation `@Neighbor.affordance` references a sibling's capability from within your own context.
+
+Sibling names and affordance references are highlighted in the editor.
 
 ### Integrations
 
@@ -41,6 +46,10 @@ Sibling contexts can declare integrations — formal relationships with strategi
 - **Separate Ways** — no integration
 
 Integrations are declared in the **Integrations** view — an SVG graph where contexts are nodes. Drag from one to another to create an edge. Drag direction encodes upstream/downstream. Persisted as `integrations.json`.
+
+### Writing Domain Language
+
+One approach the author finds effective: inhabit the sigil. Close your eyes and imagine attending to this context. What do you reach for? What interactions should be effortless? What constraints do you feel? Describe that experience in the first person. The affordances emerge from articulating what you need when you're inside — not from listing what the system should do from outside.
 
 ### Vision Statement
 
