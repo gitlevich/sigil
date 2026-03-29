@@ -19,6 +19,7 @@ export interface OpenDocument {
 export interface UIState {
   leftPanelWidth: number;
   rightPanelWidth: number;
+  fontSize: number; // base font size in px
 }
 
 export type ThemePreference = "light" | "dark" | "system";
@@ -50,6 +51,7 @@ type Action =
 export const DEFAULT_UI: UIState = {
   leftPanelWidth: 260,
   rightPanelWidth: 400,
+  fontSize: 16,
 };
 
 const initialState: AppState = {
