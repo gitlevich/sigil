@@ -75,7 +75,11 @@ export function EditorShell() {
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
-  // Compute siblings: the other sigils in the containing sigil, with summaries
+  // Vocabulary: contained sigils (your story's words) + siblings (your neighbors)
+  const contained = currentCtx.children.map((c) => ({
+    name: c.name,
+    summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
+  }));
   const siblings = (() => {
     if (doc.currentPath.length === 0) return [];
     const containingPath = doc.currentPath.slice(0, -1);
@@ -87,7 +91,8 @@ export function EditorShell() {
         summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
       }));
   })();
-  const siblingNames = siblings.map((s) => s.name);
+  const allRefs = [...contained, ...siblings];
+  const allRefNames = allRefs.map((s) => s.name);
 
   const content = currentCtx.domain_language;
 
@@ -112,14 +117,14 @@ export function EditorShell() {
                   <MarkdownEditor
                     content={content}
                     onChange={handleContentChange}
-                    siblingNames={siblingNames}
-                    siblings={siblings}
+                    siblingNames={allRefNames}
+                    siblings={allRefs}
                   />
                 </div>
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} siblingNames={siblingNames} siblings={siblings} />
+                  <MarkdownPreview content={content} siblingNames={allRefNames} siblings={allRefs} />
                 </div>
               )}
             </>
