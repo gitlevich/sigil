@@ -128,6 +128,96 @@ pub fn rename_context(path: String, new_name: String) -> Result<String, String> 
     Ok(new_path.to_string_lossy().to_string())
 }
 
+/// Walk all language.md (and spec.md) files under root and replace @old_name with @new_name
+/// (including @old_name.affordance patterns).
+fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usize, String> {
+    let mut count = 0;
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name == "language.md" || name == "spec.md"
+        })
+    {
+        let path = entry.path();
+        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+        // Replace @OldName and @OldName.affordance — case-sensitive, whole-word
+        let pattern = format!("@{}", old_name);
+        if content.contains(&pattern) {
+            let updated = content.replace(&pattern, &format!("@{}", new_name));
+            fs::write(path, updated).map_err(|e| e.to_string())?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result<String, String> {
+    let old_path = Path::new(&path);
+    let old_name = old_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine current name".to_string())?
+        .to_string();
+
+    let parent = old_path
+        .parent()
+        .ok_or_else(|| "Cannot rename root".to_string())?;
+    let new_path = parent.join(&new_name);
+
+    if new_path.exists() {
+        return Err(format!("A context named '{}' already exists", new_name));
+    }
+
+    fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+
+    let root = Path::new(&root_path);
+    let files_updated = update_references(root, &old_name, &new_name)?;
+
+    Ok(serde_json::json!({
+        "new_path": new_path.to_string_lossy(),
+        "files_updated": files_updated,
+    }).to_string())
+}
+
+#[tauri::command]
+pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
+    let old_path = Path::new(&path);
+    let name = old_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine name".to_string())?
+        .to_string();
+
+    let new_parent = Path::new(&new_parent_path);
+    if !new_parent.exists() {
+        return Err("Target parent does not exist".to_string());
+    }
+
+    // Check 5-sigil limit at destination
+    let existing_dirs: Vec<_> = fs::read_dir(new_parent)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir())
+        .filter(|e| is_context_dir(&e.path()))
+        .collect();
+
+    if existing_dirs.len() >= 5 {
+        return Err("Target already has 5 sub-contexts".to_string());
+    }
+
+    let new_path = new_parent.join(&name);
+    if new_path.exists() {
+        return Err(format!("A context named '{}' already exists at the target", name));
+    }
+
+    fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+
+    Ok(new_path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 pub fn delete_context(path: String) -> Result<(), String> {
     let context_path = Path::new(&path);

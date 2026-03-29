@@ -85,6 +85,12 @@ export const api = {
   renameContext: (path: string, newName: string) =>
     invoke<string>("rename_context", { path, newName }),
 
+  renameSigil: (rootPath: string, path: string, newName: string) =>
+    invoke<string>("rename_sigil", { rootPath, path, newName }),
+
+  moveSigil: (rootPath: string, path: string, newParentPath: string) =>
+    invoke<string>("move_sigil", { rootPath, path, newParentPath }),
+
   deleteContext: (path: string) =>
     invoke<void>("delete_context", { path }),
 
