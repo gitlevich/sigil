@@ -10,22 +10,22 @@ When you talk to the AI agent, it inhabits your entire sigil. When you navigate 
 
 ### Sigil
 
-A sigil is a recursive structure representing an application's domain model. It is persisted as a directory hierarchy on the file system. Each node is a **context** — a bounded domain at a particular level of abstraction.
+A sigil is a bounded context powered by attention. It has a name, domain language, and optionally machinery. It contains up to five other sigils. It is always contained in another sigil. There is no root in any absolute sense — what appears as "the root" in the tool is simply the sigil you opened, which itself exists in a larger context you're not looking at right now.
 
-The root context represents the application itself. Its children are the top-level domains. Their children are sub-domains, and so on. A sigil is not a specification to be reviewed — it is a shared mental space to be inhabited.
+A sigil without attention is inert. When an attention — human or AI — attends to a sigil, it comes alive. The attention powers it. Multiple attentions can attend to the same sigil simultaneously.
 
-### Context
-
-A context is the fundamental unit. It has:
+A sigil has:
 
 - **Name**: the directory name on disk.
-- **Domain language**: markdown defining what this context is, why it exists, and what it does — written in the language of this abstraction level. Stored as `language.md` (with backward compatibility for `spec.md`).
-- **Machinery**: architectural choices, technology stack, design patterns, and constraints. Stored as `technical.md`. Optional — if absent, the containing sigil's machinery applies.
-- **Sub-contexts**: up to 5 child contexts, each a subdirectory.
+- **Domain language**: what this bounded context is, why it exists, what it means — in the language of this level of abstraction. Stored as `language.md`.
+- **Machinery**: how this bounded context is realized — architectural choices, technology stack, design patterns. Stored as `technical.md`. Optional — if absent, the containing sigil's machinery applies.
+- **Contained sigils**: up to 5 sigils inside this one.
 
-### Containment, Not Hierarchy
+### Containment
 
-Contexts exist inside a containing sigil. They are not children of a parent — they are inhabitants of a shared space. The containing sigil's language emerges from the entanglements its inhabitants declare with each other.
+A sigil contains sigils. This is not a parent-child relationship — it is containment. The contained sigils are inhabitants of the space the containing sigil defines. They share that space. The containing sigil's domain language is the bounded context within which they all operate.
+
+The language of a containing sigil is not imposed from above. It emerges from the entanglements its inhabitants declare with each other. The inhabitants define the language of the space they share.
 
 ### Sibling References
 
