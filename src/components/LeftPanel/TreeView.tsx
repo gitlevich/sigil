@@ -44,20 +44,30 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         }}
         draggable={path.length > 0}
         onDragStart={(e) => {
-          e.dataTransfer.setData("sigil-path", context.path);
+          e.stopPropagation();
+          e.dataTransfer.setData("text/plain", context.path);
           e.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(e) => {
           e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          setDropTarget(true);
+          e.stopPropagation();
+          if (!atLimit) {
+            e.dataTransfer.dropEffect = "move";
+            setDropTarget(true);
+          } else {
+            e.dataTransfer.dropEffect = "none";
+          }
         }}
-        onDragLeave={() => setDropTarget(false)}
+        onDragLeave={(e) => {
+          e.stopPropagation();
+          setDropTarget(false);
+        }}
         onDrop={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           setDropTarget(false);
-          const sourcePath = e.dataTransfer.getData("sigil-path");
-          if (sourcePath && sourcePath !== context.path) {
+          const sourcePath = e.dataTransfer.getData("text/plain");
+          if (sourcePath && sourcePath !== context.path && !sourcePath.startsWith(context.path + "/") && !context.path.startsWith(sourcePath + "/")) {
             onDrop(sourcePath, context.path);
           }
         }}
