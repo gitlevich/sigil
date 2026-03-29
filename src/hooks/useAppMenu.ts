@@ -3,21 +3,22 @@ import { Menu } from "@tauri-apps/api/menu/menu";
 import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { api, openInNewWindow } from "../tauri";
-import { useAppDispatch } from "../state/AppContext";
+import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export function useAppMenu() {
   const dispatch = useAppDispatch();
+  const state = useAppState();
 
   useEffect(() => {
-    buildMenu(dispatch).catch(console.error);
+    buildMenu(dispatch, () => state.document).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
-async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
+async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>, getDoc: () => ReturnType<typeof useAppState>["document"]) {
   // ── Sigil (app) menu ──
   const aboutItem = await MenuItem.new({
     text: "About Sigil...",
@@ -93,6 +94,22 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
     },
   });
 
+  const exportItem = await MenuItem.new({
+    text: "Export...",
+    accelerator: "CmdOrCtrl+E",
+    action: async () => {
+      const doc = getDoc();
+      if (!doc) return;
+      const outputPath = await save({
+        title: "Export sigil",
+        defaultPath: `${doc.sigil.name}.md`,
+        filters: [{ name: "Markdown", extensions: ["md"] }],
+      });
+      if (!outputPath) return;
+      await api.exportSigil(doc.sigil.root_path, outputPath);
+    },
+  });
+
   const fileSubmenu = await Submenu.new({
     text: "File",
     items: [
@@ -100,6 +117,8 @@ async function buildMenu(dispatch: ReturnType<typeof useAppDispatch>) {
       openItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       recentSubmenu,
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      exportItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       closeItem,
     ],

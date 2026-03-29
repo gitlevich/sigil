@@ -135,17 +135,17 @@ export function EditorShell() {
                 className={styles.createTechBtn}
                 onClick={handleCreateTechnical}
               >
-                Create technical.md for this context
+                Create machinery for this context
               </button>
             </div>
           ) : doc.showTechnical && currentCtx.technical_decisions === null && !inheritedTech ? (
             <div className={styles.inherited}>
-              <p className={styles.inheritedLabel}>No technical decisions defined</p>
+              <p className={styles.inheritedLabel}>No machinery defined</p>
               <button
                 className={styles.createTechBtn}
                 onClick={handleCreateTechnical}
               >
-                Create technical.md for this context
+                Create machinery for this context
               </button>
             </div>
           ) : (
