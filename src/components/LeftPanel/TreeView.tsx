@@ -4,6 +4,9 @@ import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
 import styles from "./TreeView.module.css";
 
+/** Workaround: Tauri webview blocks dataTransfer.getData() for custom MIME types in onDrop. */
+let dragSourcePath: string | null = null;
+
 interface ContextMenuState {
   x: number;
   y: number;
@@ -45,7 +48,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         draggable={path.length > 0}
         onDragStart={(e) => {
           e.stopPropagation();
-          e.dataTransfer.setData("application/x-sigil-path", context.path);
+          dragSourcePath = context.path;
           e.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(e) => {
@@ -69,12 +72,12 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
           e.preventDefault();
           e.stopPropagation();
           setDropTarget(false);
-          const sourcePath = e.dataTransfer.getData("application/x-sigil-path");
-          console.log("Drop:", { sourcePath, targetPath: context.path });
-          if (!sourcePath) { console.log("Drop rejected: no source path"); return; }
-          if (sourcePath === context.path) { console.log("Drop rejected: same node"); return; }
-          if (sourcePath.startsWith(context.path + "/")) { console.log("Drop rejected: source is descendant of target"); return; }
-          if (context.path.startsWith(sourcePath + "/")) { console.log("Drop rejected: target is descendant of source"); return; }
+          const sourcePath = dragSourcePath;
+          dragSourcePath = null;
+          if (!sourcePath) return;
+          if (sourcePath === context.path) return;
+          if (sourcePath.startsWith(context.path + "/")) return;
+          if (context.path.startsWith(sourcePath + "/")) return;
           onDrop(sourcePath, context.path);
         }}
       >
