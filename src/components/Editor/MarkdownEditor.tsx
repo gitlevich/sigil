@@ -125,11 +125,13 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
       },
       ".cm-tooltip-autocomplete ul li": {
         padding: "4px 8px",
-        color: "var(--text-primary)",
+        color: "var(--text-secondary)",
+        opacity: "0.6",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
         background: "#2860a8 !important",
         color: "#ffffff !important",
+        opacity: "1 !important",
       },
       ".cm-tooltip-autocomplete .cm-completionDetail": {
         color: "var(--text-secondary)",
