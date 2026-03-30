@@ -3,7 +3,7 @@ import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
 import { Breadcrumb } from "./Breadcrumb";
-import { MarkdownEditor } from "./MarkdownEditor";
+import { MarkdownEditor, resolveRefName } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
@@ -227,18 +227,21 @@ export function EditorShell() {
   const handleNavigateToSigil = useCallback((name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    // Check if it's a contained sigil
-    if (ctx.children.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...doc.currentPath, name] } });
+    // Check if it's a contained sigil (resolving plurals)
+    const containedNames = ctx.children.map((c) => c.name);
+    const resolvedContained = resolveRefName(name, containedNames);
+    if (resolvedContained) {
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...doc.currentPath, resolvedContained] } });
       return;
     }
     // Check if it's a neighbor — navigate to it at the same level
     if (doc.currentPath.length > 0) {
-      const neighborPath = [...doc.currentPath.slice(0, -1), name];
       const parentPath = doc.currentPath.slice(0, -1);
       const parent = findContext(doc.sigil.root, parentPath);
-      if (parent.children.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: neighborPath } });
+      const neighborNames = parent.children.filter((c) => c.name !== ctx.name).map((c) => c.name);
+      const resolvedNeighbor = resolveRefName(name, neighborNames);
+      if (resolvedNeighbor) {
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...parentPath, resolvedNeighbor] } });
       }
     }
   }, [doc, dispatch]);
