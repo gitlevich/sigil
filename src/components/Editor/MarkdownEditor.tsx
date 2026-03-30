@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EditorState, Compartment, RangeSetBuilder, Transaction } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
@@ -25,6 +25,7 @@ interface MarkdownEditorProps {
   siblings?: SiblingInfo[];
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
+  onRenameSigil?: (oldName: string, newName: string) => void;
 }
 
 const themeCompartment = new Compartment();
@@ -233,12 +234,15 @@ function siblingCompletion(context: CompletionContext) {
   };
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil, onRenameSigil }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onCreateSigilRef = useRef(onCreateSigil);
   onCreateSigilRef.current = onCreateSigil;
+  const onRenameSigilRef = useRef(onRenameSigil);
+  onRenameSigilRef.current = onRenameSigil;
+  const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number } | null>(null);
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
 
@@ -252,6 +256,31 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymap.of([
+          {
+            key: "Alt-Mod-r",
+            run: (view) => {
+              const pos = view.state.selection.main.head;
+              const line = view.state.doc.lineAt(pos);
+              const refPattern = /@([a-zA-Z_][\w-]*)/g;
+              let match;
+              while ((match = refPattern.exec(line.text)) !== null) {
+                const from = line.from + match.index;
+                const to = from + match[0].length;
+                if (pos >= from && pos <= to) {
+                  const name = match[1];
+                  const isKnown = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
+                  if (isKnown) {
+                    const coords = view.coordsAtPos(from);
+                    if (coords) {
+                      setRenameState({ oldName: name, x: coords.left, y: coords.bottom + 4 });
+                    }
+                    return true;
+                  }
+                }
+              }
+              return false;
+            },
+          },
           {
             key: "Alt-Enter",
             run: (view) => {
@@ -378,5 +407,48 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     }
   }, [content]);
 
-  return <div ref={containerRef} className={styles.editor} />;
+  return (
+    <div ref={containerRef} className={styles.editor}>
+      {renameState && (
+        <div
+          style={{
+            position: "absolute",
+            left: renameState.x,
+            top: renameState.y,
+            zIndex: 100,
+          }}
+        >
+          <input
+            autoFocus
+            defaultValue={renameState.oldName}
+            style={{
+              padding: "2px 6px",
+              fontSize: "13px",
+              border: "1px solid var(--accent)",
+              borderRadius: "3px",
+              background: "var(--bg-primary)",
+              color: "var(--text-primary)",
+              outline: "none",
+              minWidth: "120px",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const newName = e.currentTarget.value.trim();
+                if (newName && newName !== renameState.oldName && onRenameSigilRef.current) {
+                  onRenameSigilRef.current(renameState.oldName, newName);
+                }
+                setRenameState(null);
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                setRenameState(null);
+              }
+            }}
+            onBlur={() => setRenameState(null)}
+          />
+        </div>
+      )}
+    </div>
+  );
 }

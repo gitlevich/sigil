@@ -83,6 +83,27 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
+  const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    // Check contained sigils first
+    let target = ctx.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
+    // Then check neighbors
+    if (!target && doc.currentPath.length > 0) {
+      const parentPath = doc.currentPath.slice(0, -1);
+      const parent = findContext(doc.sigil.root, parentPath);
+      target = parent.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
+    }
+    if (target) {
+      try {
+        await api.renameSigil(doc.sigil.root_path, target.path, newName);
+        await reload(doc.sigil.root_path);
+      } catch (err) {
+        console.error("Rename sigil failed:", err);
+      }
+    }
+  }, [doc, reload]);
+
   if (!doc) return null;
 
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
@@ -136,6 +157,7 @@ export function EditorShell() {
                     siblings={allRefs}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
+                    onRenameSigil={handleRenameSigil}
                   />
                 </div>
               )}
