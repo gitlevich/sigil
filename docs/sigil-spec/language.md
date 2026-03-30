@@ -3,8 +3,12 @@ status: wip
 ---
 # Sigil
 
-I shape bounded contexts in embedding space until they are smooth enough for mechanical projection into code. Each contrast I care about is a dimension. Each preference is a position. The domain language names the dimensions and fixes the positions. When the shape is smooth — coherent — any attention can project it.
+A sigil is a relevance filter. It defines what matters within a specific attention. What is described exists within it. What is not described is outside the boundary — not wrong, simply not relevant here. The boundary is not a wall; it is a definition of relevance.
 
-A sigil is a bounded context with recursive containment. It has a name, a boundary, a vision, and a language. The vision is why this sigil exists. The language is a narrative: sentences written in the vocabulary of this context, using the names and affordances of contained sigils and neighbors. If I can't say what I need to say using only those terms, the language is incomplete.
+The boundary is defined by @Invariants — named contrasts with preferences along each. Only contrasts you care about are declared. Everything orthogonal to your declared contrasts is in superposition: unconstrained, freely resolved by whoever implements it. The sigil never enumerates what it excludes. It declares only what it has a preference about. The rest stays in superposition by default.
 
-When I attend to a sigil, @Navigation reveals its structure. I am @Shaping it by speaking affordances into existence — and the contained sigils emerge as I need subjects for those affordances. @Distillation sharpens the vocabulary with a partner until the boundaries hold.
+Speaking a sigil into existence is constitutive, not representational. The description creates the structure. What you describe collapses from superposition into a defined thing. What you leave undescribed remains in superposition — and that is correct. An accidental gap is one where you build on something you have not declared: you reference it, depend on it, but have not specified it. It remains in superposition while you treat it as collapsed. The implementing agent resolves it arbitrarily.
+
+A sigil is elaborated across four panels, each a projection at a different level of abstraction. Each panel speaks its level into existence using the vocabulary established above it. Together they form the compilation chain from user intent to code.
+
+@Shaping is the act of speaking a sigil into existence at all four levels. @Navigation reveals the structure of what has been shaped. @Distillation sharpens the language with a partner until the boundaries hold and the superposition is collapsed to the required precision.

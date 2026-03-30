@@ -3,14 +3,13 @@ status: wip
 ---
 # Affordance
 
-An affordance is a capability that a sigil makes visible across its boundary. It is not what happens inside — it is what can be addressed from outside. Every affordance belongs to a sigil — I cannot name a capability without naming who exposes it: to open a door I use the affordance of a door handle attached to it. This is how sigils get their names: whenever I articulate an affordance, I need a subject.
+An affordance is a capability that a contained sigil exposes to the other sigils sharing its context — its siblings within the containing sigil. Affordances are what the containing sigil's narrative is built from: I speak the context into existence using sigil names and their affordances.
 
-I cannot reach inside another sigil. I can only address it by name and use what it exposes. If I need to reach deeper, the boundary is wrong. The five-sigil limit bounds the complexity of any context's affordance surface. If a sigil exposes too many affordances, it needs to be decomposed further.
+A sigil has affordances. They are not context-relative — they belong to the sigil. But they are only relevant within the context of the containing sigil, where siblings can address them.
 
-Affordances are referenced in two directions:
+I cannot reach inside another sigil. I address it by name and use what it exposes. If I need to reach deeper, the boundary is wrong.
 
-- **Down** — a containing sigil addresses the affordances of the sigils it contains. The container's domain language is woven from their names and their affordances.
-- **Across** — a neighbor's affordance is addressed with the notation `@Neighbors.affordance`, referencing a capability from within my own context.
+Affordances are addressed with `@Sigil.affordance` notation. Sigil names and affordance references are visually distinct in the language.
 
-Neighbor names and affordance references are visually distinct in the language. The `@` notation signals a reference to a neighbor or its capability.
+In the UX panel, affordances are declared from the user's perspective — what the user can do with the application. They are grouped into @Experiences. The number of affordances is not capped, but keeping it reasonable avoids overwhelming the context.
 
