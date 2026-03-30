@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api, Sigil } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 
@@ -17,6 +18,7 @@ export function useSigil() {
     const chats = await api.listChats(rootPath);
     await api.addRecentDocument(rootPath);
     await api.watchDirectory(rootPath);
+    await getCurrentWindow().setTitle(sigil.name).catch(() => {});
 
     // Load the first chat if any exist, otherwise start empty
     let activeChatId = "";
