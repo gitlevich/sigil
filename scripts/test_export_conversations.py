@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,18 @@ import export_conversations as exporter
 
 
 class ExportConversationsTests(unittest.TestCase):
+    def patch_exporter_globals(self, **updates) -> None:
+        original = {}
+        for key, value in updates.items():
+            original[key] = getattr(exporter, key)
+            setattr(exporter, key, value)
+
+        def restore() -> None:
+            for key, value in original.items():
+                setattr(exporter, key, value)
+
+        self.addCleanup(restore)
+
     def write_jsonl(self, rows: list[dict]) -> Path:
         tmpdir = tempfile.TemporaryDirectory()
         self.addCleanup(tmpdir.cleanup)
@@ -163,6 +176,43 @@ Real user request.
 
         self.assertTrue(exporter.is_codex_project_session(matching))
         self.assertFalse(exporter.is_codex_project_session(non_matching))
+
+    def test_find_claude_session_files_includes_ancestor_workspace_with_project_memory(self):
+        temp_root = Path(tempfile.mkdtemp(dir=Path.home()))
+        self.addCleanup(shutil.rmtree, temp_root, True)
+
+        workspace = temp_root / "workspace"
+        project_root = workspace / "sigil"
+        project_root.mkdir(parents=True)
+
+        claude_projects = temp_root / "claude-projects"
+
+        exact_dir = claude_projects / f"-{exporter.project_slug(project_root)}"
+        exact_dir.mkdir(parents=True)
+        exact_file = exact_dir / "exact.jsonl"
+        exact_file.write_text("", encoding="utf-8")
+
+        ancestor_dir = claude_projects / f"-{exporter.project_slug(workspace)}"
+        (ancestor_dir / "memory").mkdir(parents=True)
+        (ancestor_dir / "memory" / "project_sigil.md").write_text("", encoding="utf-8")
+        ancestor_file = ancestor_dir / "ancestor.jsonl"
+        ancestor_file.write_text("", encoding="utf-8")
+
+        unrelated_dir = claude_projects / "-unrelated"
+        unrelated_dir.mkdir(parents=True)
+        (unrelated_dir / "ignored.jsonl").write_text("", encoding="utf-8")
+
+        self.patch_exporter_globals(
+            PROJECT_ROOT=project_root,
+            PROJECT_ROOT_STR=str(project_root),
+            PROJECT_SLUG=exporter.project_slug(project_root),
+            CLAUDE_PROJECTS=claude_projects,
+        )
+
+        self.assertEqual(
+            [exact_file, ancestor_file],
+            exporter.find_claude_session_files(),
+        )
 
 
 if __name__ == "__main__":

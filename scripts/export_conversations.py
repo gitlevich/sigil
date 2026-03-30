@@ -9,12 +9,12 @@ Usage:
     python scripts/export_conversations.py
 """
 
-import hashlib
 import json
+import hashlib
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -26,33 +26,80 @@ STATE_FILE = GENESIS_DIR / ".export_state.json"
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
 CODEX_SESSIONS = Path.home() / ".codex" / "sessions"
 
+def project_slug(project_root: Path) -> str:
+    """Build the Claude project slug for a project root."""
+    return re.sub(r"[/ _]", "-", str(project_root)).lstrip("-")
+
+
 # Derived from the absolute project path, matching Claude Code's convention:
 # all path separators, spaces, and underscores become dashes.
-PROJECT_SLUG = re.sub(r"[/ _]", "-", str(PROJECT_ROOT)).lstrip("-")
+PROJECT_SLUG = project_slug(PROJECT_ROOT)
 
 
-def find_claude_session_dir() -> Path | None:
-    """Locate the Claude Code session directory for this project."""
-    session_dir = CLAUDE_PROJECTS / f"-{PROJECT_SLUG}"
+def claude_session_dir_for(project_root: Path) -> Path | None:
+    """Locate the Claude Code session directory for a project root."""
+    session_dir = CLAUDE_PROJECTS / f"-{project_slug(project_root)}"
+    # Claude Code encodes the path with leading dash
     if not session_dir.exists():
-        session_dir = CLAUDE_PROJECTS / PROJECT_SLUG
+        # Try without the leading dash
+        session_dir = CLAUDE_PROJECTS / project_slug(project_root)
     if not session_dir.exists():
         return None
     return session_dir
 
 
+def find_claude_session_dirs() -> list[Path]:
+    """Return Claude session directories relevant to this project.
+
+    Include the exact workspace plus ancestor workspaces that carry a Claude
+    project memory file naming this repo, e.g. memory/project_sigil.md.
+    """
+    matches = []
+    seen = set()
+
+    exact_dir = claude_session_dir_for(PROJECT_ROOT)
+    if exact_dir is not None:
+        matches.append(exact_dir)
+        seen.add(exact_dir)
+
+    project_memory_name = f"project_{PROJECT_ROOT.name}.md"
+    home = Path.home().resolve()
+    for ancestor in PROJECT_ROOT.parents:
+        try:
+            ancestor.resolve().relative_to(home)
+        except ValueError:
+            break
+
+        ancestor_dir = claude_session_dir_for(ancestor)
+        if ancestor_dir is None or ancestor_dir in seen:
+            continue
+
+        if (ancestor_dir / "memory" / project_memory_name).exists():
+            matches.append(ancestor_dir)
+            seen.add(ancestor_dir)
+
+        if ancestor == home:
+            break
+
+    return matches
+
+
 def find_claude_session_files() -> list[Path]:
     """Return Claude Code session files for this project, if any."""
-    session_dir = find_claude_session_dir()
-    if session_dir is None:
-        return []
-    return sorted(session_dir.glob("*.jsonl"))
+    matches = []
+    seen = set()
+    for session_dir in find_claude_session_dirs():
+        for path in sorted(session_dir.glob("*.jsonl")):
+            if path not in seen:
+                matches.append(path)
+                seen.add(path)
+    return matches
 
 
 def is_codex_project_session(jsonl_path: Path) -> bool:
     """Return True when a Codex session belongs to this project root."""
-    with open(jsonl_path) as handle:
-        for line in handle:
+    with open(jsonl_path) as f:
+        for line in f:
             record = json.loads(line)
             if record.get("type") != "session_meta":
                 continue
@@ -78,23 +125,17 @@ def find_codex_session_files() -> list[Path]:
 
 def strip_system_tags(text: str) -> str:
     """Remove system-injected tags from user messages."""
+    # Remove <system-reminder>...</system-reminder> blocks
     text = re.sub(
-        r"<system-reminder>.*?</system-reminder>",
-        "",
-        text,
-        flags=re.DOTALL,
+        r"<system-reminder>.*?</system-reminder>", "", text, flags=re.DOTALL
     )
+    # Remove <ide_opened_file>...</ide_opened_file> blocks
     text = re.sub(
-        r"<ide_opened_file>.*?</ide_opened_file>",
-        "",
-        text,
-        flags=re.DOTALL,
+        r"<ide_opened_file>.*?</ide_opened_file>", "", text, flags=re.DOTALL
     )
+    # Remove <ide_selection>...</ide_selection> blocks
     text = re.sub(
-        r"<ide_selection>.*?</ide_selection>",
-        "",
-        text,
-        flags=re.DOTALL,
+        r"<ide_selection>.*?</ide_selection>", "", text, flags=re.DOTALL
     )
     return text.strip()
 
@@ -152,13 +193,19 @@ def extract_file_refs(content: list[dict]) -> list[str]:
 
 
 def extract_claude_turns(jsonl_path: Path) -> list[dict]:
-    """Extract conversation turns from a Claude JSONL session file."""
+    """Extract conversation turns from a JSONL session file.
+
+    Returns a list of dicts with keys: id, role, text, timestamp, files.
+    Only includes turns with actual user/assistant text content.
+    Tool-use file references are collected between text turns and attached
+    to the next text turn as a 'files' list.
+    """
     turns = []
     pending_files: list[str] = []
     session_id = jsonl_path.stem
 
-    with open(jsonl_path) as handle:
-        for ordinal, line in enumerate(handle):
+    with open(jsonl_path) as f:
+        for ordinal, line in enumerate(f):
             record = json.loads(line)
             msg_type = record.get("type")
             if msg_type not in ("user", "assistant"):
@@ -166,12 +213,13 @@ def extract_claude_turns(jsonl_path: Path) -> list[dict]:
 
             message = record.get("message", {})
             content = message.get("content", [])
-            message_id = record.get("uuid", "")
+            uuid = record.get("uuid", "")
             timestamp = record.get("timestamp", "")
 
             if not isinstance(content, list):
                 continue
 
+            # Collect file refs from tool_use blocks in this message
             pending_files.extend(extract_file_refs(content))
 
             text_parts = []
@@ -186,23 +234,19 @@ def extract_claude_turns(jsonl_path: Path) -> list[dict]:
             if not combined.strip():
                 continue
 
+            # Deduplicate while preserving order
             seen = set()
             unique_files = []
-            for file_path in pending_files:
-                if file_path not in seen:
-                    unique_files.append(file_path)
-                    seen.add(file_path)
+            for f_path in pending_files:
+                if f_path not in seen:
+                    unique_files.append(f_path)
+                    seen.add(f_path)
 
             turns.append(
                 {
-                    "id": message_id
+                    "id": uuid
                     or stable_turn_id(
-                        "claude",
-                        session_id,
-                        timestamp,
-                        msg_type,
-                        combined.strip(),
-                        ordinal,
+                        "claude", session_id, timestamp, msg_type, combined.strip(), ordinal
                     ),
                     "role": msg_type,
                     "text": combined.strip(),
@@ -216,13 +260,13 @@ def extract_claude_turns(jsonl_path: Path) -> list[dict]:
 
 
 def extract_codex_turns(jsonl_path: Path) -> list[dict]:
-    """Extract user and assistant text turns from a Codex JSONL session."""
+    """Extract user/assistant text turns from a Codex JSONL session."""
     turns = []
     meta = codex_session_metadata(jsonl_path)
     session_id = meta["session_id"]
 
-    with open(jsonl_path) as handle:
-        for ordinal, line in enumerate(handle):
+    with open(jsonl_path) as f:
+        for ordinal, line in enumerate(f):
             record = json.loads(line)
             if record.get("type") != "response_item":
                 continue
@@ -255,12 +299,7 @@ def extract_codex_turns(jsonl_path: Path) -> list[dict]:
             turns.append(
                 {
                     "id": stable_turn_id(
-                        "codex",
-                        session_id,
-                        record.get("timestamp", ""),
-                        role,
-                        combined,
-                        ordinal,
+                        "codex", session_id, record.get("timestamp", ""), role, combined, ordinal
                     ),
                     "role": role,
                     "text": combined,
@@ -273,12 +312,12 @@ def extract_codex_turns(jsonl_path: Path) -> list[dict]:
 
 
 def claude_session_metadata(jsonl_path: Path) -> dict:
-    """Extract session metadata from the first few Claude records."""
+    """Extract session metadata from the first few records."""
     slug = ""
     session_id = jsonl_path.stem
     first_timestamp = ""
-    with open(jsonl_path) as handle:
-        for line in handle:
+    with open(jsonl_path) as f:
+        for line in f:
             record = json.loads(line)
             if not first_timestamp and record.get("timestamp"):
                 first_timestamp = record["timestamp"]
@@ -298,8 +337,8 @@ def codex_session_metadata(jsonl_path: Path) -> dict:
     """Extract session metadata from the Codex session header."""
     session_id = jsonl_path.stem
     first_timestamp = ""
-    with open(jsonl_path) as handle:
-        for line in handle:
+    with open(jsonl_path) as f:
+        for line in f:
             record = json.loads(line)
             if record.get("type") != "session_meta":
                 continue
@@ -317,9 +356,9 @@ def codex_session_metadata(jsonl_path: Path) -> dict:
 
 def markdown_filename(meta: dict) -> str:
     """Generate a markdown filename from session metadata."""
-    timestamp = meta["first_timestamp"]
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    ts = meta["first_timestamp"]
+    if ts:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         date_str = dt.strftime("%Y-%m-%d_%H%M")
     else:
         date_str = "unknown"
@@ -331,27 +370,27 @@ def markdown_filename(meta: dict) -> str:
 
 
 def load_state() -> dict:
-    """Load export state tracking which turn ids have been written per session."""
+    """Load export state tracking which UUIDs have been written per session."""
     if not STATE_FILE.exists():
         return {}
-    with open(STATE_FILE) as handle:
-        return json.load(handle)
+    with open(STATE_FILE) as f:
+        return json.load(f)
 
 
 def save_state(state: dict) -> None:
     """Persist export state."""
-    with open(STATE_FILE, "w") as handle:
-        json.dump(state, handle, indent=2)
-        handle.write("\n")
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+        f.write("\n")
 
 
 def format_turn(turn: dict) -> str:
     """Format a single conversation turn as markdown."""
     role_label = "User" if turn["role"] == "user" else "Assistant"
-    timestamp = turn["timestamp"]
+    ts = turn["timestamp"]
     time_str = ""
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    if ts:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         time_str = dt.strftime(" (%H:%M UTC)")
 
     lines = [
@@ -362,7 +401,9 @@ def format_turn(turn: dict) -> str:
 
     if turn.get("files"):
         rel_prefix = os.path.relpath(PROJECT_ROOT, GENESIS_DIR)
-        links = [f"[{file_path}]({rel_prefix}/{file_path})" for file_path in turn["files"]]
+        links = [
+            f"[{f}]({rel_prefix}/{f})" for f in turn["files"]
+        ]
         lines.append(f"*Files: {', '.join(links)}*")
         lines.append("")
 
@@ -374,9 +415,9 @@ def format_turn(turn: dict) -> str:
 
 def format_header(meta: dict) -> str:
     """Format the markdown file header."""
-    timestamp = meta["first_timestamp"]
-    if timestamp:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    ts = meta["first_timestamp"]
+    if ts:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
         date_str = dt.strftime("%Y-%m-%d %H:%M UTC")
     else:
         date_str = "unknown"
@@ -406,28 +447,28 @@ def export_session(jsonl_path: Path, state: dict, source: str) -> None:
         raise ValueError(f"Unsupported conversation source: {source}")
 
     filename = markdown_filename(meta)
-    markdown_path = GENESIS_DIR / filename
+    md_path = GENESIS_DIR / filename
 
     if not turns:
         log.info("Skipping %s (no conversation content)", jsonl_path.name)
         return
 
-    existing_turn_ids = set(state.get(filename, []))
-    new_turns = [turn for turn in turns if turn["id"] not in existing_turn_ids]
+    existing_uuids = set(state.get(filename, []))
+    new_turns = [t for t in turns if t["id"] not in existing_uuids]
     if not new_turns:
         log.info("Up to date: %s", filename)
         return
 
-    is_new_file = not markdown_path.exists() or markdown_path.stat().st_size == 0
+    is_new_file = not md_path.exists() or md_path.stat().st_size == 0
 
-    with open(markdown_path, "a") as handle:
+    with open(md_path, "a") as f:
         if is_new_file:
-            handle.write(format_header(meta))
+            f.write(format_header(meta))
 
         for turn in new_turns:
-            handle.write(format_turn(turn))
+            f.write(format_turn(turn))
 
-    state[filename] = list(existing_turn_ids | {turn["id"] for turn in new_turns})
+    state[filename] = list(existing_uuids | {t["id"] for t in new_turns})
 
     log.info(
         "%s %s (%d new turn%s)",
@@ -438,7 +479,7 @@ def export_session(jsonl_path: Path, state: dict, source: str) -> None:
     )
 
 
-def main() -> None:
+def main():
     GENESIS_DIR.mkdir(parents=True, exist_ok=True)
 
     state = load_state()
