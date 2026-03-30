@@ -1,4 +1,5 @@
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppDispatch, useDocument, useAppState } from "../../state/AppContext";
+import { DEFAULT_KEYBINDINGS, toDisplayShortcut } from "../../tauri";
 import styles from "./EditorToolbar.module.css";
 
 const MarkupIcon = () => (
@@ -32,18 +33,27 @@ const WrapIcon = () => (
   </svg>
 );
 
+type Facet = "language" | "architecture" | "implementation";
+
 export function EditorToolbar() {
   const dispatch = useAppDispatch();
   const doc = useDocument();
+  const state = useAppState();
   if (!doc) return null;
 
   const contentTab = doc.contentTab || "language";
+  const activeFacet: Facet = doc.activeFacet ?? "language";
+  const kb = state.settings.keybindings || DEFAULT_KEYBINDINGS;
+  const ds = (key: keyof typeof kb) => toDisplayShortcut(kb[key]);
 
-  const setTab = (tab: "language" | "integrations") => {
-    dispatch({
-      type: "UPDATE_DOCUMENT",
-      updates: { contentTab: tab },
-    });
+  const FACETS: { key: Facet; label: string; title: string }[] = [
+    { key: "language", label: "Language", title: `Domain language (${ds("facet-language")})` },
+    { key: "architecture", label: "Architecture", title: `Architecture notes (${ds("facet-architecture")})` },
+    { key: "implementation", label: "Implementation", title: `Implementation details (${ds("facet-implementation")})` },
+  ];
+
+  const setFacet = (facet: Facet) => {
+    dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: facet, contentTab: "language" } });
   };
 
   const setMode = (mode: "edit" | "split" | "preview") => {
@@ -57,23 +67,26 @@ export function EditorToolbar() {
   return (
     <div className={styles.toolbar}>
       <div className={styles.contentTabs}>
+        {FACETS.map(({ key, label, title }) => (
+          <button
+            key={key}
+            className={`${styles.contentTab} ${contentTab === "language" && activeFacet === key ? styles.contentTabActive : ""}`}
+            onClick={() => setFacet(key)}
+            title={title}
+          >
+            {label}
+          </button>
+        ))}
         <button
-          className={`${styles.contentTab} ${contentTab === "language" ? styles.contentTabActive : ""}`}
-          onClick={() => setTab("language")}
-          title="Domain language for this bounded context"
+          className={`${styles.contentTab} ${contentTab === "map" ? styles.contentTabActive : ""}`}
+          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } })}
+          title={`Map — drag between sigils to declare relationships (${ds("facet-map")})`}
         >
-          Language
-        </button>
-        <button
-          className={`${styles.contentTab} ${contentTab === "integrations" ? styles.contentTabActive : ""}`}
-          onClick={() => setTab("integrations")}
-          title="Context map — drag between contexts to declare relationships"
-        >
-          Context Map
+          Map
         </button>
       </div>
 
-      {contentTab !== "integrations" && (
+      {contentTab !== "map" && (
         <div className={styles.viewModes}>
           <button
             className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}
@@ -100,7 +113,7 @@ export function EditorToolbar() {
           <button
             className={`${styles.modeBtn} ${doc.wordWrap ? styles.active : ""}`}
             onClick={toggleWrap}
-            title="Toggle word wrap (Alt+Z)"
+            title={`Toggle word wrap (${ds("toggle-word-wrap")})`}
           >
             <WrapIcon />
           </button>

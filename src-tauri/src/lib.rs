@@ -31,6 +31,7 @@ pub fn run() {
             commands::documents::list_recent_documents,
             commands::documents::add_recent_document,
             commands::documents::remove_recent_document,
+            commands::documents::prune_recent_documents,
             commands::export::export_sigil,
             commands::watcher::watch_directory,
             commands::watcher::stop_watching,

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
@@ -7,11 +7,42 @@ import { MarkdownEditor } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
-import { Context, api } from "../../tauri";
+import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
-import { IntegrationGraph } from "./IntegrationGraph";
+import { SigilMap } from "./Map";
 import styles from "./EditorShell.module.css";
+
+type Facet = "language" | "architecture" | "implementation";
+const FACET_ORDER: Facet[] = ["language", "architecture", "implementation"];
+const FACET_FILE: Record<Facet, string> = {
+  language: "language.md",
+  architecture: "architecture.md",
+  implementation: "implementation.md",
+};
+
+/** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
+function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
+  const parts = cmKey.split("-");
+  const keyChar = parts[parts.length - 1].toLowerCase();
+  const mods = new Set(parts.slice(0, -1).map((p) => p.toLowerCase()));
+
+  const needsCtrl = mods.has("ctrl");
+  const needsMod = mods.has("mod");
+  const needsAlt = mods.has("alt");
+  const needsShift = mods.has("shift");
+
+  if (needsCtrl && !e.ctrlKey) return false;
+  if (!needsCtrl && !needsMod && e.ctrlKey) return false;
+  if (needsMod && !(e.metaKey || e.ctrlKey)) return false;
+  if (!needsMod && e.metaKey) return false;
+  if (needsAlt && !e.altKey) return false;
+  if (!needsAlt && e.altKey) return false;
+  if (needsShift && !e.shiftKey) return false;
+  if (!needsShift && e.shiftKey) return false;
+
+  return e.key.toLowerCase() === keyChar;
+}
 
 function findContext(root: Context, path: string[]): Context {
   let current = root;
@@ -57,20 +88,105 @@ export function EditorShell() {
   const { save } = useAutoSave();
   const { reload } = useSigil();
 
+  // Non-language facet content loaded on demand
+  const [facetContent, setFacetContent] = useState("");
+  const facetContentRef = useRef(facetContent);
+  facetContentRef.current = facetContent;
+
+  // Load facet file when active facet or path changes
+  const activeFacet: Facet = doc?.activeFacet ?? "language";
+  const pathKey = doc?.currentPath.join("/") ?? "";
+  const rootPath = doc?.sigil.root_path ?? "";
+
+  useEffect(() => {
+    if (!doc || activeFacet === "language") {
+      setFacetContent("");
+      return;
+    }
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const filePath = `${ctx.path}/${FACET_FILE[activeFacet]}`;
+    api.readFile(filePath)
+      .then((text) => setFacetContent(text))
+      .catch(() => setFacetContent(""));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFacet, pathKey, rootPath]);
+
+  // Global facet shortcuts
+  useEffect(() => {
+    if (!doc) return;
+    const kb = state.settings.keybindings || DEFAULT_KEYBINDINGS;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      let next: Facet | null = null;
+      if (matchesBinding(e, kb["facet-language"] || "Ctrl-1")) {
+        next = "language";
+      } else if (matchesBinding(e, kb["facet-architecture"] || "Ctrl-2")) {
+        next = "architecture";
+      } else if (matchesBinding(e, kb["facet-implementation"] || "Ctrl-3")) {
+        next = "implementation";
+      }
+      if (next !== null) {
+        e.preventDefault();
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: next, contentTab: "language" } });
+        return;
+      }
+      if (matchesBinding(e, kb["facet-map"] || "Ctrl-4")) {
+        e.preventDefault();
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } });
+        return;
+      }
+      if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
+        e.preventDefault();
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "vision", leftPanelOpen: true } });
+        return;
+      }
+      if (matchesBinding(e, kb["panel-tree"] || "Ctrl-t")) {
+        e.preventDefault();
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree", leftPanelOpen: true } });
+        return;
+      }
+      if (matchesBinding(e, kb["panel-glossary"] || "Ctrl-g")) {
+        e.preventDefault();
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "glossary", leftPanelOpen: true } });
+        return;
+      }
+      if (matchesBinding(e, kb["facet-cycle"] || "Ctrl-/")) {
+        e.preventDefault();
+        const isContextMap = doc.contentTab === "map";
+        if (isContextMap) {
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: "language", contentTab: "language" } });
+        } else {
+          const idx = FACET_ORDER.indexOf(activeFacet);
+          const nextIdx = idx + 1;
+          if (nextIdx >= FACET_ORDER.length) {
+            dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } });
+          } else {
+            dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: FACET_ORDER[nextIdx], contentTab: "language" } });
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [doc, activeFacet, state.settings.keybindings, dispatch]);
+
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const filePath = `${ctx.path}/language.md`;
-    save(filePath, content);
+    const facet: Facet = doc.activeFacet ?? "language";
 
-    const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
-      ...c,
-      domain_language: content,
-    }));
-    dispatch({
-      type: "UPDATE_SIGIL",
-      sigil: { ...doc.sigil, root: updatedRoot },
-    });
+    if (facet === "language") {
+      save(`${ctx.path}/language.md`, content);
+      const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
+        ...c,
+        domain_language: content,
+      }));
+      dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+    } else {
+      save(`${ctx.path}/${FACET_FILE[facet]}`, content);
+      setFacetContent(content);
+    }
   }, [doc, save, dispatch]);
 
   const handleCreateSigil = useCallback(async (name: string) => {
@@ -150,7 +266,7 @@ export function EditorShell() {
   const allRefs = [...contained, ...siblings];
   const allRefNames = allRefs.map((s) => s.name);
 
-  const content = currentCtx.domain_language;
+  const content = activeFacet === "language" ? currentCtx.domain_language : facetContent;
 
   return (
     <div className={styles.shell}>
@@ -164,8 +280,8 @@ export function EditorShell() {
         />
         <EditorToolbar />
         <div className={styles.editorArea}>
-          {(doc.contentTab || "language") === "integrations" ? (
-            <IntegrationGraph />
+          {(doc.contentTab || "language") === "map" ? (
+            <SigilMap />
           ) : (
             <>
               {(doc.editorMode === "edit" || doc.editorMode === "split") && (

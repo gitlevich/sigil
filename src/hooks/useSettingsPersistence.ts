@@ -12,7 +12,8 @@ interface PersistedDocState {
   leftPanelTab: "vision" | "tree" | "glossary";
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "integrations";
+  contentTab: "language" | "map";
+  activeFacet: "language" | "architecture" | "implementation";
   activeChatId: string;
   wordWrap: boolean;
 }
@@ -172,6 +173,7 @@ export function useSettingsPersistence() {
       prev.rightPanelOpen === doc.rightPanelOpen &&
       prev.editorMode === doc.editorMode &&
       prev.contentTab === doc.contentTab &&
+      prev.activeFacet === doc.activeFacet &&
       prev.activeChatId === doc.activeChatId &&
       prev.wordWrap === doc.wordWrap &&
       JSON.stringify(prev.currentPath) === JSON.stringify(doc.currentPath) &&
@@ -192,6 +194,7 @@ export function useSettingsPersistence() {
           rightPanelOpen: doc.rightPanelOpen,
           editorMode: doc.editorMode,
           contentTab: doc.contentTab,
+          activeFacet: doc.activeFacet ?? "language",
           activeChatId: doc.activeChatId,
           wordWrap: doc.wordWrap,
         } as PersistedDocState);

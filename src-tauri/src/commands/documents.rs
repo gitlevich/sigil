@@ -65,4 +65,14 @@ pub fn remove_recent_document(app: tauri::AppHandle, path: String) -> Result<(),
     fs::write(&docs_path, content).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn prune_recent_documents(app: tauri::AppHandle) -> Result<Vec<RecentDocument>, String> {
+    let docs_path = recent_docs_path(&app)?;
+    let mut docs = list_recent_documents(app).unwrap_or_default();
+    docs.retain(|d| Path::new(&d.path).exists());
+    let content = serde_json::to_string_pretty(&docs).map_err(|e| e.to_string())?;
+    fs::write(&docs_path, content).map_err(|e| e.to_string())?;
+    Ok(docs)
+}
+
 use tauri::Manager;

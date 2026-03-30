@@ -1,7 +1,13 @@
 import { useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api, Sigil } from "../tauri";
-import { useAppDispatch, useAppState } from "../state/AppContext";
+import { useAppDispatch, useAppState, OpenDocument } from "../state/AppContext";
+
+type UIOverrides = Partial<Pick<OpenDocument,
+  "currentPath" | "editorMode" | "contentTab" | "activeFacet" |
+  "leftPanelOpen" | "leftPanelTab" | "rightPanelOpen" |
+  "activeChatId" | "chatMessages" | "wordWrap"
+>>;
 
 export function useSigil() {
   const dispatch = useAppDispatch();
@@ -13,20 +19,22 @@ export function useSigil() {
     return sigil;
   }, [dispatch]);
 
-  const openDocument = useCallback(async (rootPath: string) => {
+  const openDocument = useCallback(async (rootPath: string, overrides: UIOverrides = {}) => {
     const sigil: Sigil = await api.readSigil(rootPath);
     const chats = await api.listChats(rootPath);
     await api.addRecentDocument(rootPath);
     await api.watchDirectory(rootPath);
     await getCurrentWindow().setTitle(sigil.name).catch(() => {});
 
-    // Load the first chat if any exist, otherwise start empty
-    let activeChatId = "";
-    let chatMessages: { role: "user" | "assistant"; content: string }[] = [];
-    if (chats.length > 0) {
-      activeChatId = chats[0].id;
-      const chat = await api.readChat(rootPath, chats[0].id);
-      chatMessages = chat.messages;
+    // Default chat: first in list, unless overridden
+    let activeChatId = overrides.activeChatId ?? "";
+    let chatMessages = overrides.chatMessages ?? [];
+    if (!overrides.activeChatId) {
+      if (chats.length > 0) {
+        activeChatId = chats[0].id;
+        const chat = await api.readChat(rootPath, chats[0].id);
+        chatMessages = chat.messages;
+      }
     }
 
     dispatch({
@@ -46,6 +54,8 @@ export function useSigil() {
         highlightedChild: null,
         wordWrap: false,
         renamingRequest: false,
+        activeFacet: "language",
+        ...overrides,
       },
     });
   }, [dispatch]);
