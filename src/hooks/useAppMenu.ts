@@ -5,6 +5,7 @@ import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { api, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
+import { getAllWindows } from "@tauri-apps/api/window";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -14,10 +15,11 @@ export function useAppMenu() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Rebuild menu on mount and when document changes (new window opened)
+  const rootPath = state.document?.sigil.root_path;
   useEffect(() => {
     buildMenu(dispatch, () => stateRef.current.document, () => stateRef.current.ui, () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS).catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [rootPath]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 async function buildMenu(
@@ -205,15 +207,31 @@ async function buildMenu(
   });
 
   // ── Window menu ──
+  const allWindows = await getAllWindows();
+  const windowItems: (MenuItem | Awaited<ReturnType<typeof PredefinedMenuItem.new>>)[] = [
+    await PredefinedMenuItem.new({ item: "Minimize" }),
+    await PredefinedMenuItem.new({ item: "Maximize" }),
+    await PredefinedMenuItem.new({ item: "Fullscreen" }),
+    await PredefinedMenuItem.new({ item: "Separator" }),
+    await PredefinedMenuItem.new({ item: "CloseWindow" }),
+  ];
+
+  if (allWindows.length > 1) {
+    windowItems.push(await PredefinedMenuItem.new({ item: "Separator" }));
+    for (const win of allWindows) {
+      const title = await win.title();
+      windowItems.push(await MenuItem.new({
+        text: title || win.label,
+        action: async () => {
+          await win.setFocus();
+        },
+      }));
+    }
+  }
+
   const windowSubmenu = await Submenu.new({
     text: "Window",
-    items: [
-      await PredefinedMenuItem.new({ item: "Minimize" }),
-      await PredefinedMenuItem.new({ item: "Maximize" }),
-      await PredefinedMenuItem.new({ item: "Fullscreen" }),
-      await PredefinedMenuItem.new({ item: "Separator" }),
-      await PredefinedMenuItem.new({ item: "CloseWindow" }),
-    ],
+    items: windowItems,
   });
   await windowSubmenu.setAsWindowsMenuForNSApp();
 
