@@ -210,6 +210,7 @@ async function buildMenu(
     items: [
       await PredefinedMenuItem.new({ item: "Minimize" }),
       await PredefinedMenuItem.new({ item: "Maximize" }),
+      await PredefinedMenuItem.new({ item: "Fullscreen" }),
       await PredefinedMenuItem.new({ item: "Separator" }),
       await PredefinedMenuItem.new({ item: "CloseWindow" }),
     ],
