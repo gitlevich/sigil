@@ -7,7 +7,7 @@ export interface OpenDocument {
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "integrations";
   leftPanelOpen: boolean;
-  leftPanelTab: "vision" | "tree";
+  leftPanelTab: "vision" | "tree" | "glossary";
   rightPanelOpen: boolean;
   chats: ChatInfo[];
   activeChatId: string;

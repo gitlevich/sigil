@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
 import { TreeView } from "./TreeView";
+import { GlossaryEditor } from "./GlossaryEditor";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./LeftPanel.module.css";
 
@@ -69,6 +70,14 @@ export function LeftPanel() {
             >
               Tree
             </button>
+            <button
+              className={`${styles.tab} ${doc.leftPanelTab === "glossary" ? styles.active : ""}`}
+              onClick={() =>
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "glossary" } })
+              }
+            >
+              Glossary
+            </button>
           </div>
           <button
             className={styles.collapseBtn}
@@ -81,7 +90,9 @@ export function LeftPanel() {
         </div>
 
         <div className={styles.content}>
-          {doc.leftPanelTab === "vision" ? <VisionEditor /> : <TreeView />}
+          {doc.leftPanelTab === "vision" && <VisionEditor />}
+          {doc.leftPanelTab === "tree" && <TreeView />}
+          {doc.leftPanelTab === "glossary" && <GlossaryEditor />}
         </div>
       </div>
       <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />
