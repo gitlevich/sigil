@@ -1,0 +1,3 @@
+# AI Partner
+
+this is the primary collaborator available in the chat. Its job is to help maintaining conceptual coherence of the specification expressed as the sigil. The partner should be prompted with clear enough instructions to explain to it its job as a design partner and given the tools to embed the entire specification and analyze its coherence on an ongoing basis, measuring it and saying where the holes seem to be.

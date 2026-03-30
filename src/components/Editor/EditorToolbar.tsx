@@ -33,7 +33,7 @@ const WrapIcon = () => (
   </svg>
 );
 
-type Facet = "language" | "architecture" | "implementation";
+type Facet = "ux" | "language" | "architecture" | "implementation";
 
 export function EditorToolbar() {
   const dispatch = useAppDispatch();
@@ -47,6 +47,7 @@ export function EditorToolbar() {
   const ds = (key: keyof typeof kb) => toDisplayShortcut(kb[key]);
 
   const FACETS: { key: Facet; label: string; title: string }[] = [
+    { key: "ux", label: "UX", title: `User experience (${ds("facet-ux")})` },
     { key: "language", label: "Language", title: `Domain language (${ds("facet-language")})` },
     { key: "architecture", label: "Architecture", title: `Architecture notes (${ds("facet-architecture")})` },
     { key: "implementation", label: "Implementation", title: `Implementation details (${ds("facet-implementation")})` },

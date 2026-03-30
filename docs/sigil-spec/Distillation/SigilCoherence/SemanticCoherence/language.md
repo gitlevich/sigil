@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# SemanticSigilCoherence
+# SemanticCoherence
 
 How well the embedding reflects the membrane of a sigil.
 

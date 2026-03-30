@@ -174,12 +174,41 @@ pub fn rename_context(path: String, new_name: String) -> Result<String, String> 
     Ok(new_path.to_string_lossy().to_string())
 }
 
+/// Replace sigil name references within file content.
+/// Only replaces unambiguous references:
+///   - `@OldName` → `@NewName`  (inline reference syntax)
+///   - Exact heading lines: `## OldName` → `## NewName`  (any heading depth)
+/// Plain substring matches (e.g. "OldName" inside "Semantic OldName") are left untouched.
+fn replace_references(content: &str, old_name: &str, new_name: &str) -> String {
+    let at_old = format!("@{}", old_name);
+    let at_new = format!("@{}", new_name);
+
+    let lines: Vec<String> = content.lines().map(|line| {
+        // Replace inline @-references anywhere on the line
+        let line = line.replace(&at_old, &at_new);
+        // Replace lines that are purely a heading with exactly this name
+        for depth in 1usize..=6 {
+            let hashes = "#".repeat(depth);
+            if line.trim_end() == format!("{} {}", hashes, old_name) {
+                return format!("{} {}", hashes, new_name);
+            }
+        }
+        line
+    }).collect();
+
+    let mut result = lines.join("\n");
+    if content.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
 /// Walk all text files under root and replace old_name with new_name everywhere.
 /// Also renames any sub-directories that match old_name (except the root itself).
 fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usize, String> {
     let mut count = 0;
 
-    // First pass: replace text in all readable files
+    // First pass: replace references in all readable files
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -195,9 +224,9 @@ fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usiz
             Ok(c) => c,
             Err(_) => continue,
         };
-        if content.contains(old_name) {
-            let updated = content.replace(old_name, new_name);
-            fs::write(path, updated).map_err(|e| e.to_string())?;
+        let updated = replace_references(&content, old_name, new_name);
+        if updated != content {
+            fs::write(path, &updated).map_err(|e| e.to_string())?;
             count += 1;
         }
     }
@@ -393,6 +422,36 @@ mod tests {
         assert!(!Path::new(&auth_path).exists());
         assert!(Path::new(&new_path).exists());
         assert!(Path::new(&new_path).join("language.md").exists());
+    }
+
+    #[test]
+    fn test_replace_references_at_ref() {
+        let content = "Use @Coherence to model this.\nAlso see @Coherence.affordance.\n";
+        let result = replace_references(content, "Coherence", "Sigil Coherence");
+        assert_eq!(result, "Use @Sigil Coherence to model this.\nAlso see @Sigil Coherence.affordance.\n");
+    }
+
+    #[test]
+    fn test_replace_references_exact_heading() {
+        let content = "## Coherence\n\nSome text.\n";
+        let result = replace_references(content, "Coherence", "Sigil Coherence");
+        assert_eq!(result, "## Sigil Coherence\n\nSome text.\n");
+    }
+
+    #[test]
+    fn test_replace_references_no_substring_match() {
+        // "Coherence" inside "Semantic Coherence" must not be replaced
+        let content = "## Semantic Coherence\n\nSee @Coherence for basics.\n";
+        let result = replace_references(content, "Coherence", "Sigil Coherence");
+        assert_eq!(result, "## Semantic Coherence\n\nSee @Sigil Coherence for basics.\n");
+    }
+
+    #[test]
+    fn test_replace_references_free_text_unchanged() {
+        // Plain text mentions without @ are not replaced
+        let content = "Coherence is important here.\n";
+        let result = replace_references(content, "Coherence", "Sigil Coherence");
+        assert_eq!(result, "Coherence is important here.\n");
     }
 
     #[test]

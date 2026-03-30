@@ -36,7 +36,36 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   const atLimit = context.children.length >= 5;
 
   return (
-    <div className={styles.node} onDragOver={(e) => e.preventDefault()}>
+    <div
+      className={styles.node}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!atLimit) {
+          e.dataTransfer.dropEffect = "move";
+          setDropTarget(true);
+        } else {
+          e.dataTransfer.dropEffect = "none";
+        }
+      }}
+      onDragLeave={(e) => {
+        // Only clear when leaving the entire node subtree
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setDropTarget(false);
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDropTarget(false);
+        const sourcePath = dragSourcePath;
+        dragSourcePath = null;
+        if (!sourcePath) return;
+        if (sourcePath === context.path) return;
+        if (context.path.startsWith(sourcePath + "/")) return;
+        onDrop(sourcePath, context.path);
+      }}
+    >
       <div
         className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${dropTarget ? styles.dropTarget : ""}`}
         onClick={() => onNavigate(path)}
@@ -50,35 +79,6 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
           e.stopPropagation();
           dragSourcePath = context.path;
           e.dataTransfer.effectAllowed = "move";
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!atLimit) {
-            e.dataTransfer.dropEffect = "move";
-            setDropTarget(true);
-          } else {
-            e.dataTransfer.dropEffect = "none";
-          }
-        }}
-        onDragLeave={(e) => {
-          e.stopPropagation();
-          // Only clear if actually leaving this row, not entering a child
-          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setDropTarget(false);
-          }
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setDropTarget(false);
-          const sourcePath = dragSourcePath;
-          dragSourcePath = null;
-          if (!sourcePath) return;
-          if (sourcePath === context.path) return;
-          if (sourcePath.startsWith(context.path + "/")) return;
-          if (context.path.startsWith(sourcePath + "/")) return;
-          onDrop(sourcePath, context.path);
         }}
       >
         {hasChildren && (

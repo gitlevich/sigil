@@ -14,6 +14,8 @@
 
 #### Human
 
+## Invariants
+
 ## Navigation
 
 ### Map
@@ -24,11 +26,10 @@
 
 ### Affordance
 
-### Containment
+### ContainmentHierarchy
 
-### Neighbor
+### Neighbors
 
-#### Relationship
+#### Relationships
 
 ### Structure
-

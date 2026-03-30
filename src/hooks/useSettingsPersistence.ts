@@ -13,7 +13,7 @@ interface PersistedDocState {
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "map";
-  activeFacet: "language" | "architecture" | "implementation";
+  activeFacet: "ux" | "language" | "architecture" | "implementation";
   activeChatId: string;
   wordWrap: boolean;
 }

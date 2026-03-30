@@ -11,4 +11,4 @@ Smoothing is the iterative process of tightening the membrane. When an implement
 
 A smooth membrane is not necessarily dense. Some regions are richly specified — many nested affordances, high resolution. Others are intentionally flat: the author has declared their invariants, and this region is orthogonal to all of them. A flat region is not a defect. An accidental gap on a declared axis is.
 
-@SemanticSigilCoherence measures how well the embedding reflects the membrane. @StructuralComplexity measures how tangled the sigil graph is. @Invariants is the unit of specification — a declared axis with a preference range.
+@SemanticCoherence measures how well the embedding reflects the membrane. @StructuralComplexity measures how tangled the sigil graph is. @Invariants is the unit of specification — a declared axis with a preference range.

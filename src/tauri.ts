@@ -57,6 +57,7 @@ export interface Keybindings {
   "delete-line": string;
   "toggle-word-wrap": string;
   "export": string;
+  "facet-ux": string;
   "facet-language": string;
   "facet-architecture": string;
   "facet-implementation": string;
@@ -73,11 +74,12 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "delete-line": "Mod-d",
   "toggle-word-wrap": "Alt-z",
   "export": "Mod-e",
-  "facet-language": "Ctrl-1",
-  "facet-architecture": "Ctrl-2",
-  "facet-implementation": "Ctrl-3",
+  "facet-ux": "Ctrl-1",
+  "facet-language": "Ctrl-2",
+  "facet-architecture": "Ctrl-3",
+  "facet-implementation": "Ctrl-4",
   "facet-cycle": "Ctrl-/",
-  "facet-map": "Ctrl-4",
+  "facet-map": "Ctrl-5",
   "panel-vision": "Ctrl-v",
   "panel-tree": "Ctrl-t",
   "panel-glossary": "Ctrl-g",
@@ -89,6 +91,7 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "delete-line": "Delete Line",
   "toggle-word-wrap": "Toggle Word Wrap",
   "export": "Export",
+  "facet-ux": "Facet: UX",
   "facet-language": "Facet: Language",
   "facet-architecture": "Facet: Architecture",
   "facet-implementation": "Facet: Implementation",
