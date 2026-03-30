@@ -21,6 +21,47 @@ fn is_context_dir(dir: &Path) -> bool {
     dir.join("language.md").exists() || dir.join("spec.md").exists()
 }
 
+/// Find the sigil root by walking up from a context path.
+fn find_root(path: &Path) -> Option<&Path> {
+    let mut current = path;
+    loop {
+        let parent = current.parent()?;
+        if !is_context_dir(parent) {
+            return Some(current);
+        }
+        current = parent;
+    }
+}
+
+/// Insert a ## entry into glossary.md in alphabetical order.
+fn insert_glossary_entry(root: &Path, name: &str) {
+    let glossary_path = root.join("glossary.md");
+    let content = fs::read_to_string(&glossary_path).unwrap_or_default();
+    if content.is_empty() {
+        return; // No glossary file yet — will be auto-generated on first open
+    }
+    // Check if entry already exists
+    let header = format!("## {}", name);
+    if content.contains(&header) {
+        return;
+    }
+    // Find alphabetical insertion point among ## headers
+    let lines: Vec<&str> = content.lines().collect();
+    let mut insert_line = lines.len();
+    for (i, line) in lines.iter().enumerate() {
+        if let Some(existing) = line.strip_prefix("## ") {
+            if existing.trim() > name {
+                insert_line = i;
+                break;
+            }
+        }
+    }
+    let mut result: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    result.insert(insert_line, String::new());
+    result.insert(insert_line, format!("## {}", name));
+    let _ = fs::write(&glossary_path, result.join("\n"));
+}
+
 fn read_context(dir: &Path) -> Result<Context, String> {
     let name = dir
         .file_name()
@@ -103,6 +144,11 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
 
     fs::create_dir(&context_path).map_err(|e| e.to_string())?;
     fs::write(context_path.join("language.md"), "").map_err(|e| e.to_string())?;
+
+    // Auto-insert glossary entry
+    if let Some(root) = find_root(parent) {
+        insert_glossary_entry(root, &name);
+    }
 
     Ok(Context {
         name,
