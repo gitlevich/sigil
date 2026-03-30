@@ -26,6 +26,7 @@ interface MarkdownEditorProps {
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
+  onNavigateToSigil?: (name: string) => void;
 }
 
 const themeCompartment = new Compartment();
@@ -234,7 +235,7 @@ function siblingCompletion(context: CompletionContext) {
   };
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil, onRenameSigil }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -242,6 +243,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onCreateSigilRef.current = onCreateSigil;
   const onRenameSigilRef = useRef(onRenameSigil);
   onRenameSigilRef.current = onRenameSigil;
+  const onNavigateRef = useRef(onNavigateToSigil);
+  onNavigateRef.current = onNavigateToSigil;
   const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number } | null>(null);
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
@@ -320,6 +323,29 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             localEditRef.current = true;
             onChangeRef.current(update.state.doc.toString());
           }
+        }),
+        EditorView.domEventHandlers({
+          click: (event, view) => {
+            if (!(event.metaKey || event.ctrlKey)) return false;
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos === null) return false;
+            const line = view.state.doc.lineAt(pos);
+            const refPattern = /@([a-zA-Z_][\w-]*)/g;
+            let match;
+            while ((match = refPattern.exec(line.text)) !== null) {
+              const from = line.from + match.index;
+              const to = from + match[0].length;
+              if (pos >= from && pos <= to) {
+                const name = match[1];
+                if (onNavigateRef.current) {
+                  onNavigateRef.current(name);
+                  event.preventDefault();
+                  return true;
+                }
+              }
+            }
+            return false;
+          },
         }),
         EditorView.theme({
           "&": { height: "100%", fontSize: "var(--content-font-size, 16px)" },
