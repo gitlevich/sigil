@@ -15,4 +15,6 @@ Shaping is speaking a sigil into existence across four panels. Each panel is a p
 
 The same four panels apply at every sigil in the hierarchy. The structure is fractal — the same shape at every level of containment. A sigil one level down is elaborated by its own four panels, constrained by what the containing sigil declared above it.
 
+Each panel is not a document but a sequence of edits. The @EditLog records bursts of editing activity, each with a reference to the upstream state at the time. This enables replay, provenance, and branching across the compilation chain.
+
 
