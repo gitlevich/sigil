@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
-import { Sigil, Settings, ChatMessage, ChatInfo } from "../tauri";
+import { Sigil, Settings, ChatMessage, ChatInfo, DEFAULT_KEYBINDINGS } from "../tauri";
 
 export interface OpenDocument {
   sigil: Sigil;
@@ -64,6 +64,7 @@ const initialState: AppState = {
     selected_provider_id: "",
     system_prompt: "",
     response_style: "laconic",
+    keybindings: DEFAULT_KEYBINDINGS,
   },
   settingsOpen: false,
   aboutOpen: false,

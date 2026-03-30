@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAppState, useAppDispatch, ThemePreference } from "../../state/AppContext";
-import { Settings, AiProvider, api } from "../../tauri";
+import { Settings, AiProvider, Keybindings, KEYBINDING_LABELS, DEFAULT_KEYBINDINGS, toDisplayShortcut, api } from "../../tauri";
 import styles from "./SettingsDialog.module.css";
 
 const DEFAULT_SYSTEM_PROMPT = `You are a domain-driven design partner. You think in terms of bounded contexts, ubiquitous language, aggregates, entities, value objects, domain events, and context mapping patterns (shared kernel, customer-supplier, conformist, anticorruption layer, published language, separate ways).
@@ -311,6 +311,35 @@ export function SettingsDialog() {
             </div>
           </div>
           </>)}
+
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Keyboard Shortcuts</h3>
+            <div className={styles.shortcutList}>
+              {(Object.keys(KEYBINDING_LABELS) as (keyof Keybindings)[]).map((action) => (
+                <div key={action} className={styles.shortcutRow}>
+                  <span className={styles.shortcutLabel}>{KEYBINDING_LABELS[action]}</span>
+                  <input
+                    className={styles.shortcutInput}
+                    readOnly
+                    value={toDisplayShortcut((local.keybindings || DEFAULT_KEYBINDINGS)[action] || "")}
+                    onKeyDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
+                      let key = "";
+                      if (e.altKey) key += "Alt-";
+                      if (e.metaKey || e.ctrlKey) key += "Mod-";
+                      if (e.shiftKey) key += "Shift-";
+                      key += e.key === "Enter" ? "Enter" : e.key.length === 1 ? e.key.toLowerCase() : e.key;
+                      const kb = { ...(local.keybindings || DEFAULT_KEYBINDINGS), [action]: key };
+                      setLocal({ ...local, keybindings: kb });
+                    }}
+                    title="Click and press a key combination to change"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className={promptExpanded ? styles.promptSectionFull : styles.promptSection}>
             <div className={styles.promptHeader}>

@@ -27,10 +27,12 @@ interface MarkdownEditorProps {
   onCreateSigil?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onNavigateToSigil?: (name: string) => void;
+  keybindings?: Record<string, string>;
 }
 
 const themeCompartment = new Compartment();
 const siblingCompartment = new Compartment();
+const keymapCompartment = new Compartment();
 const wrapCompartment = new Compartment();
 
 const lightTheme = EditorView.theme({
@@ -235,7 +237,70 @@ function siblingCompletion(context: CompletionContext) {
   };
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil }: MarkdownEditorProps) {
+/** Find the @reference name at the cursor position, if any. */
+function findRefAtCursor(view: EditorView): { name: string; from: number; known: boolean } | null {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const refPattern = /@([a-zA-Z_][\w-]*)/g;
+  let match;
+  while ((match = refPattern.exec(line.text)) !== null) {
+    const from = line.from + match.index;
+    const to = from + match[0].length;
+    if (pos >= from && pos <= to) {
+      const name = match[1];
+      const known = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
+      return { name, from, known };
+    }
+  }
+  return null;
+}
+
+type SetRenameState = (s: { oldName: string; x: number; y: number } | null) => void;
+
+function buildCustomKeymap(
+  kb: Record<string, string>,
+  setRenameState: SetRenameState,
+  onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
+) {
+  return keymap.of([
+    {
+      key: kb["rename-sigil"] || "Alt-Mod-r",
+      run: (view) => {
+        const ref = findRefAtCursor(view);
+        if (ref?.known) {
+          const coords = view.coordsAtPos(ref.from);
+          if (coords) setRenameState({ oldName: ref.name, x: coords.left, y: coords.bottom + 4 });
+          return true;
+        }
+        return false;
+      },
+    },
+    {
+      key: kb["create-sigil"] || "Alt-Enter",
+      run: (view) => {
+        const ref = findRefAtCursor(view);
+        if (ref && !ref.known && onCreateSigilRef.current) {
+          onCreateSigilRef.current(ref.name);
+          return true;
+        }
+        return false;
+      },
+    },
+    {
+      key: kb["delete-line"] || "Mod-d",
+      run: (view) => {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        const from = line.from;
+        const to = Math.min(line.to + 1, view.state.doc.length);
+        view.dispatch({ changes: { from, to } });
+        return true;
+      },
+    },
+  ]);
+}
+
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil, keybindings = {} }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -258,57 +323,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymap.of([
-          {
-            key: "Alt-Mod-r",
-            run: (view) => {
-              const pos = view.state.selection.main.head;
-              const line = view.state.doc.lineAt(pos);
-              const refPattern = /@([a-zA-Z_][\w-]*)/g;
-              let match;
-              while ((match = refPattern.exec(line.text)) !== null) {
-                const from = line.from + match.index;
-                const to = from + match[0].length;
-                if (pos >= from && pos <= to) {
-                  const name = match[1];
-                  const isKnown = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
-                  if (isKnown) {
-                    const coords = view.coordsAtPos(from);
-                    if (coords) {
-                      setRenameState({ oldName: name, x: coords.left, y: coords.bottom + 4 });
-                    }
-                    return true;
-                  }
-                }
-              }
-              return false;
-            },
-          },
-          {
-            key: "Alt-Enter",
-            run: (view) => {
-              const pos = view.state.selection.main.head;
-              const line = view.state.doc.lineAt(pos);
-              const refPattern = /@([a-zA-Z_][\w-]*)/g;
-              let match;
-              while ((match = refPattern.exec(line.text)) !== null) {
-                const from = line.from + match.index;
-                const to = from + match[0].length;
-                if (pos >= from && pos <= to) {
-                  const name = match[1];
-                  const isKnown = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
-                  if (!isKnown && onCreateSigilRef.current) {
-                    onCreateSigilRef.current(name);
-                    return true;
-                  }
-                }
-              }
-              return false;
-            },
-          },
-          ...defaultKeymap,
-          ...historyKeymap,
-        ]),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings)),
@@ -385,6 +401,15 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
 
     return () => observer.disconnect();
   }, []);
+
+  // Reconfigure custom keymap when keybindings change
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef)),
+    });
+  }, [keybindings]);
 
   // Update sibling highlighting when siblings change
   useEffect(() => {

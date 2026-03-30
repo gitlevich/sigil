@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
 import { Breadcrumb } from "./Breadcrumb";
@@ -52,6 +52,7 @@ function buildBreadcrumb(root: Context, path: string[]): { name: string; path: s
 
 export function EditorShell() {
   const dispatch = useAppDispatch();
+  const state = useAppState();
   const doc = useDocument();
   const { save } = useAutoSave();
   const { reload } = useSigil();
@@ -178,6 +179,7 @@ export function EditorShell() {
                     onCreateSigil={handleCreateSigil}
                     onRenameSigil={handleRenameSigil}
                     onNavigateToSigil={handleNavigateToSigil}
+                    keybindings={state.settings.keybindings as unknown as Record<string, string>}
                   />
                 </div>
               )}
