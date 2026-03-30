@@ -1,10 +1,10 @@
 ---
 status: wip
 ---
-# Sigil (the tool)
+# Sigil
 
-Sigil is a tool for structuring how I think about a system and sharing that structure with a design partner.
+I shape bounded contexts in embedding space until they are smooth enough for mechanical projection into code. Each contrast I care about is a dimension. Each preference is a position. The domain language names the dimensions and fixes the positions. When the shape is smooth — coherent — any attention can project it.
 
-A sigil is a bounded context with recursive containment. It has a name, a boundary, a vision, and a language. The vision is why this sigil exists — the reason I'm defining it. The language is a narrative: sentences written in the vocabulary of this context, using the names and affordances of contained sigils and neighbors to express the stories I want to tell. If I can't say what I need to say using only those terms, the language is incomplete.
+A sigil is a bounded context with recursive containment. It has a name, a boundary, a vision, and a language. The vision is why this sigil exists. The language is a narrative: sentences written in the vocabulary of this context, using the names and affordances of contained sigils and neighbors. If I can't say what I need to say using only those terms, the language is incomplete.
 
 When I attend to a sigil, @Exploration reveals its structure. I @Shape it by speaking affordances into existence — and the contained sigils emerge as I need subjects for those affordances. @Distillation sharpens the vocabulary with a partner until the boundaries hold.
