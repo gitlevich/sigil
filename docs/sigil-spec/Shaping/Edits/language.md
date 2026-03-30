@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# EditLog
+# Edits
 
 A panel is not a document — it is a sequence of edits. The current text is the result of replaying that sequence. Every change is continuously persisted; there is no save gesture.
 
