@@ -3,12 +3,10 @@ status: wip
 ---
 # Invariants
 
-Invariants are the named contrasts I care about within this sigil, each with a preference range along its axis. They define the boundary of this context — not by enumerating what is excluded, but by declaring what has a preference. Everything orthogonal to the declared contrasts is in superposition: unconstrained, freely resolved by whoever implements.
+Invariants are the named contrasts I care about, each with a preference range along its axis. Each declared invariant fixes one dimension of the trajectory — it establishes a direction the narration will not deviate from. What I do not declare stays in superposition: the trajectory does not pass through that dimension, and the implementing agent resolves it freely.
 
-A contrast is a dimension along which I have a preference. "Closed vs open shape" is a contrast. "I prefer closed" is a preference along that axis. Declaring it collapses the superposition in that dimension. Everything else — color, exact shape, size — remains in superposition unless I declare a preference there too.
+A contrast is a dimension along which I have a preference. Declaring it collapses that dimension in the trajectory. Not declaring it leaves it open — not as a gap, but as a free direction the trajectory simply did not specify.
 
-Invariants are discovered iteratively. I cannot enumerate them fully in advance. When an implementation produces something I did not expect — a color that distracts, a label that is hard to read — I have found a hidden invariant: a preference I held but had not declared. I name the contrast and state my preference. The boundary tightens. The process repeats until implementations I would reject are eliminated.
+Invariants are discovered iteratively. When an implementation produces something unexpected, I have found a hidden invariant: a dimension I was implicitly traveling along but had not named. I name the contrast, state my preference, and the trajectory tightens in that direction.
 
-An accidental gap is an undeclared invariant I am building on. I reference a concept, depend on it, but have not bounded it. It remains in superposition while I treat it as defined. The implementing agent resolves it arbitrarily, and the result surprises me.
-
-Invariants live at every level of the hierarchy — UX, Language, Architecture, Implementation. Each level declares the contrasts relevant to its perspective. A UX invariant might be "the boundary of a context is visible." An architectural invariant might be "reads and writes are separated."
+An accidental gap is a dimension I am building on — referencing a concept, depending on it — without having declared a preference. The trajectory passes through that dimension but has no direction there. The implementing agent picks an arbitrary direction and I am surprised.

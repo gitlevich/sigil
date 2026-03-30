@@ -3,19 +3,19 @@ status: wip
 ---
 # Edits
 
-A panel is not a document — it is a sequence of edits. The current text is the result of replaying that sequence. Every change is continuously persisted; there is no save gesture.
+A panel is not a document — it is the growth history of a trajectory at one level of abstraction. The current text is the trajectory as it stands now. Every change is continuously persisted; there is no save gesture.
 
-The natural unit of the log is a **burst**: a cluster of edits close together in time, separated from the next cluster by a meaningful pause. A burst captures one session of thought about this sigil at this level. It may be a single keystroke or many minutes of continuous editing.
+The natural unit of growth is a @burst: a cluster of edits close together in time, separated from the next cluster by a meaningful pause. A burst is one session of attention extending the trajectory — adding direction, refining precision, increasing resolution in a patch. It may be a single keystroke or many minutes of continuous narration.
 
-Each @burst records: start time, end time, the delta (what changed), and the upstream state at the time — what the panels above contained when this burst happened. This reference to upstream state is what makes replay possible: when UX changes, Language bursts can be replayed against the new UX to identify which decisions still hold and which conflict.
+Each burst records: start time, end time, the delta, and the upstream state — what the panels above contained when this burst happened. The upstream state is the trajectory above this level at that moment. When upstream changes, a burst can be evaluated: does it still hold along the new upstream direction, or has the bearing shifted beneath it?
 
-**Burst detection** is derived from the gap distribution of the log itself. Inter-edit gaps follow a bimodal distribution: short gaps within a burst, long gaps between bursts. The valley between the two modes is the threshold. It is recalculated incrementally: a running histogram of inter-edit gaps is maintained alongside the log. Each new write appends one gap sample. Every few minutes the valley is refitted from the updated histogram. No full log replay is needed — just one new sample and a refit.
+Burst boundaries are detected from the gap distribution of the log itself. Inter-edit gaps are bimodal: short gaps within a burst, long gaps between bursts. The threshold is the valley between modes, recalculated incrementally. Each new write appends one gap sample to a running histogram. Every few minutes the valley is refitted. No full log replay is needed.
 
-The 500ms debounce on file writes is a separate, lower-level rhythm — input safety to avoid thrashing the filesystem. It is not semantically meaningful and does not define burst boundaries.
+The 500ms debounce on file writes is input safety, not a burst boundary.
 
-**What the log enables:**
+**What the growth history enables:**
 
-- **Provenance** — every paragraph has a burst that produced it, with a timestamp and upstream context
-- **Replay** — reapply bursts against a changed upstream; conflicts surface as stale decisions
-- **Branching** — fork at any burst to explore an alternative direction; the tree of explored options is the branching burst history
-- **Coherence as diff** — bursts written before an upstream change and not confirmed since are candidates for review
+- **Provenance** — every paragraph has a burst that grew it, with a timestamp and the upstream trajectory at that moment
+- **Replay** — reapply bursts against a changed upstream; those that conflict with the new direction surface as stale
+- **Branching** — fork at any burst to grow the trajectory in a different direction; the tree of explored options is the branching growth history
+- **Coherence as diff** — bursts grown before an upstream change and not reconfirmed since are candidates for review

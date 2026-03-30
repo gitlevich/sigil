@@ -8,7 +8,7 @@
 
 #### StructuralComplexity
 
-### Partner
+### DesignPartner
 
 #### AI
 

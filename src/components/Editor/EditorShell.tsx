@@ -148,9 +148,9 @@ export function EditorShell() {
         dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree", leftPanelOpen: true } });
         return;
       }
-      if (matchesBinding(e, kb["panel-glossary"] || "Ctrl-g")) {
+      if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "glossary", leftPanelOpen: true } });
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology", leftPanelOpen: true } });
         return;
       }
       if (matchesBinding(e, kb["facet-cycle"] || "Ctrl-/")) {
@@ -297,10 +297,12 @@ export function EditorShell() {
                     onChange={handleContentChange}
                     siblingNames={allRefNames}
                     siblings={allRefs}
+                    sigilRoot={doc.sigil.root}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onRenameSigil={handleRenameSigil}
                     onNavigateToSigil={handleNavigateToSigil}
+                    onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
                     keybindings={state.settings.keybindings as unknown as Record<string, string>}
                   />
                 </div>

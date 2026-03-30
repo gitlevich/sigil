@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
 import { TreeView } from "./TreeView";
-import { GlossaryEditor } from "./GlossaryEditor";
+import { OntologyEditor } from "./OntologyEditor";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./LeftPanel.module.css";
 
@@ -63,12 +63,12 @@ export function LeftPanel() {
               Vision
             </button>
             <button
-              className={`${styles.tab} ${doc.leftPanelTab === "glossary" ? styles.active : ""}`}
+              className={`${styles.tab} ${doc.leftPanelTab === "ontology" ? styles.active : ""}`}
               onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "glossary" } })
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology" } })
               }
             >
-              Glossary
+              Ontology
             </button>
             <button
               className={`${styles.tab} ${doc.leftPanelTab === "tree" ? styles.active : ""}`}
@@ -92,7 +92,7 @@ export function LeftPanel() {
         <div className={styles.content}>
           {doc.leftPanelTab === "vision" && <VisionEditor />}
           {doc.leftPanelTab === "tree" && <TreeView />}
-          {doc.leftPanelTab === "glossary" && <GlossaryEditor />}
+          {doc.leftPanelTab === "ontology" && <OntologyEditor />}
         </div>
       </div>
       <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />
