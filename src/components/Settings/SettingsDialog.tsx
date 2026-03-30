@@ -22,6 +22,7 @@ export function SettingsDialog() {
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [promptExpanded, setPromptExpanded] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"general" | "shortcuts">("general");
 
   useEffect(() => {
     setLocal(state.settings);
@@ -206,6 +207,22 @@ export function SettingsDialog() {
           {!promptExpanded && (<>
           <h2 className={styles.title}>Settings</h2>
 
+          <div className={styles.tabBar}>
+            <button
+              className={`${styles.tab} ${settingsTab === "general" ? styles.tabActive : ""}`}
+              onClick={() => setSettingsTab("general")}
+            >
+              General
+            </button>
+            <button
+              className={`${styles.tab} ${settingsTab === "shortcuts" ? styles.tabActive : ""}`}
+              onClick={() => setSettingsTab("shortcuts")}
+            >
+              Shortcuts
+            </button>
+          </div>
+
+          {settingsTab === "general" && (<>
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Appearance</h3>
             <div className={styles.field}>
@@ -312,8 +329,8 @@ export function SettingsDialog() {
           </div>
           </>)}
 
+          {settingsTab === "shortcuts" && (
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Keyboard Shortcuts</h3>
             <div className={styles.shortcutList}>
               {(Object.keys(KEYBINDING_LABELS) as (keyof Keybindings)[]).map((action) => (
                 <div key={action} className={styles.shortcutRow}>
@@ -340,6 +357,8 @@ export function SettingsDialog() {
               ))}
             </div>
           </div>
+          )}
+          </>)}
 
           <div className={promptExpanded ? styles.promptSectionFull : styles.promptSection}>
             <div className={styles.promptHeader}>
