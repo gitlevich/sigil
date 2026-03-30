@@ -51,11 +51,57 @@ export interface AiProvider {
 
 export type ResponseStyle = "laconic" | "detailed";
 
+export interface Keybindings {
+  "rename-sigil": string;
+  "create-sigil": string;
+  "delete-line": string;
+  "toggle-word-wrap": string;
+  "export": string;
+}
+
+export const DEFAULT_KEYBINDINGS: Keybindings = {
+  "rename-sigil": "Alt-Mod-r",
+  "create-sigil": "Alt-Enter",
+  "delete-line": "Mod-d",
+  "toggle-word-wrap": "Alt-z",
+  "export": "Mod-e",
+};
+
+export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
+  "rename-sigil": "Rename Sigil",
+  "create-sigil": "Create Sigil from @reference",
+  "delete-line": "Delete Line",
+  "toggle-word-wrap": "Toggle Word Wrap",
+  "export": "Export",
+};
+
+/** Convert CodeMirror key format to Tauri menu accelerator format */
+export function toTauriAccelerator(cmKey: string): string {
+  return cmKey
+    .replace(/Mod-/g, "CmdOrCtrl+")
+    .replace(/Alt-/g, "Alt+")
+    .replace(/Shift-/g, "Shift+")
+    .replace(/-/g, "+")
+    .replace(/\+([a-z])$/i, (_, c) => "+" + c.toUpperCase());
+}
+
+/** Convert CodeMirror key format to human-readable display */
+export function toDisplayShortcut(cmKey: string): string {
+  const isMac = navigator.platform.includes("Mac");
+  return cmKey
+    .replace(/Mod-/g, isMac ? "\u2318" : "Ctrl+")
+    .replace(/Alt-/g, isMac ? "\u2325" : "Alt+")
+    .replace(/Shift-/g, isMac ? "\u21E7" : "Shift+")
+    .replace(/-/g, "")
+    .replace(/([a-z])$/i, (_, c) => c.toUpperCase());
+}
+
 export interface Settings {
   ai_providers: AiProvider[];
   selected_provider_id: string;
   system_prompt: string;
   response_style: ResponseStyle;
+  keybindings: Keybindings;
 }
 
 export function selectedProvider(settings: Settings): AiProvider | undefined {

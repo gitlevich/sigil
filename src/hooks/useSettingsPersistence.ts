@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { load } from "@tauri-apps/plugin-store";
 import { useAppState, useAppDispatch, ThemePreference, UIState } from "../state/AppContext";
-import { Settings } from "../tauri";
+import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";
 
 const STORE_FILE = "settings.json";
 
@@ -54,6 +54,7 @@ export function useSettingsPersistence() {
               selected_provider_id: (r.active_profile_id as string) || "",
               system_prompt: (r.system_prompt as string) || "",
               response_style: "laconic" as Settings["response_style"],
+              keybindings: DEFAULT_KEYBINDINGS,
             };
           } else {
             // Oldest flat format
@@ -73,12 +74,15 @@ export function useSettingsPersistence() {
               selected_provider_id: oldKey ? id : "",
               system_prompt: (r.system_prompt as string) || "",
               response_style: "laconic",
+              keybindings: DEFAULT_KEYBINDINGS,
             };
           }
 
           // Ensure defaults for new fields
           if (!settings.response_style || (settings.response_style as string) === "default") settings.response_style = "laconic";
           if (!settings.ai_providers) settings.ai_providers = [];
+          if (!settings.keybindings) settings.keybindings = DEFAULT_KEYBINDINGS;
+          else settings.keybindings = { ...DEFAULT_KEYBINDINGS, ...settings.keybindings };
           // Ensure all providers have the enabled field
           settings.ai_providers = settings.ai_providers.map((p) => ({
             ...p,

@@ -244,6 +244,45 @@
   cursor: not-allowed;
 }
 
+/* Keyboard Shortcuts */
+
+.shortcutList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.shortcutRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.shortcutLabel {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.shortcutInput {
+  width: 140px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+}
+
+.shortcutInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 /* AI Providers */
 
 .emptyProfiles {

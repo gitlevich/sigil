@@ -4,7 +4,7 @@ import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { api, openInNewWindow } from "../tauri";
+import { api, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -15,7 +15,7 @@ export function useAppMenu() {
   stateRef.current = state;
 
   useEffect(() => {
-    buildMenu(dispatch, () => stateRef.current.document, () => stateRef.current.ui).catch(console.error);
+    buildMenu(dispatch, () => stateRef.current.document, () => stateRef.current.ui, () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
@@ -24,6 +24,7 @@ async function buildMenu(
   dispatch: ReturnType<typeof useAppDispatch>,
   getDoc: () => ReturnType<typeof useAppState>["document"],
   getUI: () => ReturnType<typeof useAppState>["ui"],
+  getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
 ) {
   // ── Sigil (app) menu ──
   const aboutItem = await MenuItem.new({
@@ -100,9 +101,10 @@ async function buildMenu(
     },
   });
 
+  const kb = getKB();
   const exportItem = await MenuItem.new({
     text: "Export...",
-    accelerator: "CmdOrCtrl+E",
+    accelerator: toTauriAccelerator(kb["export"] || "Mod-e"),
     action: async () => {
       const doc = getDoc();
       if (!doc) return;
@@ -144,7 +146,7 @@ async function buildMenu(
       await PredefinedMenuItem.new({ item: "Separator" }),
       await MenuItem.new({
         text: "Rename Sigil...",
-        accelerator: "Alt+CmdOrCtrl+R",
+        accelerator: toTauriAccelerator(kb["rename-sigil"] || "Alt-Mod-r"),
         action: () => {
           const doc = getDoc();
           if (!doc) return;
@@ -157,7 +159,7 @@ async function buildMenu(
   // ── View menu ──
   const wordWrapItem = await MenuItem.new({
     text: "Toggle Word Wrap",
-    accelerator: "Alt+Z",
+    accelerator: toTauriAccelerator(kb["toggle-word-wrap"] || "Alt-z"),
     action: () => {
       const doc = getDoc();
       if (!doc) return;
