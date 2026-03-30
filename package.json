@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "genesis:export": "bash scripts/export_conversations.sh",
+    "test:genesis": "python3 scripts/test_export_conversations.py"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.1",
