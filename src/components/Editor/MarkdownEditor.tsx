@@ -24,6 +24,7 @@ interface MarkdownEditorProps {
   siblingNames?: string[];
   siblings?: SiblingInfo[];
   wordWrap?: boolean;
+  onCreateSigil?: (name: string) => void;
 }
 
 const themeCompartment = new Compartment();
@@ -67,16 +68,15 @@ function getThemeExtension(): typeof oneDark | typeof lightTheme {
 
 const containedMark = Decoration.mark({ class: "cm-ref-contained" });
 const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
+const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 
 let globalSiblings: SiblingInfo[] = [];
 
-function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
-  globalSiblings = siblings;
-  if (names.length === 0) return [];
+// Matches all @references: @Name and @Name.affordance
+const allRefsPattern = /@([a-zA-Z_][\w-]*)(\.[a-zA-Z_][\w]*)?/g;
 
-  // Match @name and @name.affordance — explicit sibling references
-  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const pattern = new RegExp(`@(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[]) {
+  globalSiblings = siblings;
 
   return [
     ViewPlugin.fromClass(
@@ -95,11 +95,16 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
           for (const { from, to } of view.visibleRanges) {
             const text = view.state.doc.sliceString(from, to);
             let match;
-            pattern.lastIndex = 0;
-            while ((match = pattern.exec(text)) !== null) {
+            allRefsPattern.lastIndex = 0;
+            while ((match = allRefsPattern.exec(text)) !== null) {
               const baseName = match[1];
               const info = globalSiblings.find((s) => s.name.toLowerCase() === baseName.toLowerCase());
-              const mark = info?.kind === "sibling" ? siblingMark : containedMark;
+              let mark: Decoration;
+              if (info) {
+                mark = info.kind === "sibling" ? siblingMark : containedMark;
+              } else {
+                mark = unresolvedMark;
+              }
               builder.add(from + match.index, from + match.index + match[0].length, mark);
             }
           }
@@ -118,6 +123,11 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
         borderBottom: "2px dashed #e8a040",
         borderRadius: "1px",
         paddingBottom: "1px",
+      },
+      ".cm-ref-unresolved": {
+        textDecoration: "underline wavy",
+        textDecorationColor: "var(--danger)",
+        textUnderlineOffset: "3px",
       },
       ".cm-tooltip-autocomplete": {
         background: "var(--bg-primary)",
@@ -170,7 +180,7 @@ function buildSiblingHighlighter(names: string[], siblings: SiblingInfo[]) {
     hoverTooltip((view, pos) => {
       const line = view.state.doc.lineAt(pos);
       const text = line.text;
-      const localPattern = new RegExp(`@(${escaped.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`, "gi");
+      const localPattern = /@([a-zA-Z_][\w-]*)(\.[a-zA-Z_][\w]*)?/g;
       let match;
       while ((match = localPattern.exec(text)) !== null) {
         const from = line.from + match.index;
@@ -223,10 +233,12 @@ function siblingCompletion(context: CompletionContext) {
   };
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], wordWrap = false, onCreateSigil }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const onCreateSigilRef = useRef(onCreateSigil);
+  onCreateSigilRef.current = onCreateSigil;
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
 
@@ -239,7 +251,32 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymap.of([
+          {
+            key: "Alt-Enter",
+            run: (view) => {
+              const pos = view.state.selection.main.head;
+              const line = view.state.doc.lineAt(pos);
+              const refPattern = /@([a-zA-Z_][\w-]*)/g;
+              let match;
+              while ((match = refPattern.exec(line.text)) !== null) {
+                const from = line.from + match.index;
+                const to = from + match[0].length;
+                if (pos >= from && pos <= to) {
+                  const name = match[1];
+                  const isKnown = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
+                  if (!isKnown && onCreateSigilRef.current) {
+                    onCreateSigilRef.current(name);
+                    return true;
+                  }
+                }
+              }
+              return false;
+            },
+          },
+          ...defaultKeymap,
+          ...historyKeymap,
+        ]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings)),
