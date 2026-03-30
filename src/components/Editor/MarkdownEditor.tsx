@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorState, Compartment, RangeSetBuilder } from "@codemirror/state";
+import { EditorState, Compartment, RangeSetBuilder, Transaction } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
   Decoration, DecorationSet, ViewPlugin, ViewUpdate,
@@ -332,8 +332,11 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     }
 
     if (currentDoc !== content) {
+      // This is navigation to a different sigil. Replace content and clear undo history.
+      // Without this, Cmd+Z undoes into the previous sigil's content and corrupts the file.
       view.dispatch({
         changes: { from: 0, to: currentDoc.length, insert: content },
+        annotations: [Transaction.addToHistory.of(false)],
       });
     }
   }, [content]);
