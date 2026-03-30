@@ -79,6 +79,29 @@ let globalSiblings: SiblingInfo[] = [];
 // Matches all @references: @Name and @Name.affordance
 const allRefsPattern = /@([a-zA-Z_][\w-]*)(\.[a-zA-Z_][\w]*)?/g;
 
+/** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
+export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
+  const lower = refName.toLowerCase();
+  let match = knownNames.find((n) => n.toLowerCase() === lower);
+  if (match) return match;
+  if (lower.endsWith("ies") && lower.length > 3) {
+    const stem = lower.slice(0, -3) + "y";
+    match = knownNames.find((n) => n.toLowerCase() === stem);
+    if (match) return match;
+  }
+  if (lower.endsWith("s") && lower.length > 1) {
+    const stem = lower.slice(0, -1);
+    match = knownNames.find((n) => n.toLowerCase() === stem);
+    if (match) return match;
+  }
+  return undefined;
+}
+
+function findSibling(name: string): SiblingInfo | undefined {
+  const canonical = resolveRefName(name, globalSiblings.map((s) => s.name));
+  return canonical ? globalSiblings.find((s) => s.name === canonical) : undefined;
+}
+
 function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[]) {
   globalSiblings = siblings;
 
@@ -102,7 +125,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[]) {
             allRefsPattern.lastIndex = 0;
             while ((match = allRefsPattern.exec(text)) !== null) {
               const baseName = match[1];
-              const info = globalSiblings.find((s) => s.name.toLowerCase() === baseName.toLowerCase());
+              const info = findSibling(baseName);
               let mark: Decoration;
               if (info) {
                 mark = info.kind === "sibling" ? siblingMark : containedMark;
@@ -191,7 +214,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[]) {
         const to = from + match[0].length;
         if (pos >= from && pos <= to) {
           const baseName = match[1];
-          const sib = globalSiblings.find((s) => s.name.toLowerCase() === baseName.toLowerCase());
+          const sib = findSibling(baseName);
           if (!sib) return null;
           return {
             pos: from,
@@ -247,9 +270,10 @@ function findRefAtCursor(view: EditorView): { name: string; from: number; known:
     const from = line.from + match.index;
     const to = from + match[0].length;
     if (pos >= from && pos <= to) {
-      const name = match[1];
-      const known = globalSiblings.some((s) => s.name.toLowerCase() === name.toLowerCase());
-      return { name, from, known };
+      const raw = match[1];
+      const canonical = resolveRefName(raw, globalSiblings.map((s) => s.name));
+      const known = canonical !== undefined;
+      return { name: canonical ?? raw, from, known };
     }
   }
   return null;
