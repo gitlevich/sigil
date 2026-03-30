@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
+import { MarkdownPreview } from "../Editor/MarkdownPreview";
 import styles from "./GlossaryEditor.module.css";
 
 /** Collect all sigil names from the tree, depth-first. */
@@ -46,8 +47,8 @@ export function GlossaryEditor() {
   const { save } = useAutoSave();
   const [content, setContent] = useState("");
   const [search, setSearch] = useState("");
+  const [mode, setMode] = useState<"edit" | "preview">("preview");
   const [loaded, setLoaded] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const glossaryPath = doc ? `${doc.sigil.root_path}/glossary.md` : "";
 
@@ -97,21 +98,49 @@ export function GlossaryEditor() {
 
   return (
     <div className={styles.container}>
-      <input
-        className={styles.search}
-        placeholder="Search glossary..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <textarea
-        ref={textareaRef}
-        className={styles.textarea}
-        value={search ? displayContent : content}
-        onChange={(e) => {
-          if (!search) handleChange(e.target.value);
-        }}
-        readOnly={!!search}
-      />
+      <div className={styles.toolbar}>
+        <input
+          className={styles.search}
+          placeholder="Search glossary..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          className={`${styles.modeBtn} ${mode === "edit" ? styles.active : ""}`}
+          onClick={() => setMode("edit")}
+        >
+          Edit
+        </button>
+        <button
+          className={`${styles.modeBtn} ${mode === "preview" ? styles.active : ""}`}
+          onClick={() => setMode("preview")}
+        >
+          Preview
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        {mode === "edit" ? (
+          <textarea
+            className={styles.textarea}
+            value={search ? displayContent : content}
+            onChange={(e) => {
+              if (!search) handleChange(e.target.value);
+            }}
+            readOnly={!!search}
+          />
+        ) : (
+          <div className={styles.previewArea}>
+            {content ? (
+              <MarkdownPreview content={search ? displayContent : content} />
+            ) : (
+              <p className={styles.placeholder}>
+                No glossary yet. Switch to Edit to start defining terms.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -63,20 +63,20 @@ export function LeftPanel() {
               Vision
             </button>
             <button
-              className={`${styles.tab} ${doc.leftPanelTab === "tree" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree" } })
-              }
-            >
-              Tree
-            </button>
-            <button
               className={`${styles.tab} ${doc.leftPanelTab === "glossary" ? styles.active : ""}`}
               onClick={() =>
                 dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "glossary" } })
               }
             >
               Glossary
+            </button>
+            <button
+              className={`${styles.tab} ${doc.leftPanelTab === "tree" ? styles.active : ""}`}
+              onClick={() =>
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree" } })
+              }
+            >
+              Tree
             </button>
           </div>
           <button
