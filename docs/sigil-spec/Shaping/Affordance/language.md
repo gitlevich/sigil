@@ -10,7 +10,7 @@ I cannot reach inside another sigil. I can only address it by name and use what 
 Affordances are referenced in two directions:
 
 - **Down** — a containing sigil addresses the affordances of the sigils it contains. The container's domain language is woven from their names and their affordances.
-- **Across** — a neighbor's affordance is addressed with the notation `@Neighbor.affordance`, referencing a capability from within my own context.
+- **Across** — a neighbor's affordance is addressed with the notation `@Neighbors.affordance`, referencing a capability from within my own context.
 
 Neighbor names and affordance references are visually distinct in the language. The `@` notation signals a reference to a neighbor or its capability.
 

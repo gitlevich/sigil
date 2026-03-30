@@ -14,7 +14,7 @@ A sigil has:
 - **Domain language**: the narrative at this level of abstraction — sentences woven from the names of the sigils it contains. Stored as `language.md`.
 - **Contained sigils**: up to 5 sigils inside this one.
 
-### Containment
+### ContainmentHierarchy
 
 A sigil is recursive: it is made of sigils. This is not a parent-child relationship — it is containment. The contained sigils inhabit the context of the containing sigil. They share that context.
 
@@ -29,7 +29,7 @@ You cannot reach inside another sigil. You can only address it by name and use w
 Affordances are referenced in two directions:
 
 - **Down** — a containing sigil addresses the affordances of the sigils it contains. The container's domain language is woven from their names and their affordances.
-- **Across** — a sibling addresses a neighbor's affordance. The notation `@Neighbor.affordance` references a sibling's capability from within your own context.
+- **Across** — a sibling addresses a neighbor's affordance. The notation `@Neighbors.affordance` references a sibling's capability from within your own context.
 
 ### Integrations
 

@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Relationship
+# Relationships
 
 A sigil can have relationship with its neighbors. This is how they talk to each other.
 

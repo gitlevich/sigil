@@ -13,9 +13,10 @@ import { useSigil } from "../../hooks/useSigil";
 import { SigilMap } from "./Map";
 import styles from "./EditorShell.module.css";
 
-type Facet = "language" | "architecture" | "implementation";
-const FACET_ORDER: Facet[] = ["language", "architecture", "implementation"];
+type Facet = "ux" | "language" | "architecture" | "implementation";
+const FACET_ORDER: Facet[] = ["ux", "language", "architecture", "implementation"];
 const FACET_FILE: Record<Facet, string> = {
+  ux: "ux.md",
   language: "language.md",
   architecture: "architecture.md",
   implementation: "implementation.md",
@@ -118,11 +119,13 @@ export function EditorShell() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       let next: Facet | null = null;
-      if (matchesBinding(e, kb["facet-language"] || "Ctrl-1")) {
+      if (matchesBinding(e, kb["facet-ux"] || "Ctrl-1")) {
+        next = "ux";
+      } else if (matchesBinding(e, kb["facet-language"] || "Ctrl-2")) {
         next = "language";
-      } else if (matchesBinding(e, kb["facet-architecture"] || "Ctrl-2")) {
+      } else if (matchesBinding(e, kb["facet-architecture"] || "Ctrl-3")) {
         next = "architecture";
-      } else if (matchesBinding(e, kb["facet-implementation"] || "Ctrl-3")) {
+      } else if (matchesBinding(e, kb["facet-implementation"] || "Ctrl-4")) {
         next = "implementation";
       }
       if (next !== null) {
@@ -130,7 +133,7 @@ export function EditorShell() {
         dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: next, contentTab: "language" } });
         return;
       }
-      if (matchesBinding(e, kb["facet-map"] || "Ctrl-4")) {
+      if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
         dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } });
         return;
@@ -154,7 +157,7 @@ export function EditorShell() {
         e.preventDefault();
         const isContextMap = doc.contentTab === "map";
         if (isContextMap) {
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: "language", contentTab: "language" } });
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: "ux", contentTab: "language" } });
         } else {
           const idx = FACET_ORDER.indexOf(activeFacet);
           const nextIdx = idx + 1;
