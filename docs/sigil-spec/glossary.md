@@ -2,9 +2,9 @@
 
 ## Distillation
 
-### Coherence
+### SigilCoherence
 
-#### SemanticCoherence
+#### SemanticSigilCoherence
 
 #### StructuralComplexity
 
@@ -14,11 +14,11 @@
 
 #### Human
 
-## Exploration
+## Navigation
 
-### Experiencing
+### Map
 
-### Navigation
+### Tree
 
 ## Shaping
 

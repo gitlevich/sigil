@@ -5,7 +5,7 @@ export interface OpenDocument {
   sigil: Sigil;
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "integrations";
+  contentTab: "language" | "map";
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "tree" | "glossary";
   rightPanelOpen: boolean;
@@ -16,6 +16,7 @@ export interface OpenDocument {
   highlightedChild: string | null;
   wordWrap: boolean;
   renamingRequest: boolean;
+  activeFacet: "language" | "architecture" | "implementation";
 }
 
 export interface UIState {

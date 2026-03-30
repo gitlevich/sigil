@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useDocument, useAppDispatch } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
-import styles from "./IntegrationGraph.module.css";
+import styles from "./Map.module.css";
 
 export type Policy =
   | "shared-kernel"
@@ -12,14 +12,14 @@ export type Policy =
   | "anticorruption-layer"
   | "separate-ways";
 
-export interface Integration {
+export interface Relationship {
   from: string; // context name (upstream / source)
   to: string;   // context name (downstream / target)
   policy: Policy;
 }
 
-export interface IntegrationData {
-  integrations: Integration[];
+export interface MapData {
+  relationships: Relationship[];
 }
 
 const POLICY_LABELS: Record<Policy, string> = {
@@ -49,11 +49,11 @@ function findContext(root: Context, path: string[]): Context {
   return current;
 }
 
-export function IntegrationGraph() {
+export function SigilMap() {
   const doc = useDocument();
   const dispatch = useAppDispatch();
   const svgRef = useRef<SVGSVGElement>(null);
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [dragging, setDragging] = useState<{ from: string; mx: number; my: number } | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
@@ -69,23 +69,31 @@ export function IntegrationGraph() {
   const longestName = Math.max(...children.map((c) => c.name.length), 1);
   const NODE_R = Math.max(40, longestName * 5 + 16);
 
-  // Load integrations from disk
+  // Load relationships from disk
   useEffect(() => {
     if (!currentCtx) return;
-    const path = `${currentCtx.path}/integrations.json`;
-    const legacyPath = `${currentCtx.path}/entanglements.json`;
+    const path = `${currentCtx.path}/map.json`;
+    const legacyPath = `${currentCtx.path}/integrations.json`;
+    const legacyPath2 = `${currentCtx.path}/entanglements.json`;
     api.readFile(path)
       .then((content) => {
-        const data: IntegrationData = JSON.parse(content);
-        setIntegrations(data.integrations || []);
+        const data: MapData = JSON.parse(content);
+        setRelationships(data.relationships || []);
       })
       .catch(() =>
         api.readFile(legacyPath)
           .then((content) => {
             const data = JSON.parse(content);
-            setIntegrations(data.entanglements || data.integrations || []);
+            setRelationships(data.integrations || []);
           })
-          .catch(() => setIntegrations([]))
+          .catch(() =>
+            api.readFile(legacyPath2)
+              .then((content) => {
+                const data = JSON.parse(content);
+                setRelationships(data.entanglements || data.integrations || []);
+              })
+              .catch(() => setRelationships([]))
+          )
       );
   }, [currentCtx?.path]);
 
@@ -113,10 +121,10 @@ export function IntegrationGraph() {
     }
   }, [nodeMenu]);
 
-  const saveIntegrations = useCallback(async (data: Integration[]) => {
+  const saveRelationships = useCallback(async (data: Relationship[]) => {
     if (!currentCtx) return;
-    const path = `${currentCtx.path}/integrations.json`;
-    const content = JSON.stringify({ integrations: data }, null, 2);
+    const path = `${currentCtx.path}/map.json`;
+    const content = JSON.stringify({ relationships: data }, null, 2);
     await api.writeFile(path, content);
   }, [currentCtx]);
 
@@ -159,7 +167,7 @@ export function IntegrationGraph() {
 
     if (target && target.name !== dragging.from) {
       // Check if edge already exists (in either direction)
-      const exists = integrations.some(
+      const exists = relationships.some(
         (e) =>
           (e.from === dragging.from && e.to === target.name) ||
           (e.from === target.name && e.to === dragging.from)
@@ -171,21 +179,21 @@ export function IntegrationGraph() {
     }
 
     setDragging(null);
-  }, [dragging, nodePositions, integrations, saveIntegrations]);
+  }, [dragging, nodePositions, relationships, saveRelationships]);
 
   const handlePolicyChange = (from: string, to: string, policy: Policy) => {
-    const updated = integrations.map((e) =>
+    const updated = relationships.map((e) =>
       e.from === from && e.to === to ? { ...e, policy } : e
     );
-    setIntegrations(updated);
-    saveIntegrations(updated);
+    setRelationships(updated);
+    saveRelationships(updated);
     setSelectedEdge(null);
   };
 
   const handleDeleteEdge = (from: string, to: string) => {
-    const updated = integrations.filter((e) => !(e.from === from && e.to === to));
-    setIntegrations(updated);
-    saveIntegrations(updated);
+    const updated = relationships.filter((e) => !(e.from === from && e.to === to));
+    setRelationships(updated);
+    saveRelationships(updated);
     setSelectedEdge(null);
   };
 
@@ -200,7 +208,7 @@ export function IntegrationGraph() {
   if (!doc || children.length === 0) {
     return (
       <div className={styles.empty}>
-        No sub-contexts to show. Add contexts to see the context map.
+        No sub-contexts to show. Add contexts to see the map.
       </div>
     );
   }
@@ -232,7 +240,7 @@ export function IntegrationGraph() {
         </defs>
 
         {/* Edges */}
-        {integrations.map((ent) => {
+        {relationships.map((ent) => {
           const fromPos = getPos(ent.from);
           const toPos = getPos(ent.to);
           if (!fromPos || !toPos) return null;
@@ -402,7 +410,7 @@ export function IntegrationGraph() {
 
       {/* Edge selected — show remove option */}
       {selectedEdge && (() => {
-        const ent = integrations.find(
+        const ent = relationships.find(
           (e) => e.from === selectedEdge.from && e.to === selectedEdge.to
         );
         if (!ent) return null;
@@ -486,10 +494,10 @@ export function IntegrationGraph() {
                 key={p}
                 className={styles.policyOption}
                 onClick={() => {
-                  const newEdge: Integration = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
-                  const newIntegrations = [...integrations, newEdge];
-                  setIntegrations(newIntegrations);
-                  saveIntegrations(newIntegrations);
+                  const newEdge: Relationship = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
+                  const newRelationships = [...relationships, newEdge];
+                  setRelationships(newRelationships);
+                  saveRelationships(newRelationships);
                   setPendingEdge(null);
                 }}
               >

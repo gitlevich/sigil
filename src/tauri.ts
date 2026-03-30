@@ -57,6 +57,14 @@ export interface Keybindings {
   "delete-line": string;
   "toggle-word-wrap": string;
   "export": string;
+  "facet-language": string;
+  "facet-architecture": string;
+  "facet-implementation": string;
+  "facet-cycle": string;
+  "facet-map": string;
+  "panel-vision": string;
+  "panel-tree": string;
+  "panel-glossary": string;
 }
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
@@ -65,6 +73,14 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "delete-line": "Mod-d",
   "toggle-word-wrap": "Alt-z",
   "export": "Mod-e",
+  "facet-language": "Ctrl-1",
+  "facet-architecture": "Ctrl-2",
+  "facet-implementation": "Ctrl-3",
+  "facet-cycle": "Ctrl-/",
+  "facet-map": "Ctrl-4",
+  "panel-vision": "Ctrl-v",
+  "panel-tree": "Ctrl-t",
+  "panel-glossary": "Ctrl-g",
 };
 
 export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
@@ -73,6 +89,14 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "delete-line": "Delete Line",
   "toggle-word-wrap": "Toggle Word Wrap",
   "export": "Export",
+  "facet-language": "Facet: Language",
+  "facet-architecture": "Facet: Architecture",
+  "facet-implementation": "Facet: Implementation",
+  "facet-cycle": "Facet: Cycle",
+  "facet-map": "Facet: Map",
+  "panel-vision": "Panel: Vision",
+  "panel-tree": "Panel: Tree",
+  "panel-glossary": "Panel: Glossary",
 };
 
 /** Convert CodeMirror key format to Tauri menu accelerator format */
@@ -87,13 +111,15 @@ export function toTauriAccelerator(cmKey: string): string {
 
 /** Convert CodeMirror key format to human-readable display */
 export function toDisplayShortcut(cmKey: string): string {
-  const isMac = navigator.platform.includes("Mac");
+  const isMac = /Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent);
   return cmKey
-    .replace(/Mod-/g, isMac ? "\u2318" : "Ctrl+")
-    .replace(/Alt-/g, isMac ? "\u2325" : "Alt+")
-    .replace(/Shift-/g, isMac ? "\u21E7" : "Shift+")
-    .replace(/-/g, "")
-    .replace(/([a-z])$/i, (_, c) => c.toUpperCase());
+    .replace(/Mod-/g, isMac ? "Cmd+" : "Ctrl+")
+    .replace(/Alt-/g, isMac ? "Option+" : "Alt+")
+    .replace(/Shift-/g, "Shift+")
+    .replace(/Ctrl-/g, "Ctrl+")
+    .replace(/-/g, "+")
+    .replace(/\+([a-z])$/i, (_, c) => "+" + c.toUpperCase())
+    .replace(/^([a-z])$/i, (_, c) => c.toUpperCase());
 }
 
 export interface Settings {
@@ -169,6 +195,9 @@ export const api = {
 
   removeRecentDocument: (path: string) =>
     invoke<void>("remove_recent_document", { path }),
+
+  pruneRecentDocuments: () =>
+    invoke<RecentDocument[]>("prune_recent_documents"),
 
   exportSigil: (rootPath: string, outputPath: string) =>
     invoke<void>("export_sigil", { rootPath, outputPath }),

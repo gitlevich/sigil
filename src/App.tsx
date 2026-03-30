@@ -38,9 +38,16 @@ export function App({ initialRootPath }: AppProps) {
     opened.current = true;
 
     (async () => {
+      // Clean up stale recent documents before anything else
+      await api.pruneRecentDocuments().catch(console.error);
+
       if (initialRootPath) {
         // Opened from menu/URL — open that specific sigil
-        await openDocument(initialRootPath).catch(console.error);
+        try {
+          await openDocument(initialRootPath);
+        } catch {
+          dispatch({ type: "CLEAR_DOCUMENT" });
+        }
         return;
       }
 
@@ -48,28 +55,25 @@ export function App({ initialRootPath }: AppProps) {
       const saved = await getPersistedDocState();
       if (saved?.rootPath) {
         try {
-          await openDocument(saved.rootPath);
-          // Restore the full UI state after the document loads
           const chatMessages = saved.activeChatId
             ? (await api.readChat(saved.rootPath, saved.activeChatId).catch(() => ({ messages: [] }))).messages
             : [];
 
-          dispatch({
-            type: "UPDATE_DOCUMENT",
-            updates: {
-              currentPath: saved.currentPath || [],
-              leftPanelOpen: saved.leftPanelOpen,
-              leftPanelTab: saved.leftPanelTab,
-              rightPanelOpen: saved.rightPanelOpen,
-              editorMode: saved.editorMode,
-              contentTab: (saved.contentTab as string) === "entanglements" ? "integrations" : (saved.contentTab || "language"),
-              activeChatId: saved.activeChatId || "",
-              chatMessages,
-              wordWrap: saved.wordWrap ?? false,
-            },
+          await openDocument(saved.rootPath, {
+            currentPath: saved.currentPath || [],
+            leftPanelOpen: saved.leftPanelOpen,
+            leftPanelTab: saved.leftPanelTab,
+            rightPanelOpen: saved.rightPanelOpen,
+            editorMode: saved.editorMode,
+            contentTab: (["entanglements", "integrations"].includes(saved.contentTab as string)) ? "map" : (saved.contentTab || "language"),
+            activeFacet: saved.activeFacet ?? "language",
+            activeChatId: saved.activeChatId ?? "",
+            chatMessages,
+            wordWrap: saved.wordWrap ?? false,
           });
         } catch {
-          // Sigil no longer exists — show picker
+          // Sigil no longer exists — stay on picker
+          dispatch({ type: "CLEAR_DOCUMENT" });
         }
       }
     })();
