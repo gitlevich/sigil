@@ -31,3 +31,10 @@ src-tauri/.tauri-updater-key
 # Temporary
 app-icon.png
 spec/
+
+# Python cache
+__pycache__/
+
+# Genesis exports
+docs/genesis/*.md
+docs/genesis/.export_state.json
