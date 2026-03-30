@@ -104,6 +104,25 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
+  const handleNavigateToSigil = useCallback((name: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    // Check if it's a contained sigil
+    if (ctx.children.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...doc.currentPath, name] } });
+      return;
+    }
+    // Check if it's a neighbor — navigate to it at the same level
+    if (doc.currentPath.length > 0) {
+      const neighborPath = [...doc.currentPath.slice(0, -1), name];
+      const parentPath = doc.currentPath.slice(0, -1);
+      const parent = findContext(doc.sigil.root, parentPath);
+      if (parent.children.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: neighborPath } });
+      }
+    }
+  }, [doc, dispatch]);
+
   if (!doc) return null;
 
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
@@ -158,6 +177,7 @@ export function EditorShell() {
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onRenameSigil={handleRenameSigil}
+                    onNavigateToSigil={handleNavigateToSigil}
                   />
                 </div>
               )}
