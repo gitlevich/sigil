@@ -7,8 +7,9 @@ import { MarkdownEditor } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
-import { Context } from "../../tauri";
+import { Context, api } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
+import { useSigil } from "../../hooks/useSigil";
 import { IntegrationGraph } from "./IntegrationGraph";
 import styles from "./EditorShell.module.css";
 
@@ -53,6 +54,7 @@ export function EditorShell() {
   const dispatch = useAppDispatch();
   const doc = useDocument();
   const { save } = useAutoSave();
+  const { reload } = useSigil();
 
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
@@ -69,6 +71,17 @@ export function EditorShell() {
       sigil: { ...doc.sigil, root: updatedRoot },
     });
   }, [doc, save, dispatch]);
+
+  const handleCreateSigil = useCallback(async (name: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    try {
+      await api.createContext(ctx.path, name);
+      await reload(doc.sigil.root_path);
+    } catch (err) {
+      console.error("Create sigil failed:", err);
+    }
+  }, [doc, reload]);
 
   if (!doc) return null;
 
@@ -122,6 +135,7 @@ export function EditorShell() {
                     siblingNames={allRefNames}
                     siblings={allRefs}
                     wordWrap={doc.wordWrap}
+                    onCreateSigil={handleCreateSigil}
                   />
                 </div>
               )}
