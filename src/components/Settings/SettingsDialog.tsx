@@ -360,6 +360,7 @@ export function SettingsDialog() {
           )}
           </>)}
 
+          {settingsTab === "general" && (
           <div className={promptExpanded ? styles.promptSectionFull : styles.promptSection}>
             <div className={styles.promptHeader}>
               <h3 className={styles.sectionTitle}>System Prompt</h3>
@@ -393,6 +394,7 @@ export function SettingsDialog() {
               onChange={(e) => setLocal({ ...local, system_prompt: e.target.value })}
             />
           </div>
+          )}
         </div>
 
         <div className={styles.actions}>
