@@ -1,0 +1,141 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.search {
+  flex: 1;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.search::placeholder {
+  color: var(--text-secondary);
+}
+
+.search:focus {
+  border-color: var(--accent);
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem 0.25rem;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.chevron {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.55rem;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.chevron:hover {
+  color: var(--text-primary);
+}
+
+.chevronPlaceholder {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.term {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.term:hover {
+  background: var(--bg-hover);
+}
+
+.term.active {
+  background: var(--bg-hover);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.defBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 3px;
+  font-size: 0.75rem;
+  opacity: 0.4;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.defBtn:hover,
+.defBtnOpen {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.defArea {
+  padding-top: 4px;
+  padding-bottom: 6px;
+}
+
+.defTextarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.defTextarea:focus {
+  border-color: var(--accent);
+}
+
+.defTextarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}

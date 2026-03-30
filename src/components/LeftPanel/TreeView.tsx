@@ -89,7 +89,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
               setExpanded(!expanded);
             }}
           >
-            {expanded ? "\u25BE" : "\u25B8"}
+            {expanded ? "\u25BC" : "\u25B6"}
           </button>
         )}
         {!hasChildren && <span className={styles.expandPlaceholder} />}

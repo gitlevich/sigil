@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Partner
+# DesignPartner
 
 The design partner helps weave domain language. It is not a reviewer. It maintains coherence across contexts, suggests clearer terms, sharper boundaries, better names. It thinks in the language of the domain, not in implementation.
 

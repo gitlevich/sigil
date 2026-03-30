@@ -3,12 +3,14 @@ status: wip
 ---
 # Sigil
 
-A sigil is a relevance filter. It defines what matters within a specific attention. What is described exists within it. What is not described is outside the boundary — not wrong, simply not relevant here. The boundary is not a wall; it is a definition of relevance.
+A sigil is an origin — a named center from which trajectories of attention grow outward. At the root there is only a name: a door with nothing behind it yet. As narration accumulates, trajectories extend from that center through levels of abstraction. At a leaf, the trajectory has traveled far enough and with enough direction that the thing it describes can be projected unambiguously into code.
 
-The boundary is defined by @Invariants — named contrasts with preferences along each. Only contrasts you care about are declared. Everything orthogonal to your declared contrasts is in superposition: unconstrained, freely resolved by whoever implements it. The sigil never enumerates what it excludes. It declares only what it has a preference about. The rest stays in superposition by default.
+A trajectory is a path of narration from the root to a leaf. Each level of elaboration adds direction: UX establishes the first bearing from the center, Language deepens it into a domain model, Architecture fixes structural constraints, Implementation resolves remaining preferences. By the time the trajectory reaches a leaf, the accumulated direction from every level above makes the implementation deterministic — not because everything is specified, but because everything that matters has been specified along the path.
 
-Speaking a sigil into existence is constitutive, not representational. The description creates the structure. What you describe collapses from superposition into a defined thing. What you leave undescribed remains in superposition — and that is correct. An accidental gap is one where you build on something you have not declared: you reference it, depend on it, but have not specified it. It remains in superposition while you treat it as collapsed. The implementing agent resolves it arbitrarily.
+**Precision** is how constrained a trajectory is — how many valid projections remain at its tip. A precisely narrated path leaves few acceptable implementations. A vague one leaves many.
 
-A sigil is elaborated across four panels, each a projection at a different level of abstraction. Each panel speaks its level into existence using the vocabulary established above it. Together they form the compilation chain from user intent to code.
+**Resolution** is the density of elaboration points along the surface — how carefully a patch has been narrated. High resolution where it matters, sparse where it does not. What has not been narrated is not a hole: it is simply space the trajectory never entered. It remains in superposition, unconstrained by design.
 
-@Shaping is the act of speaking a sigil into existence at all four levels. @Navigation reveals the structure of what has been shaped. @Distillation sharpens the language with a partner until the boundaries hold and the superposition is collapsed to the required precision.
+The complete sigil is a tree of trajectories grown from a single origin. It is a projection device: given a phrase in the domain language, the sigil maps it to the business outcome it expresses, with the precision and resolution the trajectory provides. This is enough to build from.
+
+@Shaping grows the trajectories. @Navigation traverses them. @Distillation refines their precision and resolution until the projection is unambiguous where it must be.

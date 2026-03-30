@@ -21,46 +21,6 @@ fn is_context_dir(dir: &Path) -> bool {
     dir.join("language.md").exists() || dir.join("spec.md").exists()
 }
 
-/// Find the sigil root by walking up from a context path.
-fn find_root(path: &Path) -> Option<&Path> {
-    let mut current = path;
-    loop {
-        let parent = current.parent()?;
-        if !is_context_dir(parent) {
-            return Some(current);
-        }
-        current = parent;
-    }
-}
-
-/// Insert a ## entry into glossary.md in alphabetical order.
-fn insert_glossary_entry(root: &Path, name: &str) {
-    let glossary_path = root.join("glossary.md");
-    let content = fs::read_to_string(&glossary_path).unwrap_or_default();
-    if content.is_empty() {
-        return; // No glossary file yet — will be auto-generated on first open
-    }
-    // Check if entry already exists
-    let header = format!("## {}", name);
-    if content.contains(&header) {
-        return;
-    }
-    // Find alphabetical insertion point among ## headers
-    let lines: Vec<&str> = content.lines().collect();
-    let mut insert_line = lines.len();
-    for (i, line) in lines.iter().enumerate() {
-        if let Some(existing) = line.strip_prefix("## ") {
-            if existing.trim() > name {
-                insert_line = i;
-                break;
-            }
-        }
-    }
-    let mut result: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-    result.insert(insert_line, String::new());
-    result.insert(insert_line, format!("## {}", name));
-    let _ = fs::write(&glossary_path, result.join("\n"));
-}
 
 fn read_context(dir: &Path) -> Result<Context, String> {
     let name = dir
@@ -145,11 +105,6 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
     fs::create_dir(&context_path).map_err(|e| e.to_string())?;
     fs::write(context_path.join("language.md"), "").map_err(|e| e.to_string())?;
 
-    // Auto-insert glossary entry
-    if let Some(root) = find_root(parent) {
-        insert_glossary_entry(root, &name);
-    }
-
     Ok(Context {
         name,
         path: context_path.to_string_lossy().to_string(),
@@ -161,16 +116,28 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
 #[tauri::command]
 pub fn rename_context(path: String, new_name: String) -> Result<String, String> {
     let old_path = Path::new(&path);
+    let old_name = old_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine current name".to_string())?;
     let parent = old_path
         .parent()
         .ok_or_else(|| "Cannot rename root".to_string())?;
     let new_path = parent.join(&new_name);
 
-    if new_path.exists() {
+    let case_only = old_name.to_lowercase() == new_name.to_lowercase();
+    if !case_only && new_path.exists() {
         return Err(format!("A context named '{}' already exists", new_name));
     }
 
-    fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+    if case_only {
+        let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
+        fs::rename(old_path, &tmp_path).map_err(|e| e.to_string())?;
+        fs::rename(&tmp_path, &new_path).map_err(|e| e.to_string())?;
+    } else {
+        fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+    }
+
     Ok(new_path.to_string_lossy().to_string())
 }
 
@@ -243,10 +210,16 @@ fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usiz
         }
     }
     // Rename deepest first
+    let case_only = old_name.to_lowercase() == new_name.to_lowercase();
     dirs_to_rename.sort_by(|a, b| b.components().count().cmp(&a.components().count()));
     for dir in dirs_to_rename {
-        let new_dir = dir.parent().unwrap().join(new_name);
-        if !new_dir.exists() {
+        let parent = dir.parent().unwrap();
+        let new_dir = parent.join(new_name);
+        if case_only {
+            let tmp = parent.join(format!("__rename_tmp_{}", old_name));
+            fs::rename(&dir, &tmp).map_err(|e| e.to_string())?;
+            fs::rename(&tmp, &new_dir).map_err(|e| e.to_string())?;
+        } else if !new_dir.exists() {
             fs::rename(&dir, &new_dir).map_err(|e| e.to_string())?;
         }
     }
@@ -268,11 +241,18 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
         .ok_or_else(|| "Cannot rename root".to_string())?;
     let new_path = parent.join(&new_name);
 
-    if new_path.exists() {
+    let case_only = old_name.to_lowercase() == new_name.to_lowercase();
+    if !case_only && new_path.exists() {
         return Err(format!("A context named '{}' already exists", new_name));
     }
 
-    fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+    if case_only {
+        let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
+        fs::rename(old_path, &tmp_path).map_err(|e| e.to_string())?;
+        fs::rename(&tmp_path, &new_path).map_err(|e| e.to_string())?;
+    } else {
+        fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+    }
 
     let root = Path::new(&root_path);
     let files_updated = update_references(root, &old_name, &new_name)?;

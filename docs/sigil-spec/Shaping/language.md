@@ -3,18 +3,16 @@ status: wip
 ---
 # Shaping
 
-Shaping is speaking a sigil into existence across four panels. Each panel is a projection of the same sigil at a different level of abstraction. Each declares what matters at its level, using the vocabulary established by the level above. Together they form a compilation chain: each level is the spec for the level below.
+Shaping is growing trajectories from the origin. I narrate from the center outward, adding direction at each level of abstraction. Each panel is one increment of direction along the trajectory — a layer of narration that constrains what remains in superposition below it.
 
-**UX** — the application spoken from the user's perspective. I declare @Affordances and group them into up to five @Experiences. An experience is what it is like to use this part of the application. The UX panel defines what the application must deliver. Nothing below this level can contradict it.
+**UX** — the first bearing from the center. I narrate the application from the user's perspective, declaring @Affordances grouped into up to five @Experiences. This establishes the direction the entire tree will grow. Nothing below can contradict it.
 
-**Language** — the domain model spoken into existence. I define the concepts, relationships, and vocabulary that will deliver the affordances declared in UX. The language must be sufficient to express everything UX committed to. Contained sigils emerge here as I need subjects for the concepts I am describing.
+**Language** — the trajectory deepened into a domain model. I speak the concepts into existence that will deliver what UX declared. Contained sigils emerge as I need subjects for the affordances I am describing. The language must be sufficient to express every UX trajectory.
 
-**Architecture** — the model elaborated structurally. As an architect I declare the contrasts I care about at this level: what concerns must be separated, what must be co-located, what boundaries must hold. I speak each architectural decision into existence. What I do not declare remains in superposition — the implementing agent resolves it freely.
+**Architecture** — structural constraints added to the trajectory. I declare the contrasts I care about at this level: what must be separated, what must be co-located. Each declaration fixes a dimension. What I do not declare stays in superposition.
 
-**Implementation** — where I have a preference over how something is built, I declare it here. Only preferences go here. Everything undeclared stays in superposition and is resolved by the agent.
+**Implementation** — remaining preferences resolved. Only what I have a preference about goes here. Everything else is left to the implementing agent.
 
-The same four panels apply at every sigil in the hierarchy. The structure is fractal — the same shape at every level of containment. A sigil one level down is elaborated by its own four panels, constrained by what the containing sigil declared above it.
+The same four panels apply at every sigil. The structure is fractal: a contained sigil begins its own trajectory from its own center, constrained by the trajectory that led here from above. Each leaf accumulates the full direction of every panel at every level on the path from the root.
 
-
-
-Each panel is not a document but a sequence of @Edits — the full history of how it was shaped.
+Each panel is not a document but a sequence of @Edits — the growth history of the trajectory at that level.

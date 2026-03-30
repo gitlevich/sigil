@@ -65,7 +65,7 @@ export interface Keybindings {
   "facet-map": string;
   "panel-vision": string;
   "panel-tree": string;
-  "panel-glossary": string;
+  "panel-ontology": string;
 }
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
@@ -82,7 +82,7 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "facet-map": "Ctrl-5",
   "panel-vision": "Ctrl-v",
   "panel-tree": "Ctrl-t",
-  "panel-glossary": "Ctrl-g",
+  "panel-ontology": "Ctrl-g",
 };
 
 export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
@@ -99,7 +99,7 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "facet-map": "Facet: Map",
   "panel-vision": "Panel: Vision",
   "panel-tree": "Panel: Tree",
-  "panel-glossary": "Panel: Glossary",
+  "panel-ontology": "Panel: Ontology",
 };
 
 /** Convert CodeMirror key format to Tauri menu accelerator format */
