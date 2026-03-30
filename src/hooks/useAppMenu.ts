@@ -219,9 +219,9 @@ async function buildMenu(
   if (allWindows.length > 1) {
     windowItems.push(await PredefinedMenuItem.new({ item: "Separator" }));
     for (const win of allWindows) {
-      const title = await win.title();
+      const title = await win.title().catch(() => win.label);
       windowItems.push(await MenuItem.new({
-        text: title || win.label,
+        text: title && title !== "Sigil" ? title : win.label,
         action: async () => {
           await win.setFocus();
         },
