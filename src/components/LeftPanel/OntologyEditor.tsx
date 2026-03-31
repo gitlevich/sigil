@@ -296,7 +296,32 @@ export function OntologyEditor() {
 
   const handleMove = async (sourceFsPath: string, targetFsPath: string) => {
     if (!doc) return;
-    try { await api.moveSigil(doc.sigil.root_path, sourceFsPath, targetFsPath); await reload(doc.sigil.root_path); }
+    const rootPath = doc.sigil.root_path;
+    const oldRelPath = sourceFsPath.startsWith(rootPath + "/")
+      ? sourceFsPath.slice(rootPath.length + 1)
+      : sourceFsPath;
+    const sigilName = oldRelPath.split("/").pop()!;
+    const targetRel = targetFsPath.startsWith(rootPath + "/")
+      ? targetFsPath.slice(rootPath.length + 1)
+      : targetFsPath;
+    const newRelPath = targetRel ? `${targetRel}/${sigilName}` : sigilName;
+
+    setDefinitions((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        if (key === oldRelPath) {
+          next[newRelPath] = val;
+        } else if (key.startsWith(oldRelPath + "/")) {
+          next[newRelPath + key.slice(oldRelPath.length)] = val;
+        } else {
+          next[key] = val;
+        }
+      }
+      if (ontologyPath) save(ontologyPath, serializeDefinitions(next));
+      return next;
+    });
+
+    try { await api.moveSigil(rootPath, sourceFsPath, targetFsPath); await reload(rootPath); }
     catch (err) { console.error("Move failed:", err); }
   };
 
@@ -304,7 +329,28 @@ export function OntologyEditor() {
     if (!doc) return;
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) { setRenaming(null); return; }
-    try { await api.renameSigil(doc.sigil.root_path, fsPath, trimmed); await reload(doc.sigil.root_path); }
+
+    const rootPath = doc.sigil.root_path;
+    const oldRelPath = fsPath.startsWith(rootPath + "/") ? fsPath.slice(rootPath.length + 1) : fsPath;
+    const parentRel = oldRelPath.split("/").slice(0, -1).join("/");
+    const newRelPath = parentRel ? `${parentRel}/${trimmed}` : trimmed;
+
+    setDefinitions((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        if (key === oldRelPath) {
+          next[newRelPath] = val;
+        } else if (key.startsWith(oldRelPath + "/")) {
+          next[newRelPath + key.slice(oldRelPath.length)] = val;
+        } else {
+          next[key] = val;
+        }
+      }
+      if (ontologyPath) save(ontologyPath, serializeDefinitions(next));
+      return next;
+    });
+
+    try { await api.renameSigil(rootPath, fsPath, trimmed); await reload(rootPath); }
     catch (err) { console.error("Rename failed:", err); }
     setRenaming(null);
   };
