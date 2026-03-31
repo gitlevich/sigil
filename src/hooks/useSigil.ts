@@ -45,7 +45,7 @@ export function useSigil() {
         editorMode: "split",
         contentTab: "language",
         leftPanelOpen: true,
-        leftPanelTab: "tree",
+        leftPanelTab: "ontology",
         rightPanelOpen: false,
         chats,
         activeChatId,

@@ -9,7 +9,7 @@ interface PersistedDocState {
   rootPath: string;
   currentPath: string[];
   leftPanelOpen: boolean;
-  leftPanelTab: "vision" | "tree" | "ontology";
+  leftPanelTab: "vision" | "ontology";
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "map";

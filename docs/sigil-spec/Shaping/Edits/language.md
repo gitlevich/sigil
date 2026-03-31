@@ -3,7 +3,7 @@ status: wip
 ---
 # Edits
 
-A panel is not a document — it is the growth history of a trajectory at one level of abstraction. The current text is the trajectory as it stands now. Every change is continuously persisted; there is no save gesture.
+Edits are the growth history of a trajectory — the time-like dimension of the sigil. The current text is the trajectory as it stands now. Every change is continuously persisted; there is no save gesture.
 
 The natural unit of growth is a @burst: a cluster of edits close together in time, separated from the next cluster by a meaningful pause. A burst is one session of attention extending the trajectory — adding direction, refining precision, increasing resolution in a patch. It may be a single keystroke or many minutes of continuous narration.
 

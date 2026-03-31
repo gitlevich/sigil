@@ -62,7 +62,7 @@ export function App({ initialRootPath }: AppProps) {
           await openDocument(saved.rootPath, {
             currentPath: saved.currentPath || [],
             leftPanelOpen: saved.leftPanelOpen,
-            leftPanelTab: saved.leftPanelTab,
+            leftPanelTab: saved.leftPanelTab === "ontology" ? "ontology" : "vision",
             rightPanelOpen: saved.rightPanelOpen,
             editorMode: saved.editorMode,
             contentTab: (["entanglements", "integrations"].includes(saved.contentTab as string)) ? "map" : (saved.contentTab || "language"),
