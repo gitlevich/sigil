@@ -80,12 +80,12 @@ fn render_context(ctx: &Context, depth: usize, output: &mut String) {
         output.push_str("\n\n");
     }
 
-    output.push_str(&format!("{} Contrasts\n\n", detail_prefix));
-    if ctx.contrasts.is_empty() {
+    output.push_str(&format!("{} Signals\n\n", detail_prefix));
+    if ctx.signals.is_empty() {
         output.push_str("- none\n\n");
     } else {
-        for contrast in &ctx.contrasts {
-            render_named_entry(output, "!", &contrast.name, &contrast.content);
+        for signal in &ctx.signals {
+            render_named_entry(output, "!", &signal.name, &signal.content);
         }
         output.push('\n');
     }
@@ -140,7 +140,7 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     output.push_str("\n\n");
 
     output.push_str("# Sigil Artifact\n\n");
-    output.push_str("Each context below includes its definition, domain language, contrasts, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
+    output.push_str("Each context below includes its definition, domain language, signals, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
 
     render_context(&sigil.root, 0, &mut output);
     Ok(output)
@@ -640,7 +640,7 @@ mod tests {
         let root = setup_sigil(&tmp);
 
         fs::write(root.join("definition.md"), "Application shell boundary").unwrap();
-        fs::write(root.join("contrast-latency.md"), "fast enough for fluent use").unwrap();
+        fs::write(root.join("signal-latency.md"), "fast enough for fluent use").unwrap();
         fs::write(root.join("affordance-navigate.md"), "move through the sigil hierarchy").unwrap();
         fs::write(
             root.join("map.json"),
@@ -655,13 +655,13 @@ mod tests {
         let browse = root.join("Browse");
         fs::write(browse.join("definition.md"), "Surface for finding existing structure").unwrap();
         fs::write(browse.join("affordance-open.md"), "open a selected sigil").unwrap();
-        fs::write(browse.join("contrast-focus.md"), "keep the current target visible").unwrap();
+        fs::write(browse.join("signal-focus.md"), "keep the current target visible").unwrap();
 
         let context = assemble_sigil_context(root.to_string_lossy().as_ref()).unwrap();
 
         assert!(context.contains("# Sigil Artifact"));
         assert!(context.contains("Application shell boundary"));
-        assert!(context.contains("### Contrasts"));
+        assert!(context.contains("### Signals"));
         assert!(context.contains("- !latency: fast enough for fluent use"));
         assert!(context.contains("### Affordances"));
         assert!(context.contains("- #navigate: move through the sigil hierarchy"));
