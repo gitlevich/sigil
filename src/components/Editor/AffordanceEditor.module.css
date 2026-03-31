@@ -18,7 +18,7 @@
 }
 
 .toggleIcon {
-  font-size: 8px;
+  font-size: 12px;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -122,12 +122,12 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: 12px;
+  font-size: var(--content-font-size, 16px);
   font-weight: 600;
   color: #a07ce8;
   font-style: italic;
   padding: 0;
-  font-family: inherit;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
 .nameInput::placeholder {
@@ -161,9 +161,9 @@
   border: none;
   outline: none;
   resize: none;
-  font-size: 12px;
+  font-size: var(--content-font-size, 16px);
   color: var(--text-primary);
-  font-family: inherit;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   line-height: 1.5;
   min-height: 2rem;
   overflow: hidden;
