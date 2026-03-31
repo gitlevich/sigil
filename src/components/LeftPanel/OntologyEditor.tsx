@@ -443,6 +443,7 @@ export function OntologyEditor() {
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
+          <button className={styles.menuItem} onClick={() => { navigator.clipboard.writeText(contextMenu.node.fsPath); setContextMenu(null); }}>Copy Path</button>
           {contextMenu.node.path.length > 0 && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
