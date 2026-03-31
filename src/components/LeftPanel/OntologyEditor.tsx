@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
@@ -136,6 +136,18 @@ function OntologyItem({
   const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
   const atLimit = node.children.length >= 5;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const fitHeight = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  useLayoutEffect(() => {
+    if (defOpen) fitHeight();
+  }, [defOpen, definitions[node.name]]);
 
   const visibleChildren = search
     ? node.children.filter((c) => nodeMatches(c, search))
@@ -189,10 +201,12 @@ function OntologyItem({
       {defOpen && (
         <div className={styles.defArea}>
           <textarea
+            ref={textareaRef}
             className={styles.defTextarea}
             value={definitions[node.name] ?? ""}
             placeholder="Definition..."
             onChange={(e) => onDefinitionChange(node.name, e.target.value)}
+            onBlur={fitHeight}
           />
         </div>
       )}

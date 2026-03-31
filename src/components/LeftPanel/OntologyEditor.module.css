@@ -244,7 +244,8 @@
 
 .defTextarea {
   width: 100%;
-  min-height: 90px;
+  min-height: 2rem;
+  overflow: hidden;
   padding: 0.4rem 0.5rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -253,7 +254,7 @@
   font-family: inherit;
   font-size: 0.82rem;
   line-height: 1.55;
-  resize: vertical;
+  resize: none;
   outline: none;
   box-sizing: border-box;
 }
