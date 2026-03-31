@@ -191,7 +191,7 @@ function OntologyItem({
         )}
         <span className={styles.term}>{node.name}</span>
         <button
-          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""}`}
+          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.name]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}
         >
           ¶
