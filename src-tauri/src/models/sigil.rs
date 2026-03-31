@@ -15,11 +15,18 @@ pub struct Affordance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Contrast {
+    pub name: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Context {
     pub name: String,
     pub path: String,
     pub domain_language: String,
     pub affordances: Vec<Affordance>,
+    pub contrasts: Vec<Contrast>,
     pub children: Vec<Context>,
 }
 

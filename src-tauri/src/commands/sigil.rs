@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use crate::models::sigil::{Context, Sigil};
+use crate::models::sigil::{Context, Contrast, Sigil};
 
 /// Returns the path to the domain language file in a context directory.
 /// Prefers language.md but falls back to spec.md for backward compatibility.
@@ -35,6 +35,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         .unwrap_or_default();
 
     let mut affordances = Vec::new();
+    let mut contrasts = Vec::new();
     let mut children = Vec::new();
 
     if let Ok(entries) = fs::read_dir(dir) {
@@ -48,6 +49,9 @@ fn read_context(dir: &Path) -> Result<Context, String> {
                     if let Some(aff_name) = fname.strip_prefix("affordance-").and_then(|s| s.strip_suffix(".md")) {
                         let content = fs::read_to_string(&path).unwrap_or_default();
                         affordances.push(Affordance { name: aff_name.to_string(), content });
+                    } else if let Some(con_name) = fname.strip_prefix("contrast-").and_then(|s| s.strip_suffix(".md")) {
+                        let content = fs::read_to_string(&path).unwrap_or_default();
+                        contrasts.push(Contrast { name: con_name.to_string(), content });
                     }
                 }
             } else if path.is_dir() {
@@ -66,6 +70,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         path: dir.to_string_lossy().to_string(),
         domain_language,
         affordances,
+        contrasts,
         children,
     })
 }
@@ -118,6 +123,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         path: context_path.to_string_lossy().to_string(),
         domain_language: String::new(),
         affordances: Vec::new(),
+        contrasts: Vec::new(),
         children: Vec::new(),
     })
 }

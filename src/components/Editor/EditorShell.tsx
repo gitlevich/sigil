@@ -11,7 +11,7 @@ import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { SigilMap } from "./Map";
-import { AffordanceEditor } from "./AffordanceEditor";
+import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import styles from "./EditorShell.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
@@ -213,11 +213,30 @@ export function EditorShell() {
         />
         <EditorToolbar />
         {(doc.contentTab || "language") !== "atlas" && (
-          <AffordanceEditor
-            sigilPath={currentCtx.path}
-            affordances={currentCtx.affordances}
-            onReload={() => reload(doc.sigil.root_path).then(() => {})}
-          />
+          <>
+            <SigilPropertyEditor
+              sigilPath={currentCtx.path}
+              filePrefix="contrast"
+              title="Contrasts"
+              refPrefix="!"
+              color="#e8a040"
+              namePlaceholder="dimension name"
+              contentPlaceholder="preferred range along this dimension..."
+              items={currentCtx.contrasts}
+              onReload={() => reload(doc.sigil.root_path).then(() => {})}
+            />
+            <SigilPropertyEditor
+              sigilPath={currentCtx.path}
+              filePrefix="affordance"
+              title="Affordances"
+              refPrefix="#"
+              color="#a07ce8"
+              namePlaceholder="affordance name"
+              contentPlaceholder="what this affords..."
+              items={currentCtx.affordances}
+              onReload={() => reload(doc.sigil.root_path).then(() => {})}
+            />
+          </>
         )}
         <div className={styles.editorArea}>
           {(doc.contentTab || "language") === "atlas" ? (
