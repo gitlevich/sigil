@@ -4,21 +4,119 @@
   overflow: hidden;
 }
 
-.svg {
-  width: 100%;
-  height: 100%;
+.treemap {
+  position: absolute;
+  inset: 0;
+}
+
+.rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.rect:hover {
+  box-shadow: inset 0 0 0 1px var(--accent) !important;
+}
+
+.rectSelected {
+  box-shadow: inset 0 0 0 2px var(--accent) !important;
+}
+
+.rectLabel {
+  padding: 4px 8px 0;
+  font-size: var(--content-font-size, 16px);
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.rectIcons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 3px;
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: rgba(0, 0, 0, 0.4);
+  cursor: default;
+}
+
+.iconWrap:hover {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.modeSwitch {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.modeSwitchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 7px;
+  background: transparent;
+  border: none;
+  color: rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.modeSwitchBtn + .modeSwitchBtn {
+  border-left: 1px solid var(--border);
+}
+
+.modeSwitchBtn:hover {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.modeSwitchActive {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.modeSwitchActive:hover {
+  color: rgba(0, 0, 0, 0.85);
 }
 
 .instructions {
   position: absolute;
-  bottom: 0.5rem;
+  bottom: 8px;
   left: 0;
-  right: 0;
+  right: 60px;
   text-align: center;
   font-size: 0.72rem;
   color: var(--text-secondary);
   opacity: 0.6;
   pointer-events: none;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
 }
 
 .nodeContextMenu {
@@ -32,33 +130,7 @@
   z-index: 100;
 }
 
-.empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-style: italic;
-}
-
-/* Policy editor popover */
-
-.policyPopover {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px var(--shadow);
-  padding: 0.75rem;
-  min-width: 200px;
-  z-index: 50;
-}
-
-.policyHeader {
+.menuHeader {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -66,13 +138,13 @@
   text-align: center;
 }
 
-.policyList {
+.menuList {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
 
-.policyOption {
+.menuItem {
   padding: 0.3rem 0.6rem;
   background: none;
   border: 1px solid transparent;
@@ -83,33 +155,23 @@
   text-align: left;
 }
 
-.policyOption:hover {
+.menuItem:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.policyActive {
-  background: var(--accent);
-  color: var(--accent-text);
-  border-color: var(--accent);
-}
-
-.policyActive:hover {
-  background: var(--accent-hover);
-}
-
-.deleteEdgeBtn {
-  width: 100%;
-  margin-top: 0.5rem;
-  padding: 0.3rem;
+.menuItemDanger {
+  padding: 0.3rem 0.6rem;
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 3px;
   color: var(--danger);
   font-size: 0.8rem;
   cursor: pointer;
+  text-align: left;
+  margin-top: 0.3rem;
 }
 
-.deleteEdgeBtn:hover {
+.menuItemDanger:hover {
   background: var(--bg-hover);
 }
