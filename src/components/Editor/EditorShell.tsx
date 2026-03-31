@@ -11,6 +11,7 @@ import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { SigilMap } from "./Map";
+import { AffordanceEditor } from "./AffordanceEditor";
 import styles from "./EditorShell.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
@@ -88,7 +89,7 @@ export function EditorShell() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } });
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "atlas" } });
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
@@ -211,8 +212,15 @@ export function EditorShell() {
           }
         />
         <EditorToolbar />
+        {(doc.contentTab || "language") !== "atlas" && (
+          <AffordanceEditor
+            sigilPath={currentCtx.path}
+            affordances={currentCtx.affordances}
+            onReload={() => reload(doc.sigil.root_path).then(() => {})}
+          />
+        )}
         <div className={styles.editorArea}>
-          {(doc.contentTab || "language") === "map" ? (
+          {(doc.contentTab || "language") === "atlas" ? (
             <SigilMap />
           ) : (
             <>
@@ -224,6 +232,7 @@ export function EditorShell() {
                     siblingNames={allRefNames}
                     siblings={allRefs}
                     sigilRoot={doc.sigil.root}
+                    currentContext={currentCtx}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onRenameSigil={handleRenameSigil}

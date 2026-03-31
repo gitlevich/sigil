@@ -85,7 +85,7 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "delete-line": "Delete Line",
   "toggle-word-wrap": "Toggle Word Wrap",
   "export": "Export",
-  "facet-map": "Facet: Map",
+  "facet-map": "Facet: Atlas",
   "panel-vision": "Panel: Vision",
   "panel-ontology": "Panel: Ontology",
 };
@@ -138,6 +138,9 @@ export const api = {
 
   writeFile: (path: string, content: string) =>
     invoke<void>("write_file", { path, content }),
+
+  deleteFile: (path: string) =>
+    invoke<void>("delete_file", { path }),
 
   revealInFinder: (path: string) =>
     invoke<void>("reveal_in_finder", { path }),
