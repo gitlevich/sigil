@@ -213,30 +213,17 @@ export function EditorShell() {
         />
         <EditorToolbar />
         {(doc.contentTab || "language") !== "atlas" && (
-          <>
-            <SigilPropertyEditor
-              sigilPath={currentCtx.path}
-              filePrefix="affordance"
-              title="Affordances"
-              refPrefix="#"
-              color="#a07ce8"
-              namePlaceholder="I need to..."
-              contentPlaceholder="so that..."
-              items={currentCtx.affordances}
-              onReload={() => reload(doc.sigil.root_path).then(() => {})}
-            />
-            <SigilPropertyEditor
-              sigilPath={currentCtx.path}
-              filePrefix="signal"
-              title="Relevant Signals"
-              refPrefix="!"
-              color="#e8a040"
-              namePlaceholder="I care about..."
-              contentPlaceholder="because..."
-              items={currentCtx.signals}
-              onReload={() => reload(doc.sigil.root_path).then(() => {})}
-            />
-          </>
+          <SigilPropertyEditor
+            sigilPath={currentCtx.path}
+            filePrefix="affordance"
+            title="Affordances"
+            refPrefix="#"
+            color="#a07ce8"
+            namePlaceholder="I need to..."
+            contentPlaceholder="so that..."
+            items={currentCtx.affordances}
+            onReload={() => reload(doc.sigil.root_path).then(() => {})}
+          />
         )}
         <div className={styles.editorArea}>
           {(doc.contentTab || "language") === "atlas" ? (
@@ -269,6 +256,19 @@ export function EditorShell() {
             </>
           )}
         </div>
+        {(doc.contentTab || "language") !== "atlas" && (
+          <SigilPropertyEditor
+            sigilPath={currentCtx.path}
+            filePrefix="signal"
+            title="Relevant Signals"
+            refPrefix="!"
+            color="#e8a040"
+            namePlaceholder="I care about..."
+            contentPlaceholder="because..."
+            items={currentCtx.signals}
+            onReload={() => reload(doc.sigil.root_path).then(() => {})}
+          />
+        )}
         <SubContextBar context={currentCtx} />
       </div>
       <ChatPanel />
