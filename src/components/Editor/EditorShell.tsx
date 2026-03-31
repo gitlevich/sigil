@@ -130,7 +130,7 @@ export function EditorShell() {
       .trim();
     try {
       const newCtx = await api.createContext(ctx.path, normalized);
-      await api.writeFile(`${newCtx.path}/language.md`, "---\nstatus: idea\n---\n");
+      await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: idea\n---\n\n# ${normalized}\n`);
       await reload(doc.sigil.root_path);
     } catch (err) {
       console.error("Create sigil failed:", err);
