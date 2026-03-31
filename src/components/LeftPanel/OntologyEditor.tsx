@@ -203,10 +203,20 @@ function OntologyItem({
       {(node.contrasts.length > 0 || node.affordances.length > 0) && (
         <div className={styles.propertyList}>
           {node.contrasts.map((name) => (
-            <span key={`c-${name}`} className={styles.contrastTag}>{name}</span>
+            <span key={`c-${name}`} className={styles.iconWrap} title={`!${name}`}>
+              <svg width="12" height="12" viewBox="0 0 14 14">
+                <line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx="7" cy="5" r="2.5" fill="currentColor" />
+              </svg>
+            </span>
           ))}
           {node.affordances.map((name) => (
-            <span key={`a-${name}`} className={styles.affordanceTag}>{name}</span>
+            <span key={`a-${name}`} className={styles.iconWrap} title={`#${name}`}>
+              <svg width="12" height="12" viewBox="0 0 14 14">
+                <rect x="2" y="2" width="4" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M6 7 L11 7 L12 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           ))}
         </div>
       )}
