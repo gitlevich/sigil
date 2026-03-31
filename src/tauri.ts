@@ -2,10 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+export interface Affordance {
+  name: string;
+  content: string;
+}
+
 export interface Context {
   name: string;
   path: string;
   domain_language: string;
+  affordances: Affordance[];
   children: Context[];
 }
 

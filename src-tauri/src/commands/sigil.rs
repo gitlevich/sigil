@@ -23,6 +23,8 @@ fn is_context_dir(dir: &Path) -> bool {
 
 
 fn read_context(dir: &Path) -> Result<Context, String> {
+    use crate::models::sigil::Affordance;
+
     let name = dir
         .file_name()
         .and_then(|n| n.to_str())
@@ -32,24 +34,29 @@ fn read_context(dir: &Path) -> Result<Context, String> {
     let domain_language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
 
+    let mut affordances = Vec::new();
     let mut children = Vec::new();
-    if let Ok(entries) = fs::read_dir(dir) {
-        let mut dirs: Vec<_> = entries
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .filter(|e| {
-                !e.file_name()
-                    .to_str()
-                    .map(|n| n.starts_with('.'))
-                    .unwrap_or(true)
-            })
-            .collect();
-        dirs.sort_by_key(|e| e.file_name());
 
-        for entry in dirs {
-            let child_path = entry.path();
-            if is_context_dir(&child_path) {
-                children.push(read_context(&child_path)?);
+    if let Ok(entries) = fs::read_dir(dir) {
+        let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+        entries.sort_by_key(|e| e.file_name());
+
+        for entry in entries {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(fname) = path.file_name().and_then(|n| n.to_str()) {
+                    if let Some(aff_name) = fname.strip_prefix("affordance-").and_then(|s| s.strip_suffix(".md")) {
+                        let content = fs::read_to_string(&path).unwrap_or_default();
+                        affordances.push(Affordance { name: aff_name.to_string(), content });
+                    }
+                }
+            } else if path.is_dir() {
+                if path.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with('.')).unwrap_or(true) {
+                    continue;
+                }
+                if is_context_dir(&path) {
+                    children.push(read_context(&path)?);
+                }
             }
         }
     }
@@ -58,6 +65,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         name,
         path: dir.to_string_lossy().to_string(),
         domain_language,
+        affordances,
         children,
     })
 }
@@ -109,6 +117,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         name,
         path: context_path.to_string_lossy().to_string(),
         domain_language: String::new(),
+        affordances: Vec::new(),
         children: Vec::new(),
     })
 }

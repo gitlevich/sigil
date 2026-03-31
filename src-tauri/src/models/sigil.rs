@@ -9,10 +9,17 @@ pub struct Sigil {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Affordance {
+    pub name: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Context {
     pub name: String,
     pub path: String,
     pub domain_language: String,
+    pub affordances: Vec<Affordance>,
     pub children: Vec<Context>,
 }
 
