@@ -5,7 +5,7 @@ export interface OpenDocument {
   sigil: Sigil;
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "map";
+  contentTab: "language" | "atlas";
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "ontology";
   rightPanelOpen: boolean;

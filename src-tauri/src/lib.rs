@@ -20,6 +20,7 @@ pub fn run() {
             commands::sigil::delete_context,
             commands::file_ops::read_file,
             commands::file_ops::write_file,
+            commands::file_ops::delete_file,
             commands::file_ops::reveal_in_finder,
             commands::chat::list_models,
             commands::chat::list_chats,

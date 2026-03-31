@@ -10,7 +10,7 @@ import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { Context } from "../../tauri";
+import { Affordance, Context } from "../../tauri";
 import styles from "./MarkdownEditor.module.css";
 
 export interface SiblingInfo {
@@ -25,6 +25,7 @@ interface MarkdownEditorProps {
   siblingNames?: string[];
   siblings?: SiblingInfo[];
   sigilRoot?: Context;
+  currentContext?: Context;
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
@@ -78,12 +79,31 @@ const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
 const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
+const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 
 let globalSiblings: SiblingInfo[] = [];
 let globalSigilRoot: Context | null = null;
+let globalCurrentContext: Context | null = null;
 
-// Matches chained @A@B@C paths (and single @Name)
-const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*/g;
+/** Convert affordance name to dash-separated form for use in #references. */
+function toDashForm(name: string): string {
+  return name.replace(/\s+/g, "-");
+}
+
+/** Convert dash-separated #reference back to original affordance name. */
+function fromDashForm(dashed: string): string {
+  return dashed.replace(/-/g, " ");
+}
+
+/** Find an affordance by its dash-form name. */
+function findAffordance(ctx: Context | undefined, dashedName: string): Affordance | undefined {
+  if (!ctx?.affordances) return undefined;
+  const spacedName = fromDashForm(dashedName);
+  return ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
+}
+
+// Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, and standalone #affordance
+const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*/g;
 
 /** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
 export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
@@ -166,9 +186,10 @@ function resolveChainedRef(matchText: string): RefResolution {
   return { kind: "absolute", path: resolved, summary };
 }
 
-function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null) {
+function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null, currentCtx: Context | null) {
   globalSiblings = siblings;
   globalSigilRoot = sigilRoot;
+  globalCurrentContext = currentCtx;
 
   return [
     ViewPlugin.fromClass(
@@ -189,14 +210,28 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             let match;
             allRefsPattern.lastIndex = 0;
             while ((match = allRefsPattern.exec(text)) !== null) {
-              const resolution = resolveChainedRef(match[0]);
-              const mark =
-                resolution.kind === "contained" ? containedMark :
-                resolution.kind === "sibling" ? siblingMark :
-                resolution.kind === "absolute" ? absoluteMark :
-                resolution.kind === "external" ? externalMark :
-                unresolvedMark;
-              builder.add(from + match.index, from + match.index + match[0].length, mark);
+              const matchText = match[0];
+              const abs = from + match.index;
+              if (matchText.startsWith("@")) {
+                const hashIdx = matchText.indexOf("#");
+                if (hashIdx === -1) {
+                  // Pure sigil ref: apply sigil mark to the whole match
+                  const resolution = resolveChainedRef(matchText);
+                  const mark =
+                    resolution.kind === "contained" ? containedMark :
+                    resolution.kind === "sibling" ? siblingMark :
+                    resolution.kind === "absolute" ? absoluteMark :
+                    resolution.kind === "external" ? externalMark :
+                    unresolvedMark;
+                  builder.add(abs, abs + matchText.length, mark);
+                } else {
+                  // Affordance ref @Sigil#name — entire ref is one affordance reference
+                  builder.add(abs, abs + matchText.length, affordanceMark);
+                }
+              } else {
+                // Standalone #affordance
+                builder.add(abs, abs + matchText.length, affordanceMark);
+              }
             }
           }
           return builder.finish();
@@ -229,6 +264,10 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         textDecoration: "underline wavy",
         textDecorationColor: "var(--danger)",
         textUnderlineOffset: "3px",
+      },
+      ".cm-ref-affordance": {
+        color: "#a07ce8",
+        fontStyle: "italic",
       },
       ".cm-tooltip-autocomplete": {
         background: "var(--bg-primary)",
@@ -281,18 +320,42 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
     hoverTooltip((view, pos) => {
       const line = view.state.doc.lineAt(pos);
       const text = line.text;
-      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*/g;
+      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*/g;
       let match;
       while ((match = localPattern.exec(text)) !== null) {
         const from = line.from + match.index;
         const to = from + match[0].length;
         if (pos >= from && pos <= to) {
-          const resolution = resolveChainedRef(match[0]);
-          if (resolution.kind === "unresolved" || resolution.kind === "external") return null;
-          const displayName = match[0];
-          const summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling"
-            ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
-            : "");
+          const matchText = match[0];
+          const hashIdx = matchText.indexOf("#");
+          const sigilPart = matchText.startsWith("@")
+            ? (hashIdx === -1 ? matchText : matchText.slice(0, hashIdx))
+            : null;
+          const affordancePart = hashIdx !== -1 ? matchText.slice(hashIdx + 1) : null;
+
+          let displayName = matchText;
+          let summary = "";
+
+          if (sigilPart) {
+            const resolution = resolveChainedRef(sigilPart);
+            if (resolution.kind === "unresolved" || resolution.kind === "external") return null;
+            summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling"
+              ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
+              : "");
+            if (affordancePart) {
+              // Find the affordance content in the resolved context
+              const ctx = resolution.kind === "absolute"
+                ? findContextByPath(resolution.path, globalSigilRoot!)
+                : globalSiblings.find((s) => s.name === resolution.path[0]) as unknown as Context | undefined;
+              const aff = findAffordance(ctx as Context | undefined, affordancePart);
+              if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
+              displayName = `${sigilPart}#${affordancePart}`;
+            }
+          } else {
+            // standalone #affordance — no tooltip context available
+            return null;
+          }
+
           return {
             pos: from,
             end: to,
@@ -320,12 +383,75 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
   ];
 }
 
+/** Find any context in the tree whose name matches (case-insensitive). */
+function findContextByName(name: string, root: Context): Context | null {
+  if (resolveRefName(name, [root.name])) return root;
+  for (const child of root.children) {
+    const found = findContextByName(name, child);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Resolve a sigil ref string to its Context node, or null if unresolvable. */
+function resolveRefToContext(sigilRef: string): Context | null {
+  if (!globalSigilRoot) return null;
+  const resolution = resolveChainedRef(sigilRef);
+  if (resolution.kind === "absolute") return findContextByPath(resolution.path, globalSigilRoot);
+  if (resolution.kind === "contained" || resolution.kind === "sibling") {
+    return findContextByName(resolution.path[0], globalSigilRoot);
+  }
+  return null;
+}
+
 function siblingCompletion(context: CompletionContext) {
-  // Match @A@B@C chains or bare @
+  // Case 0: standalone #partial — offer current context's own affordances
+  const standaloneHash = context.matchBefore(/#(?:[a-zA-Z_][\w-]*)?/);
+  if (standaloneHash) {
+    // Only trigger if the # is not preceded by @ (that's Case 1)
+    const lineText = context.state.doc.lineAt(standaloneHash.from).text;
+    const colOfHash = standaloneHash.from - context.state.doc.lineAt(standaloneHash.from).from;
+    const charBefore = colOfHash > 0 ? lineText[colOfHash - 1] : "";
+    const isAfterSigil = /[\w-]/.test(charBefore);
+    if (!isAfterSigil && globalCurrentContext && globalCurrentContext.affordances.length > 0) {
+      return {
+        from: standaloneHash.from,
+        options: globalCurrentContext.affordances.map((a) => ({
+          label: `#${toDashForm(a.name)}`,
+          detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+          type: "property" as const,
+        })),
+        filter: true,
+      };
+    }
+  }
+
+  // Case 1: @Sigil#partial or @Root@Child#partial — offer affordance names
+  const beforeAffordance = context.matchBefore(/@(?:[a-zA-Z_][\w-]*@)*[a-zA-Z_][\w-]*#(?:[a-zA-Z_][\w-]*)?/);
+  if (beforeAffordance) {
+    const text = beforeAffordance.text;
+    const hashIdx = text.indexOf("#");
+    const sigilRef = text.slice(0, hashIdx);
+    const ctx = resolveRefToContext(sigilRef);
+    if (ctx && ctx.affordances.length > 0) {
+      return {
+        from: beforeAffordance.from,
+        options: ctx.affordances.map((a) => ({
+          label: `${sigilRef}#${toDashForm(a.name)}`,
+          detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+          type: "property" as const,
+        })),
+        filter: true,
+      };
+    }
+    return null;
+  }
+
+  // Case 2: @A@B@C chains or bare @ — offer sigil names / children
   const before = context.matchBefore(/@(?:[a-zA-Z_][\w-]*@)*(?:[a-zA-Z_][\w-]*)?/);
   if (!before) return null;
 
-  const typed = before.text; // e.g. "@Sigil@Shaping@" or "@Sig"
+  const typed = before.text;
   const segments = typed.slice(1).split("@");
 
   // Single segment — offer local siblings
@@ -344,9 +470,8 @@ function siblingCompletion(context: CompletionContext) {
 
   // Multi-segment — resolve prefix, offer children
   if (!globalSigilRoot) return null;
-  const prefix = segments.slice(0, -1); // already-typed complete segments
+  const prefix = segments.slice(0, -1);
 
-  // First segment must be root name
   const rootCanonical = resolveRefName(prefix[0], [globalSigilRoot.name]);
   if (!rootCanonical) return null;
 
@@ -360,18 +485,30 @@ function siblingCompletion(context: CompletionContext) {
     ctx = child;
   }
 
-  if (ctx.children.length === 0) return null;
   const prefixStr = "@" + resolvedParts.join("@") + "@";
+  const options: { label: string; detail: string; type: "variable" | "property" }[] = [];
 
-  return {
-    from: before.from,
-    options: ctx.children.map((child) => ({
+  // Offer child sigils
+  for (const child of ctx.children) {
+    options.push({
       label: `${prefixStr}${child.name}`,
       detail: (child.domain_language || "").split("\n").filter((l) => l.trim())[0]?.slice(0, 50) || "",
-      type: "variable" as const,
-    })),
-    filter: true,
-  };
+      type: "variable",
+    });
+  }
+
+  // Also offer affordances of the resolved context via #
+  const sigilRefStr = "@" + resolvedParts.join("@");
+  for (const aff of ctx.affordances) {
+    options.push({
+      label: `${sigilRefStr}#${toDashForm(aff.name)}`,
+      detail: aff.content.split("\n")[0]?.slice(0, 50) || "",
+      type: "property",
+    });
+  }
+
+  if (options.length === 0) return null;
+  return { from: before.from, options, filter: true };
 }
 
 /** Find the @reference name at the cursor position, if any. */
@@ -438,7 +575,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil, onNavigateToAbsPath, keybindings = {} }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil, onNavigateToAbsPath, keybindings = {} }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -467,7 +604,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
-        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null)),
+        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         autocompletion({
           override: [siblingCompletion],
@@ -486,13 +623,17 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos === null) return false;
             const line = view.state.doc.lineAt(pos);
-            const refPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*/g;
+            // Include optional #affordance suffix so clicking anywhere in @Sigil#aff navigates
+            const refPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?/g;
             let match;
             while ((match = refPattern.exec(line.text)) !== null) {
               const from = line.from + match.index;
               const to = from + match[0].length;
               if (pos >= from && pos <= to) {
-                const resolution = resolveChainedRef(match[0]);
+                // Strip #affordance before resolving — navigation targets the sigil, not the affordance
+                const hashIdx = match[0].indexOf("#");
+                const sigilRef = hashIdx === -1 ? match[0] : match[0].slice(0, hashIdx);
+                const resolution = resolveChainedRef(sigilRef);
                 if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
                   onNavigateAbsPathRef.current(resolution.path);
                   event.preventDefault();
@@ -561,9 +702,9 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null)),
+      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
     });
-  }, [siblingNames, siblings, sigilRoot]);
+  }, [siblingNames, siblings, sigilRoot, currentContext]);
 
   // Toggle word wrap
   useEffect(() => {

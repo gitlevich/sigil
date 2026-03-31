@@ -62,15 +62,15 @@ export function EditorToolbar() {
           Language
         </button>
         <button
-          className={`${styles.contentTab} ${contentTab === "map" ? styles.contentTabActive : ""}`}
-          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } })}
-          title={`Map — drag between sigils to declare relationships (${ds("facet-map")})`}
+          className={`${styles.contentTab} ${contentTab === "atlas" ? styles.contentTabActive : ""}`}
+          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "atlas" } })}
+          title={`Atlas — spatial map of all sigils (${ds("facet-map")})`}
         >
-          Map
+          Atlas
         </button>
       </div>
 
-      {contentTab !== "map" && (
+      {contentTab !== "atlas" && (
         <div className={styles.viewModes}>
           <button
             className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}

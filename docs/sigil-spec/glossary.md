@@ -22,7 +22,7 @@
 
 ### Atlas
 
-### Ontology
+### Trajectory
 
 ## Shaping
 

@@ -1,0 +1,1 @@
+The sigil is opens in the editor

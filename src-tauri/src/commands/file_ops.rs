@@ -19,6 +19,15 @@ pub fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn delete_file(path: String) -> Result<(), String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Ok(()); // idempotent
+    }
+    fs::remove_file(&path).map_err(|e| format!("Failed to delete {}: {}", path, e))
+}
+
+#[tauri::command]
 pub fn reveal_in_finder(path: String) -> Result<(), String> {
     Command::new("open")
         .arg(&path)

@@ -16,3 +16,13 @@ The complete sigil is a tree of trajectories grown from a single origin. It is a
 The sigil has two dimensions. The @Narrative record the time-like history of narration — the sequence of bursts that grew each trajectory. The @Atlas shows the space-like structure — the current arrangement of sigils, their boundaries, and their relationships. Together they are the complete artifact: given to the @DesignPartner to inhabit, or to Claude Code to implement the deterministic parts.
 
 @Shaping grows the trajectories. @Navigation traverses them. @Distillation refines their precision and resolution until the projection is unambiguous where it must be.
+
+
+@Navigation#Directly navigate to a sigil
+
+
+
+
+
+
+

@@ -12,7 +12,7 @@ interface PersistedDocState {
   leftPanelTab: "vision" | "ontology";
   rightPanelOpen: boolean;
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "map";
+  contentTab: "language" | "atlas";
   activeChatId: string;
   wordWrap: boolean;
 }
