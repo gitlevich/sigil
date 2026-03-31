@@ -7,7 +7,7 @@ export interface Affordance {
   content: string;
 }
 
-export interface Contrast {
+export interface Signal {
   name: string;
   content: string;
 }
@@ -17,7 +17,7 @@ export interface Context {
   path: string;
   domain_language: string;
   affordances: Affordance[];
-  contrasts: Contrast[];
+  signals: Signal[];
   children: Context[];
 }
 

@@ -13,7 +13,7 @@ interface OntologyNode {
   fsPath: string;
   depth: number;
   affordances: string[];
-  contrasts: string[];
+  signals: string[];
   children: OntologyNode[];
 }
 
@@ -30,7 +30,7 @@ function buildOntology(ctx: Context, path: string[], depth: number): OntologyNod
     fsPath: ctx.path,
     depth,
     affordances: ctx.affordances.map((a) => a.name),
-    contrasts: ctx.contrasts.map((c) => c.name),
+    signals: ctx.signals.map((c) => c.name),
     children: ctx.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
   };
 }
@@ -200,13 +200,14 @@ function OntologyItem({
         </button>
       </div>
 
-      {(node.contrasts.length > 0 || node.affordances.length > 0) && (
+      {(node.signals.length > 0 || node.affordances.length > 0) && (
         <div className={styles.propertyList}>
-          {node.contrasts.map((name) => (
-            <span key={`c-${name}`} className={styles.iconWrap} title={`!${name}`}>
+          {node.signals.map((name) => (
+            <span key={`s-${name}`} className={styles.iconWrap} title={`!${name}`}>
               <svg width="12" height="12" viewBox="0 0 14 14">
-                <line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.2" />
-                <circle cx="7" cy="5" r="2.5" fill="currentColor" />
+                <circle cx="7" cy="11" r="1.5" fill="currentColor" />
+                <path d="M4.5 9 a3.5 3.5 0 0 1 5 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                <path d="M2 6.5 a6 6 0 0 1 10 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
             </span>
           ))}

@@ -216,13 +216,13 @@ export function EditorShell() {
           <>
             <SigilPropertyEditor
               sigilPath={currentCtx.path}
-              filePrefix="contrast"
-              title="Contrasts"
+              filePrefix="signal"
+              title="Signals"
               refPrefix="!"
               color="#e8a040"
               namePlaceholder="dimension name"
               contentPlaceholder="preferred range along this dimension..."
-              items={currentCtx.contrasts}
+              items={currentCtx.signals}
               onReload={() => reload(doc.sigil.root_path).then(() => {})}
             />
             <SigilPropertyEditor

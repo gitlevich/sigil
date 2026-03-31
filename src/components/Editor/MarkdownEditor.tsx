@@ -80,7 +80,7 @@ const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
-const contrastMark = Decoration.mark({ class: "cm-ref-contrast" });
+const signalMark = Decoration.mark({ class: "cm-ref-signal" });
 
 let globalSiblings: SiblingInfo[] = [];
 let globalSigilRoot: Context | null = null;
@@ -103,7 +103,7 @@ function findAffordance(ctx: Context | undefined, dashedName: string): Affordanc
   return ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
 }
 
-// Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !contrast
+// Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !signal
 const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
 
 /** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
@@ -230,8 +230,8 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                   builder.add(abs, abs + matchText.length, affordanceMark);
                 }
               } else if (matchText.startsWith("!")) {
-                // Standalone !contrast
-                builder.add(abs, abs + matchText.length, contrastMark);
+                // Standalone !signal
+                builder.add(abs, abs + matchText.length, signalMark);
               } else {
                 // Standalone #affordance
                 builder.add(abs, abs + matchText.length, affordanceMark);
@@ -273,7 +273,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         color: "#a07ce8",
         fontStyle: "italic",
       },
-      ".cm-ref-contrast": {
+      ".cm-ref-signal": {
         color: "#e8a040",
         fontStyle: "italic",
       },
@@ -360,15 +360,15 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               displayName = `${sigilPart}#${affordancePart}`;
             }
           } else if (matchText.startsWith("!")) {
-            // standalone !contrast — look up in current context
+            // standalone !signal — look up in current context
             if (!globalCurrentContext) return null;
-            const contrastName = matchText.slice(1);
-            const contrast = globalCurrentContext.contrasts.find(
-              (c) => c.name === contrastName || c.name === fromDashForm(contrastName)
+            const signalName = matchText.slice(1);
+            const signal = globalCurrentContext.signals.find(
+              (c) => c.name === signalName || c.name === fromDashForm(signalName)
             );
-            if (!contrast) return null;
+            if (!signal) return null;
             displayName = matchText;
-            summary = contrast.content.split("\n").slice(0, 3).join("\n");
+            summary = signal.content.split("\n").slice(0, 3).join("\n");
           } else {
             // standalone #affordance — look up in current context
             if (!globalCurrentContext) return null;
@@ -448,17 +448,17 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Case 0b: standalone !partial — offer current context's own contrasts
+  // Case 0b: standalone !partial — offer current context's own signals
   const standaloneBang = context.matchBefore(/!(?:[a-zA-Z_][\w-]*)?/);
   if (standaloneBang) {
     const lineText = context.state.doc.lineAt(standaloneBang.from).text;
     const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
     const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
     const isAfterWord = /[\w-]/.test(charBefore);
-    if (!isAfterWord && globalCurrentContext && globalCurrentContext.contrasts.length > 0) {
+    if (!isAfterWord && globalCurrentContext && globalCurrentContext.signals.length > 0) {
       return {
         from: standaloneBang.from,
-        options: globalCurrentContext.contrasts.map((c) => ({
+        options: globalCurrentContext.signals.map((c) => ({
           label: `!${toDashForm(c.name)}`,
           detail: c.content.split("\n")[0]?.slice(0, 50) || "",
           type: "property" as const,
