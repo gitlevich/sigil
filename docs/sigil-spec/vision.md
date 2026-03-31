@@ -6,4 +6,4 @@ The @DesignPartner inhabits that memory. It re-enters every trajectory, speaks t
 
 When the trajectories are precise enough, the projection into code is deterministic. You hand the sigil to Claude Code. What remains unspecified was unspecified by design — free dimensions the implementing agent fills without contradiction.
 
-The sigil has two dimensions at runtime: the @Edits, which record the time-like history of narration as it grew, and the @Map, which shows the space-like structure as it stands now. Together they are the complete artifact.
+The sigil has two dimensions at runtime: the @Narrative, which record the time-like history of narration as it grew, and the @Atlas, which shows the space-like structure as it stands now. Together they are the complete artifact.

@@ -33,8 +33,6 @@ const WrapIcon = () => (
   </svg>
 );
 
-type Facet = "ux" | "language" | "architecture" | "implementation";
-
 export function EditorToolbar() {
   const dispatch = useAppDispatch();
   const doc = useDocument();
@@ -42,20 +40,8 @@ export function EditorToolbar() {
   if (!doc) return null;
 
   const contentTab = doc.contentTab || "language";
-  const activeFacet: Facet = doc.activeFacet ?? "language";
   const kb = state.settings.keybindings || DEFAULT_KEYBINDINGS;
   const ds = (key: keyof typeof kb) => toDisplayShortcut(kb[key]);
-
-  const FACETS: { key: Facet; label: string; title: string }[] = [
-    { key: "ux", label: "UX", title: `User experience (${ds("facet-ux")})` },
-    { key: "language", label: "Language", title: `Domain language (${ds("facet-language")})` },
-    { key: "architecture", label: "Architecture", title: `Architecture notes (${ds("facet-architecture")})` },
-    { key: "implementation", label: "Implementation", title: `Implementation details (${ds("facet-implementation")})` },
-  ];
-
-  const setFacet = (facet: Facet) => {
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { activeFacet: facet, contentTab: "language" } });
-  };
 
   const setMode = (mode: "edit" | "split" | "preview") => {
     dispatch({ type: "UPDATE_DOCUMENT", updates: { editorMode: mode } });
@@ -68,16 +54,13 @@ export function EditorToolbar() {
   return (
     <div className={styles.toolbar}>
       <div className={styles.contentTabs}>
-        {FACETS.map(({ key, label, title }) => (
-          <button
-            key={key}
-            className={`${styles.contentTab} ${contentTab === "language" && activeFacet === key ? styles.contentTabActive : ""}`}
-            onClick={() => setFacet(key)}
-            title={title}
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          className={`${styles.contentTab} ${contentTab === "language" ? styles.contentTabActive : ""}`}
+          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "language" } })}
+          title="Language"
+        >
+          Language
+        </button>
         <button
           className={`${styles.contentTab} ${contentTab === "map" ? styles.contentTabActive : ""}`}
           onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "map" } })}

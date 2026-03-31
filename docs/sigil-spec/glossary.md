@@ -16,23 +16,23 @@
 
 ## Edit
 
-## Invariants
+## Contrasts
 
 ## Navigation
 
-### Map
+### Atlas
 
-### Tree
+### Ontology
 
 ## Shaping
 
 ### Affordance
 
-### ContainmentHierarchy
+### Hierarchy
 
-### Neighbors
+### Observation
 
-#### Relationships
+#### Frame
 
-### Structure
+### Sigil
 ## burst

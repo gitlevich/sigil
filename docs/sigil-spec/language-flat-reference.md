@@ -31,7 +31,7 @@ An affordance is a capability that a contained sigil exposes to its siblings. Ev
 
 Affordances are addressed with `@Sigil.affordance` notation.
 
-## Relationships
+## Frame
 
 Sibling sigils can declare relationships — formal edges with strategic design policies:
 
@@ -43,7 +43,7 @@ Sibling sigils can declare relationships — formal edges with strategic design 
 - **Anticorruption Layer** — directional, downstream translates
 - **Separate Ways** — no relationship
 
-## Invariants
+## Contrasts
 
 Named contrasts the author explicitly cares about, each with a preference range along its axis. Each declared invariant fixes one dimension of the trajectory. What is not declared stays in superposition — a free direction the trajectory did not specify.
 
@@ -55,15 +55,15 @@ The partner can modify the sigil directly: create sigils, write language, rename
 
 Response style is configurable: **laconic** (default) or **detailed**.
 
-## Edits
+## Narrative
 
 The growth history of a trajectory. Each edit is a delta to a sigil's narration, timestamped, with a snapshot of the upstream state when it was written.
 
 Edits cluster into **bursts** — sessions of focused attention separated by **lulls**. The lull threshold is derived from the bimodal distribution of inter-edit gaps.
 
-## Map
+## Atlas
 
-The space-like view of the sigil. A rectangular treemap: the open sigil fills the area, contained sigils are named cells, deeper structure renders as anonymous subdivision. Relationship edges render between cells.
+The space-like view of the sigil. A collection of maps, one per sigil. Each map shows the sigil at its own scale: contained sigils are named cells, deeper structure as anonymous subdivision. Relationships between neighbors are edges connecting cells.
 
 **FocusedMode** — one level of containment at a time.
 **RevealedMode** — full recursive depth, deeper structure as anonymous texture.

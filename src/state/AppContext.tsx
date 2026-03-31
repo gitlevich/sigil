@@ -16,7 +16,6 @@ export interface OpenDocument {
   highlightedChild: string | null;
   wordWrap: boolean;
   renamingRequest: boolean;
-  activeFacet: "ux" | "language" | "architecture" | "implementation";
 }
 
 export interface UIState {

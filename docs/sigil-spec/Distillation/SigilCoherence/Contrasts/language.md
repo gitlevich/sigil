@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Invariants
+# Contrasts
 
 A declared axis — a contrast or property the author explicitly cares about. An invariant defines the membrane along one dimension: it states what must hold regardless of implementation choices, and specifies a preference range along that axis.
 
