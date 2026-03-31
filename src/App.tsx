@@ -65,7 +65,7 @@ export function App({ initialRootPath }: AppProps) {
             leftPanelTab: saved.leftPanelTab === "ontology" ? "ontology" : "vision",
             rightPanelOpen: saved.rightPanelOpen,
             editorMode: saved.editorMode,
-            contentTab: (["entanglements", "integrations", "map"].includes(saved.contentTab as string)) ? "atlas" : (saved.contentTab || "language"),
+            contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
             activeChatId: saved.activeChatId ?? "",
             chatMessages,
             wordWrap: saved.wordWrap ?? false,

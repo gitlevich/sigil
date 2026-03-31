@@ -281,20 +281,23 @@
   padding: 0.5rem;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  align-items: flex-end;
 }
 
 .input {
   flex: 1;
-  padding: 0.4rem 0.6rem;
+  padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: var(--content-font-size, 16px);
   font-family: inherit;
-  resize: none;
-  min-height: 4.5rem;
-  max-height: 6rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 7rem;
+  max-height: 18rem;
+  overflow-y: auto;
   outline: none;
 }
 
