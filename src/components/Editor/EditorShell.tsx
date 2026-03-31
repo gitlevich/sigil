@@ -216,17 +216,6 @@ export function EditorShell() {
           <>
             <SigilPropertyEditor
               sigilPath={currentCtx.path}
-              filePrefix="signal"
-              title="Relevant Signals"
-              refPrefix="!"
-              color="#e8a040"
-              namePlaceholder="I care about..."
-              contentPlaceholder="because..."
-              items={currentCtx.signals}
-              onReload={() => reload(doc.sigil.root_path).then(() => {})}
-            />
-            <SigilPropertyEditor
-              sigilPath={currentCtx.path}
               filePrefix="affordance"
               title="Affordances"
               refPrefix="#"
@@ -234,6 +223,17 @@ export function EditorShell() {
               namePlaceholder="I need to..."
               contentPlaceholder="so that..."
               items={currentCtx.affordances}
+              onReload={() => reload(doc.sigil.root_path).then(() => {})}
+            />
+            <SigilPropertyEditor
+              sigilPath={currentCtx.path}
+              filePrefix="signal"
+              title="Relevant Signals"
+              refPrefix="!"
+              color="#e8a040"
+              namePlaceholder="I care about..."
+              contentPlaceholder="because..."
+              items={currentCtx.signals}
               onReload={() => reload(doc.sigil.root_path).then(() => {})}
             />
           </>
