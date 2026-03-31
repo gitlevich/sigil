@@ -48,17 +48,25 @@ function PropertyItem({
   color,
   namePlaceholder,
   contentPlaceholder,
+  isDragOver,
   onNameCommit,
   onContentChange,
   onDelete,
+  onDragStart,
+  onDragOver,
+  onDrop,
 }: {
   item: LocalItem;
   color: string;
   namePlaceholder: string;
   contentPlaceholder: string;
+  isDragOver: boolean;
   onNameCommit: (newName: string) => void;
   onContentChange: (content: string) => void;
   onDelete: () => void;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
 }) {
   const [nameValue, setNameValue] = useState(item.name);
   const contentBeforeEdit = useRef(item.content);
@@ -77,8 +85,15 @@ function PropertyItem({
   }, []);
 
   return (
-    <div className={styles.item}>
+    <div
+      className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""}`}
+      draggable
+      onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+      onDragOver={onDragOver}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+    >
       <div className={styles.itemHeader}>
+        <span className={styles.dragHandle} title="Drag to reorder">⠿</span>
         <input
           className={styles.nameInput}
           style={{ "--property-color": color } as React.CSSProperties}
@@ -141,12 +156,38 @@ export function SigilPropertyEditor({
 }: SigilPropertyEditorProps) {
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragSourceIndex = useRef<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  const orderPath = `${sigilPath}/${filePrefix}.order`;
+
+  const applyOrder = useCallback((raw: LocalItem[], order: string[]): LocalItem[] => {
+    const indexed = new Map(raw.map((item) => [item.savedName, item]));
+    const ordered = order.flatMap((name) => indexed.has(name) ? [indexed.get(name)!] : []);
+    const rest = raw.filter((item) => !order.includes(item.savedName));
+    return [...ordered, ...rest];
+  }, []);
+
   useEffect(() => {
-    setItems(externalItems.map((a) => ({ savedName: a.name, name: a.name, content: a.content })));
+    const raw = externalItems.map((a) => ({ savedName: a.name, name: a.name, content: a.content }));
+    api.readFile(orderPath)
+      .then((json) => {
+        try {
+          const order: string[] = JSON.parse(json);
+          setItems(applyOrder(raw, order));
+        } catch {
+          setItems(raw);
+        }
+      })
+      .catch(() => setItems(raw));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sigilPath]);
+
+  const saveOrder = useCallback((ordered: LocalItem[]) => {
+    const names = ordered.map((i) => i.savedName).filter(Boolean);
+    api.writeFile(orderPath, JSON.stringify(names)).catch(console.error);
+  }, [orderPath]);
 
   const scheduleSave = useCallback((name: string, content: string) => {
     clearTimeout(saveTimers.current[name]);
@@ -169,22 +210,44 @@ export function SigilPropertyEditor({
       await api.deleteFile(`${sigilPath}/${filePrefix}-${savedName}.md`).catch(console.error);
     }
     await api.writeFile(`${sigilPath}/${filePrefix}-${slugged}.md`, item.content).catch(console.error);
-    setItems((prev) => prev.map((a) => a.savedName === savedName ? { ...a, savedName: slugged, name: slugged } : a));
+    setItems((prev) => {
+      const updated = prev.map((a) => a.savedName === savedName ? { ...a, savedName: slugged, name: slugged } : a);
+      saveOrder(updated);
+      return updated;
+    });
     await onReload();
-  }, [items, sigilPath, filePrefix, onReload]);
+  }, [items, sigilPath, filePrefix, onReload, saveOrder]);
 
   const handleDelete = useCallback(async (savedName: string) => {
     if (savedName) {
       await api.deleteFile(`${sigilPath}/${filePrefix}-${savedName}.md`).catch(console.error);
     }
-    setItems((prev) => prev.filter((a) => a.savedName !== savedName));
+    setItems((prev) => {
+      const updated = prev.filter((a) => a.savedName !== savedName);
+      saveOrder(updated);
+      return updated;
+    });
     if (savedName) await onReload();
-  }, [sigilPath, filePrefix, onReload]);
+  }, [sigilPath, filePrefix, onReload, saveOrder]);
 
   const handleAdd = useCallback(() => {
     setItems((prev) => [...prev, { savedName: "", name: "", content: "" }]);
     setCollapsed(false);
   }, []);
+
+  const handleDrop = useCallback((targetIndex: number) => {
+    const src = dragSourceIndex.current;
+    if (src === null || src === targetIndex) { setDragOverIndex(null); return; }
+    setItems((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(src, 1);
+      next.splice(targetIndex, 0, moved);
+      saveOrder(next);
+      return next;
+    });
+    dragSourceIndex.current = null;
+    setDragOverIndex(null);
+  }, [saveOrder]);
 
   return (
     <div className={styles.editor} style={{ "--property-color": color } as React.CSSProperties}>
@@ -213,9 +276,13 @@ export function SigilPropertyEditor({
               color={color}
               namePlaceholder={namePlaceholder}
               contentPlaceholder={contentPlaceholder}
+              isDragOver={dragOverIndex === i}
               onContentChange={(c) => handleContentChange(item.savedName, c)}
               onNameCommit={(n) => handleNameCommit(item.savedName, n)}
               onDelete={() => handleDelete(item.savedName)}
+              onDragStart={() => { dragSourceIndex.current = i; }}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
+              onDrop={() => handleDrop(i)}
             />
           ))}
         </div>
