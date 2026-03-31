@@ -1,43 +1,171 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDocument, useAppDispatch } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
 import styles from "./Map.module.css";
 
-export type Policy =
-  | "shared-kernel"
-  | "published-language"
-  | "customer-supplier"
-  | "conformist"
-  | "anticorruption-layer"
-  | "separate-ways";
+// --- Treemap layout ---
 
-export interface Relationship {
-  from: string; // context name (upstream / source)
-  to: string;   // context name (downstream / target)
-  policy: Policy;
-}
-
-export interface MapData {
-  relationships: Relationship[];
-}
-
-const POLICY_LABELS: Record<Policy, string> = {
-  "shared-kernel": "Shared Kernel",
-  "published-language": "Published Language",
-  "customer-supplier": "Customer-Supplier",
-  "conformist": "Conformist",
-  "anticorruption-layer": "Anticorruption Layer",
-  "separate-ways": "Separate Ways",
-};
-
-const SYMMETRIC_POLICIES: Policy[] = ["shared-kernel", "published-language", "separate-ways"];
-
-interface NodePos {
-  name: string;
+interface Rect {
   x: number;
   y: number;
+  w: number;
+  h: number;
 }
+
+interface WeightedItem {
+  ctx: Context;
+  weight: number;
+}
+
+interface LayoutRect extends Rect {
+  ctx: Context;
+}
+
+/** Recursive weight: 1 (self) + descendant sigil count. A leaf weighs 1. */
+function computeWeight(ctx: Context): number {
+  return 1 + ctx.children.reduce((s, c) => s + computeWeight(c), 0);
+}
+
+/**
+ * Squarified treemap layout (Bruls, Huizing, van Wijk 1999).
+ * Partitions `items` into `rect`, producing one LayoutRect per item.
+ */
+function squarify(items: WeightedItem[], rect: Rect): LayoutRect[] {
+  if (items.length === 0) return [];
+  if (items.length === 1) {
+    return [{ ...rect, ctx: items[0].ctx }];
+  }
+
+  const totalWeight = items.reduce((s, it) => s + it.weight, 0);
+  if (totalWeight === 0) return [];
+
+  // Sort descending by weight for better aspect ratios
+  const sorted = [...items].sort((a, b) => b.weight - a.weight);
+
+  const results: LayoutRect[] = [];
+  layoutStrip(sorted, rect, totalWeight, results);
+  return results;
+}
+
+function layoutStrip(
+  items: WeightedItem[],
+  rect: Rect,
+  totalWeight: number,
+  results: LayoutRect[],
+) {
+  if (items.length === 0) return;
+  if (items.length === 1) {
+    results.push({ ...rect, ctx: items[0].ctx });
+    return;
+  }
+
+  const isWide = rect.w >= rect.h;
+
+  // Greedily add items to current row until aspect ratio worsens
+  let rowWeight = 0;
+  let bestAspect = Infinity;
+  let splitAt = 1;
+
+  for (let i = 0; i < items.length; i++) {
+    rowWeight += items[i].weight;
+    const rowFraction = rowWeight / totalWeight;
+    const stripSize = isWide ? rect.w * rowFraction : rect.h * rowFraction;
+    const crossSize = isWide ? rect.h : rect.w;
+
+    // Worst aspect ratio in this row
+    let worst = 0;
+    let runWeight = 0;
+    for (let j = 0; j <= i; j++) {
+      runWeight += items[j].weight;
+      const itemFraction = items[j].weight / rowWeight;
+      const itemSize = crossSize * itemFraction;
+      const aspect = Math.max(stripSize / itemSize, itemSize / stripSize);
+      worst = Math.max(worst, aspect);
+    }
+
+    if (worst <= bestAspect) {
+      bestAspect = worst;
+      splitAt = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  // Lay out the row
+  const rowItems = items.slice(0, splitAt);
+  const restItems = items.slice(splitAt);
+  const rowTotalWeight = rowItems.reduce((s, it) => s + it.weight, 0);
+  const rowFraction = rowTotalWeight / totalWeight;
+
+  let rowRect: Rect;
+  let restRect: Rect;
+
+  if (isWide) {
+    const stripW = rect.w * rowFraction;
+    rowRect = { x: rect.x, y: rect.y, w: stripW, h: rect.h };
+    restRect = { x: rect.x + stripW, y: rect.y, w: rect.w - stripW, h: rect.h };
+  } else {
+    const stripH = rect.h * rowFraction;
+    rowRect = { x: rect.x, y: rect.y, w: rect.w, h: stripH };
+    restRect = { x: rect.x, y: rect.y + stripH, w: rect.w, h: rect.h - stripH };
+  }
+
+  // Place items within the row strip
+  let offset = 0;
+  for (const item of rowItems) {
+    const fraction = item.weight / rowTotalWeight;
+    if (isWide) {
+      const itemH = rowRect.h * fraction;
+      results.push({
+        x: rowRect.x,
+        y: rowRect.y + offset,
+        w: rowRect.w,
+        h: itemH,
+        ctx: item.ctx,
+      });
+      offset += itemH;
+    } else {
+      const itemW = rowRect.w * fraction;
+      results.push({
+        x: rowRect.x + offset,
+        y: rowRect.y,
+        w: itemW,
+        h: rowRect.h,
+        ctx: item.ctx,
+      });
+      offset += itemW;
+    }
+  }
+
+  // Recurse for remaining items
+  if (restItems.length > 0) {
+    const restWeight = totalWeight - rowTotalWeight;
+    layoutStrip(restItems, restRect, restWeight, results);
+  }
+}
+
+// --- Depth styling: greyscale, deepest is darkest, leaves are near-white ---
+
+/** Compute the maximum nesting depth of a context tree. */
+function maxDepth(ctx: Context): number {
+  if (ctx.children.length === 0) return 0;
+  return 1 + Math.max(...ctx.children.map(maxDepth));
+}
+
+// Root matches app background, leaves are darkest. Step calculated from max depth.
+const ROOT_LIGHTNESS = 95;
+const LEAF_LIGHTNESS = 70;
+
+function depthStyle(depth: number, totalDepth: number): React.CSSProperties {
+  const step = totalDepth > 0 ? (ROOT_LIGHTNESS - LEAF_LIGHTNESS) / totalDepth : 0;
+  const lightness = Math.max(LEAF_LIGHTNESS, ROOT_LIGHTNESS - depth * step);
+  const bg = `hsl(0, 0%, ${lightness}%)`;
+  const color = lightness > 55 ? "hsl(0, 0%, 10%)" : "hsl(0, 0%, 95%)";
+  return { background: bg, color };
+}
+
+// --- Components ---
 
 function findContext(root: Context, path: string[]): Context {
   let current = root;
@@ -49,42 +177,133 @@ function findContext(root: Context, path: string[]): Context {
   return current;
 }
 
+const HEADER_HEIGHT = 28;
+const ICON_ROW_HEIGHT = 24;
+const FRAME_PAD = 6;
+
+function TreemapRect({
+  layout,
+  depth,
+  totalDepth,
+  revealed,
+  selectedName,
+  onSelect,
+  onNavigate,
+  onContextMenu,
+}: {
+  layout: LayoutRect;
+  depth: number;
+  totalDepth: number;
+  revealed: boolean;
+  selectedName: string | null;
+  onSelect: (name: string) => void;
+  onNavigate: (ctx: Context) => void;
+  onContextMenu: (e: React.MouseEvent, ctx: Context) => void;
+}) {
+  const { ctx, x, y, w, h } = layout;
+  const isSelected = selectedName === ctx.name;
+  const hasIcons = ctx.contrasts.length > 0 || ctx.affordances.length > 0;
+  const showIcons = hasIcons && w > 30 && h > 46;
+
+  // In revealed mode, compute nested children layout
+  const childLayouts = revealed && ctx.children.length > 0
+    ? (() => {
+        const contentTop = HEADER_HEIGHT + (showIcons ? ICON_ROW_HEIGHT : 0);
+        const innerRect: Rect = {
+          x: FRAME_PAD,
+          y: contentTop,
+          w: Math.max(0, w - FRAME_PAD * 2),
+          h: Math.max(0, h - contentTop - FRAME_PAD),
+        };
+        if (innerRect.w < 10 || innerRect.h < 10) return [];
+        const items: WeightedItem[] = ctx.children.map((c) => ({
+          ctx: c,
+          weight: computeWeight(c),
+        }));
+        return squarify(items, innerRect);
+      })()
+    : [];
+
+  // Labels use --content-font-size via CSS; no inline override needed
+
+  return (
+    <div
+      className={`${styles.rect} ${isSelected ? styles.rectSelected : ""}`}
+      style={{
+        left: x,
+        top: y,
+        width: w,
+        height: h,
+        ...depthStyle(depth, totalDepth),
+      }}
+      onClick={(e) => { e.stopPropagation(); onSelect(ctx.name); }}
+      onDoubleClick={(e) => { e.stopPropagation(); onNavigate(ctx); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, ctx); }}
+    >
+      {w > 30 && h > 16 && (
+        <div className={styles.rectLabel}>
+          {ctx.name}
+        </div>
+      )}
+      {showIcons && (
+        <div className={styles.rectIcons}>
+          {ctx.contrasts.map((c) => (
+            <span key={`c-${c.name}`} className={styles.iconWrap} title={`!${c.name}`}>
+              <svg width="14" height="14" viewBox="0 0 14 14">
+                {/* Tuning slider: vertical line with a dot */}
+                <line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx="7" cy="5" r="2.5" fill="currentColor" />
+              </svg>
+            </span>
+          ))}
+          {ctx.affordances.map((a) => (
+            <span key={`a-${a.name}`} className={styles.iconWrap} title={`#${a.name}`}>
+              <svg width="14" height="14" viewBox="0 0 14 14">
+                {/* Door handle: plate + lever */}
+                <rect x="2" y="2" width="4" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M6 7 L11 7 L12 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          ))}
+        </div>
+      )}
+      {childLayouts.map((cl) => (
+        <TreemapRect
+          key={cl.ctx.name}
+          layout={cl}
+          depth={depth + 1}
+          totalDepth={totalDepth}
+          revealed={revealed}
+          selectedName={selectedName}
+          onSelect={onSelect}
+          onNavigate={onNavigate}
+          onContextMenu={onContextMenu}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function SigilMap() {
   const doc = useDocument();
   const dispatch = useAppDispatch();
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [relationships, setRelationships] = useState<Relationship[]>([]);
-  const [dragging, setDragging] = useState<{ from: string; mx: number; my: number } | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
-  const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
-  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; name: string; path: string } | null>(null);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height: 400 });
+  const [revealed, setRevealed] = useState(() => {
+    const stored = localStorage.getItem("sigil-map-revealed");
+    return stored === null ? true : stored === "true";
+  });
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; ctx: Context } | null>(null);
   const { reload } = useSigil();
 
   const currentCtx = doc ? findContext(doc.sigil.root, doc.currentPath) : null;
   const children = currentCtx?.children ?? [];
 
-  // Size circles to fit the longest label
-  const longestName = Math.max(...children.map((c) => c.name.length), 1);
-  const NODE_R = Math.max(40, longestName * 5 + 16);
-
-  // Load relationships from disk
-  useEffect(() => {
-    if (!currentCtx) return;
-    const path = `${currentCtx.path}/map.json`;
-    api.readFile(path)
-      .then((content) => {
-        const data: MapData = JSON.parse(content);
-        setRelationships(data.relationships || []);
-      })
-      .catch(() => setRelationships([]));
-  }, [currentCtx?.path]);
-
   // Measure container
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
+    const el = containerRef.current;
+    if (!el) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setDimensions({
@@ -93,329 +312,89 @@ export function SigilMap() {
         });
       }
     });
-    observer.observe(svg);
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
+  // Dismiss context menu on click
   useEffect(() => {
-    const handleClick = () => setNodeMenu(null);
-    if (nodeMenu) {
-      document.addEventListener("click", handleClick);
-      return () => document.removeEventListener("click", handleClick);
-    }
+    if (!nodeMenu) return;
+    const hide = () => setNodeMenu(null);
+    document.addEventListener("click", hide);
+    return () => document.removeEventListener("click", hide);
   }, [nodeMenu]);
 
-  const saveRelationships = useCallback(async (data: Relationship[]) => {
-    if (!currentCtx) return;
-    const path = `${currentCtx.path}/map.json`;
-    const content = JSON.stringify({ relationships: data }, null, 2);
-    await api.writeFile(path, content);
-  }, [currentCtx]);
-
-  // Lay out nodes in a circle
-  const nodePositions: NodePos[] = children.map((child, i) => {
-    const angle = (2 * Math.PI * i) / children.length - Math.PI / 2;
-    const rx = dimensions.width * 0.35;
-    const ry = dimensions.height * 0.35;
-    return {
-      name: child.name,
-      x: dimensions.width / 2 + rx * Math.cos(angle),
-      y: dimensions.height / 2 + ry * Math.sin(angle),
-    };
-  });
-
-  const getPos = (name: string) => nodePositions.find((n) => n.name === name);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    setDragging({
-      ...dragging,
-      mx: e.clientX - rect.left,
-      my: e.clientY - rect.top,
-    });
-  }, [dragging]);
-
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (!dragging || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // Find which node we dropped on
-    const target = nodePositions.find((n) => {
-      const dx = n.x - mx;
-      const dy = n.y - my;
-      return Math.sqrt(dx * dx + dy * dy) < NODE_R;
-    });
-
-    if (target && target.name !== dragging.from) {
-      // Check if edge already exists (in either direction)
-      const exists = relationships.some(
-        (e) =>
-          (e.from === dragging.from && e.to === target.name) ||
-          (e.from === target.name && e.to === dragging.from)
-      );
-      if (!exists) {
-        // Show policy picker at drop point before creating
-        setPendingEdge({ from: dragging.from, to: target.name, x: e.clientX, y: e.clientY });
-      }
-    }
-
-    setDragging(null);
-  }, [dragging, nodePositions, relationships, saveRelationships]);
-
-  const handlePolicyChange = (from: string, to: string, policy: Policy) => {
-    const updated = relationships.map((e) =>
-      e.from === from && e.to === to ? { ...e, policy } : e
-    );
-    setRelationships(updated);
-    saveRelationships(updated);
-    setSelectedEdge(null);
-  };
-
-  const handleDeleteEdge = (from: string, to: string) => {
-    const updated = relationships.filter((e) => !(e.from === from && e.to === to));
-    setRelationships(updated);
-    saveRelationships(updated);
-    setSelectedEdge(null);
-  };
-
-  const handleNodeDoubleClick = (name: string) => {
+  const handleNavigate = (ctx: Context) => {
     if (!doc) return;
-    dispatch({
-      type: "UPDATE_DOCUMENT",
-      updates: { currentPath: [...doc.currentPath, name] },
-    });
+    // Build path from root to this context
+    const path = buildPath(doc.sigil.root, ctx.name, []);
+    if (path) {
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } });
+    }
   };
 
-  if (!doc || children.length === 0) {
-    return (
-      <div className={styles.empty}>
-        No sub-contexts to show. Add contexts to see the map.
-      </div>
-    );
-  }
+  if (!doc) return null;
+
+  // Compute layout and max depth for greyscale scaling
+  const items: WeightedItem[] = children.map((c) => ({
+    ctx: c,
+    weight: computeWeight(c),
+  }));
+  const rootRect: Rect = { x: 0, y: 0, w: dimensions.width, h: dimensions.height };
+  const layouts = children.length > 0 ? squarify(items, rootRect) : [];
+  const deepest = children.length > 0 ? Math.max(...children.map((c) => maxDepth(c))) + 1 : 0;
 
   return (
     <div className={styles.container}>
-      <svg
-        ref={svgRef}
-        className={styles.svg}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onClick={() => {
-          setSelectedEdge(null);
-          setSelectedNode(null);
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { highlightedChild: null } });
-        }}
+      <div
+        ref={containerRef}
+        className={styles.treemap}
+        onClick={() => setSelectedName(null)}
       >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="8"
-            markerHeight="6"
-            refX="8"
-            refY="3"
-            orient="auto"
-          >
-            <polygon points="0 0, 8 3, 0 6" fill="var(--accent)" />
-          </marker>
-        </defs>
-
-        {/* Edges */}
-        {relationships.map((ent) => {
-          const fromPos = getPos(ent.from);
-          const toPos = getPos(ent.to);
-          if (!fromPos || !toPos) return null;
-
-          const isSymmetric = SYMMETRIC_POLICIES.includes(ent.policy);
-          const isSelected = selectedEdge?.from === ent.from && selectedEdge?.to === ent.to;
-
-          // Shorten line to stop at node edge
-          const dx = toPos.x - fromPos.x;
-          const dy = toPos.y - fromPos.y;
-          const len = Math.sqrt(dx * dx + dy * dy);
-          const ux = dx / len;
-          const uy = dy / len;
-          const x1 = fromPos.x + ux * NODE_R;
-          const y1 = fromPos.y + uy * NODE_R;
-          const x2 = toPos.x - ux * (NODE_R + (isSymmetric ? 0 : 8));
-          const y2 = toPos.y - uy * (NODE_R + (isSymmetric ? 0 : 8));
-
-          const midX = (fromPos.x + toPos.x) / 2;
-          const midY = (fromPos.y + toPos.y) / 2;
-
-          const isACL = ent.policy === "anticorruption-layer";
-          const showArrow = !isSymmetric && !isACL;
-
-          // ACL perpendicular mark: a short line near the "to" node (the translator)
-          const aclMarkDist = NODE_R + 12;
-          const aclX = toPos.x - ux * aclMarkDist;
-          const aclY = toPos.y - uy * aclMarkDist;
-          const perpX = -uy * 10; // perpendicular
-          const perpY = ux * 10;
-
-          return (
-            <g key={`${ent.from}-${ent.to}`}>
-              <line
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={isSelected ? "var(--accent)" : "var(--text-secondary)"}
-                strokeWidth={isSelected ? 3 : 2}
-                markerEnd={showArrow ? "url(#arrowhead)" : undefined}
-                style={{ cursor: "pointer" }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEdge({ from: ent.from, to: ent.to });
-                }}
-              />
-              {isACL && (
-                <line
-                  x1={aclX - perpX} y1={aclY - perpY}
-                  x2={aclX + perpX} y2={aclY + perpY}
-                  stroke={isSelected ? "var(--accent)" : "var(--text-secondary)"}
-                  strokeWidth={isSelected ? 3 : 2}
-                  style={{ pointerEvents: "none" }}
-                />
-              )}
-              {/* Clickable label — opens policy picker */}
-              <foreignObject
-                x={midX - 80}
-                y={midY - 16}
-                width="160"
-                height="28"
-                style={{ overflow: "visible" }}
-              >
-                <select
-                  value={ent.policy}
-                  onChange={(e) => {
-                    handlePolicyChange(ent.from, ent.to, e.target.value as Policy);
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    fontSize: "13px",
-                    padding: "2px 6px",
-                    cursor: "pointer",
-                    width: "100%",
-                    textAlign: "center",
-                    outline: "none",
-                  }}
-                >
-                  {(Object.keys(POLICY_LABELS) as Policy[]).map((p) => (
-                    <option key={p} value={p}>{POLICY_LABELS[p]}</option>
-                  ))}
-                </select>
-              </foreignObject>
-            </g>
-          );
-        })}
-
-        {/* Drag line */}
-        {dragging && (() => {
-          const fromPos = getPos(dragging.from);
-          if (!fromPos) return null;
-          return (
-            <line
-              x1={fromPos.x} y1={fromPos.y}
-              x2={dragging.mx} y2={dragging.my}
-              stroke="var(--accent)"
-              strokeWidth="2"
-              strokeDasharray="6 3"
-              markerEnd="url(#arrowhead)"
-              style={{ pointerEvents: "none" }}
+        {layouts.length === 0 ? (
+          <div className={styles.empty}>No sub-contexts to show.</div>
+        ) : (
+          layouts.map((layout) => (
+            <TreemapRect
+              key={layout.ctx.name}
+              layout={layout}
+              depth={0}
+              totalDepth={deepest}
+              revealed={revealed}
+              selectedName={selectedName}
+              onSelect={setSelectedName}
+              onNavigate={handleNavigate}
+              onContextMenu={(e, ctx) => setNodeMenu({ x: e.clientX, y: e.clientY, ctx })}
             />
-          );
-        })()}
+          ))
+        )}
+      </div>
 
-        {/* Nodes */}
-        {nodePositions.map((node) => (
-          <g
-            key={node.name}
-            style={{ cursor: "grab" }}
-            onMouseDown={(e) => {
-              if (e.button !== 2) {
-                e.preventDefault();
-                const rect = svgRef.current!.getBoundingClientRect();
-                setDragging({
-                  from: node.name,
-                  mx: e.clientX - rect.left,
-                  my: e.clientY - rect.top,
-                });
-              }
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              const next = selectedNode === node.name ? null : node.name;
-              setSelectedNode(next);
-              dispatch({
-                type: "UPDATE_DOCUMENT",
-                updates: { highlightedChild: next },
-              });
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const child = children.find((c) => c.name === node.name);
-              if (child) {
-                setNodeMenu({ x: e.clientX, y: e.clientY, name: node.name, path: child.path });
-              }
-            }}
-            onDoubleClick={() => handleNodeDoubleClick(node.name)}
-          >
-            <circle
-              cx={node.x}
-              cy={node.y}
-              r={NODE_R}
-              fill={selectedNode === node.name ? "var(--accent)" : "var(--bg-secondary)"}
-              stroke="var(--accent)"
-              strokeWidth="2"
-            />
-            <text
-              x={node.x}
-              y={node.y + 1}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={selectedNode === node.name ? "var(--accent-text)" : "var(--text-primary)"}
-              fontSize="13"
-              fontWeight="500"
-              style={{ pointerEvents: "none" }}
-            >
-              {node.name}
-            </text>
-          </g>
-        ))}
-      </svg>
+      <div className={styles.modeSwitch}>
+        <button
+          className={`${styles.modeSwitchBtn} ${!revealed ? styles.modeSwitchActive : ""}`}
+          onClick={() => { setRevealed(false); localStorage.setItem("sigil-map-revealed", "false"); }}
+          title="Focused — one level"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="1" y="1" width="14" height="14" rx="1" />
+          </svg>
+        </button>
+        <button
+          className={`${styles.modeSwitchBtn} ${revealed ? styles.modeSwitchActive : ""}`}
+          onClick={() => { setRevealed(true); localStorage.setItem("sigil-map-revealed", "true"); }}
+          title="Revealed — all levels"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="1" y="1" width="14" height="14" rx="1" />
+            <rect x="4" y="4" width="8" height="8" rx="0.5" />
+          </svg>
+        </button>
+      </div>
 
-      {/* Edge selected — show remove option */}
-      {selectedEdge && (() => {
-        const ent = relationships.find(
-          (e) => e.from === selectedEdge.from && e.to === selectedEdge.to
-        );
-        if (!ent) return null;
-
-        return (
-          <div
-            className={styles.policyPopover}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.policyHeader}>
-              {ent.from} &rarr; {ent.to}
-            </div>
-            <button
-              className={styles.deleteEdgeBtn}
-              onClick={() => handleDeleteEdge(ent.from, ent.to)}
-            >
-              Remove integration
-            </button>
-          </div>
-        );
-      })()}
+      <div className={styles.instructions}>
+        Double-click to enter a context. Right-click for options.
+      </div>
 
       {nodeMenu && (
         <div
@@ -423,14 +402,14 @@ export function SigilMap() {
           style={{ left: nodeMenu.x, top: nodeMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className={styles.policyHeader}>{nodeMenu.name}</div>
-          <div className={styles.policyList}>
+          <div className={styles.menuHeader}>{nodeMenu.ctx.name}</div>
+          <div className={styles.menuList}>
             <button
-              className={styles.policyOption}
+              className={styles.menuItem}
               onClick={() => {
-                const name = prompt("Rename:", nodeMenu.name);
+                const name = prompt("Rename:", nodeMenu.ctx.name);
                 if (!name?.trim()) { setNodeMenu(null); return; }
-                api.renameContext(nodeMenu.path, name.trim())
+                api.renameContext(nodeMenu.ctx.path, name.trim())
                   .then(() => doc && reload(doc.sigil.root_path))
                   .catch(console.error);
                 setNodeMenu(null);
@@ -439,19 +418,19 @@ export function SigilMap() {
               Rename
             </button>
             <button
-              className={styles.policyOption}
+              className={styles.menuItem}
               onClick={() => {
-                api.revealInFinder(nodeMenu.path).catch(console.error);
+                api.revealInFinder(nodeMenu.ctx.path).catch(console.error);
                 setNodeMenu(null);
               }}
             >
               Open in Finder
             </button>
             <button
-              className={styles.deleteEdgeBtn}
+              className={styles.menuItemDanger}
               onClick={() => {
-                if (!confirm(`Delete "${nodeMenu.name}" and all its contents?`)) { setNodeMenu(null); return; }
-                api.deleteContext(nodeMenu.path)
+                if (!confirm(`Delete "${nodeMenu.ctx.name}" and all its contents?`)) { setNodeMenu(null); return; }
+                api.deleteContext(nodeMenu.ctx.path)
                   .then(() => doc && reload(doc.sigil.root_path))
                   .catch(console.error);
                 setNodeMenu(null);
@@ -462,45 +441,17 @@ export function SigilMap() {
           </div>
         </div>
       )}
-
-      {pendingEdge && (
-        <div
-          className={styles.nodeContextMenu}
-          style={{ left: pendingEdge.x, top: pendingEdge.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={styles.policyHeader}>
-            {pendingEdge.from} &rarr; {pendingEdge.to}
-          </div>
-          <div className={styles.policyList}>
-            {(Object.keys(POLICY_LABELS) as Policy[]).map((p) => (
-              <button
-                key={p}
-                className={styles.policyOption}
-                onClick={() => {
-                  const newEdge: Relationship = { from: pendingEdge.from, to: pendingEdge.to, policy: p };
-                  const newRelationships = [...relationships, newEdge];
-                  setRelationships(newRelationships);
-                  saveRelationships(newRelationships);
-                  setPendingEdge(null);
-                }}
-              >
-                {POLICY_LABELS[p]}
-              </button>
-            ))}
-          </div>
-          <button
-            className={styles.deleteEdgeBtn}
-            onClick={() => setPendingEdge(null)}
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-
-      <div className={styles.instructions}>
-        Drag between sigils to entangle. Click an edge to change policy. Double-click a sigil to enter it.
-      </div>
     </div>
   );
+}
+
+/** Find path from root to a context by name (DFS). */
+function buildPath(ctx: Context, targetName: string, path: string[]): string[] | null {
+  for (const child of ctx.children) {
+    const childPath = [...path, child.name];
+    if (child.name === targetName) return childPath;
+    const found = buildPath(child, targetName, childPath);
+    if (found) return found;
+  }
+  return null;
 }

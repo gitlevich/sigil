@@ -64,9 +64,9 @@ export function EditorToolbar() {
         <button
           className={`${styles.contentTab} ${contentTab === "atlas" ? styles.contentTabActive : ""}`}
           onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "atlas" } })}
-          title={`Atlas — spatial map of all sigils (${ds("facet-map")})`}
+          title={`Map — treemap of context structure (${ds("facet-map")})`}
         >
-          Atlas
+          Map
         </button>
       </div>
 
