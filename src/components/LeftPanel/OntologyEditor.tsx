@@ -13,6 +13,7 @@ interface OntologyNode {
   fsPath: string;
   depth: number;
   affordances: string[];
+  contrasts: string[];
   children: OntologyNode[];
 }
 
@@ -29,6 +30,7 @@ function buildOntology(ctx: Context, path: string[], depth: number): OntologyNod
     fsPath: ctx.path,
     depth,
     affordances: ctx.affordances.map((a) => a.name),
+    contrasts: ctx.contrasts.map((c) => c.name),
     children: ctx.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
   };
 }
@@ -198,10 +200,13 @@ function OntologyItem({
         </button>
       </div>
 
-      {node.affordances.length > 0 && (
-        <div className={styles.affordanceList}>
+      {(node.contrasts.length > 0 || node.affordances.length > 0) && (
+        <div className={styles.propertyList}>
+          {node.contrasts.map((name) => (
+            <span key={`c-${name}`} className={styles.contrastTag}>{name}</span>
+          ))}
           {node.affordances.map((name) => (
-            <span key={name} className={styles.affordanceTag}>{name}</span>
+            <span key={`a-${name}`} className={styles.affordanceTag}>{name}</span>
           ))}
         </div>
       )}

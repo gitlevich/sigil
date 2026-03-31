@@ -242,16 +242,26 @@
   color: var(--accent);
 }
 
-.affordanceList {
+.propertyList {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 2px 4px 5px 24px;
 }
 
+.contrastTag {
+  font-size: 12px;
+  color: #e8a040;
+}
+
+.contrastTag::before {
+  content: "!";
+  opacity: 0.5;
+}
+
 .affordanceTag {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #a07ce8;
 }
 
 .affordanceTag::before {

@@ -7,11 +7,17 @@ export interface Affordance {
   content: string;
 }
 
+export interface Contrast {
+  name: string;
+  content: string;
+}
+
 export interface Context {
   name: string;
   path: string;
   domain_language: string;
   affordances: Affordance[];
+  contrasts: Contrast[];
   children: Context[];
 }
 

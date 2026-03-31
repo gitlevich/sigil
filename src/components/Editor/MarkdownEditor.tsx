@@ -80,6 +80,7 @@ const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
+const contrastMark = Decoration.mark({ class: "cm-ref-contrast" });
 
 let globalSiblings: SiblingInfo[] = [];
 let globalSigilRoot: Context | null = null;
@@ -102,8 +103,8 @@ function findAffordance(ctx: Context | undefined, dashedName: string): Affordanc
   return ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
 }
 
-// Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, and standalone #affordance
-const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*/g;
+// Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !contrast
+const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
 
 /** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
 export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
@@ -228,6 +229,9 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                   // Affordance ref @Sigil#name — entire ref is one affordance reference
                   builder.add(abs, abs + matchText.length, affordanceMark);
                 }
+              } else if (matchText.startsWith("!")) {
+                // Standalone !contrast
+                builder.add(abs, abs + matchText.length, contrastMark);
               } else {
                 // Standalone #affordance
                 builder.add(abs, abs + matchText.length, affordanceMark);
@@ -267,6 +271,10 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
       },
       ".cm-ref-affordance": {
         color: "#a07ce8",
+        fontStyle: "italic",
+      },
+      ".cm-ref-contrast": {
+        color: "#e8a040",
         fontStyle: "italic",
       },
       ".cm-tooltip-autocomplete": {
@@ -320,7 +328,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
     hoverTooltip((view, pos) => {
       const line = view.state.doc.lineAt(pos);
       const text = line.text;
-      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*/g;
+      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
       let match;
       while ((match = localPattern.exec(text)) !== null) {
         const from = line.from + match.index;
@@ -351,9 +359,23 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
               displayName = `${sigilPart}#${affordancePart}`;
             }
+          } else if (matchText.startsWith("!")) {
+            // standalone !contrast — look up in current context
+            if (!globalCurrentContext) return null;
+            const contrastName = matchText.slice(1);
+            const contrast = globalCurrentContext.contrasts.find(
+              (c) => c.name === contrastName || c.name === fromDashForm(contrastName)
+            );
+            if (!contrast) return null;
+            displayName = matchText;
+            summary = contrast.content.split("\n").slice(0, 3).join("\n");
           } else {
-            // standalone #affordance — no tooltip context available
-            return null;
+            // standalone #affordance — look up in current context
+            if (!globalCurrentContext) return null;
+            const aff = findAffordance(globalCurrentContext, matchText.slice(1));
+            if (!aff) return null;
+            displayName = matchText;
+            summary = aff.content.split("\n").slice(0, 3).join("\n");
           }
 
           return {
@@ -419,6 +441,26 @@ function siblingCompletion(context: CompletionContext) {
         options: globalCurrentContext.affordances.map((a) => ({
           label: `#${toDashForm(a.name)}`,
           detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+          type: "property" as const,
+        })),
+        filter: true,
+      };
+    }
+  }
+
+  // Case 0b: standalone !partial — offer current context's own contrasts
+  const standaloneBang = context.matchBefore(/!(?:[a-zA-Z_][\w-]*)?/);
+  if (standaloneBang) {
+    const lineText = context.state.doc.lineAt(standaloneBang.from).text;
+    const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
+    const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
+    const isAfterWord = /[\w-]/.test(charBefore);
+    if (!isAfterWord && globalCurrentContext && globalCurrentContext.contrasts.length > 0) {
+      return {
+        from: standaloneBang.from,
+        options: globalCurrentContext.contrasts.map((c) => ({
+          label: `!${toDashForm(c.name)}`,
+          detail: c.content.split("\n")[0]?.slice(0, 50) || "",
           type: "property" as const,
         })),
         filter: true,
