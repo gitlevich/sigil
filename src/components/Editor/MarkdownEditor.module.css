@@ -17,7 +17,7 @@
 }
 
 .emptyHint span {
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   opacity: 0.35;
   font-style: italic;

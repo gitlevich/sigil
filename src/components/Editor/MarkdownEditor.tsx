@@ -791,7 +791,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
       {!content.trim() && (
         <div className={styles.emptyHint}>
           <span>↑ name affordances</span>
-          <span>narrate — discover what lives in contained sigils</span>
+          <span>narrate — name the sigils needed to express them</span>
           <span>↓ declare relevant signals</span>
         </div>
       )}
