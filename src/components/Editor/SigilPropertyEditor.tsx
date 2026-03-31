@@ -8,6 +8,7 @@ function slugify(name: string): string {
 }
 
 interface LocalItem {
+  id: string;
   /** Name currently on disk; empty string for unsaved new items. */
   savedName: string;
   name: string;
@@ -175,7 +176,7 @@ export function SigilPropertyEditor({
   }, []);
 
   useEffect(() => {
-    const raw = externalItems.map((a) => ({ savedName: a.name, name: a.name, content: a.content }));
+    const raw = externalItems.map((a) => ({ id: a.name, savedName: a.name, name: a.name, content: a.content }));
     api.readFile(orderPath)
       .then((json) => {
         try {
@@ -236,7 +237,7 @@ export function SigilPropertyEditor({
   }, [sigilPath, filePrefix, onReload, saveOrder]);
 
   const handleAdd = useCallback(() => {
-    setItems((prev) => [...prev, { savedName: "", name: "", content: "" }]);
+    setItems((prev) => [...prev, { id: `new-${Date.now()}`, savedName: "", name: "", content: "" }]);
     setCollapsed(false);
   }, []);
 
@@ -262,7 +263,7 @@ export function SigilPropertyEditor({
         {collapsed && items.length > 0 && (
           <div className={styles.chips}>
             {items.map((item, i) => (
-              <PropertyChip key={item.savedName || `new-${i}`} item={item} refPrefix={refPrefix} color={color} />
+              <PropertyChip key={item.id} item={item} refPrefix={refPrefix} color={color} />
             ))}
           </div>
         )}
@@ -276,7 +277,7 @@ export function SigilPropertyEditor({
         <div className={styles.list}>
           {items.map((item, i) => (
             <PropertyItem
-              key={item.savedName || `new-${i}`}
+              key={item.id}
               item={item}
               color={color}
               namePlaceholder={namePlaceholder}
