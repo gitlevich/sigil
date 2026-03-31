@@ -81,6 +81,40 @@ const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 const signalMark = Decoration.mark({ class: "cm-ref-signal" });
+const frontMatterLineMark = Decoration.line({ class: "cm-front-matter" });
+
+const FRONT_MATTER_STATUSES = ["idea", "articulated", "defined"];
+
+function getFrontMatterEnd(doc: { lines: number; line: (n: number) => { text: string; from: number; to: number } }): number {
+  if (doc.lines < 2 || doc.line(1).text !== "---") return -1;
+  for (let i = 2; i <= doc.lines; i++) {
+    if (doc.line(i).text === "---") return i;
+  }
+  return -1;
+}
+
+function buildFrontMatterPlugin() {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      constructor(view: EditorView) { this.decorations = this.build(view); }
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view);
+      }
+      build(view: EditorView): DecorationSet {
+        const builder = new RangeSetBuilder<Decoration>();
+        const closeLineNum = getFrontMatterEnd(view.state.doc);
+        if (closeLineNum === -1) return builder.finish();
+        for (let i = 1; i <= closeLineNum; i++) {
+          const line = view.state.doc.line(i);
+          builder.add(line.from, line.from, frontMatterLineMark);
+        }
+        return builder.finish();
+      }
+    },
+    { decorations: (v) => v.decorations }
+  );
+}
 
 let globalSiblings: SiblingInfo[] = [];
 let globalSigilRoot: Context | null = null;
@@ -277,6 +311,12 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         color: "#e8a040",
         fontStyle: "italic",
       },
+      ".cm-front-matter": {
+        opacity: "0.45",
+        fontSize: "0.8em",
+        fontStyle: "italic",
+        color: "var(--text-secondary)",
+      },
       ".cm-tooltip-autocomplete": {
         background: "var(--bg-primary)",
         border: "1px solid var(--border)",
@@ -427,6 +467,31 @@ function resolveRefToContext(sigilRef: string): Context | null {
 }
 
 function siblingCompletion(context: CompletionContext) {
+  // Front matter: offer status values when inside the --- block
+  const closeLineNum = getFrontMatterEnd(context.state.doc);
+  if (closeLineNum !== -1) {
+    const curLine = context.state.doc.lineAt(context.pos);
+    if (curLine.number >= 1 && curLine.number <= closeLineNum) {
+      const statusMatch = context.matchBefore(/status:\s*\w*/);
+      if (statusMatch) {
+        return {
+          from: context.state.doc.lineAt(context.pos).from + curLine.text.indexOf(":") + 1,
+          options: FRONT_MATTER_STATUSES.map((s) => ({ label: ` ${s}`, type: "keyword" as const })),
+          filter: false,
+        };
+      }
+      const keyMatch = context.matchBefore(/\w*/);
+      if (keyMatch && keyMatch.text.length > 0) {
+        return {
+          from: keyMatch.from,
+          options: [{ label: "status", type: "keyword" as const }],
+          filter: true,
+        };
+      }
+      return null;
+    }
+  }
+
   // Case 0: standalone #partial — offer current context's own affordances
   const standaloneHash = context.matchBefore(/#(?:[a-zA-Z_][\w-]*)?/);
   if (standaloneHash) {
@@ -648,6 +713,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
+        buildFrontMatterPlugin(),
         autocompletion({
           override: [siblingCompletion],
           activateOnTyping: true,

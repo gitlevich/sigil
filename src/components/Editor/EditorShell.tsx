@@ -122,8 +122,15 @@ export function EditorShell() {
   const handleCreateSigil = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const normalized = name
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
     try {
-      await api.createContext(ctx.path, name);
+      const newCtx = await api.createContext(ctx.path, normalized);
+      await api.writeFile(`${newCtx.path}/language.md`, "---\nstatus: idea\n---\n");
       await reload(doc.sigil.root_path);
     } catch (err) {
       console.error("Create sigil failed:", err);
