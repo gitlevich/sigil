@@ -98,20 +98,46 @@
 }
 
 .item {
+  display: flex;
+  flex-direction: row;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-secondary);
   overflow: hidden;
-  cursor: grab;
-}
-
-.item:active {
-  cursor: grabbing;
 }
 
 .itemDragOver {
   border-color: var(--accent);
   box-shadow: 0 -2px 0 var(--accent);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  opacity: 0.25;
+  font-size: 14px;
+  cursor: grab;
+  border-right: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.dragHandle:hover {
+  opacity: 0.6;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.itemBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .itemHeader {
@@ -120,20 +146,6 @@
   gap: 4px;
   padding: 4px 6px;
   border-bottom: 1px solid var(--border);
-}
-
-.dragHandle {
-  color: var(--text-secondary);
-  opacity: 0.3;
-  font-size: 14px;
-  cursor: grab;
-  flex-shrink: 0;
-  line-height: 1;
-  padding: 0 2px;
-}
-
-.dragHandle:hover {
-  opacity: 0.7;
 }
 
 .nameInput {
