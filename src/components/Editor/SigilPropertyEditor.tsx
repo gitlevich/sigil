@@ -92,8 +92,9 @@ function PropertyItem({
       onDragOver={onDragOver}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
     >
+      <span className={styles.dragHandle} title="Drag to reorder">⠿</span>
+      <div className={styles.itemBody}>
       <div className={styles.itemHeader}>
-        <span className={styles.dragHandle} title="Drag to reorder">⠿</span>
         <input
           className={styles.nameInput}
           style={{ "--property-color": color } as React.CSSProperties}
@@ -139,6 +140,7 @@ function PropertyItem({
           }
         }}
       />
+      </div>
     </div>
   );
 }
