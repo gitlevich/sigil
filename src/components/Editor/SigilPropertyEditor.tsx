@@ -87,12 +87,15 @@ function PropertyItem({
   return (
     <div
       className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""}`}
-      draggable
-      onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
       onDragOver={onDragOver}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
     >
-      <span className={styles.dragHandle} title="Drag to reorder">⠿</span>
+      <span
+        className={styles.dragHandle}
+        title="Drag to reorder"
+        draggable
+        onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+      >⠿</span>
       <div className={styles.itemBody}>
       <div className={styles.itemHeader}>
         <input
