@@ -85,6 +85,14 @@ function PropertyItem({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const observer = new ResizeObserver(() => fitHeight());
+    observer.observe(ta);
+    return () => observer.disconnect();
+  }, [fitHeight]);
+
   return (
     <div
       className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""}`}
