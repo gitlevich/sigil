@@ -175,6 +175,8 @@ export function SigilPropertyEditor({
     return [...ordered, ...rest];
   }, []);
 
+  const externalKey = externalItems.map((a) => a.name).sort().join("\0");
+
   useEffect(() => {
     const raw = externalItems.map((a) => ({ id: a.name, savedName: a.name, name: a.name, content: a.content }));
     api.readFile(orderPath)
@@ -188,7 +190,7 @@ export function SigilPropertyEditor({
       })
       .catch(() => setItems(raw));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sigilPath]);
+  }, [sigilPath, externalKey]);
 
   const saveOrder = useCallback((ordered: LocalItem[]) => {
     const names = ordered.map((i) => i.savedName).filter(Boolean);
