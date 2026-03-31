@@ -46,21 +46,19 @@ function flattenPaths(node: OntologyNode): string[][] {
   return result;
 }
 
-function parseDefinitions(content: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  const sections = content.split(/^## /m);
-  for (const section of sections.slice(1)) {
-    const nl = section.indexOf("\n");
-    if (nl === -1) continue;
-    result[section.slice(0, nl).trim()] = section.slice(nl + 1).trim();
-  }
-  return result;
+function flattenNodes(node: OntologyNode): OntologyNode[] {
+  return [node, ...node.children.flatMap(flattenNodes)];
 }
 
-function serializeDefinitions(defs: Record<string, string>): string {
-  const entries = Object.entries(defs).filter(([, v]) => v.trim());
-  if (entries.length === 0) return "";
-  return entries.map(([k, v]) => `## ${k}\n\n${v.trim()}`).join("\n\n") + "\n";
+async function loadDefinitions(root: OntologyNode): Promise<Record<string, string>> {
+  const nodes = flattenNodes(root);
+  const entries = await Promise.all(
+    nodes.map(async (n) => {
+      const text = await api.readFile(`${n.fsPath}/definition.md`).catch(() => "");
+      return [n.fsPath, text.trim()] as [string, string];
+    })
+  );
+  return Object.fromEntries(entries.filter(([, v]) => v));
 }
 
 function InlinePeerInput({
@@ -122,7 +120,7 @@ function OntologyItem({
   definitions: Record<string, string>;
   addingPeerAfterPath: string[] | null;
   onNavigate: (path: string[]) => void;
-  onDefinitionChange: (name: string, value: string) => void;
+  onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
   onDrop: (sourceFsPath: string, targetFsPath: string) => void;
   onPeerSubmit: () => void;
@@ -137,7 +135,6 @@ function OntologyItem({
   const open = forceExpand || expanded;
   const atLimit = node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const defKey = node.path.join("/");
 
   const fitHeight = () => {
     const el = textareaRef.current;
@@ -148,7 +145,7 @@ function OntologyItem({
 
   useLayoutEffect(() => {
     if (defOpen) fitHeight();
-  }, [defOpen, definitions[defKey]]);
+  }, [defOpen, definitions[node.fsPath]]);
 
   const visibleChildren = search
     ? node.children.filter((c) => nodeMatches(c, search))
@@ -192,7 +189,7 @@ function OntologyItem({
         )}
         <span className={styles.term}>{node.name}</span>
         <button
-          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[defKey]?.trim() ? styles.defBtnDefined : ""}`}
+          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.fsPath]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}
         >
           ¶
@@ -204,9 +201,9 @@ function OntologyItem({
           <textarea
             ref={textareaRef}
             className={styles.defTextarea}
-            value={definitions[defKey] ?? ""}
+            value={definitions[node.fsPath] ?? ""}
             placeholder="Definition..."
-            onChange={(e) => onDefinitionChange(defKey, e.target.value)}
+            onChange={(e) => onDefinitionChange(node.fsPath, e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); textareaRef.current?.blur(); } }}
             onBlur={fitHeight}
           />
@@ -258,13 +255,14 @@ export function OntologyEditor() {
   const renameInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const ontologyPath = doc ? `${doc.sigil.root_path}/ontology.md` : "";
+  const reloadDefinitions = useCallback(async (root: Context) => {
+    const defs = await loadDefinitions(buildOntology(root, [], 0));
+    setDefinitions(defs);
+  }, []);
 
   useEffect(() => {
     if (!doc) return;
-    api.readFile(`${doc.sigil.root_path}/ontology.md`)
-      .then((text) => setDefinitions(parseDefinitions(text)))
-      .catch(() => setDefinitions({}));
+    reloadDefinitions(doc.sigil.root);
   }, [doc?.sigil.root_path]);
 
   useEffect(() => {
@@ -286,72 +284,29 @@ export function OntologyEditor() {
     if (node) setRenaming({ fsPath: node.fsPath, name: node.name });
   }, [doc?.renamingRequest]);
 
-  const handleDefinitionChange = useCallback((name: string, value: string) => {
-    setDefinitions((prev) => {
-      const next = { ...prev, [name]: value };
-      if (ontologyPath) save(ontologyPath, serializeDefinitions(next));
-      return next;
-    });
-  }, [ontologyPath, save]);
+  const handleDefinitionChange = useCallback((fsPath: string, value: string) => {
+    setDefinitions((prev) => ({ ...prev, [fsPath]: value }));
+    save(`${fsPath}/definition.md`, value);
+  }, [save]);
 
   const handleMove = async (sourceFsPath: string, targetFsPath: string) => {
     if (!doc) return;
-    const rootPath = doc.sigil.root_path;
-    const oldRelPath = sourceFsPath.startsWith(rootPath + "/")
-      ? sourceFsPath.slice(rootPath.length + 1)
-      : sourceFsPath;
-    const sigilName = oldRelPath.split("/").pop()!;
-    const targetRel = targetFsPath.startsWith(rootPath + "/")
-      ? targetFsPath.slice(rootPath.length + 1)
-      : targetFsPath;
-    const newRelPath = targetRel ? `${targetRel}/${sigilName}` : sigilName;
-
-    setDefinitions((prev) => {
-      const next: Record<string, string> = {};
-      for (const [key, val] of Object.entries(prev)) {
-        if (key === oldRelPath) {
-          next[newRelPath] = val;
-        } else if (key.startsWith(oldRelPath + "/")) {
-          next[newRelPath + key.slice(oldRelPath.length)] = val;
-        } else {
-          next[key] = val;
-        }
-      }
-      if (ontologyPath) save(ontologyPath, serializeDefinitions(next));
-      return next;
-    });
-
-    try { await api.moveSigil(rootPath, sourceFsPath, targetFsPath); await reload(rootPath); }
-    catch (err) { console.error("Move failed:", err); }
+    try {
+      await api.moveSigil(doc.sigil.root_path, sourceFsPath, targetFsPath);
+      const sigil = await reload(doc.sigil.root_path);
+      if (sigil) await reloadDefinitions(sigil.root);
+    } catch (err) { console.error("Move failed:", err); }
   };
 
   const handleRename = async (fsPath: string, oldName: string, newName: string) => {
     if (!doc) return;
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) { setRenaming(null); return; }
-
-    const rootPath = doc.sigil.root_path;
-    const oldRelPath = fsPath.startsWith(rootPath + "/") ? fsPath.slice(rootPath.length + 1) : fsPath;
-    const parentRel = oldRelPath.split("/").slice(0, -1).join("/");
-    const newRelPath = parentRel ? `${parentRel}/${trimmed}` : trimmed;
-
-    setDefinitions((prev) => {
-      const next: Record<string, string> = {};
-      for (const [key, val] of Object.entries(prev)) {
-        if (key === oldRelPath) {
-          next[newRelPath] = val;
-        } else if (key.startsWith(oldRelPath + "/")) {
-          next[newRelPath + key.slice(oldRelPath.length)] = val;
-        } else {
-          next[key] = val;
-        }
-      }
-      if (ontologyPath) save(ontologyPath, serializeDefinitions(next));
-      return next;
-    });
-
-    try { await api.renameSigil(rootPath, fsPath, trimmed); await reload(rootPath); }
-    catch (err) { console.error("Rename failed:", err); }
+    try {
+      await api.renameSigil(doc.sigil.root_path, fsPath, trimmed);
+      const sigil = await reload(doc.sigil.root_path);
+      if (sigil) await reloadDefinitions(sigil.root);
+    } catch (err) { console.error("Rename failed:", err); }
     setRenaming(null);
   };
 
