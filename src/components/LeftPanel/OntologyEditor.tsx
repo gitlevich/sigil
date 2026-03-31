@@ -137,6 +137,7 @@ function OntologyItem({
   const open = forceExpand || expanded;
   const atLimit = node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const defKey = node.path.join("/");
 
   const fitHeight = () => {
     const el = textareaRef.current;
@@ -147,7 +148,7 @@ function OntologyItem({
 
   useLayoutEffect(() => {
     if (defOpen) fitHeight();
-  }, [defOpen, definitions[node.name]]);
+  }, [defOpen, definitions[defKey]]);
 
   const visibleChildren = search
     ? node.children.filter((c) => nodeMatches(c, search))
@@ -191,7 +192,7 @@ function OntologyItem({
         )}
         <span className={styles.term}>{node.name}</span>
         <button
-          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.name]?.trim() ? styles.defBtnDefined : ""}`}
+          className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[defKey]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}
         >
           ¶
@@ -203,9 +204,10 @@ function OntologyItem({
           <textarea
             ref={textareaRef}
             className={styles.defTextarea}
-            value={definitions[node.name] ?? ""}
+            value={definitions[defKey] ?? ""}
             placeholder="Definition..."
-            onChange={(e) => onDefinitionChange(node.name, e.target.value)}
+            onChange={(e) => onDefinitionChange(defKey, e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); textareaRef.current?.blur(); } }}
             onBlur={fitHeight}
           />
         </div>
