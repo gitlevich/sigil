@@ -3,7 +3,7 @@ import { EditorState, Compartment, RangeSetBuilder, Transaction } from "@codemir
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
   Decoration, DecorationSet, ViewPlugin, ViewUpdate,
-  hoverTooltip, placeholder,
+  hoverTooltip,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
@@ -648,7 +648,6 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
-        placeholder("↑ affordances · narrate the language of this sigil here · relevant signals ↓"),
         autocompletion({
           override: [siblingCompletion],
           activateOnTyping: true,
@@ -789,6 +788,13 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
 
   return (
     <div ref={containerRef} className={styles.editor}>
+      {!content.trim() && (
+        <div className={styles.emptyHint}>
+          <span>↑ name affordances</span>
+          <span>narrate — discover what lives in contained sigils</span>
+          <span>↓ declare relevant signals</span>
+        </div>
+      )}
       {renameState && (
         <div
           style={{
