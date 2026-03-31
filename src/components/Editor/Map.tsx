@@ -73,28 +73,12 @@ export function SigilMap() {
   useEffect(() => {
     if (!currentCtx) return;
     const path = `${currentCtx.path}/map.json`;
-    const legacyPath = `${currentCtx.path}/integrations.json`;
-    const legacyPath2 = `${currentCtx.path}/entanglements.json`;
     api.readFile(path)
       .then((content) => {
         const data: MapData = JSON.parse(content);
         setRelationships(data.relationships || []);
       })
-      .catch(() =>
-        api.readFile(legacyPath)
-          .then((content) => {
-            const data = JSON.parse(content);
-            setRelationships(data.integrations || []);
-          })
-          .catch(() =>
-            api.readFile(legacyPath2)
-              .then((content) => {
-                const data = JSON.parse(content);
-                setRelationships(data.entanglements || data.integrations || []);
-              })
-              .catch(() => setRelationships([]))
-          )
-      );
+      .catch(() => setRelationships([]));
   }, [currentCtx?.path]);
 
   // Measure container

@@ -2,9 +2,132 @@ use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
+use crate::models::sigil::Context;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 use crate::commands::tools;
+
+#[derive(Debug, serde::Deserialize)]
+struct ContextRelationship {
+    from: String,
+    to: String,
+    policy: String,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct ContextRelationshipFile {
+    #[serde(default)]
+    relationships: Vec<ContextRelationship>,
+}
+
+fn read_optional_trimmed(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn read_context_relationships(context_path: &Path) -> Vec<ContextRelationship> {
+    let path = context_path.join("map.json");
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(_) => return Vec::new(),
+    };
+
+    serde_json::from_str::<ContextRelationshipFile>(&content)
+        .map(|parsed| parsed.relationships)
+        .unwrap_or_default()
+}
+
+fn render_named_entry(output: &mut String, token_prefix: &str, name: &str, content: &str) {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        output.push_str(&format!("- {}{}\n", token_prefix, name));
+        return;
+    }
+
+    if trimmed.contains('\n') {
+        output.push_str(&format!("- {}{}:\n", token_prefix, name));
+        for line in trimmed.lines() {
+            output.push_str(&format!("  {}\n", line));
+        }
+        return;
+    }
+
+    output.push_str(&format!("- {}{}: {}\n", token_prefix, name, trimmed));
+}
+
+fn render_context(ctx: &Context, depth: usize, output: &mut String) {
+    let prefix = "#".repeat(depth + 2);
+    let detail_prefix = "#".repeat(depth + 3);
+
+    output.push_str(&format!("{} {} (path: {})\n\n", prefix, ctx.name, ctx.path));
+
+    if let Some(definition) = read_optional_trimmed(&Path::new(&ctx.path).join("definition.md")) {
+        output.push_str(&format!("{} Definition\n\n", detail_prefix));
+        output.push_str(&definition);
+        output.push_str("\n\n");
+    }
+
+    output.push_str(&format!("{} Domain Language\n\n", detail_prefix));
+    if ctx.domain_language.trim().is_empty() {
+        output.push_str("_empty_\n\n");
+    } else {
+        output.push_str(&ctx.domain_language);
+        output.push_str("\n\n");
+    }
+
+    output.push_str(&format!("{} Contrasts\n\n", detail_prefix));
+    if ctx.contrasts.is_empty() {
+        output.push_str("- none\n\n");
+    } else {
+        for contrast in &ctx.contrasts {
+            render_named_entry(output, "!", &contrast.name, &contrast.content);
+        }
+        output.push('\n');
+    }
+
+    output.push_str(&format!("{} Affordances\n\n", detail_prefix));
+    if ctx.affordances.is_empty() {
+        output.push_str("- none\n\n");
+    } else {
+        for affordance in &ctx.affordances {
+            render_named_entry(output, "#", &affordance.name, &affordance.content);
+        }
+        output.push('\n');
+    }
+
+    output.push_str(&format!("{} Contained Sigils\n\n", detail_prefix));
+    if ctx.children.is_empty() {
+        output.push_str("- none\n\n");
+    } else {
+        for child in &ctx.children {
+            output.push_str(&format!("- {}\n", child.name));
+        }
+        output.push('\n');
+    }
+
+    let relationships = read_context_relationships(Path::new(&ctx.path));
+    output.push_str(&format!("{} Neighbor Relationships In This Context\n\n", detail_prefix));
+    if relationships.is_empty() {
+        output.push_str("- none\n\n");
+    } else {
+        for relationship in relationships {
+            output.push_str(&format!(
+                "- {} -> {} ({})\n",
+                relationship.from, relationship.to, relationship.policy
+            ));
+        }
+        output.push('\n');
+    }
+
+    for child in &ctx.children {
+        render_context(child, depth + 1, output);
+    }
+}
 
 fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     let sigil = read_sigil(root_path.to_string())?;
@@ -16,18 +139,8 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     output.push_str(&sigil.vision);
     output.push_str("\n\n");
 
-    fn render_context(ctx: &crate::models::sigil::Context, depth: usize, output: &mut String) {
-        let prefix = "#".repeat(depth + 1);
-        output.push_str(&format!("{} {} (path: {})\n\n", prefix, ctx.name, ctx.path));
-
-        output.push_str(&format!("{}# Domain Language\n\n", "#".repeat(depth + 2)));
-        output.push_str(&ctx.domain_language);
-        output.push_str("\n\n");
-
-        for child in &ctx.children {
-            render_context(child, depth + 1, output);
-        }
-    }
+    output.push_str("# Sigil Artifact\n\n");
+    output.push_str("Each context below includes its definition, domain language, contrasts, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
 
     render_context(&sigil.root, 0, &mut output);
     Ok(output)
@@ -497,4 +610,65 @@ async fn stream_openai(
 
     let _ = app.emit("chat-stream-end", ());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn setup_sigil(tmp: &TempDir) -> std::path::PathBuf {
+        let root = tmp.path().join("MyApp");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "Build the best app").unwrap();
+        fs::write(root.join("language.md"), "Root domain language").unwrap();
+
+        let browse = root.join("Browse");
+        fs::create_dir(&browse).unwrap();
+        fs::write(browse.join("language.md"), "Browse existing sigils").unwrap();
+
+        let edit = root.join("Edit");
+        fs::create_dir(&edit).unwrap();
+        fs::write(edit.join("language.md"), "Edit the current sigil").unwrap();
+
+        root
+    }
+
+    #[test]
+    fn test_assemble_sigil_context_includes_explicit_artifact_fields() {
+        let tmp = TempDir::new().unwrap();
+        let root = setup_sigil(&tmp);
+
+        fs::write(root.join("definition.md"), "Application shell boundary").unwrap();
+        fs::write(root.join("contrast-latency.md"), "fast enough for fluent use").unwrap();
+        fs::write(root.join("affordance-navigate.md"), "move through the sigil hierarchy").unwrap();
+        fs::write(
+            root.join("map.json"),
+            r#"{
+  "relationships": [
+    { "from": "Browse", "to": "Edit", "policy": "published-language" }
+  ]
+}"#,
+        )
+        .unwrap();
+
+        let browse = root.join("Browse");
+        fs::write(browse.join("definition.md"), "Surface for finding existing structure").unwrap();
+        fs::write(browse.join("affordance-open.md"), "open a selected sigil").unwrap();
+        fs::write(browse.join("contrast-focus.md"), "keep the current target visible").unwrap();
+
+        let context = assemble_sigil_context(root.to_string_lossy().as_ref()).unwrap();
+
+        assert!(context.contains("# Sigil Artifact"));
+        assert!(context.contains("Application shell boundary"));
+        assert!(context.contains("### Contrasts"));
+        assert!(context.contains("- !latency: fast enough for fluent use"));
+        assert!(context.contains("### Affordances"));
+        assert!(context.contains("- #navigate: move through the sigil hierarchy"));
+        assert!(context.contains("### Contained Sigils"));
+        assert!(context.contains("- Browse"));
+        assert!(context.contains("- Browse -> Edit (published-language)"));
+        assert!(context.contains("Surface for finding existing structure"));
+        assert!(context.contains("- #open: open a selected sigil"));
+    }
 }

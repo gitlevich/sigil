@@ -338,6 +338,7 @@ export function ChatPanel() {
           <textarea
             ref={inputRef}
             className={styles.input}
+            rows={5}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask the AI to review your sigil..."
