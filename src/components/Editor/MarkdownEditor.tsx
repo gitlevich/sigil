@@ -140,10 +140,19 @@ function findAffordance(ctx: Context | undefined, dashedName: string): Affordanc
 // Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !signal
 const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
 
+/** Strip spaces, dashes, underscores and lowercase — for fuzzy sigil name matching. */
+function flattenName(s: string): string {
+  return s.toLowerCase().replace(/[\s\-_]+/g, "");
+}
+
 /** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
 export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
   const lower = refName.toLowerCase();
   let match = knownNames.find((n) => n.toLowerCase() === lower);
+  if (match) return match;
+  // CamelCase / dashed / spaced — flatten and compare
+  const flat = flattenName(refName);
+  match = knownNames.find((n) => flattenName(n) === flat);
   if (match) return match;
   if (lower.endsWith("ies") && lower.length > 3) {
     const stem = lower.slice(0, -3) + "y";
@@ -152,7 +161,7 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
   }
   if (lower.endsWith("s") && lower.length > 1) {
     const stem = lower.slice(0, -1);
-    match = knownNames.find((n) => n.toLowerCase() === stem);
+    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
     if (match) return match;
   }
   return undefined;
