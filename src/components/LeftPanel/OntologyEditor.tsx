@@ -414,6 +414,7 @@ export function OntologyEditor() {
             <div
               className={`${styles.row} ${doc.currentPath.length === 0 ? styles.active : ""}`}
               onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [] } })}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, node: root }); }}
             >
               <span className={styles.chevronPlaceholder} />
               <span className={styles.term}>{root.name}</span>
