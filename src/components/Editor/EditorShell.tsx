@@ -217,10 +217,10 @@ export function EditorShell() {
             <SigilPropertyEditor
               sigilPath={currentCtx.path}
               filePrefix="signal"
-              title="Signals"
+              title="Relevant Signals"
               refPrefix="!"
               color="#e8a040"
-              namePlaceholder="signal name"
+              namePlaceholder="name"
               contentPlaceholder="preference..."
               items={currentCtx.signals}
               onReload={() => reload(doc.sigil.root_path).then(() => {})}
