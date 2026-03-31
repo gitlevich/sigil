@@ -231,8 +231,8 @@ export function EditorShell() {
               title="Affordances"
               refPrefix="#"
               color="#a07ce8"
-              namePlaceholder="affordance name"
-              contentPlaceholder="what this affords..."
+              namePlaceholder="I need to..."
+              contentPlaceholder="so that..."
               items={currentCtx.affordances}
               onReload={() => reload(doc.sigil.root_path).then(() => {})}
             />
