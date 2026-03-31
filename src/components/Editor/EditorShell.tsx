@@ -220,8 +220,8 @@ export function EditorShell() {
               title="Signals"
               refPrefix="!"
               color="#e8a040"
-              namePlaceholder="dimension name"
-              contentPlaceholder="preferred range along this dimension..."
+              namePlaceholder="signal name"
+              contentPlaceholder="preferred range..."
               items={currentCtx.signals}
               onReload={() => reload(doc.sigil.root_path).then(() => {})}
             />
