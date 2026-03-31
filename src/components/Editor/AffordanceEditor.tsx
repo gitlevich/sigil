@@ -48,6 +48,7 @@ function AffordanceItem({
   onDelete: () => void;
 }) {
   const [nameValue, setNameValue] = useState(affordance.name);
+  const contentBeforeEdit = useRef(affordance.content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = useCallback(() => {
@@ -91,7 +92,19 @@ function AffordanceItem({
         value={affordance.content}
         placeholder="what this affords…"
         onChange={(e) => { onContentChange(e.target.value); fitHeight(); }}
+        onFocus={() => { contentBeforeEdit.current = affordance.content; }}
         onBlur={fitHeight}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            contentBeforeEdit.current = affordance.content;
+            e.currentTarget.blur();
+          }
+          if (e.key === "Escape") {
+            onContentChange(contentBeforeEdit.current);
+            e.currentTarget.blur();
+          }
+        }}
       />
     </div>
   );
