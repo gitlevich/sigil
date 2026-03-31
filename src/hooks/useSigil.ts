@@ -4,7 +4,7 @@ import { api, Sigil } from "../tauri";
 import { useAppDispatch, useAppState, OpenDocument } from "../state/AppContext";
 
 type UIOverrides = Partial<Pick<OpenDocument,
-  "currentPath" | "editorMode" | "contentTab" | "activeFacet" |
+  "currentPath" | "editorMode" | "contentTab" |
   "leftPanelOpen" | "leftPanelTab" | "rightPanelOpen" |
   "activeChatId" | "chatMessages" | "wordWrap"
 >>;
@@ -54,7 +54,6 @@ export function useSigil() {
         highlightedChild: null,
         wordWrap: false,
         renamingRequest: false,
-        activeFacet: "language",
         ...overrides,
       },
     });

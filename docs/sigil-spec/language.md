@@ -13,6 +13,6 @@ A trajectory is a path of narration from the root to a leaf. Each level of elabo
 
 The complete sigil is a tree of trajectories grown from a single origin. It is also the externalized memory of teaching — the accumulated record of every conversation that shaped it. When the @DesignPartner inhabits the sigil, it re-enters that memory with full fidelity: every trajectory, every constraint, every named contrast. The structure is the context. Teaching the partner writes the sigil; the sigil re-teaches the partner.
 
-The sigil has two dimensions. The @Edits record the time-like history of narration — the sequence of bursts that grew each trajectory. The @Map shows the space-like structure — the current arrangement of sigils, their boundaries, and their relationships. Together they are the complete artifact: given to the @DesignPartner to inhabit, or to Claude Code to implement the deterministic parts.
+The sigil has two dimensions. The @Narrative record the time-like history of narration — the sequence of bursts that grew each trajectory. The @Atlas shows the space-like structure — the current arrangement of sigils, their boundaries, and their relationships. Together they are the complete artifact: given to the @DesignPartner to inhabit, or to Claude Code to implement the deterministic parts.
 
 @Shaping grows the trajectories. @Navigation traverses them. @Distillation refines their precision and resolution until the projection is unambiguous where it must be.

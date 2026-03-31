@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Neighbors
+# Observation
 
 Sigils that share the same containing sigil are neighbors. They can address each other by name and reference each other's affordances. They can declare integration relationships with each other.
 

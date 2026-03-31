@@ -15,4 +15,4 @@ Each sigil is embedded by its narration — what it is, what affordances it expo
 
 **Containment** — a contained sigil's affordances should cluster within its parent's semantic region. If a child drifts outside, it may be in the wrong place in the hierarchy.
 
-**Gaps on declared axes** — if declared @Invariants cover an axis and the affordance embeddings do not resolve it at the required precision, the membrane has an open edge there. The implementing agent has degrees of freedom at that edge and will fill it arbitrarily.
+**Gaps on declared axes** — if declared @Contrasts cover an axis and the affordance embeddings do not resolve it at the required precision, the membrane has an open edge there. The implementing agent has degrees of freedom at that edge and will fill it arbitrarily.

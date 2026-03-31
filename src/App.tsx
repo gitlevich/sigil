@@ -66,7 +66,6 @@ export function App({ initialRootPath }: AppProps) {
             rightPanelOpen: saved.rightPanelOpen,
             editorMode: saved.editorMode,
             contentTab: (["entanglements", "integrations"].includes(saved.contentTab as string)) ? "map" : (saved.contentTab || "language"),
-            activeFacet: saved.activeFacet ?? "language",
             activeChatId: saved.activeChatId ?? "",
             chatMessages,
             wordWrap: saved.wordWrap ?? false,

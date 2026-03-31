@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Edits
+# Narrative
 
 Edits are the growth history of a trajectory — the time-like dimension of the sigil. The current text is the trajectory as it stands now. Every change is continuously persisted; there is no save gesture.
 

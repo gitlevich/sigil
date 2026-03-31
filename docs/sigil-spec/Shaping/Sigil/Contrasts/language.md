@@ -1,7 +1,7 @@
 ---
 status: wip
 ---
-# Invariants
+# Contrasts
 
 Invariants are the named contrasts I care about, each with a preference range along its axis. Each declared invariant fixes one dimension of the trajectory — it establishes a direction the narration will not deviate from. What I do not declare stays in superposition: the trajectory does not pass through that dimension, and the implementing agent resolves it freely.
 

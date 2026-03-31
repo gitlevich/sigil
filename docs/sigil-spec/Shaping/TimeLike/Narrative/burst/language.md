@@ -9,4 +9,4 @@ Bursts are not imposed on the Edit history. They emerge from it. The @Lull betwe
 
 A burst has a start time, an end time, and the set of edits that belong to it. It is the unit at which trajectory growth is meaningful: not the individual character change, but the focused session that added a coherent piece of direction.
 
-Bursts are the primary time-like unit of @Edits. The Edit history at any sigil is a sequence of bursts.
+Bursts are the primary time-like unit of @Narrative. The Edit history at any sigil is a sequence of bursts.
