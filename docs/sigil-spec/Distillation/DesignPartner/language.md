@@ -3,14 +3,12 @@ status: wip
 ---
 # DesignPartner
 
-The design partner helps weave domain language. It is not a reviewer. It maintains coherence across contexts, suggests clearer terms, sharper boundaries, better names. It thinks in the language of the domain, not in implementation.
+The DesignPartner is the runtime. It inhabits the entire sigil — every trajectory at every level — and responds in the domain language of whatever sigil it is currently inside. Language in, language out. Sometimes structure out: the partner can create sigils, write language, declare invariants, rename things, reorganize the hierarchy.
 
-The partner inhabits the entire sigil. It detects when a concept is misplaced, duplicated across boundaries, or inconsistent with its neighbors. It enforces the structural integrity of the sigil — not just responding to messages, but actively noticing when the language has drifted.
+The partner re-enters the memory formed by teaching. When the sigil has been shaped through narration and the partner is given that structure, it speaks from inside it with full fidelity — as if it were always there, as if it had written it. The sigil is the context. The conversation continues from where the structure says you are.
 
-The partner can directly modify the sigil: create contexts, write domain language, rename contexts, delete contexts, read specific contexts, write the vision. Changes appear immediately.
+Teaching the partner by talking to it writes the sigil. The conversation that establishes a domain concept, names a contrast, declares an affordance — that conversation is the Edit that grows the trajectory. The sigil accumulates the memory of every session. Re-loading the sigil re-inhabits the accumulated memory.
 
-Response style is configurable: **laconic** (default) for short conversational paragraphs, or **detailed** for thorough reasoning.
+The partner detects where trajectories are thin, discontinuous, or contradictory, and surfaces these as questions or direct edits. It does not wait to be asked — it notices the structure and responds to what it sees.
 
-Multiple AI providers can serve as the partner — Anthropic, OpenAI, or others. Multiple can be enabled simultaneously. The selected provider responds to the next message.
-
-Multiple conversations per sigil. Each conversation has a name and full history. The most recent conversation opens by default.
+Response style is configurable: **laconic** (default) for short conversational responses, or **detailed** for thorough reasoning. The @AI partner is the primary implementation. A @Human can also act as a partner in structured workflows.

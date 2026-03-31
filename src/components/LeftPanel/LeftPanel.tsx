@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
-import { TreeView } from "./TreeView";
 import { OntologyEditor } from "./OntologyEditor";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./LeftPanel.module.css";
@@ -70,14 +69,6 @@ export function LeftPanel() {
             >
               Ontology
             </button>
-            <button
-              className={`${styles.tab} ${doc.leftPanelTab === "tree" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree" } })
-              }
-            >
-              Tree
-            </button>
           </div>
           <button
             className={styles.collapseBtn}
@@ -91,7 +82,6 @@ export function LeftPanel() {
 
         <div className={styles.content}>
           {doc.leftPanelTab === "vision" && <VisionEditor />}
-          {doc.leftPanelTab === "tree" && <TreeView />}
           {doc.leftPanelTab === "ontology" && <OntologyEditor />}
         </div>
       </div>

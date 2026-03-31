@@ -1,39 +1,39 @@
-# Sigil
+# Sigil — flat reference
 
 ## Sigil
 
-A sigil is a bounded context with recursive containment. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right.
+A sigil is an origin — a named center from which trajectories of attention grow outward. It has a name, a boundary, and narration written at its level of abstraction. Inside that boundary, it can contain other sigils — each beginning its own trajectory from its own center.
 
-A sigil is always contained in another sigil. There is no root in any absolute sense — what appears as "the root" in the tool is simply the sigil you opened, which itself exists in a larger context you're not looking at right now.
-
-The limit of five comes from how human attention works: you cannot hold more than five to seven separate concepts at any level of detail. Complexity visible in any one context is always bounded.
+A sigil is always contained in another sigil. What appears as "the root" in the tool is simply the sigil you opened.
 
 A sigil has:
 
 - **Name**: the directory name on disk. What makes it addressable.
-- **Domain language**: the narrative at this level of abstraction — sentences woven from the names of the sigils it contains. Stored as `language.md`.
-- **Contained sigils**: up to 5 sigils inside this one.
+- **Language**: the narration at this level of abstraction. Stored as `language.md`.
+- **Contained sigils**: sigils inside this one.
+- **Edits**: the time-like growth history of the narration. Each edit is timestamped with an upstream snapshot.
 
-### ContainmentHierarchy
+## Trajectory
 
-A sigil is recursive: it is made of sigils. This is not a parent-child relationship — it is containment. The contained sigils inhabit the context of the containing sigil. They share that context.
+A path of narration from the root to a leaf. Each level of elaboration adds direction. The accumulated direction from every level above makes the projection at a leaf deterministic — not because everything is specified, but because everything that matters has been specified along the path.
 
-The domain language of a containing sigil is woven from the names of the sigils it contains and the affordances they expose.
+**Precision** — how constrained a trajectory is. How many valid projections remain at its tip.
 
-### Affordances
+**Resolution** — the density of elaboration points along the surface. What has not been narrated is not a hole: it is unconstrained space the trajectory never entered.
 
-An affordance is a capability that a sigil makes visible across its boundary. It is not what happens inside — it is what can be addressed from outside. Every affordance belongs to a sigil — you cannot name a capability without naming who exposes it. This is how sigils get their names: whenever you articulate an affordance, you need a subject.
+## Containment
 
-You cannot reach inside another sigil. You can only address it by name and use what it exposes. If you need to reach deeper, the boundary is wrong. The five-sigil limit bounds the complexity of any context's affordance surface. If a sigil exposes too many affordances, it needs to be decomposed further.
+A sigil is recursive: it is made of sigils. Contained sigils inhabit the context of the containing sigil. The narration of a containing sigil is woven from the names of the sigils it contains and the affordances they expose.
 
-Affordances are referenced in two directions:
+## Affordances
 
-- **Down** — a containing sigil addresses the affordances of the sigils it contains. The container's domain language is woven from their names and their affordances.
-- **Across** — a sibling addresses a neighbor's affordance. The notation `@Neighbors.affordance` references a sibling's capability from within your own context.
+An affordance is a capability that a contained sigil exposes to its siblings. Every affordance belongs to a sigil — you cannot name a capability without naming who exposes it.
 
-### Integrations
+Affordances are addressed with `@Sigil.affordance` notation.
 
-Sibling contexts can declare integrations — formal relationships with strategic design policies:
+## Relationships
+
+Sibling sigils can declare relationships — formal edges with strategic design policies:
 
 - **Shared Kernel** — symmetric, shared code/model
 - **Published Language** — symmetric, agreed interchange format
@@ -41,36 +41,29 @@ Sibling contexts can declare integrations — formal relationships with strategi
 - **Customer-Supplier** — directional, upstream defines terms
 - **Conformist** — directional, downstream conforms without influence
 - **Anticorruption Layer** — directional, downstream translates
-- **Separate Ways** — no integration
+- **Separate Ways** — no relationship
 
-## Authoring
+## Invariants
 
-Authoring is the act of inhabiting a sigil and articulating its domain language.
+Named contrasts the author explicitly cares about, each with a preference range along its axis. Each declared invariant fixes one dimension of the trajectory. What is not declared stays in superposition — a free direction the trajectory did not specify.
 
-### Writing Domain Language
+## DesignPartner
 
-One approach the author finds effective: inhabit the sigil. Close your eyes and imagine attending to this context. What do you reach for? What interactions should be effortless? What constraints do you feel? Describe that experience in the first person. The affordances emerge from articulating what you need when you're inside — not from listing what the system should do from outside.
+The DesignPartner is the runtime. It inhabits the entire sigil and responds in domain language. Language in, language out. It re-enters the memory formed by teaching — the accumulated narration in the sigil file structure. When you continue the conversation, you continue from where the structure says you are.
 
-### Vision
+The partner can modify the sigil directly: create sigils, write language, rename, declare invariants. Changes appear immediately.
 
-A short markdown document at the sigil root (`vision.md`) describing the application's purpose. Exists to prevent drift when deep in sub-contexts.
+Response style is configurable: **laconic** (default) or **detailed**.
 
-## Workspace
+## Edits
 
-The workspace is where the author inhabits sigils and works with an AI design partner.
+The growth history of a trajectory. Each edit is a delta to a sigil's narration, timestamped, with a snapshot of the upstream state when it was written.
 
-### AI Design Partner
+Edits cluster into **bursts** — sessions of focused attention separated by **lulls**. The lull threshold is derived from the bimodal distribution of inter-edit gaps.
 
-The AI agent is not a reviewer. It is a design partner helping weave domain language. It maintains coherence across contexts, suggests clearer terms, sharper boundaries, better names. It thinks in the language of the domain, not in implementation.
+## Map
 
-The agent can directly modify the sigil through tool calls: create contexts, write domain language, rename contexts, delete contexts, read specific contexts, write the vision statement. Changes appear in the UI immediately.
+The space-like view of the sigil. A rectangular treemap: the open sigil fills the area, contained sigils are named cells, deeper structure renders as anonymous subdivision. Relationship edges render between cells.
 
-Response style is configurable: **laconic** (default) for short conversational paragraphs, or **detailed** for thorough reasoning.
-
-### AI Providers
-
-AI agents that work alongside you in the sigil. Each provider has a name, API backend (Anthropic or OpenAI), API key, model, and an enabled flag. Multiple can be enabled simultaneously. The selected provider responds to the next message. Providers are configured in Settings and can be switched mid-conversation from the chat panel header.
-
-### Chats
-
-Multiple persistent chat conversations per sigil, stored as individual files in `chats/`. Each chat has a name and full message history. The most recently modified chat opens by default. Chats can be created, renamed, switched, and deleted from the chat panel header.
+**FocusedMode** — one level of containment at a time.
+**RevealedMode** — full recursive depth, deeper structure as anonymous texture.

@@ -3,16 +3,12 @@ status: wip
 ---
 # Shaping
 
-Shaping is growing trajectories from the origin. I narrate from the center outward, adding direction at each level of abstraction. Each panel is one increment of direction along the trajectory — a layer of narration that constrains what remains in superposition below it.
+Shaping is growing trajectories from the origin. I narrate from the center outward, adding direction at each level of abstraction. The trajectory at any sigil accumulates the full direction of every level above it — the leaf inherits everything on the path from the root.
 
-**UX** — the first bearing from the center. I narrate the application from the user's perspective, declaring @Affordances grouped into up to five @Experiences. This establishes the direction the entire tree will grow. Nothing below can contradict it.
+Narration has register. I can speak at the level of user experience — what it is like to use what I am building, what affordances it exposes. I can speak at the level of domain language — the concepts and their relationships. I can speak at the level of structural constraints — what must be separated, what must be co-located. I can speak at the level of implementation preferences — what I care about when everything else is free. Each register adds direction along a different axis. The full trajectory is the composition of all of them.
 
-**Language** — the trajectory deepened into a domain model. I speak the concepts into existence that will deliver what UX declared. Contained sigils emerge as I need subjects for the affordances I am describing. The language must be sufficient to express every UX trajectory.
+Each narration is an @Edit. Edits accumulate into @Edits — the growth history of the trajectory at that sigil. The Edit history is the time-like dimension: it records how the trajectory came to be, in what order direction was added, where attention was concentrated.
 
-**Architecture** — structural constraints added to the trajectory. I declare the contrasts I care about at this level: what must be separated, what must be co-located. Each declaration fixes a dimension. What I do not declare stays in superposition.
+The same structure applies at every sigil. A contained sigil begins its own trajectory from its own center, constrained by the trajectory that led here from above. Each leaf accumulates the full direction of every narration at every level on the path from the root.
 
-**Implementation** — remaining preferences resolved. Only what I have a preference about goes here. Everything else is left to the implementing agent.
-
-The same four panels apply at every sigil. The structure is fractal: a contained sigil begins its own trajectory from its own center, constrained by the trajectory that led here from above. Each leaf accumulates the full direction of every panel at every level on the path from the root.
-
-Each panel is not a document but a sequence of @Edits — the growth history of the trajectory at that level.
+@Invariants are the declared axes — the contrasts I name as dimensions I care about. @Affordances are the capabilities a contained sigil exposes to its siblings. @Experience groups affordances into coherent patterns of use.

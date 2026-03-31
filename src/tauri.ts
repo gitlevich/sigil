@@ -64,7 +64,6 @@ export interface Keybindings {
   "facet-cycle": string;
   "facet-map": string;
   "panel-vision": string;
-  "panel-tree": string;
   "panel-ontology": string;
 }
 
@@ -81,7 +80,6 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "facet-cycle": "Ctrl-/",
   "facet-map": "Ctrl-5",
   "panel-vision": "Ctrl-v",
-  "panel-tree": "Ctrl-t",
   "panel-ontology": "Ctrl-g",
 };
 
@@ -98,7 +96,6 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "facet-cycle": "Facet: Cycle",
   "facet-map": "Facet: Map",
   "panel-vision": "Panel: Vision",
-  "panel-tree": "Panel: Tree",
   "panel-ontology": "Panel: Ontology",
 };
 

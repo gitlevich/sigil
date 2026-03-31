@@ -143,11 +143,7 @@ export function EditorShell() {
         dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "vision", leftPanelOpen: true } });
         return;
       }
-      if (matchesBinding(e, kb["panel-tree"] || "Ctrl-t")) {
-        e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "tree", leftPanelOpen: true } });
-        return;
-      }
+
       if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
         dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology", leftPanelOpen: true } });
