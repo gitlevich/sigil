@@ -66,7 +66,7 @@ fn read_context(dir: &Path) -> Result<Context, String> {
     }
 
     // Keep Ontologies at the end so the application sigil comes first.
-    children.sort_by_key(|c| c.name == "Ontologies");
+    children.sort_by_key(|c| c.name == "Libs");
 
     Ok(Context {
         name,
@@ -103,7 +103,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
     let parent = Path::new(&parent_path);
 
     // The Ontologies sigil and its descendants are exempt from the 5-child limit.
-    let under_ontologies = parent.components().any(|c| c.as_os_str() == "Ontologies");
+    let under_ontologies = parent.components().any(|c| c.as_os_str() == "Libs");
 
     if !under_ontologies {
         let existing_dirs: Vec<_> = fs::read_dir(parent)
@@ -301,7 +301,7 @@ pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> R
     }
 
     // The Ontologies sigil and its descendants are exempt from the 5-child limit.
-    let ontologies_path = Path::new(&root_path).join("Ontologies");
+    let ontologies_path = Path::new(&root_path).join("Libs");
     let under_ontologies = new_parent.starts_with(&ontologies_path);
 
     // Check 5-sigil limit at destination
