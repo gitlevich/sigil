@@ -5,6 +5,10 @@
     {
       "role": "user",
       "content": "What do you think of the vision?"
+    },
+    {
+      "role": "user",
+      "content": "What do you think of the spec and especially of Attention Language?"
     }
   ]
 }
