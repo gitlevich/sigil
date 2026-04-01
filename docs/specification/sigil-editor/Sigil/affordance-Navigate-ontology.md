@@ -1,0 +1,1 @@
+to move through the sigil tree and zoom into any concept
