@@ -12,7 +12,7 @@ An **affordance** on a sigil is like a handle on a door: it is the thing that al
 
 A @sigil gives me a context boundary: within, I only care about a finite number of specific relevant things. These things are also @sigils that live either inside the boundary, or in the neighborhood.  Everything not explicitly named is noise. 
 
-The boundary is defined in terms of my disposition towards these @sigils. For example here I care about @sigils that will make my experience while using this part of the app delightful.
+The boundary is defined in terms of @invariants — commitments about these @sigils. For example here I care about @sigils that will make my experience while using this part of the app delightful.
 
 To describe a sigil, I imagine interacting with the part of the app it models. I inhabit it with my attention and narrate what I do there, trying to converge on a stable language. I first think of affordances. 
 
@@ -21,19 +21,19 @@ As I type, I notice the words I choose to describe affordances. I can use names 
 
 ## Structure
 
-The Editor consists of three panels: affordance, language and disposition.
+The Editor consists of three panels: affordance, language and invariant.
 
 ### @AffordancePanel
 
-This is where I specify affordances. 
+This is where I specify affordances.
 
 ### @LanguagePanel
 
 This is the main panel where I type the narrative
 
-### @DispositionPanel
+### @InvariantPanel
 
-This is where I specify dispositions. 
+This is where I specify invariants. 
 
 
 
@@ -43,3 +43,6 @@ This is where I specify dispositions.
 To have the freedom to evolve my language, I need #refactor-rename. 
 
 I'd like to #find-references of a sigil - to see where it's used. FileFileMy
+
+
+

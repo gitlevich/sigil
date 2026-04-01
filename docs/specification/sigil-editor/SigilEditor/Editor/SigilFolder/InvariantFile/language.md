@@ -2,4 +2,4 @@
 status: idea
 ---
 
-# Disposition File
+# Invariant File

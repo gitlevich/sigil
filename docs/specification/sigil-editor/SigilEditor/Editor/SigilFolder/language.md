@@ -10,6 +10,6 @@ A sigil folder contains:
 
 - @LanguageFile where the @sigil is defined
 - @AffordanceFiles, describing every affordance the @sigil provides
-- @DispositionFiles, describing this @sigil's dispositions 
+- @InvariantFiles, describing this @sigil's invariants
 - @SigilFolders of contained @sigils
 

@@ -33,9 +33,9 @@ interface MarkdownEditorProps {
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onCreateAffordance?: (name: string) => void;
-  onCreateDisposition?: (name: string) => void;
+  onCreateInvariant?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
-  onRenameProperty?: (kind: "affordance" | "disposition", oldName: string, newName: string) => void;
+  onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onRenameStatus?: (oldValue: string, newValue: string) => void;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
@@ -91,7 +91,7 @@ const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
-const dispositionMark = Decoration.mark({ class: "cm-ref-disposition" });
+const invariantMark = Decoration.mark({ class: "cm-ref-invariant" });
 const frontMatterLineMark = Decoration.line({ class: "cm-front-matter" });
 
 const DEFAULT_STATUS = "idea";
@@ -161,23 +161,23 @@ let globalSigilRoot: Context | null = null;
 let globalCurrentContext: Context | null = null;
 let globalCurrentPath: string[] = [];
 
-/** Collect affordances/dispositions from the current context and all ancestors. */
+/** Collect affordances/invariants from the current context and all ancestors. */
 function collectAncestorProperties(root: Context | null, path: string[]) {
-  if (!root) return { affordances: [] as { name: string; content: string; source: string }[], dispositions: [] as { name: string; content: string; source: string }[] };
+  if (!root) return { affordances: [] as { name: string; content: string; source: string }[], invariants: [] as { name: string; content: string; source: string }[] };
   const affordances: { name: string; content: string; source: string }[] = [];
-  const dispositions: { name: string; content: string; source: string }[] = [];
+  const invariants: { name: string; content: string; source: string }[] = [];
   // Walk from root down the path, collecting at each level
   let ctx = root;
   for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
-  for (const d of ctx.dispositions) dispositions.push({ name: d.name, content: d.content, source: ctx.name });
+  for (const d of ctx.invariants) invariants.push({ name: d.name, content: d.content, source: ctx.name });
   for (const seg of path) {
     const child = ctx.children.find((c) => c.name === seg);
     if (!child) break;
     ctx = child;
     for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
-    for (const d of ctx.dispositions) dispositions.push({ name: d.name, content: d.content, source: ctx.name });
+    for (const d of ctx.invariants) invariants.push({ name: d.name, content: d.content, source: ctx.name });
   }
-  return { affordances, dispositions };
+  return { affordances, invariants };
 }
 
 function buildNameIndex(names: string[]): Map<string, string> {
@@ -416,16 +416,16 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                     unresolvedMark;
                   builder.add(abs, abs + matchText.length, mark);
                 } else {
-                  // Property ref: @Sigil#affordance or @Sigil!disposition
+                  // Property ref: @Sigil#affordance or @Sigil!invariant
                   const propChar = matchText[propIdx];
-                  builder.add(abs, abs + matchText.length, propChar === "!" ? dispositionMark : affordanceMark);
+                  builder.add(abs, abs + matchText.length, propChar === "!" ? invariantMark : affordanceMark);
                 }
               } else if (matchText.startsWith("!")) {
-                const dispositionName = matchText.slice(1);
-                const dispositionExists = !!globalCurrentContext?.dispositions.find(
-                  (s) => s.name === dispositionName || s.name === fromDashForm(dispositionName)
+                const invariantName = matchText.slice(1);
+                const invariantExists = !!globalCurrentContext?.invariants.find(
+                  (s) => s.name === invariantName || s.name === fromDashForm(invariantName)
                 );
-                builder.add(abs, abs + matchText.length, dispositionExists ? dispositionMark : unresolvedMark);
+                builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
                 // Standalone #affordance
                 const affExists = !!findAffordance(globalCurrentContext ?? undefined, matchText.slice(1));
@@ -473,11 +473,11 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         color: "#3d9e8c",
         fontStyle: "italic",
       },
-      ".cm-ref-disposition": {
+      ".cm-ref-invariant": {
         color: "#e8a040",
         fontStyle: "italic",
       },
-      "&.cm-cmd-held .cm-ref-contained, &.cm-cmd-held .cm-ref-sibling, &.cm-cmd-held .cm-ref-lib, &.cm-cmd-held .cm-ref-absolute, &.cm-cmd-held .cm-ref-affordance, &.cm-cmd-held .cm-ref-disposition": {
+      "&.cm-cmd-held .cm-ref-contained, &.cm-cmd-held .cm-ref-sibling, &.cm-cmd-held .cm-ref-lib, &.cm-cmd-held .cm-ref-absolute, &.cm-cmd-held .cm-ref-affordance, &.cm-cmd-held .cm-ref-invariant": {
         cursor: "pointer",
         textDecoration: "underline",
       },
@@ -569,12 +569,12 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               : "");
             if (propertyPart) {
               // Find the property content in the resolved context.
-              // Always use the real Context tree (not SiblingInfo) to access affordances/dispositions.
+              // Always use the real Context tree (not SiblingInfo) to access affordances/invariants.
               const ctx = globalSigilRoot
                 ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot)
                 : null;
               if (propChar === "!" && ctx) {
-                const disp = ctx.dispositions.find(
+                const disp = ctx.invariants.find(
                   (d) => d.name === propertyPart || d.name === fromDashForm(propertyPart!)
                 );
                 if (disp) summary = disp.content.split("\n").slice(0, 3).join("\n");
@@ -586,10 +586,10 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             }
             } // end else (non-external)
           } else if (matchText.startsWith("!")) {
-            // standalone !disposition — look up in current context
+            // standalone !invariant — look up in current context
             if (!globalCurrentContext) return null;
             const dispName = matchText.slice(1);
-            const disp = globalCurrentContext.dispositions.find(
+            const disp = globalCurrentContext.invariants.find(
               (c) => c.name === dispName || c.name === fromDashForm(dispName)
             );
             if (!disp) return null;
@@ -677,11 +677,11 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Precompute ancestor properties for affordance/disposition completion
+  // Precompute ancestor properties for affordance/invariant completion
   const ancestorProps = collectAncestorProperties(globalSigilRoot, globalCurrentPath);
 
   // Case 0: standalone #partial — offer affordances from current context and ancestors
-  const standaloneHash = context.matchBefore(/#(?:[a-zA-Z_][\w-]*)?/);
+  const standaloneHash = context.matchBefore(context.explicit ? /#(?:[a-zA-Z_][\w-]*)?/ : /#[a-zA-Z_][\w-]*/);
   if (standaloneHash) {
     const lineText = context.state.doc.lineAt(standaloneHash.from).text;
     const colOfHash = standaloneHash.from - context.state.doc.lineAt(standaloneHash.from).from;
@@ -689,38 +689,46 @@ function siblingCompletion(context: CompletionContext) {
     const isAfterSigil = /[\w-]/.test(charBefore);
     if (!isAfterSigil && ancestorProps.affordances.length > 0) {
       return {
-        from: standaloneHash.from,
-        options: ancestorProps.affordances.map((a) => ({
-          label: `#${toDashForm(a.name)}`,
-          detail: `${a.source !== globalCurrentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
-          type: "property" as const,
-        })),
+        from: standaloneHash.from + 1,
+        options: ancestorProps.affordances.map((a) => {
+          const dash = toDashForm(a.name);
+          return {
+            label: dash,
+            displayLabel: `#${dash}`,
+            detail: `${a.source !== globalCurrentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            type: "property" as const,
+          };
+        }),
         filter: true,
       };
     }
   }
 
-  // Case 0b: standalone !partial — offer dispositions from current context and ancestors
-  const standaloneBang = context.matchBefore(/!(?:[a-zA-Z_][\w-]*)?/);
+  // Case 0b: standalone !partial — offer invariants from current context and ancestors
+  const standaloneBang = context.matchBefore(context.explicit ? /!(?:[a-zA-Z_][\w-]*)?/ : /![a-zA-Z_][\w-]*/);
   if (standaloneBang) {
     const lineText = context.state.doc.lineAt(standaloneBang.from).text;
     const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
     const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
     const isAfterWord = /[\w-]/.test(charBefore);
-    if (!isAfterWord && ancestorProps.dispositions.length > 0) {
+    if (!isAfterWord && ancestorProps.invariants.length > 0) {
       return {
-        from: standaloneBang.from,
-        options: ancestorProps.dispositions.map((d) => ({
-          label: `!${toDashForm(d.name)}`,
-          detail: `${d.source !== globalCurrentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
-          type: "property" as const,
-        })),
+        from: standaloneBang.from + 1,
+        options: ancestorProps.invariants.map((d) => {
+          const dash = toDashForm(d.name);
+          return {
+            label: dash,
+            displayLabel: `!${dash}`,
+            detail: `${d.source !== globalCurrentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            type: "property" as const,
+          };
+        }),
         filter: true,
       };
     }
   }
 
-  // Case 1: @Sigil#partial or @Sigil!partial — offer affordance or disposition names
+  // Case 1: @Sigil#partial or @Sigil!partial — offer affordance or invariant names
   const beforeProperty = context.matchBefore(/@(?:[a-zA-Z_][\w-]*@)*[a-zA-Z_][\w-]*[#!](?:[a-zA-Z_][\w-]*)?/);
   if (beforeProperty) {
     const text = beforeProperty.text;
@@ -730,25 +738,34 @@ function siblingCompletion(context: CompletionContext) {
       const sigilRef = text.slice(0, sepIdx);
       const ctx = resolveRefToContext(sigilRef);
       if (ctx) {
+        const propFrom = beforeProperty.from + sepIdx + 1;
         if (sepChar === "#" && ctx.affordances.length > 0) {
           return {
-            from: beforeProperty.from,
-            options: ctx.affordances.map((a) => ({
-              label: `${sigilRef}#${toDashForm(a.name)}`,
-              detail: a.content.split("\n")[0]?.slice(0, 50) || "",
-              type: "property" as const,
-            })),
+            from: propFrom,
+            options: ctx.affordances.map((a) => {
+              const dash = toDashForm(a.name);
+              return {
+                label: dash,
+                displayLabel: `${sigilRef}#${dash}`,
+                detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+                type: "property" as const,
+              };
+            }),
             filter: true,
           };
         }
-        if (sepChar === "!" && ctx.dispositions.length > 0) {
+        if (sepChar === "!" && ctx.invariants.length > 0) {
           return {
-            from: beforeProperty.from,
-            options: ctx.dispositions.map((d) => ({
-              label: `${sigilRef}!${toDashForm(d.name)}`,
-              detail: d.content.split("\n")[0]?.slice(0, 50) || "",
-              type: "property" as const,
-            })),
+            from: propFrom,
+            options: ctx.invariants.map((d) => {
+              const dash = toDashForm(d.name);
+              return {
+                label: dash,
+                displayLabel: `${sigilRef}!${dash}`,
+                detail: d.content.split("\n")[0]?.slice(0, 50) || "",
+                type: "property" as const,
+              };
+            }),
             filter: true,
           };
         }
@@ -807,7 +824,7 @@ function siblingCompletion(context: CompletionContext) {
     });
   }
 
-  // Also offer affordances and dispositions of the resolved context
+  // Also offer affordances and invariants of the resolved context
   const sigilRefStr = "@" + resolvedParts.join("@");
   for (const aff of ctx.affordances) {
     options.push({
@@ -816,7 +833,7 @@ function siblingCompletion(context: CompletionContext) {
       type: "property",
     });
   }
-  for (const disp of ctx.dispositions) {
+  for (const disp of ctx.invariants) {
     options.push({
       label: `${sigilRefStr}!${toDashForm(disp.name)}`,
       detail: disp.content.split("\n")[0]?.slice(0, 50) || "",
@@ -847,8 +864,8 @@ function findRefAtCursor(view: EditorView): { name: string; from: number; known:
   return null;
 }
 
-/** Find a standalone #affordance or !disposition at the cursor, with existence flag. */
-function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "disposition"; name: string; exists: boolean } | null {
+/** Find a standalone #affordance or !invariant at the cursor, with existence flag. */
+function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "invariant"; name: string; exists: boolean } | null {
   const pos = view.state.selection.main.head;
   const line = view.state.doc.lineAt(pos);
   const pattern = /#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
@@ -861,10 +878,10 @@ function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "disp
       const text = match[0];
       if (text.startsWith("!")) {
         const name = text.slice(1);
-        const exists = !!globalCurrentContext?.dispositions.find(
+        const exists = !!globalCurrentContext?.invariants.find(
           (s) => s.name === name || s.name === fromDashForm(name)
         );
-        return { kind: "disposition", name, exists };
+        return { kind: "invariant", name, exists };
       } else {
         const name = text.slice(1);
         const exists = !!findAffordance(globalCurrentContext ?? undefined, name);
@@ -930,7 +947,7 @@ function findAllReferences(ctx: Context, symbolName: string, path: string[]): Re
 
 let globalPendingStatusRename: string | null = null;
 
-type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "disposition" };
+type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" };
 type SetRenameState = (s: RenameTarget | null) => void;
 type SetRefsState = (s: { hits: ReferenceHit[]; x: number; y: number } | null) => void;
 
@@ -940,7 +957,7 @@ function buildCustomKeymap(
   setRefsState: SetRefsState,
   onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onCreateAffordanceRef: React.MutableRefObject<((name: string) => void) | undefined>,
-  onCreateDispositionRef: React.MutableRefObject<((name: string) => void) | undefined>,
+  onCreateInvariantRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onRenameStatusRef: React.MutableRefObject<((oldValue: string, newValue: string) => void) | undefined>,
 ) {
   return keymap.of([
@@ -953,7 +970,7 @@ function buildCustomKeymap(
           view.dispatch({ selection: { anchor: status.from, head: status.from + status.value.length } });
           return true;
         }
-        // Check for #affordance or !disposition at cursor
+        // Check for #affordance or !invariant at cursor
         const prop = findPropertyRefAtCursor(view);
         if (prop?.exists) {
           const pos = view.state.selection.main.head;
@@ -1003,8 +1020,8 @@ function buildCustomKeymap(
             onCreateAffordanceRef.current(prop.name);
             return true;
           }
-          if (prop.kind === "disposition" && onCreateDispositionRef.current) {
-            onCreateDispositionRef.current(prop.name);
+          if (prop.kind === "invariant" && onCreateInvariantRef.current) {
+            onCreateInvariantRef.current(prop.name);
             return true;
           }
         }
@@ -1051,7 +1068,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -1059,8 +1076,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onCreateSigilRef.current = onCreateSigil;
   const onCreateAffordanceRef = useRef(onCreateAffordance);
   onCreateAffordanceRef.current = onCreateAffordance;
-  const onCreateDispositionRef = useRef(onCreateDisposition);
-  onCreateDispositionRef.current = onCreateDisposition;
+  const onCreateInvariantRef = useRef(onCreateInvariant);
+  onCreateInvariantRef.current = onCreateInvariant;
   const onRenameSigilRef = useRef(onRenameSigil);
   onRenameSigilRef.current = onRenameSigil;
   const onRenamePropertyRef = useRef(onRenameProperty);
@@ -1098,7 +1115,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateDispositionRef, onRenameStatusRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
@@ -1146,7 +1163,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
               const from = line.from + match.index;
               const to = from + match[0].length;
               if (pos >= from && pos <= to) {
-                // Strip #affordance or !disposition before resolving — navigation targets the sigil
+                // Strip #affordance or !invariant before resolving — navigation targets the sigil
                 const propIdx = findPropSeparator(match[0]);
                 const sigilRef = propIdx === -1 ? match[0] : match[0].slice(0, propIdx);
                 const resolution = resolveChainedRef(sigilRef);
@@ -1214,7 +1231,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateDispositionRef, onRenameStatusRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
     });
   }, [keybindings]);
 
@@ -1223,9 +1240,9 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
+      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
     });
-  }, [siblingNames, siblings, sigilRoot, currentContext]);
+  }, [siblingNames, siblings, sigilRoot, currentContext, currentPath]);
 
   // Toggle word wrap
   useEffect(() => {
@@ -1279,7 +1296,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         <div className={styles.emptyHint}>
           <span>↑ name affordances</span>
           <span>narrate — name the sigils needed to express them</span>
-          <span>↓ declare relevant dispositions</span>
+          <span>↓ declare relevant invariants</span>
         </div>
       )}
       {renameState && (
@@ -1310,7 +1327,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
                 if (newName && newName !== renameState.oldName) {
                   if (renameState.kind === "sigil" && onRenameSigilRef.current) {
                     onRenameSigilRef.current(renameState.oldName, newName);
-                  } else if ((renameState.kind === "affordance" || renameState.kind === "disposition") && onRenamePropertyRef.current) {
+                  } else if ((renameState.kind === "affordance" || renameState.kind === "invariant") && onRenamePropertyRef.current) {
                     onRenamePropertyRef.current(renameState.kind, renameState.oldName, newName);
                   }
                 }

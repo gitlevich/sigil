@@ -209,7 +209,7 @@ function TreemapRect({
 }) {
   const { ctx, x, y, w, h } = layout;
   const isSelected = selectedName === ctx.name;
-  const hasIcons = ctx.dispositions.length > 0 || ctx.affordances.length > 0;
+  const hasIcons = ctx.invariants.length > 0 || ctx.affordances.length > 0;
   const showIcons = hasIcons && w > 30 && h > 46;
 
   // In revealed mode, compute nested children layout
@@ -254,10 +254,10 @@ function TreemapRect({
       )}
       {showIcons && (
         <div className={styles.rectIcons}>
-          {ctx.dispositions.map((c) => (
+          {ctx.invariants.map((c) => (
             <span key={`c-${c.name}`} className={styles.iconWrap} title={`!${c.name}`}>
               <svg width="14" height="14" viewBox="0 0 14 14">
-                {/* Disposition: compass needle rhomb */}
+                {/* Invariant: compass needle rhomb */}
                 <line x1="7" y1="1" x2="7" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 <circle cx="7" cy="4.5" r="2" fill="#f40009" />
               </svg>
