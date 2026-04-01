@@ -36,6 +36,8 @@ interface MarkdownEditorProps {
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   keybindings?: Record<string, string>;
+  findReferencesName?: string | null;
+  onFindReferencesClear?: () => void;
 }
 
 const themeCompartment = new Compartment();
@@ -765,13 +767,53 @@ function findStatusAtCursor(view: EditorView): { value: string; from: number } |
   return { value: match[1], from: valueStart };
 }
 
+interface ReferenceHit {
+  contextName: string;
+  contextPath: string[];
+  line: string;
+}
+
+function findAllReferences(ctx: Context, symbolName: string, path: string[]): ReferenceHit[] {
+  const results: ReferenceHit[] = [];
+  const lines = ctx.domain_language.split("\n");
+  for (const line of lines) {
+    let match;
+    allRefsPattern.lastIndex = 0;
+    while ((match = allRefsPattern.exec(line)) !== null) {
+      if (isInCodeSpan(line, match.index)) continue;
+      const text = match[0];
+      let refName: string;
+      if (text.startsWith("@")) {
+        const parts = text.slice(1).split("@");
+        const hashIdx = parts[parts.length - 1].indexOf("#");
+        if (hashIdx >= 0) parts[parts.length - 1] = parts[parts.length - 1].slice(0, hashIdx);
+        refName = parts[parts.length - 1];
+      } else if (text.startsWith("#")) {
+        refName = fromDashForm(text.slice(1));
+      } else {
+        refName = fromDashForm(text.slice(1));
+      }
+      if (flattenName(refName) === flattenName(symbolName) || resolveRefName(refName, [symbolName]) !== undefined) {
+        results.push({ contextName: ctx.name, contextPath: path, line: line.trim() });
+        break;
+      }
+    }
+  }
+  for (const child of ctx.children) {
+    results.push(...findAllReferences(child, symbolName, [...path, child.name]));
+  }
+  return results;
+}
+
 let globalPendingStatusRename: string | null = null;
 
 type SetRenameState = (s: { oldName: string; x: number; y: number } | null) => void;
+type SetRefsState = (s: { hits: ReferenceHit[]; x: number; y: number } | null) => void;
 
 function buildCustomKeymap(
   kb: Record<string, string>,
   setRenameState: SetRenameState,
+  setRefsState: SetRefsState,
   onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onCreateAffordanceRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onCreateSignalRef: React.MutableRefObject<((name: string) => void) | undefined>,
@@ -841,6 +883,27 @@ function buildCustomKeymap(
       },
     },
     {
+      key: kb["find-references"] || "Alt-Mod-f",
+      run: (view) => {
+        let symbolName: string | null = null;
+        const ref = findRefAtCursor(view);
+        if (ref?.known) {
+          symbolName = ref.name;
+        } else {
+          const prop = findPropertyRefAtCursor(view);
+          if (prop) symbolName = fromDashForm(prop.name);
+        }
+        if (!symbolName || !globalSigilRoot) return false;
+        const hits = findAllReferences(globalSigilRoot, symbolName, []);
+        if (hits.length === 0) return false;
+        const pos = view.state.selection.main.head;
+        const coords = view.coordsAtPos(pos);
+        const rect = view.dom.getBoundingClientRect();
+        if (coords) setRefsState({ hits, x: coords.left - rect.left, y: coords.bottom - rect.top + 4 });
+        return true;
+      },
+    },
+    {
       key: kb["delete-line"] || "Mod-d",
       run: (view) => {
         const pos = view.state.selection.main.head;
@@ -854,7 +917,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateSignal, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {} }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateSignal, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -871,10 +934,22 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   const onNavigateAbsPathRef = useRef(onNavigateToAbsPath);
   onNavigateAbsPathRef.current = onNavigateToAbsPath;
   const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number } | null>(null);
+  const [refsState, setRefsStateRaw] = useState<{ hits: ReferenceHit[]; x: number; y: number } | null>(null);
+  const [refsIndex, setRefsIndex] = useState(0);
+  const setRefsState: SetRefsState = (s) => { setRefsStateRaw(s); setRefsIndex(0); };
   const onRenameStatusRef = useRef(onRenameStatus);
   onRenameStatusRef.current = onRenameStatus;
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
+
+  useEffect(() => {
+    if (!findReferencesName || !sigilRoot) return;
+    onFindReferencesClear?.();
+    const hits = findAllReferences(sigilRoot, findReferencesName, []);
+    if (hits.length === 0) return;
+    // Position at top-left of editor since there's no cursor context
+    setRefsState({ hits, x: 32, y: 32 });
+  }, [findReferencesName]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -886,7 +961,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
@@ -984,7 +1059,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
     });
   }, [keybindings]);
 
@@ -1082,6 +1157,50 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             }}
             onBlur={() => setRenameState(null)}
           />
+        </div>
+      )}
+      {refsState && (
+        <div
+          className={styles.refsDropdown}
+          style={{ left: refsState.x, top: refsState.y }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setRefsIndex((i) => Math.min(i + 1, refsState.hits.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setRefsIndex((i) => Math.max(i - 1, 0));
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              const hit = refsState.hits[refsIndex];
+              if (hit && onNavigateAbsPathRef.current) onNavigateAbsPathRef.current(hit.contextPath);
+              setRefsState(null);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              setRefsState(null);
+            }
+          }}
+          onBlur={() => setRefsState(null)}
+        >
+          {refsState.hits.map((hit, i) => (
+            <div
+              key={`${hit.contextPath.join("/")}:${i}`}
+              className={`${styles.refsItem} ${i === refsIndex ? styles.refsItemActive : ""}`}
+              onMouseEnter={() => setRefsIndex(i)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (onNavigateAbsPathRef.current) onNavigateAbsPathRef.current(hit.contextPath);
+                setRefsState(null);
+                setRefsIndex(0);
+              }}
+            >
+              <span className={styles.refsContext}>{hit.contextPath.length ? hit.contextPath.join(" > ") : hit.contextName}</span>
+              <span className={styles.refsLine}>{hit.line}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

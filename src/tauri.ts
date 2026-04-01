@@ -72,6 +72,7 @@ export interface Keybindings {
   "facet-map": string;
   "panel-vision": string;
   "panel-ontology": string;
+  "find-references": string;
 }
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
@@ -83,6 +84,7 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "facet-map": "Ctrl-5",
   "panel-vision": "Ctrl-v",
   "panel-ontology": "Ctrl-g",
+  "find-references": "Alt-Mod-f",
 };
 
 export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
@@ -94,6 +96,7 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "facet-map": "Facet: Atlas",
   "panel-vision": "Panel: Vision",
   "panel-ontology": "Panel: Ontology",
+  "find-references": "Find References",
 };
 
 /** Convert CodeMirror key format to Tauri menu accelerator format */
@@ -184,8 +187,8 @@ export const api = {
   renameChat: (rootPath: string, chatId: string, newName: string) =>
     invoke<void>("rename_chat", { rootPath, chatId, newName }),
 
-  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, systemPrompt: string) =>
-    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt }),
+  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, systemPrompt: string, currentPath: string[]) =>
+    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt, currentPath }),
 
   listRecentDocuments: () =>
     invoke<RecentDocument[]>("list_recent_documents"),
