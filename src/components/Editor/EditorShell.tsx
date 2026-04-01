@@ -3,7 +3,7 @@ import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
 import { Breadcrumb } from "./Breadcrumb";
-import { MarkdownEditor, resolveRefName } from "./MarkdownEditor";
+import { MarkdownEditor, resolveRefName, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
@@ -126,15 +126,16 @@ function flattenOntologyRefs(
   ctx: Context,
   basePath: string[],
   seen: Set<string>,
-): { name: string; summary: string; kind: "sibling"; absolutePath: string[] }[] {
-  const refs: { name: string; summary: string; kind: "sibling"; absolutePath: string[] }[] = [];
+  ontologyName: string,
+): SiblingInfo[] {
+  const refs: SiblingInfo[] = [];
   for (const child of ctx.children) {
     const childPath = [...basePath, child.name];
     if (!seen.has(child.name)) {
       seen.add(child.name);
-      refs.push({ name: child.name, summary: makeSummary(child), kind: "sibling", absolutePath: childPath });
+      refs.push({ name: child.name, summary: makeSummary(child), kind: "lib", absolutePath: childPath, libPrefix: ontologyName });
     }
-    refs.push(...flattenOntologyRefs(child, childPath, seen));
+    refs.push(...flattenOntologyRefs(child, childPath, seen, ontologyName));
   }
   return refs;
 }
@@ -315,11 +316,13 @@ export function EditorShell() {
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
   // Lexical scope: full ancestry chain + Ontologies descendants always in scope
-  const allRefs = buildLexicalScope(doc.sigil.root, doc.currentPath);
+  const allRefs: SiblingInfo[] = buildLexicalScope(doc.sigil.root, doc.currentPath);
   const seenNames = new Set(allRefs.map((r) => r.name));
   const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
   if (ontologiesSigil) {
-    allRefs.push(...flattenOntologyRefs(ontologiesSigil, [ONTOLOGIES_NAME], seenNames));
+    for (const ontology of ontologiesSigil.children) {
+      allRefs.push(...flattenOntologyRefs(ontology, [ONTOLOGIES_NAME, ontology.name], seenNames, ontology.name));
+    }
   }
   const allRefNames = allRefs.map((r) => r.name);
 

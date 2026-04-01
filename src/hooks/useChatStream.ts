@@ -135,7 +135,8 @@ export function useChatStream() {
         chatId,
         message,
         provider,
-        systemPrompt
+        systemPrompt,
+        doc.currentPath
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);

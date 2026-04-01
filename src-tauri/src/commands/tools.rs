@@ -169,9 +169,10 @@ pub fn execute_tool(name: &str, input: &serde_json::Value) -> Result<String, Str
             Ok(format!("Wrote language.md at {}", ctx_path))
         }
         "rename_context" => {
+            let root = input["root_path"].as_str().ok_or("Missing root_path")?;
             let ctx_path = input["context_path"].as_str().ok_or("Missing context_path")?;
             let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
-            let new_path = rename_context(ctx_path.to_string(), new_name.to_string())?;
+            let new_path = rename_context(root.to_string(), ctx_path.to_string(), new_name.to_string())?;
             Ok(format!("Renamed to '{}' at {}", new_name, new_path))
         }
         "delete_context" => {

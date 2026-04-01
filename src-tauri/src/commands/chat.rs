@@ -129,7 +129,15 @@ fn render_context(ctx: &Context, depth: usize, output: &mut String) {
     }
 }
 
-fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
+fn find_context_by_path<'a>(root: &'a Context, path: &[String]) -> Option<&'a Context> {
+    let mut ctx = root;
+    for segment in path {
+        ctx = ctx.children.iter().find(|c| c.name == *segment)?;
+    }
+    Some(ctx)
+}
+
+fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<String, String> {
     let sigil = read_sigil(root_path.to_string())?;
     let mut output = String::new();
 
@@ -138,6 +146,15 @@ fn assemble_sigil_context(root_path: &str) -> Result<String, String> {
     output.push_str("# Vision\n\n");
     output.push_str(&sigil.vision);
     output.push_str("\n\n");
+
+    if !current_path.is_empty() {
+        if let Some(focused) = find_context_by_path(&sigil.root, current_path) {
+            output.push_str("# Currently Viewing\n\n");
+            output.push_str(&format!("The user is currently looking at: {}\n\n", current_path.join(" > ")));
+            render_context(focused, 0, &mut output);
+            output.push_str("\n\n");
+        }
+    }
 
     output.push_str("# Sigil Artifact\n\n");
     output.push_str("Each context below includes its definition, domain language, signals, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
@@ -334,8 +351,9 @@ pub async fn send_chat_message(
     message: String,
     profile: AiProfile,
     system_prompt: String,
+    current_path: Vec<String>,
 ) -> Result<(), String> {
-    let spec_context = assemble_sigil_context(&root_path)?;
+    let spec_context = assemble_sigil_context(&root_path, &current_path)?;
 
     let system_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
@@ -657,7 +675,7 @@ mod tests {
         fs::write(browse.join("affordance-open.md"), "open a selected sigil").unwrap();
         fs::write(browse.join("signal-focus.md"), "keep the current target visible").unwrap();
 
-        let context = assemble_sigil_context(root.to_string_lossy().as_ref()).unwrap();
+        let context = assemble_sigil_context(root.to_string_lossy().as_ref(), &[]).unwrap();
 
         assert!(context.contains("# Sigil Artifact"));
         assert!(context.contains("Application shell boundary"));

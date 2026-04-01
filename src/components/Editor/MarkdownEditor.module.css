@@ -26,3 +26,52 @@
 .editor .cm-editor {
   height: 100%;
 }
+
+.refsDropdown {
+  position: absolute;
+  z-index: 100;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 260px;
+  overflow-y: auto;
+  min-width: 280px;
+  max-width: 480px;
+  outline: none;
+}
+
+.refsItem {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-bottom: 1px solid var(--border);
+}
+
+.refsItem:last-child {
+  border-bottom: none;
+}
+
+.refsItemActive {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.refsContext {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.refsItemActive .refsContext {
+  opacity: 1;
+}
+
+.refsLine {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

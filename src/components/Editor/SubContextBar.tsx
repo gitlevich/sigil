@@ -49,7 +49,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     }
     try {
       const childPath = `${context.path}/${oldName}`;
-      await api.renameContext(childPath, trimmed);
+      await api.renameContext(doc.sigil.root_path, childPath, trimmed);
       await reload(doc.sigil.root_path);
       setRenamingChild(null);
     } catch (err) {

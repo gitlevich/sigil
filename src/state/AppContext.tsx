@@ -16,6 +16,7 @@ export interface OpenDocument {
   highlightedChild: string | null;
   wordWrap: boolean;
   renamingRequest: boolean;
+  findReferencesName: string | null;
 }
 
 export interface UIState {

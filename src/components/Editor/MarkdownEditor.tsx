@@ -16,8 +16,10 @@ import styles from "./MarkdownEditor.module.css";
 export interface SiblingInfo {
   name: string;
   summary: string;
-  kind?: "contained" | "sibling";
+  kind?: "contained" | "sibling" | "lib";
   absolutePath?: string[]; // full path from root for navigation
+  /** For lib refs, the ontology prefix (e.g. "AttentionLanguage") */
+  libPrefix?: string;
 }
 
 interface MarkdownEditorProps {
@@ -82,6 +84,7 @@ function getThemeExtension(): typeof oneDark | typeof lightTheme {
 
 const containedMark = Decoration.mark({ class: "cm-ref-contained" });
 const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
+const libMark = Decoration.mark({ class: "cm-ref-lib" });
 const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
@@ -159,7 +162,7 @@ function extractSummary(domainLanguage: string): string {
     if (end !== -1) text = text.slice(end + 4);
   }
   return text.split("\n")
-    .filter((l) => l.trim() && !l.trimStart().startsWith("#"))
+    .filter((l) => l.trim())
     .slice(0, 3)
     .join("\n");
 }
@@ -246,7 +249,7 @@ function findContextByPath(path: string[], root: Context): Context | null {
   return ctx;
 }
 
-type RefKind = "contained" | "sibling" | "absolute" | "external" | "unresolved";
+type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
 interface RefResolution {
   kind: RefKind;
@@ -269,7 +272,7 @@ function resolveChainedRef(matchText: string): RefResolution {
     }
     const info = findSibling(segments[0]);
     if (info) return {
-      kind: info.kind === "sibling" ? "sibling" : "contained",
+      kind: info.kind === "lib" ? "lib" : info.kind === "sibling" ? "sibling" : "contained",
       path: [info.name],
       absolutePath: info.absolutePath,
       summary: info.summary,
@@ -290,8 +293,26 @@ function resolveChainedRef(matchText: string): RefResolution {
     }
   }
 
+  // Multi-segment: try Libs-anchored path (e.g. @AttentionLanguage@Sigil → Libs/AttentionLanguage/Sigil)
+  if (globalSigilRoot) {
+    const libsCtx = globalSigilRoot.children.find((c) => c.name === "Libs");
+    if (libsCtx) {
+      // First segment must match an ontology name under Libs
+      const ontologyCanonical = resolveRefName(segments[0], libsCtx.children.map((c) => c.name));
+      if (ontologyCanonical) {
+        const ontologyCtx = libsCtx.children.find((c) => c.name === ontologyCanonical)!;
+        const resolved = walkTree(segments.slice(1), ontologyCtx);
+        if (resolved !== null) {
+          const fullPath = ["Libs", ontologyCanonical, ...resolved];
+          const ctx = findContextByPath(fullPath, globalSigilRoot);
+          const summary = ctx ? extractSummary(ctx.domain_language || "") : undefined;
+          return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
+        }
+      }
+    }
+  }
+
   // Multi-segment refs into another sigil's children are outside scope — sigil boundary.
-  // Check if the first segment is a known sigil (for a better error message).
   const firstInfo = findSibling(segments[0]);
   const boundaryName = firstInfo ? segments[0] : null;
   return { kind: "external", path: segments, summary: boundaryName ? `sigil boundary — cannot reach into @${boundaryName}` : undefined };
@@ -333,6 +354,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                   const mark =
                     resolution.kind === "contained" ? containedMark :
                     resolution.kind === "sibling" ? siblingMark :
+                    resolution.kind === "lib" ? libMark :
                     resolution.kind === "absolute" ? absoluteMark :
                     resolution.kind === "external" ? externalMark :
                     unresolvedMark;
@@ -367,6 +389,11 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
       },
       ".cm-ref-sibling": {
         borderBottom: "2px dashed #e8a040",
+        borderRadius: "1px",
+        paddingBottom: "1px",
+      },
+      ".cm-ref-lib": {
+        borderBottom: "2px dotted #8b5cf6",
         borderRadius: "1px",
         paddingBottom: "1px",
       },
@@ -475,13 +502,13 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               displayName = matchText;
               // fall through to render tooltip with error summary
             } else {
-            summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling"
+            summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
               ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
               : "");
             if (affordancePart) {
               // Find the affordance content in the resolved context
-              const ctx = resolution.kind === "absolute"
-                ? findContextByPath(resolution.path, globalSigilRoot!)
+              const ctx = resolution.kind === "absolute" || resolution.kind === "lib"
+                ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot!)
                 : globalSiblings.find((s) => s.name === resolution.path[0]) as unknown as Context | undefined;
               const aff = findAffordance(ctx as Context | undefined, affordancePart);
               if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
@@ -655,9 +682,9 @@ function siblingCompletion(context: CompletionContext) {
     return {
       from: before.from,
       options: globalSiblings.map((s) => ({
-        label: `@${s.name}`,
-        detail: `${s.kind === "sibling" ? "[neighbor] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
-        type: s.kind === "sibling" ? "property" as const : "variable" as const,
+        label: s.kind === "lib" && s.libPrefix ? `@${s.libPrefix}@${s.name}` : `@${s.name}`,
+        detail: `${s.kind === "sibling" ? "[neighbor] " : s.kind === "lib" ? "[lib] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
+        type: s.kind === "sibling" ? "property" as const : s.kind === "lib" ? "enum" as const : "variable" as const,
       })),
       filter: true,
     };
