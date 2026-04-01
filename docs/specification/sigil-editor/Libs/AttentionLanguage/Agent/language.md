@@ -18,3 +18,7 @@ Agent remembers the experienced sequence of @frames as a @narrative and interpre
 Agent projects the emergent shape of self into the future to keep autobiographical @narrative coherent. 
 
 An extreme case is @narrative capture, where all @attention is captured by the narrative, making the @agent unable to attend to other things in the unattended majority of the frame. 
+
+As an agent, I am. 
+
+All else follows.
