@@ -179,6 +179,17 @@ export function EditorShell() {
         dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology", leftPanelOpen: true } });
         return;
       }
+      // Find References — only handle when focus is outside the CodeMirror editor
+      // (CodeMirror has its own keymap handler for this when focused)
+      if (matchesBinding(e, kb["find-references"] || "Alt-Mod-f")) {
+        const cm = (e.target as HTMLElement)?.closest(".cm-editor");
+        if (!cm) {
+          e.preventDefault();
+          const ctx = findContext(doc.sigil.root, doc.currentPath);
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
+        }
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
@@ -361,6 +372,8 @@ export function EditorShell() {
                     onNavigateToSigil={handleNavigateToSigil}
                     onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
                     keybindings={state.settings.keybindings as unknown as Record<string, string>}
+                    findReferencesName={doc.findReferencesName}
+                    onFindReferencesClear={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: null } })}
                   />
                 </div>
               )}

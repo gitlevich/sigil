@@ -156,6 +156,29 @@ async function buildMenu(
     ],
   });
 
+  // ── Find menu ──
+  const findReferencesItem = await MenuItem.new({
+    text: "Find References",
+    accelerator: toTauriAccelerator(kb["find-references"] || "Alt-Mod-f"),
+    action: () => {
+      const doc = getDoc();
+      if (!doc) return;
+      const root = doc.sigil.root;
+      let ctx = root;
+      for (const seg of doc.currentPath) {
+        const child = ctx.children.find((c: { name: string }) => c.name === seg);
+        if (!child) break;
+        ctx = child;
+      }
+      dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
+    },
+  });
+
+  const findSubmenu = await Submenu.new({
+    text: "Find",
+    items: [findReferencesItem],
+  });
+
   // ── View menu ──
   const wordWrapItem = await MenuItem.new({
     text: "Toggle Word Wrap",
@@ -232,7 +255,7 @@ async function buildMenu(
   await helpSubmenu.setAsHelpMenuForNSApp();
 
   const menu = await Menu.new({
-    items: [appSubmenu, fileSubmenu, editSubmenu, viewSubmenu, windowSubmenu, helpSubmenu],
+    items: [appSubmenu, fileSubmenu, editSubmenu, findSubmenu, viewSubmenu, windowSubmenu, helpSubmenu],
   });
 
   await menu.setAsAppMenu();
