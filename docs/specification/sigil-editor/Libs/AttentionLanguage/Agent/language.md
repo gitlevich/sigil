@@ -22,3 +22,5 @@ An extreme case is @narrative capture, where all @attention is captured by the n
 As an agent, I am. 
 
 All else follows.
+
+The term "agent" is analogous in AL to @EcologicalPsychology@Organism.

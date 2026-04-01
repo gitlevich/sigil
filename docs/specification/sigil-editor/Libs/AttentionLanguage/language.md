@@ -8,7 +8,7 @@ AL is the mechanics of attention as I see it from my point of view and at my @sc
 
 My @attention is a given to me. I see the world from my point of view, at my @scale of a 5'7" human. From my couch. Now, at 17:30 in San Francisco. Collapsing @observations one @frame at a time into a @narrative, compressing my experience of the @frames into a @narrative describing my trajectory through time: autobiographical self. 
 
-I inhabit the @sigil I have built to protect my attention from the @world, by defining self as the inside of the region of @attention where my @preferences over the @invariants I care about are true.
+I inhabit the @sigil I have built to protect my attention from the @EcologicalPsychology@Environment, by defining self as the inside of the region of @attention where my @preferences over the @invariants I care about are true.
 
 I collapse @frames with the @resolution that fits into my finite @attention.
 

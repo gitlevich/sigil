@@ -1,7 +1,0 @@
----
-status: external-ontology
----
-
-# World
-
-As 
