@@ -1,8 +1,10 @@
 ---
-status: 
+status: implemented
 ---
 
 # Sigil Editor
+
+Sigil Editor is an application I am designing to write specs based on @sigils.
 
 I #State-vision of the app in a dedicates place. I want it to be always one click away to remember the goal I pursue: I tend to get distracted easily. 
 
