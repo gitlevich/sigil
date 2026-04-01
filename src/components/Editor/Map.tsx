@@ -153,15 +153,22 @@ function maxDepth(ctx: Context): number {
   return 1 + Math.max(...ctx.children.map(maxDepth));
 }
 
-// Root matches app background, leaves are darkest. Step calculated from max depth.
-const ROOT_LIGHTNESS = 95;
-const LEAF_LIGHTNESS = 70;
+// Root matches app background, leaves are most contrasting. Step calculated from max depth.
+function isDarkTheme(): boolean {
+  return document.documentElement.getAttribute("data-theme") === "dark";
+}
 
 function depthStyle(depth: number, totalDepth: number): React.CSSProperties {
-  const step = totalDepth > 0 ? (ROOT_LIGHTNESS - LEAF_LIGHTNESS) / totalDepth : 0;
-  const lightness = Math.max(LEAF_LIGHTNESS, ROOT_LIGHTNESS - depth * step);
+  const dark = isDarkTheme();
+  const rootL = dark ? 12 : 95;
+  const leafL = dark ? 30 : 70;
+  const range = Math.abs(leafL - rootL);
+  const step = totalDepth > 0 ? range / totalDepth : 0;
+  const lightness = dark
+    ? Math.min(leafL, rootL + depth * step)
+    : Math.max(leafL, rootL - depth * step);
   const bg = `hsl(0, 0%, ${lightness}%)`;
-  const color = lightness > 55 ? "hsl(0, 0%, 10%)" : "hsl(0, 0%, 95%)";
+  const color = lightness > 45 ? "hsl(0, 0%, 10%)" : "hsl(0, 0%, 90%)";
   return { background: bg, color };
 }
 

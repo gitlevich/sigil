@@ -410,55 +410,20 @@ export function OntologyEditor() {
         />
       </div>
       <div className={styles.tree}>
-        {rootVisible && (
-          <>
-            <div
-              className={`${styles.row} ${doc.currentPath.length === 0 ? styles.active : ""}`}
-              onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [] } })}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, node: root }); }}
-            >
-              <span className={styles.chevronPlaceholder} />
-              <span className={styles.term}>{root.name}</span>
+        {rootVisible && root.children
+          .filter((c) => !query || nodeMatches(c, query))
+          .map((child) => (
+            <div key={child.name}>
+              <OntologyItem node={child} {...sharedProps} />
+              {addingPeerOf && pathsEqual(child.path, addingPeerOf) && (
+                <InlinePeerInput
+                  parentFsPath={root.fsPath}
+                  onSubmit={handlePeerSubmit}
+                  onAbort={() => setAddingPeerOf(null)}
+                />
+              )}
             </div>
-            {(root.signals.length > 0 || root.affordances.length > 0) && (
-              <div className={styles.propertyList}>
-                {root.signals.map((name) => (
-                  <span key={`s-${name}`} className={styles.iconWrap} title={`!${name}`}>
-                    <svg width="12" height="12" viewBox="0 0 14 14">
-                      <circle cx="7" cy="11" r="1.5" fill="currentColor" />
-                      <path d="M4.5 9 a3.5 3.5 0 0 1 5 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                      <path d="M2 6.5 a6 6 0 0 1 10 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                ))}
-                {root.affordances.map((name) => (
-                  <span key={`a-${name}`} className={styles.iconWrap} title={`#${name}`}>
-                    <svg width="12" height="12" viewBox="0 0 14 14">
-                      <rect x="2" y="2" width="4" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M6 7 L11 7 L12 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className={styles.children}>
-              {root.children
-                .filter((c) => !query || nodeMatches(c, query))
-                .map((child) => (
-                  <div key={child.name}>
-                    <OntologyItem node={child} {...sharedProps} />
-                    {addingPeerOf && pathsEqual(child.path, addingPeerOf) && (
-                      <InlinePeerInput
-                        parentFsPath={root.fsPath}
-                        onSubmit={handlePeerSubmit}
-                        onAbort={() => setAddingPeerOf(null)}
-                      />
-                    )}
-                  </div>
-                ))}
-            </div>
-          </>
-        )}
+          ))}
       </div>
 
       {contextMenu && (
