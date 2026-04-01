@@ -62,7 +62,7 @@ function updateContextInTree(
   };
 }
 
-const ONTOLOGIES_NAME = "Ontologies";
+const ONTOLOGIES_NAME = "Libs";
 
 function makeSummary(ctx: Context): string {
   let text = ctx.domain_language || "";
