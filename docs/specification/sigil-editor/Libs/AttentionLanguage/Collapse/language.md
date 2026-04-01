@@ -2,5 +2,4 @@
 status: idea
 ---
 
-# Atlas
-
+# Collapse

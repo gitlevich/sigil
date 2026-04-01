@@ -17,7 +17,7 @@ I am an @observer - @attention from a point of view at a @scale, attending to th
 I am an @agent - an @observer wearing a @sigil, attending to a @narrative, time-like. 
 
 
-A @Sigil is a shape in the @contrast space. It contains the region in which relevant @contrasts are within @preferences. 
+A @Sigil is a shape in the @contrast space. It contains the region in which relevant @contrast are within @preferences. 
 
 
 I can #attend to what's inside my @sigil, or what's outside it, or both. Inside is my autobiographical @narrative, protected by the @sigil. 
