@@ -152,8 +152,20 @@ function buildFrontMatterPlugin() {
 }
 
 let globalSiblings: SiblingInfo[] = [];
+let globalSiblingNames: string[] = [];
+/** Precomputed lookup: lowercase name → canonical name, flattened name → canonical name */
+let globalNameIndex: Map<string, string> = new Map();
 let globalSigilRoot: Context | null = null;
 let globalCurrentContext: Context | null = null;
+
+function buildNameIndex(names: string[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const n of names) {
+    index.set(n.toLowerCase(), n);
+    index.set(flattenName(n), n);
+  }
+  return index;
+}
 
 function extractSummary(domainLanguage: string): string {
   let text = domainLanguage;
@@ -224,7 +236,11 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
 }
 
 function findSibling(name: string): SiblingInfo | undefined {
-  const canonical = resolveRefName(name, globalSiblings.map((s) => s.name));
+  // Fast path: O(1) lookup for exact, lowercase, or flattened match
+  const fast = globalNameIndex.get(name.toLowerCase()) ?? globalNameIndex.get(flattenName(name));
+  if (fast) return globalSiblings.find((s) => s.name === fast);
+  // Slow path: plural resolution (rare)
+  const canonical = resolveRefName(name, globalSiblingNames);
   return canonical ? globalSiblings.find((s) => s.name === canonical) : undefined;
 }
 
@@ -320,6 +336,8 @@ function resolveChainedRef(matchText: string): RefResolution {
 
 function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null, currentCtx: Context | null) {
   globalSiblings = siblings;
+  globalSiblingNames = siblings.map((s) => s.name);
+  globalNameIndex = buildNameIndex(globalSiblingNames);
   globalSigilRoot = sigilRoot;
   globalCurrentContext = currentCtx;
 
@@ -968,6 +986,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onRenameStatusRef.current = onRenameStatus;
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
+  const lastLocalContentRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!findReferencesName || !sigilRoot) return;
@@ -1001,8 +1020,10 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
+            const text = update.state.doc.toString();
             localEditRef.current = true;
-            onChangeRef.current(update.state.doc.toString());
+            lastLocalContentRef.current = text;
+            onChangeRef.current(text);
           }
         }),
         EditorView.domEventHandlers({
@@ -1109,32 +1130,40 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   }, [wordWrap]);
 
   // Sync external content changes into CodeMirror.
-  // Skip if the change is an echo of a local edit (localEditRef).
-  // But always sync if the content is completely different (navigation).
+  // Sync external content changes (e.g. navigation to different sigil).
+  // Skip echoes of our own edits — the debounced dispatch sends back content
+  // we already have, so replacing would jump the cursor.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const currentDoc = view.state.doc.toString();
 
-    if (localEditRef.current) {
-      // Check if this is truly an echo (content matches what we just typed)
-      // vs a navigation to a different context (content is completely different)
-      if (currentDoc === content) {
-        localEditRef.current = false;
-        return;
-      }
-      // Content is different from what's in the editor — this is navigation, not echo
+    if (currentDoc === content) {
       localEditRef.current = false;
+      lastLocalContentRef.current = null;
+      return;
     }
 
-    if (currentDoc !== content) {
-      // This is navigation to a different sigil. Replace content and clear undo history.
-      // Without this, Cmd+Z undoes into the previous sigil's content and corrupts the file.
-      view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: content },
-        annotations: [Transaction.addToHistory.of(false)],
-      });
+    // If we have local edits, check if this is an echo vs navigation.
+    // Echo: the content prop is a stale version of what the editor already has
+    //   (debounced dispatch catching up). The editor is ahead — skip.
+    // Navigation: content is from a completely different sigil — must replace.
+    // Heuristic: if the first 50 chars match, it's an echo. Different sigils
+    // have different openings (different frontmatter, headings, etc).
+    if (localEditRef.current) {
+      const prefix = Math.min(50, content.length, currentDoc.length);
+      if (content.slice(0, prefix) === currentDoc.slice(0, prefix)) {
+        return;
+      }
     }
+
+    // Navigation to a different sigil. Replace content and clear undo history.
+    localEditRef.current = false;
+    lastLocalContentRef.current = null;
+    view.dispatch({
+      changes: { from: 0, to: currentDoc.length, insert: content },
+      annotations: [Transaction.addToHistory.of(false)],
+    });
   }, [content]);
 
   return (

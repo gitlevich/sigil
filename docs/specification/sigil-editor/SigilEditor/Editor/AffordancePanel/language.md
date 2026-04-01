@@ -1,0 +1,5 @@
+---
+status: idea
+---
+
+# Affordance Panel

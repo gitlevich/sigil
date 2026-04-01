@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
@@ -197,15 +197,21 @@ export function EditorShell() {
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [doc, state.settings.keybindings, dispatch]);
 
+  const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
     save(`${ctx.path}/language.md`, content);
-    const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
-      ...c,
-      domain_language: content,
-    }));
-    dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+    // Debounce the React state update — CodeMirror holds its own state,
+    // so other components only need periodic sync.
+    if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
+    dispatchTimerRef.current = setTimeout(() => {
+      const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
+        ...c,
+        domain_language: content,
+      }));
+      dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+    }, 300);
   }, [doc, save, dispatch]);
 
   const handleCreateSigil = useCallback(async (name: string) => {
@@ -310,22 +316,33 @@ export function EditorShell() {
     }
   }, [doc, dispatch]);
 
+  // Stable fingerprint of tree structure (names only, ignoring content changes)
+  const treeFingerprint = useMemo(() => {
+    function walk(ctx: Context): string {
+      return ctx.name + "(" + ctx.children.map(walk).join(",") + ")";
+    }
+    return doc ? walk(doc.sigil.root) : "";
+  }, [doc?.sigil.root]);
+
+  // Memoize lexical scope — only recomputes when tree structure or current path changes
+  const { allRefs, allRefNames } = useMemo(() => {
+    if (!doc) return { allRefs: [] as SiblingInfo[], allRefNames: [] as string[] };
+    const refs: SiblingInfo[] = buildLexicalScope(doc.sigil.root, doc.currentPath);
+    const seenNames = new Set(refs.map((r) => r.name));
+    const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
+    if (ontologiesSigil) {
+      for (const ontology of ontologiesSigil.children) {
+        refs.push(...flattenOntologyRefs(ontology, [ONTOLOGIES_NAME, ontology.name], seenNames, ontology.name));
+      }
+    }
+    return { allRefs: refs, allRefNames: refs.map((r) => r.name) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeFingerprint, doc?.currentPath]);
+
   if (!doc) return null;
 
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
-
-  // Lexical scope: full ancestry chain + Ontologies descendants always in scope
-  const allRefs: SiblingInfo[] = buildLexicalScope(doc.sigil.root, doc.currentPath);
-  const seenNames = new Set(allRefs.map((r) => r.name));
-  const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
-  if (ontologiesSigil) {
-    for (const ontology of ontologiesSigil.children) {
-      allRefs.push(...flattenOntologyRefs(ontology, [ONTOLOGIES_NAME, ontology.name], seenNames, ontology.name));
-    }
-  }
-  const allRefNames = allRefs.map((r) => r.name);
-
   const content = currentCtx.domain_language;
 
   return (
