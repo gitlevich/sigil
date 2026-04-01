@@ -455,6 +455,10 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         color: "#e8a040",
         fontStyle: "italic",
       },
+      "&.cm-cmd-held .cm-ref-contained, &.cm-cmd-held .cm-ref-sibling, &.cm-cmd-held .cm-ref-lib, &.cm-cmd-held .cm-ref-absolute, &.cm-cmd-held .cm-ref-affordance, &.cm-cmd-held .cm-ref-disposition": {
+        cursor: "pointer",
+        textDecoration: "underline",
+      },
       ".cm-front-matter": {
         opacity: "0.45",
         fontSize: "0.8em",
@@ -542,19 +546,18 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
               : "");
             if (propertyPart) {
-              // Find the property content in the resolved context
-              const ctx = resolution.kind === "absolute" || resolution.kind === "lib"
-                ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot!)
-                : globalSiblings.find((s) => s.name === resolution.path[0]) as unknown as Context | undefined;
-              if (propChar === "!") {
-                // Disposition lookup
-                const disp = (ctx as Context | undefined)?.dispositions.find(
+              // Find the property content in the resolved context.
+              // Always use the real Context tree (not SiblingInfo) to access affordances/dispositions.
+              const ctx = globalSigilRoot
+                ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot)
+                : null;
+              if (propChar === "!" && ctx) {
+                const disp = ctx.dispositions.find(
                   (d) => d.name === propertyPart || d.name === fromDashForm(propertyPart!)
                 );
                 if (disp) summary = disp.content.split("\n").slice(0, 3).join("\n");
-              } else {
-                // Affordance lookup
-                const aff = findAffordance(ctx as Context | undefined, propertyPart);
+              } else if (ctx) {
+                const aff = findAffordance(ctx, propertyPart);
                 if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
               }
               displayName = `${sigilPart}${propChar}${propertyPart}`;
@@ -1091,6 +1094,22 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
           }
         }),
         EditorView.domEventHandlers({
+          keydown: (event, view) => {
+            if (event.key === "Meta" || event.key === "Control") {
+              view.dom.classList.add("cm-cmd-held");
+            }
+            return false;
+          },
+          keyup: (event, view) => {
+            if (event.key === "Meta" || event.key === "Control") {
+              view.dom.classList.remove("cm-cmd-held");
+            }
+            return false;
+          },
+          blur: (_event, view) => {
+            view.dom.classList.remove("cm-cmd-held");
+            return false;
+          },
           mousedown: (event, view) => {
             if (!(event.metaKey || event.ctrlKey)) return false;
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
