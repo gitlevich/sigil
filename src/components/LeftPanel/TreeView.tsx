@@ -33,7 +33,8 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   const isHighlighted = !isActive && highlightedChild === context.name
     && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
-  const atLimit = context.children.length >= 5;
+  const underOntologies = path.includes("Ontologies");
+  const atLimit = !underOntologies && context.children.length >= 5;
 
   return (
     <div
@@ -61,6 +62,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         const sourcePath = dragSourcePath;
         dragSourcePath = null;
         if (!sourcePath) return;
+        if (atLimit) return;
         if (sourcePath === context.path) return;
         if (context.path.startsWith(sourcePath + "/")) return;
         onDrop(sourcePath, context.path);
@@ -257,7 +259,7 @@ export function TreeView() {
       handleNavigate(allPaths[currentIndex + 1]);
     } else if (e.key === "Enter") {
       const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
-      if (ctx && ctx.children.length < 5) {
+      if (ctx && (doc.currentPath.includes("Ontologies") || ctx.children.length < 5)) {
         // Focus the ghost input if it exists
         const ghost = treeRef.current?.querySelector(`.${styles.ghostInput}`) as HTMLInputElement | null;
         if (ghost) ghost.focus();

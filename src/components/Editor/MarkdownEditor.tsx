@@ -17,6 +17,7 @@ export interface SiblingInfo {
   name: string;
   summary: string;
   kind?: "contained" | "sibling";
+  absolutePath?: string[]; // full path from root for navigation
 }
 
 interface MarkdownEditorProps {
@@ -28,7 +29,10 @@ interface MarkdownEditorProps {
   currentContext?: Context;
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
+  onCreateAffordance?: (name: string) => void;
+  onCreateSignal?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
+  onRenameStatus?: (oldValue: string, newValue: string) => void;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   keybindings?: Record<string, string>;
@@ -83,7 +87,33 @@ const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 const signalMark = Decoration.mark({ class: "cm-ref-signal" });
 const frontMatterLineMark = Decoration.line({ class: "cm-front-matter" });
 
-const FRONT_MATTER_STATUSES = ["idea", "articulated", "defined"];
+const DEFAULT_STATUS = "idea";
+
+function extractStatus(domainLanguage: string): string | null {
+  if (!domainLanguage.startsWith("---")) return null;
+  const end = domainLanguage.indexOf("\n---", 3);
+  if (end === -1) return null;
+  const match = domainLanguage.slice(3, end).match(/^status:\s*(\S+)/m);
+  return match ? match[1] : null;
+}
+
+
+function collectStatusesExcluding(ctx: Context, excludePath: string): string[] {
+  if (ctx.path === excludePath) return ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath));
+  const status = extractStatus(ctx.domain_language || "");
+  return [
+    ...(status ? [status] : []),
+    ...ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath)),
+  ];
+}
+
+function getKnownStatuses(): string[] {
+  const excludePath = globalCurrentContext?.path ?? "";
+  const found = globalSigilRoot
+    ? collectStatusesExcluding(globalSigilRoot, excludePath)
+    : [];
+  return [DEFAULT_STATUS, ...found].filter((s, i, arr) => arr.indexOf(s) === i);
+}
 
 function getFrontMatterEnd(doc: { lines: number; line: (n: number) => { text: string; from: number; to: number } }): number {
   if (doc.lines < 2 || doc.line(1).text !== "---") return -1;
@@ -119,6 +149,27 @@ function buildFrontMatterPlugin() {
 let globalSiblings: SiblingInfo[] = [];
 let globalSigilRoot: Context | null = null;
 let globalCurrentContext: Context | null = null;
+
+function extractSummary(domainLanguage: string): string {
+  let text = domainLanguage;
+  if (text.startsWith("---")) {
+    const end = text.indexOf("\n---", 3);
+    if (end !== -1) text = text.slice(end + 4);
+  }
+  return text.split("\n")
+    .filter((l) => l.trim() && !l.trimStart().startsWith("#"))
+    .slice(0, 3)
+    .join("\n");
+}
+
+/** Returns true if the character at matchIndex in lineText is inside a backtick code span. */
+function isInCodeSpan(lineText: string, matchIndex: number): boolean {
+  let count = 0;
+  for (let i = 0; i < matchIndex; i++) {
+    if (lineText[i] === "`") count++;
+  }
+  return count % 2 === 1;
+}
 
 /** Convert affordance name to dash-separated form for use in #references. */
 function toDashForm(name: string): string {
@@ -199,6 +250,8 @@ interface RefResolution {
   kind: RefKind;
   /** Absolute path from root (for absolute refs), or [name] for local refs. */
   path: string[];
+  /** Explicit navigation path — present when the ref resolves via lexical scope. */
+  absolutePath?: string[];
   summary?: string;
 }
 
@@ -209,25 +262,37 @@ function resolveChainedRef(matchText: string): RefResolution {
   if (segments.length === 1) {
     // Check if it matches the root sigil name — treat as absolute path to root
     if (globalSigilRoot && resolveRefName(segments[0], [globalSigilRoot.name])) {
-      const summary = (globalSigilRoot.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n");
+      const summary = extractSummary(globalSigilRoot.domain_language || "");
       return { kind: "absolute", path: [], summary };
     }
     const info = findSibling(segments[0]);
-    if (info) return { kind: info.kind === "sibling" ? "sibling" : "contained", path: [info.name], summary: info.summary };
+    if (info) return {
+      kind: info.kind === "sibling" ? "sibling" : "contained",
+      path: [info.name],
+      absolutePath: info.absolutePath,
+      summary: info.summary,
+    };
     return { kind: "unresolved", path: segments };
   }
 
-  // Multi-segment: first segment must be the root name (absolute path)
   if (!globalSigilRoot) return { kind: "external", path: segments };
+
+  // Multi-segment: try root-anchored path first
   const rootCanonical = resolveRefName(segments[0], [globalSigilRoot.name]);
-  if (!rootCanonical) return { kind: "external", path: segments };
+  if (rootCanonical) {
+    const resolved = walkTree(segments.slice(1), globalSigilRoot);
+    if (resolved !== null) {
+      const ctx = findContextByPath(resolved, globalSigilRoot);
+      const summary = ctx ? extractSummary(ctx.domain_language || "") : undefined;
+      return { kind: "absolute", path: resolved, absolutePath: resolved, summary };
+    }
+  }
 
-  const resolved = walkTree(segments.slice(1), globalSigilRoot);
-  if (resolved === null) return { kind: "external", path: segments };
-
-  const ctx = findContextByPath(resolved, globalSigilRoot);
-  const summary = ctx ? (ctx.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n") : undefined;
-  return { kind: "absolute", path: resolved, summary };
+  // Multi-segment refs into another sigil's children are outside scope — sigil boundary.
+  // Check if the first segment is a known sigil (for a better error message).
+  const firstInfo = findSibling(segments[0]);
+  const boundaryName = firstInfo ? segments[0] : null;
+  return { kind: "external", path: segments, summary: boundaryName ? `sigil boundary — cannot reach into @${boundaryName}` : undefined };
 }
 
 function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null, currentCtx: Context | null) {
@@ -256,6 +321,8 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             while ((match = allRefsPattern.exec(text)) !== null) {
               const matchText = match[0];
               const abs = from + match.index;
+              const matchLine = view.state.doc.lineAt(abs);
+              if (isInCodeSpan(matchLine.text, abs - matchLine.from)) continue;
               if (matchText.startsWith("@")) {
                 const hashIdx = matchText.indexOf("#");
                 if (hashIdx === -1) {
@@ -273,11 +340,15 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                   builder.add(abs, abs + matchText.length, affordanceMark);
                 }
               } else if (matchText.startsWith("!")) {
-                // Standalone !signal
-                builder.add(abs, abs + matchText.length, signalMark);
+                const signalName = matchText.slice(1);
+                const signalExists = !!globalCurrentContext?.signals.find(
+                  (s) => s.name === signalName || s.name === fromDashForm(signalName)
+                );
+                builder.add(abs, abs + matchText.length, signalExists ? signalMark : unresolvedMark);
               } else {
                 // Standalone #affordance
-                builder.add(abs, abs + matchText.length, affordanceMark);
+                const affExists = !!findAffordance(globalCurrentContext ?? undefined, matchText.slice(1));
+                builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
               }
             }
           }
@@ -313,7 +384,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         textUnderlineOffset: "3px",
       },
       ".cm-ref-affordance": {
-        color: "#a07ce8",
+        color: "#3d9e8c",
         fontStyle: "italic",
       },
       ".cm-ref-signal": {
@@ -380,6 +451,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
       const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
       let match;
       while ((match = localPattern.exec(text)) !== null) {
+        if (isInCodeSpan(text, match.index)) continue;
         const from = line.from + match.index;
         const to = from + match[0].length;
         if (pos >= from && pos <= to) {
@@ -395,7 +467,12 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
 
           if (sigilPart) {
             const resolution = resolveChainedRef(sigilPart);
-            if (resolution.kind === "unresolved" || resolution.kind === "external") return null;
+            if (resolution.kind === "unresolved") return null;
+            if (resolution.kind === "external") {
+              summary = resolution.summary ?? "outside scope";
+              displayName = matchText;
+              // fall through to render tooltip with error summary
+            } else {
             summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling"
               ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
               : "");
@@ -408,6 +485,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
               displayName = `${sigilPart}#${affordancePart}`;
             }
+            } // end else (non-external)
           } else if (matchText.startsWith("!")) {
             // standalone !signal — look up in current context
             if (!globalCurrentContext) return null;
@@ -427,6 +505,8 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             summary = aff.content.split("\n").slice(0, 3).join("\n");
           }
 
+          if (!summary) return null;
+
           return {
             pos: from,
             end: to,
@@ -434,16 +514,10 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             create() {
               const dom = document.createElement("div");
               dom.className = "cm-tooltip-sibling";
-              const nameEl = document.createElement("div");
-              nameEl.className = "cm-tooltip-sibling-name";
-              nameEl.textContent = displayName;
-              dom.appendChild(nameEl);
-              if (summary) {
-                const summaryEl = document.createElement("div");
-                summaryEl.className = "cm-tooltip-sibling-summary";
-                summaryEl.textContent = summary;
-                dom.appendChild(summaryEl);
-              }
+              const summaryEl = document.createElement("div");
+              summaryEl.className = "cm-tooltip-sibling-summary";
+              summaryEl.textContent = summary;
+              dom.appendChild(summaryEl);
               return { dom };
             },
           };
@@ -481,12 +555,15 @@ function siblingCompletion(context: CompletionContext) {
   if (closeLineNum !== -1) {
     const curLine = context.state.doc.lineAt(context.pos);
     if (curLine.number >= 1 && curLine.number <= closeLineNum) {
-      const statusMatch = context.matchBefore(/status:\s*\w*/);
+      const statusMatch = context.matchBefore(/status:\s*\S*/);
       if (statusMatch) {
+        const colonOffset = curLine.text.indexOf(":");
+        const afterColon = curLine.text.slice(colonOffset + 1).match(/^\s*/);
+        const valueStart = curLine.from + colonOffset + 1 + (afterColon?.[0].length ?? 0);
         return {
-          from: context.state.doc.lineAt(context.pos).from + curLine.text.indexOf(":") + 1,
-          options: FRONT_MATTER_STATUSES.map((s) => ({ label: ` ${s}`, type: "keyword" as const })),
-          filter: false,
+          from: valueStart,
+          options: getKnownStatuses().map((s) => ({ label: s, type: "keyword" as const })),
+          filter: true,
         };
       }
       const keyMatch = context.matchBefore(/\w*/);
@@ -646,29 +723,115 @@ function findRefAtCursor(view: EditorView): { name: string; from: number; known:
   return null;
 }
 
+/** Find a standalone #affordance or !signal at the cursor, with existence flag. */
+function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "signal"; name: string; exists: boolean } | null {
+  const pos = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(pos);
+  const pattern = /#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
+  let match;
+  while ((match = pattern.exec(line.text)) !== null) {
+    if (isInCodeSpan(line.text, match.index)) continue;
+    const from = line.from + match.index;
+    const to = from + match[0].length;
+    if (pos >= from && pos <= to) {
+      const text = match[0];
+      if (text.startsWith("!")) {
+        const name = text.slice(1);
+        const exists = !!globalCurrentContext?.signals.find(
+          (s) => s.name === name || s.name === fromDashForm(name)
+        );
+        return { kind: "signal", name, exists };
+      } else {
+        const name = text.slice(1);
+        const exists = !!findAffordance(globalCurrentContext ?? undefined, name);
+        return { kind: "affordance", name, exists };
+      }
+    }
+  }
+  return null;
+}
+
+/** Find a status value in front matter at the cursor position. */
+function findStatusAtCursor(view: EditorView): { value: string; from: number } | null {
+  const pos = view.state.selection.main.head;
+  const doc = view.state.doc;
+  const closeLineNum = getFrontMatterEnd(doc);
+  if (closeLineNum === -1) return null;
+  const line = doc.lineAt(pos);
+  if (line.number < 1 || line.number > closeLineNum) return null;
+  const match = line.text.match(/^status:\s*(\S+)/);
+  if (!match) return null;
+  const valueStart = line.from + line.text.indexOf(match[1], line.text.indexOf(":") + 1);
+  return { value: match[1], from: valueStart };
+}
+
+let globalPendingStatusRename: string | null = null;
+
 type SetRenameState = (s: { oldName: string; x: number; y: number } | null) => void;
 
 function buildCustomKeymap(
   kb: Record<string, string>,
   setRenameState: SetRenameState,
   onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
+  onCreateAffordanceRef: React.MutableRefObject<((name: string) => void) | undefined>,
+  onCreateSignalRef: React.MutableRefObject<((name: string) => void) | undefined>,
+  onRenameStatusRef: React.MutableRefObject<((oldValue: string, newValue: string) => void) | undefined>,
 ) {
   return keymap.of([
     {
       key: kb["rename-sigil"] || "Alt-Mod-r",
       run: (view) => {
+        const status = findStatusAtCursor(view);
+        if (status) {
+          globalPendingStatusRename = status.value;
+          view.dispatch({ selection: { anchor: status.from, head: status.from + status.value.length } });
+          return true;
+        }
         const ref = findRefAtCursor(view);
         if (ref?.known) {
           const coords = view.coordsAtPos(ref.from);
-          if (coords) setRenameState({ oldName: ref.name, x: coords.left, y: coords.bottom + 4 });
+          const rect = view.dom.getBoundingClientRect();
+          if (coords) setRenameState({ oldName: ref.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4 });
           return true;
         }
         return false;
       },
     },
     {
+      key: "Enter",
+      run: (view) => {
+        if (globalPendingStatusRename === null) return false;
+        const status = findStatusAtCursor(view);
+        const oldValue = globalPendingStatusRename;
+        globalPendingStatusRename = null;
+        if (status && status.value !== oldValue && onRenameStatusRef.current) {
+          onRenameStatusRef.current(oldValue, status.value);
+        }
+        return true;
+      },
+    },
+    {
+      key: "Escape",
+      run: () => {
+        if (globalPendingStatusRename === null) return false;
+        globalPendingStatusRename = null;
+        return false;
+      },
+    },
+    {
       key: kb["create-sigil"] || "Alt-Enter",
       run: (view) => {
+        const prop = findPropertyRefAtCursor(view);
+        if (prop && !prop.exists) {
+          if (prop.kind === "affordance" && onCreateAffordanceRef.current) {
+            onCreateAffordanceRef.current(prop.name);
+            return true;
+          }
+          if (prop.kind === "signal" && onCreateSignalRef.current) {
+            onCreateSignalRef.current(prop.name);
+            return true;
+          }
+        }
         const ref = findRefAtCursor(view);
         if (ref && !ref.known && onCreateSigilRef.current) {
           onCreateSigilRef.current(ref.name);
@@ -691,12 +854,16 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onRenameSigil, onNavigateToSigil, onNavigateToAbsPath, keybindings = {} }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateSignal, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {} }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onCreateSigilRef = useRef(onCreateSigil);
   onCreateSigilRef.current = onCreateSigil;
+  const onCreateAffordanceRef = useRef(onCreateAffordance);
+  onCreateAffordanceRef.current = onCreateAffordance;
+  const onCreateSignalRef = useRef(onCreateSignal);
+  onCreateSignalRef.current = onCreateSignal;
   const onRenameSigilRef = useRef(onRenameSigil);
   onRenameSigilRef.current = onRenameSigil;
   const onNavigateRef = useRef(onNavigateToSigil);
@@ -704,6 +871,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   const onNavigateAbsPathRef = useRef(onNavigateToAbsPath);
   onNavigateAbsPathRef.current = onNavigateToAbsPath;
   const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number } | null>(null);
+  const onRenameStatusRef = useRef(onRenameStatus);
+  onRenameStatusRef.current = onRenameStatus;
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
 
@@ -717,7 +886,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
@@ -735,7 +904,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
           }
         }),
         EditorView.domEventHandlers({
-          click: (event, view) => {
+          mousedown: (event, view) => {
             if (!(event.metaKey || event.ctrlKey)) return false;
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos === null) return false;
@@ -751,14 +920,19 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
                 const hashIdx = match[0].indexOf("#");
                 const sigilRef = hashIdx === -1 ? match[0] : match[0].slice(0, hashIdx);
                 const resolution = resolveChainedRef(sigilRef);
-                if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
-                  onNavigateAbsPathRef.current(resolution.path);
+                if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
                   event.preventDefault();
+                  onNavigateAbsPathRef.current(resolution.absolutePath);
+                  return true;
+                }
+                if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
+                  event.preventDefault();
+                  onNavigateAbsPathRef.current(resolution.path);
                   return true;
                 }
                 if ((resolution.kind === "contained" || resolution.kind === "sibling") && onNavigateRef.current) {
-                  onNavigateRef.current(resolution.path[0]);
                   event.preventDefault();
+                  onNavigateRef.current(resolution.path[0]);
                   return true;
                 }
               }
@@ -810,7 +984,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
     });
   }, [keybindings]);
 

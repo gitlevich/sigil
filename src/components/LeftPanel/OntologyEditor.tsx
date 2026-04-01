@@ -137,7 +137,8 @@ function OntologyItem({
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
-  const atLimit = node.children.length >= 5;
+  const underOntologies = node.path[0] === "Ontologies";
+  const atLimit = !underOntologies && node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {
@@ -419,6 +420,27 @@ export function OntologyEditor() {
               <span className={styles.chevronPlaceholder} />
               <span className={styles.term}>{root.name}</span>
             </div>
+            {(root.signals.length > 0 || root.affordances.length > 0) && (
+              <div className={styles.propertyList}>
+                {root.signals.map((name) => (
+                  <span key={`s-${name}`} className={styles.iconWrap} title={`!${name}`}>
+                    <svg width="12" height="12" viewBox="0 0 14 14">
+                      <circle cx="7" cy="11" r="1.5" fill="currentColor" />
+                      <path d="M4.5 9 a3.5 3.5 0 0 1 5 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                      <path d="M2 6.5 a6 6 0 0 1 10 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                ))}
+                {root.affordances.map((name) => (
+                  <span key={`a-${name}`} className={styles.iconWrap} title={`#${name}`}>
+                    <svg width="12" height="12" viewBox="0 0 14 14">
+                      <rect x="2" y="2" width="4" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M6 7 L11 7 L12 9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className={styles.children}>
               {root.children
                 .filter((c) => !query || nodeMatches(c, query))
@@ -441,10 +463,12 @@ export function OntologyEditor() {
 
       {contextMenu && (
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
+          {contextMenu.node.name !== "Ontologies" && (
+            <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
+          )}
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { navigator.clipboard.writeText(contextMenu.node.fsPath); setContextMenu(null); }}>Copy Path</button>
-          {contextMenu.node.path.length > 0 && (
+          {contextMenu.node.path.length > 0 && contextMenu.node.name !== "Ontologies" && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
         </div>

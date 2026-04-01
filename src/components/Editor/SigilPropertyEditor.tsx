@@ -227,7 +227,7 @@ export function SigilPropertyEditor({
     }
     await api.writeFile(`${sigilPath}/${filePrefix}-${slugged}.md`, item.content).catch(console.error);
     setItems((prev) => {
-      const updated = prev.map((a) => a.savedName === savedName ? { ...a, savedName: slugged, name: slugged } : a);
+      const updated = prev.map((a) => a.savedName === savedName ? { ...a, id: slugged, savedName: slugged, name: slugged } : a);
       saveOrder(updated);
       return updated;
     });
