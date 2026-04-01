@@ -36,7 +36,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
     try {
       const target = findChild(doc.sigil.root, lastCrumb.path);
       const contextPath = target ? target.path : doc.sigil.root.path;
-      await api.renameContext(contextPath, trimmed);
+      await api.renameContext(doc.sigil.root_path, contextPath, trimmed);
 
       const newPath = [...lastCrumb.path];
       if (newPath.length > 0) {

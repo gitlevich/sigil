@@ -466,6 +466,7 @@ export function OntologyEditor() {
           {contextMenu.node.name !== "Libs" && (
             <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
           )}
+          <button className={styles.menuItem} onClick={() => { dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: contextMenu.node.name } }); setContextMenu(null); }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { navigator.clipboard.writeText(contextMenu.node.fsPath); setContextMenu(null); }}>Copy Path</button>
           {contextMenu.node.path.length > 0 && contextMenu.node.name !== "Libs" && (

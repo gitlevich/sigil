@@ -50,12 +50,14 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: rgba(0, 0, 0, 0.4);
+  color: var(--text-secondary);
+  opacity: 0.6;
   cursor: default;
 }
 
 .iconWrap:hover {
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--text-primary);
+  opacity: 0.8;
 }
 
 .modeSwitch {
@@ -77,7 +79,8 @@
   padding: 5px 7px;
   background: transparent;
   border: none;
-  color: rgba(0, 0, 0, 0.25);
+  color: var(--text-secondary);
+  opacity: 0.4;
   cursor: pointer;
 }
 
@@ -86,15 +89,18 @@
 }
 
 .modeSwitchBtn:hover {
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  opacity: 0.7;
 }
 
 .modeSwitchActive {
-  color: rgba(0, 0, 0, 0.85);
+  color: var(--text-primary);
+  opacity: 1;
 }
 
 .modeSwitchActive:hover {
-  color: rgba(0, 0, 0, 0.85);
+  color: var(--text-primary);
+  opacity: 1;
 }
 
 .instructions {

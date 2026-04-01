@@ -410,7 +410,7 @@ export function SigilMap() {
               onClick={() => {
                 const name = prompt("Rename:", nodeMenu.ctx.name);
                 if (!name?.trim()) { setNodeMenu(null); return; }
-                api.renameContext(nodeMenu.ctx.path, name.trim())
+                api.renameContext(doc!.sigil.root_path, nodeMenu.ctx.path, name.trim())
                   .then(() => doc && reload(doc.sigil.root_path))
                   .catch(console.error);
                 setNodeMenu(null);

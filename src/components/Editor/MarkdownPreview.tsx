@@ -6,7 +6,7 @@ import styles from "./MarkdownPreview.module.css";
 export interface SiblingInfo {
   name: string;
   summary: string;
-  kind?: "contained" | "sibling";
+  kind?: "contained" | "sibling" | "lib";
 }
 
 interface MarkdownPreviewProps {
