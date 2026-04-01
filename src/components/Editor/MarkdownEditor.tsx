@@ -207,7 +207,22 @@ function findAffordance(ctx: Context | undefined, dashedName: string): Affordanc
 }
 
 // Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !signal
-const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
+const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
+
+/** Find the index of the property separator (# or !) in an @-reference, or -1 if none. */
+function findPropSeparator(refText: string): number {
+  // Skip leading @ and segment@segment parts, then look for # or !
+  for (let i = 1; i < refText.length; i++) {
+    if (refText[i] === "@") continue;
+    if (refText[i] === "#" || refText[i] === "!") return i;
+    // Skip word chars
+    while (i < refText.length && /[\w-]/.test(refText[i])) i++;
+    if (i < refText.length && refText[i] === "@") continue;
+    if (i < refText.length && (refText[i] === "#" || refText[i] === "!")) return i;
+    break;
+  }
+  return -1;
+}
 
 /** Strip spaces, dashes, underscores and lowercase — for fuzzy sigil name matching. */
 function flattenName(s: string): string {
@@ -366,8 +381,8 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               const matchLine = view.state.doc.lineAt(abs);
               if (isInCodeSpan(matchLine.text, abs - matchLine.from)) continue;
               if (matchText.startsWith("@")) {
-                const hashIdx = matchText.indexOf("#");
-                if (hashIdx === -1) {
+                const propIdx = findPropSeparator(matchText);
+                if (propIdx === -1) {
                   // Pure sigil ref: apply sigil mark to the whole match
                   const resolution = resolveChainedRef(matchText);
                   const mark =
@@ -379,8 +394,9 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                     unresolvedMark;
                   builder.add(abs, abs + matchText.length, mark);
                 } else {
-                  // Affordance ref @Sigil#name — entire ref is one affordance reference
-                  builder.add(abs, abs + matchText.length, affordanceMark);
+                  // Property ref: @Sigil#affordance or @Sigil!disposition
+                  const propChar = matchText[propIdx];
+                  builder.add(abs, abs + matchText.length, propChar === "!" ? dispositionMark : affordanceMark);
                 }
               } else if (matchText.startsWith("!")) {
                 const dispositionName = matchText.slice(1);
@@ -496,7 +512,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
     hoverTooltip((view, pos) => {
       const line = view.state.doc.lineAt(pos);
       const text = line.text;
-      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
+      const localPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
       let match;
       while ((match = localPattern.exec(text)) !== null) {
         if (isInCodeSpan(text, match.index)) continue;
@@ -504,11 +520,12 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         const to = from + match[0].length;
         if (pos >= from && pos <= to) {
           const matchText = match[0];
-          const hashIdx = matchText.indexOf("#");
+          const propIdx = matchText.startsWith("@") ? findPropSeparator(matchText) : -1;
+          const propChar = propIdx !== -1 ? matchText[propIdx] : null;
           const sigilPart = matchText.startsWith("@")
-            ? (hashIdx === -1 ? matchText : matchText.slice(0, hashIdx))
+            ? (propIdx === -1 ? matchText : matchText.slice(0, propIdx))
             : null;
-          const affordancePart = hashIdx !== -1 ? matchText.slice(hashIdx + 1) : null;
+          const propertyPart = propIdx !== -1 ? matchText.slice(propIdx + 1) : null;
 
           let displayName = matchText;
           let summary = "";
@@ -524,14 +541,23 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
               ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
               : "");
-            if (affordancePart) {
-              // Find the affordance content in the resolved context
+            if (propertyPart) {
+              // Find the property content in the resolved context
               const ctx = resolution.kind === "absolute" || resolution.kind === "lib"
                 ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot!)
                 : globalSiblings.find((s) => s.name === resolution.path[0]) as unknown as Context | undefined;
-              const aff = findAffordance(ctx as Context | undefined, affordancePart);
-              if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
-              displayName = `${sigilPart}#${affordancePart}`;
+              if (propChar === "!") {
+                // Disposition lookup
+                const disp = (ctx as Context | undefined)?.dispositions.find(
+                  (d) => d.name === propertyPart || d.name === fromDashForm(propertyPart!)
+                );
+                if (disp) summary = disp.content.split("\n").slice(0, 3).join("\n");
+              } else {
+                // Affordance lookup
+                const aff = findAffordance(ctx as Context | undefined, propertyPart);
+                if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
+              }
+              displayName = `${sigilPart}${propChar}${propertyPart}`;
             }
             } // end else (non-external)
           } else if (matchText.startsWith("!")) {
@@ -667,25 +693,41 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Case 1: @Sigil#partial or @Root@Child#partial — offer affordance names
-  const beforeAffordance = context.matchBefore(/@(?:[a-zA-Z_][\w-]*@)*[a-zA-Z_][\w-]*#(?:[a-zA-Z_][\w-]*)?/);
-  if (beforeAffordance) {
-    const text = beforeAffordance.text;
-    const hashIdx = text.indexOf("#");
-    const sigilRef = text.slice(0, hashIdx);
-    const ctx = resolveRefToContext(sigilRef);
-    if (ctx && ctx.affordances.length > 0) {
-      return {
-        from: beforeAffordance.from,
-        options: ctx.affordances.map((a) => ({
-          label: `${sigilRef}#${toDashForm(a.name)}`,
-          detail: a.content.split("\n")[0]?.slice(0, 50) || "",
-          type: "property" as const,
-        })),
-        filter: true,
-      };
+  // Case 1: @Sigil#partial or @Sigil!partial — offer affordance or disposition names
+  const beforeProperty = context.matchBefore(/@(?:[a-zA-Z_][\w-]*@)*[a-zA-Z_][\w-]*[#!](?:[a-zA-Z_][\w-]*)?/);
+  if (beforeProperty) {
+    const text = beforeProperty.text;
+    const sepIdx = findPropSeparator(text);
+    if (sepIdx !== -1) {
+      const sepChar = text[sepIdx];
+      const sigilRef = text.slice(0, sepIdx);
+      const ctx = resolveRefToContext(sigilRef);
+      if (ctx) {
+        if (sepChar === "#" && ctx.affordances.length > 0) {
+          return {
+            from: beforeProperty.from,
+            options: ctx.affordances.map((a) => ({
+              label: `${sigilRef}#${toDashForm(a.name)}`,
+              detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+              type: "property" as const,
+            })),
+            filter: true,
+          };
+        }
+        if (sepChar === "!" && ctx.dispositions.length > 0) {
+          return {
+            from: beforeProperty.from,
+            options: ctx.dispositions.map((d) => ({
+              label: `${sigilRef}!${toDashForm(d.name)}`,
+              detail: d.content.split("\n")[0]?.slice(0, 50) || "",
+              type: "property" as const,
+            })),
+            filter: true,
+          };
+        }
+      }
+      return null;
     }
-    return null;
   }
 
   // Case 2: @A@B@C chains or bare @ — offer sigil names / children
@@ -738,12 +780,19 @@ function siblingCompletion(context: CompletionContext) {
     });
   }
 
-  // Also offer affordances of the resolved context via #
+  // Also offer affordances and dispositions of the resolved context
   const sigilRefStr = "@" + resolvedParts.join("@");
   for (const aff of ctx.affordances) {
     options.push({
       label: `${sigilRefStr}#${toDashForm(aff.name)}`,
       detail: aff.content.split("\n")[0]?.slice(0, 50) || "",
+      type: "property",
+    });
+  }
+  for (const disp of ctx.dispositions) {
+    options.push({
+      label: `${sigilRefStr}!${toDashForm(disp.name)}`,
+      detail: disp.content.split("\n")[0]?.slice(0, 50) || "",
       type: "property",
     });
   }
@@ -831,8 +880,9 @@ function findAllReferences(ctx: Context, symbolName: string, path: string[]): Re
       let refName: string;
       if (text.startsWith("@")) {
         const parts = text.slice(1).split("@");
-        const hashIdx = parts[parts.length - 1].indexOf("#");
-        if (hashIdx >= 0) parts[parts.length - 1] = parts[parts.length - 1].slice(0, hashIdx);
+        const lastPart = parts[parts.length - 1];
+        const propMatch = lastPart.search(/[#!]/);
+        if (propMatch >= 0) parts[parts.length - 1] = lastPart.slice(0, propMatch);
         refName = parts[parts.length - 1];
       } else if (text.startsWith("#")) {
         refName = fromDashForm(text.slice(1));
@@ -1047,15 +1097,15 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             if (pos === null) return false;
             const line = view.state.doc.lineAt(pos);
             // Include optional #affordance suffix so clicking anywhere in @Sigil#aff navigates
-            const refPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:#[a-zA-Z_][\w-]*)?/g;
+            const refPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?/g;
             let match;
             while ((match = refPattern.exec(line.text)) !== null) {
               const from = line.from + match.index;
               const to = from + match[0].length;
               if (pos >= from && pos <= to) {
-                // Strip #affordance before resolving — navigation targets the sigil, not the affordance
-                const hashIdx = match[0].indexOf("#");
-                const sigilRef = hashIdx === -1 ? match[0] : match[0].slice(0, hashIdx);
+                // Strip #affordance or !disposition before resolving — navigation targets the sigil
+                const propIdx = findPropSeparator(match[0]);
+                const sigilRef = propIdx === -1 ? match[0] : match[0].slice(0, propIdx);
                 const resolution = resolveChainedRef(sigilRef);
                 if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
                   event.preventDefault();
