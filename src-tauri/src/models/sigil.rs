@@ -15,7 +15,7 @@ pub struct Affordance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Disposition {
+pub struct Invariant {
     pub name: String,
     pub content: String,
 }
@@ -26,7 +26,7 @@ pub struct Context {
     pub path: String,
     pub domain_language: String,
     pub affordances: Vec<Affordance>,
-    pub dispositions: Vec<Disposition>,
+    pub invariants: Vec<Invariant>,
     pub children: Vec<Context>,
 }
 

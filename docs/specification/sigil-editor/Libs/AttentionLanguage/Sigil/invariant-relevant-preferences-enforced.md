@@ -1,0 +1,1 @@
+along all contrasts this sigil considers relevant

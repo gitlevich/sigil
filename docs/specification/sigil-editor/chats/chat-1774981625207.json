@@ -112,7 +112,7 @@
     },
     {
       "role": "assistant",
-      "content": "Yeah, I can see how that happened. Your references are mixed-case and inconsistent, like `@disposition`, `@dispositions`, and `@Disposition`, so a strict sigil-rename likely only caught exact forms or failed after the folder had already changed.\n\nI can fix the text, but there isn’t a bulk plain-text find-and-replace tool here, only sigil-level operations and full rewrites of context language. If you want, I can inspect the affected contexts and rewrite the relevant language files so the references consistently use `@Disposition` or `@axes` where appropriate."
+      "content": "Yeah, I can see how that happened. Your references are mixed-case and inconsistent, like `@invariant`, `@invariants`, and `@Invariant`, so a strict sigil-rename likely only caught exact forms or failed after the folder had already changed.\n\nI can fix the text, but there isn’t a bulk plain-text find-and-replace tool here, only sigil-level operations and full rewrites of context language. If you want, I can inspect the affected contexts and rewrite the relevant language files so the references consistently use `@Invariant` or `@axes` where appropriate."
     },
     {
       "role": "user",

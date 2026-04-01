@@ -11,7 +11,7 @@ An @attention wearing a @sigil.
 As the result of having the @preferences induced by the @sigil, the agent is in pursuit of a @goal emerging from having to choose next @frames to keep @observations within @preferences. 
 
 
-Agent has locked @attention on the @dispositions prescibed by the @sigil and is therefore traces patterns across frames. 
+Agent has locked @attention on the @invariants prescibed by the @sigil and is therefore traces patterns across frames. 
 
 Agent remembers the experienced sequence of @frames as a @narrative and interprets it as time. 
 

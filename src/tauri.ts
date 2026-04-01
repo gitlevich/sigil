@@ -7,7 +7,7 @@ export interface Affordance {
   content: string;
 }
 
-export interface Disposition {
+export interface Invariant {
   name: string;
   content: string;
 }
@@ -17,7 +17,7 @@ export interface Context {
   path: string;
   domain_language: string;
   affordances: Affordance[];
-  dispositions: Disposition[];
+  invariants: Invariant[];
   children: Context[];
 }
 

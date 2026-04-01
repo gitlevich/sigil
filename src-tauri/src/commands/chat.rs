@@ -80,11 +80,11 @@ fn render_context(ctx: &Context, depth: usize, output: &mut String) {
         output.push_str("\n\n");
     }
 
-    output.push_str(&format!("{} Dispositions\n\n", detail_prefix));
-    if ctx.dispositions.is_empty() {
+    output.push_str(&format!("{} Invariants\n\n", detail_prefix));
+    if ctx.invariants.is_empty() {
         output.push_str("- none\n\n");
     } else {
-        for disp in &ctx.dispositions {
+        for disp in &ctx.invariants {
             render_named_entry(output, "!", &disp.name, &disp.content);
         }
         output.push('\n');
@@ -157,7 +157,7 @@ fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<St
     }
 
     output.push_str("# Sigil Artifact\n\n");
-    output.push_str("Each context below includes its definition, domain language, dispositions, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
+    output.push_str("Each context below includes its definition, domain language, invariants, affordances, contained sigils, and neighbor relationships as read from the filesystem artifact.\n\n");
 
     render_context(&sigil.root, 0, &mut output);
     Ok(output)
@@ -658,7 +658,7 @@ mod tests {
         let root = setup_sigil(&tmp);
 
         fs::write(root.join("definition.md"), "Application shell boundary").unwrap();
-        fs::write(root.join("disposition-latency.md"), "fast enough for fluent use").unwrap();
+        fs::write(root.join("invariant-latency.md"), "fast enough for fluent use").unwrap();
         fs::write(root.join("affordance-navigate.md"), "move through the sigil hierarchy").unwrap();
         fs::write(
             root.join("map.json"),
@@ -673,13 +673,13 @@ mod tests {
         let browse = root.join("Browse");
         fs::write(browse.join("definition.md"), "Surface for finding existing structure").unwrap();
         fs::write(browse.join("affordance-open.md"), "open a selected sigil").unwrap();
-        fs::write(browse.join("disposition-focus.md"), "keep the current target visible").unwrap();
+        fs::write(browse.join("invariant-focus.md"), "keep the current target visible").unwrap();
 
         let context = assemble_sigil_context(root.to_string_lossy().as_ref(), &[]).unwrap();
 
         assert!(context.contains("# Sigil Artifact"));
         assert!(context.contains("Application shell boundary"));
-        assert!(context.contains("### Dispositions"));
+        assert!(context.contains("### Invariants"));
         assert!(context.contains("- !latency: fast enough for fluent use"));
         assert!(context.contains("### Affordances"));
         assert!(context.contains("- #navigate: move through the sigil hierarchy"));

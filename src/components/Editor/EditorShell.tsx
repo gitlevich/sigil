@@ -268,21 +268,21 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
-  const handleCreateDisposition = useCallback(async (name: string) => {
+  const handleCreateInvariant = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
     try {
-      await api.writeFile(`${ctx.path}/disposition-${name}.md`, "");
+      await api.writeFile(`${ctx.path}/invariant-${name}.md`, "");
       await reload(doc.sigil.root_path);
     } catch (err) {
-      console.error("Create disposition failed:", err);
+      console.error("Create invariant failed:", err);
     }
   }, [doc, reload]);
 
-  const handleRenameProperty = useCallback(async (kind: "affordance" | "disposition", oldName: string, newName: string) => {
+  const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const prefix = kind === "affordance" ? "affordance" : "disposition";
+    const prefix = kind === "affordance" ? "affordance" : "invariant";
     const oldPath = `${ctx.path}/${prefix}-${oldName}.md`;
     const newPath = `${ctx.path}/${prefix}-${newName}.md`;
     try {
@@ -421,7 +421,7 @@ export function EditorShell() {
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
-                    onCreateDisposition={handleCreateDisposition}
+                    onCreateInvariant={handleCreateInvariant}
                     onRenameSigil={handleRenameSigil}
                     onRenameProperty={handleRenameProperty}
                     onRenameStatus={handleRenameStatus}
@@ -444,13 +444,13 @@ export function EditorShell() {
         {(doc.contentTab || "language") !== "atlas" && (
           <SigilPropertyEditor
             sigilPath={currentCtx.path}
-            filePrefix="disposition"
-            title="Dispositions"
+            filePrefix="invariant"
+            title="Invariants"
             refPrefix="!"
             color="#e8a040"
-            namePlaceholder="towards..."
-            contentPlaceholder="my preference..."
-            items={currentCtx.dispositions}
+            namePlaceholder="what must hold..."
+            contentPlaceholder="because..."
+            items={currentCtx.invariants}
             onReload={() => reload(doc.sigil.root_path).then(() => {})}
           />
         )}
