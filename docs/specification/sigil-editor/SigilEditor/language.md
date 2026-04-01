@@ -1,3 +1,9 @@
+---
+status: idea
+---
+
+# Sigil Editor
+
 I #State-vision of the app in a dedicates place. I want it to be always one click away to remember the goal I pursue: I tend to get distracted easily. 
 
 I #Name-affordances: what should the app do for me. I try to be as precise as i can. I can always name them more precisely. And, I can always ask my @DesignPartner for naming advice. 

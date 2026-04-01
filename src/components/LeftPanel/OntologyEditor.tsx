@@ -204,11 +204,10 @@ function OntologyItem({
       {(node.dispositions.length > 0 || node.affordances.length > 0) && (
         <div className={styles.propertyList}>
           {node.dispositions.map((name) => (
-            <span key={`s-${name}`} className={styles.iconWrap} title={`!${name}`}>
-              <svg width="12" height="12" viewBox="0 0 14 14">
-                <circle cx="7" cy="11" r="1.5" fill="currentColor" />
-                <path d="M4.5 9 a3.5 3.5 0 0 1 5 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                <path d="M2 6.5 a6 6 0 0 1 10 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            <span key={`d-${name}`} className={styles.iconWrap} title={`!${name}`}>
+              <svg width="6" height="13" viewBox="0 0 6 13">
+                <line x1="3" y1="1" x2="3" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="3" cy="4.5" r="2" fill="#f40009" />
               </svg>
             </span>
           ))}
