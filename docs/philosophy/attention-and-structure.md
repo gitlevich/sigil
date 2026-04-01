@@ -10,7 +10,7 @@ Attention is undivided. But it can inhabit a sigil, and from inside that sigil, 
 
 I attend to a sigil, but I also attend to the structure of which the sigil is a part. These are simultaneous. I am in Shaping, and I know Shaping is in Sigil, and Sigil is in something I cannot see right now. The local and the structural coexist.
 
-This is not an affordance. It is not a relationship or a navigation action. It is orientation — awareness of being contained. The sigil I inhabit has meaning *because* of where it sits in the structure. Without that awareness, I am editing a document. With it, I am shaping a part that knows it is a part.
+It is orientation — awareness of being contained. The sigil I inhabit has meaning *because* of where it sits in the structure. Without that awareness, I am editing a document. With it, I am shaping a part that knows it is a part.
 
 ## The Pathology of Identification
 
