@@ -4,8 +4,8 @@ status: external-ontology
 
 # Attention
 
-Me. It's what makes me able to say "me". 
+Me. 
 
-@AttentionLanguage only describes MY point of view. It requires me.
+@AttentionLanguage only describes MY point of view. I am the necessary condition.
 
 It is not the same thing as my experience. It is a narrative compression of the mechanics: a @sigil.

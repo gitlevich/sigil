@@ -306,21 +306,27 @@
 }
 
 .sendBtn {
-  padding: 0.4rem 0.8rem;
-  background: var(--accent);
-  color: var(--accent-text);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c0744a;
+  color: #fff;
   border: none;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  border-radius: 8px;
   cursor: pointer;
   align-self: flex-end;
+  flex-shrink: 0;
+  transition: background 0.15s;
 }
 
 .sendBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .sendBtn:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: #a8603a;
 }
