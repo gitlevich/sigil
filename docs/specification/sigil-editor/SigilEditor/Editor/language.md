@@ -18,6 +18,7 @@ To describe a sigil, I imagine interacting with the part of the app it models. I
 
 As I type, I notice the words I choose to describe affordances. I can use names of the neighboring @sigils for the affordances they provide or could provide. When I need new @sigils to express an affordance, I define them in the context of the current @sigil. I want smooth, flowing language. I watch out for awkward language as it indicates a modeling problem: good models flow. I don't worry about defining the newly defined @sigil's structure: I will do it when I inhabit it, at the right level of abstraction. 
 
+
 ## Structure
 
 The Editor consists of three panels: affordance, language and disposition.

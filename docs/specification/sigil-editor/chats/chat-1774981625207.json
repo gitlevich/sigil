@@ -121,6 +121,62 @@
     {
       "role": "assistant",
       "content": "That sounds like the tool’s rename logic is using the current filesystem state as source of truth, so once the folder already became `Axis`, trying to rename `Contrast` again has no source to match and returns nothing. In other words, the structural rename happened, but the text migration phase likely either failed or was skipped, and now the tool can’t infer the old name from the renamed sigil alone.\n\nIf you want, I can inspect the current `Axis` context and nearby contexts, then manually rewrite the affected language files to restore consistency. After that, you could decide whether to keep `Axis` or switch again to a better word."
+    },
+    {
+      "role": "user",
+      "content": "What is the origin of the term affordance?"
+    },
+    {
+      "role": "assistant",
+      "content": "The term “affordance” comes from psychologist James J. Gibson, especially in his 1966 book and then more fully in 1979 in The Ecological Approach to Visual Perception. He used it to name what the environment offers or provides an organism, relative to the organism’s abilities.\n\nLater, Don Norman popularized the term in design and HCI, where it shifted toward how users perceive possible actions in interfaces and objects. Gibson’s sense is more relational and ecological, while Norman’s everyday design use is often more about perceived action possibilities."
+    },
+    {
+      "role": "user",
+      "content": "I want to include a library in my imported ontologies parallel to attention language that defines the minimum terminology that includes affordance. What is a good name for that context?"
+    },
+    {
+      "role": "assistant",
+      "content": "I’d call it EcologicalPsychology if you want the name to point at the source tradition cleanly. If you want a narrower and more tool-like library name inside your system, AffordanceLanguage is probably the best fit alongside AttentionLanguage.\n\nMy instinct is that EcologicalPsychology is better as provenance, while AffordanceLanguage is better as an imported working ontology. If you want, I can also suggest what the minimal seed vocabulary inside it should be."
+    },
+    {
+      "role": "user",
+      "content": "Could you give me a little blurb to define what that is?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ecological Psychology is the study of perception as direct engagement with the environment in terms of what it affords an agent at its scale. In this ontology, it provides the minimal vocabulary for talking about affordances as action possibilities that exist in the relation between an agent and its world."
+    },
+    {
+      "role": "user",
+      "content": "Please give me the definition of Affordance."
+    },
+    {
+      "role": "assistant",
+      "content": "An affordance is a possible action the environment offers an agent, relative to the agent’s body, abilities, and situation. It is not just a property of the world or of the agent alone, but of the relation between them."
+    },
+    {
+      "role": "user",
+      "content": "What is the definition of agent in the context of EcologicalPsychology? What other terms should I define here?"
+    },
+    {
+      "role": "assistant",
+      "content": "In ecological psychology, an agent is a living organism understood in terms of its active perception and action in an environment. An agent is the kind of being for whom affordances exist, because its body, abilities, and situation determine what actions the environment offers.\n\nA small minimal vocabulary here would probably include environment, affordance, agent, perception, action, and niche. If you want to stay very close to Gibson, organism may be better than agent as the primary term, with agent kept as your local bridge into AttentionLanguage."
+    },
+    {
+      "role": "user",
+      "content": "I want to stay very close to Gibson because \"agent\" is defined in AttentionLanguage differently, but I can say how it translates. Could you give me the definitions for the terms I need to define in this context?"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes. If you want to stay close to Gibson, I’d define organism, environment, affordance, perception, action, and niche.\n\nAn organism is a living being understood as directly perceiving and acting in its environment at its own scale. An environment is the structured world as it exists relative to an organism, containing surfaces, substances, events, and other features that may afford action. An affordance is a possible action the environment offers an organism, relative to the organism’s body, abilities, and situation.\n\nPerception is the organism’s direct pickup of information from the environment in the course of active engagement with it, not the internal reconstruction of a hidden world from raw sensations. Action is the organism’s movement or behavior in relation to the environment, through which affordances are realized, explored, or changed. A niche is the set of affordances that make up the lived environment of a given organism, shaped by the kind of organism it is and the ways it can act."
+    },
+    {
+      "role": "user",
+      "content": "Okay, so I need to first have a coherent phrase that ties all of this together, starting with, for example, \"an organism lives in an environment that provides affordances\" or something like that, right? So it needs to tie these terms together, and then I go define them individually."
+    },
+    {
+      "role": "assistant",
+      "content": "Yes, exactly. You want a small seed sentence that establishes the relational structure of the ontology, and then each term can be zoomed into and defined more precisely.\n\nSomething like this is clean and Gibson-close: “An organism lives in an environment that affords action.” If you want a slightly richer version: “An organism perceives and acts in its environment in terms of affordances.”"
     }
   ]
 }

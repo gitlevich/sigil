@@ -29,6 +29,7 @@ interface MarkdownEditorProps {
   siblings?: SiblingInfo[];
   sigilRoot?: Context;
   currentContext?: Context;
+  currentPath?: string[];
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onCreateAffordance?: (name: string) => void;
@@ -158,6 +159,26 @@ let globalSiblingNames: string[] = [];
 let globalNameIndex: Map<string, string> = new Map();
 let globalSigilRoot: Context | null = null;
 let globalCurrentContext: Context | null = null;
+let globalCurrentPath: string[] = [];
+
+/** Collect affordances/dispositions from the current context and all ancestors. */
+function collectAncestorProperties(root: Context | null, path: string[]) {
+  if (!root) return { affordances: [] as { name: string; content: string; source: string }[], dispositions: [] as { name: string; content: string; source: string }[] };
+  const affordances: { name: string; content: string; source: string }[] = [];
+  const dispositions: { name: string; content: string; source: string }[] = [];
+  // Walk from root down the path, collecting at each level
+  let ctx = root;
+  for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
+  for (const d of ctx.dispositions) dispositions.push({ name: d.name, content: d.content, source: ctx.name });
+  for (const seg of path) {
+    const child = ctx.children.find((c) => c.name === seg);
+    if (!child) break;
+    ctx = child;
+    for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
+    for (const d of ctx.dispositions) dispositions.push({ name: d.name, content: d.content, source: ctx.name });
+  }
+  return { affordances, dispositions };
+}
 
 function buildNameIndex(names: string[]): Map<string, string> {
   const index = new Map<string, string>();
@@ -350,12 +371,13 @@ function resolveChainedRef(matchText: string): RefResolution {
   return { kind: "external", path: segments, summary: boundaryName ? `sigil boundary — cannot reach into @${boundaryName}` : undefined };
 }
 
-function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null, currentCtx: Context | null) {
+function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigilRoot: Context | null, currentCtx: Context | null, path: string[] = []) {
   globalSiblings = siblings;
   globalSiblingNames = siblings.map((s) => s.name);
   globalNameIndex = buildNameIndex(globalSiblingNames);
   globalSigilRoot = sigilRoot;
   globalCurrentContext = currentCtx;
+  globalCurrentPath = path;
 
   return [
     ViewPlugin.fromClass(
@@ -655,20 +677,22 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Case 0: standalone #partial — offer current context's own affordances
+  // Precompute ancestor properties for affordance/disposition completion
+  const ancestorProps = collectAncestorProperties(globalSigilRoot, globalCurrentPath);
+
+  // Case 0: standalone #partial — offer affordances from current context and ancestors
   const standaloneHash = context.matchBefore(/#(?:[a-zA-Z_][\w-]*)?/);
   if (standaloneHash) {
-    // Only trigger if the # is not preceded by @ (that's Case 1)
     const lineText = context.state.doc.lineAt(standaloneHash.from).text;
     const colOfHash = standaloneHash.from - context.state.doc.lineAt(standaloneHash.from).from;
     const charBefore = colOfHash > 0 ? lineText[colOfHash - 1] : "";
     const isAfterSigil = /[\w-]/.test(charBefore);
-    if (!isAfterSigil && globalCurrentContext && globalCurrentContext.affordances.length > 0) {
+    if (!isAfterSigil && ancestorProps.affordances.length > 0) {
       return {
         from: standaloneHash.from,
-        options: globalCurrentContext.affordances.map((a) => ({
+        options: ancestorProps.affordances.map((a) => ({
           label: `#${toDashForm(a.name)}`,
-          detail: a.content.split("\n")[0]?.slice(0, 50) || "",
+          detail: `${a.source !== globalCurrentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
           type: "property" as const,
         })),
         filter: true,
@@ -676,19 +700,19 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Case 0b: standalone !partial — offer current context's own dispositions
+  // Case 0b: standalone !partial — offer dispositions from current context and ancestors
   const standaloneBang = context.matchBefore(/!(?:[a-zA-Z_][\w-]*)?/);
   if (standaloneBang) {
     const lineText = context.state.doc.lineAt(standaloneBang.from).text;
     const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
     const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
     const isAfterWord = /[\w-]/.test(charBefore);
-    if (!isAfterWord && globalCurrentContext && globalCurrentContext.dispositions.length > 0) {
+    if (!isAfterWord && ancestorProps.dispositions.length > 0) {
       return {
         from: standaloneBang.from,
-        options: globalCurrentContext.dispositions.map((c) => ({
-          label: `!${toDashForm(c.name)}`,
-          detail: c.content.split("\n")[0]?.slice(0, 50) || "",
+        options: ancestorProps.dispositions.map((d) => ({
+          label: `!${toDashForm(d.name)}`,
+          detail: `${d.source !== globalCurrentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
           type: "property" as const,
         })),
         filter: true,
@@ -1027,7 +1051,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -1077,7 +1101,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateDispositionRef, onRenameStatusRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
-        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
+        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         buildFrontMatterPlugin(),
         autocompletion({

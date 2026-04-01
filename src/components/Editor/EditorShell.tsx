@@ -237,17 +237,23 @@ export function EditorShell() {
 
   const handleRenameStatus = useCallback(async (oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim() || newValue === oldValue) return;
-    const pattern = new RegExp(`^(status:\\s*)${oldValue}$`, "m");
-    const updateCtx = async (ctx: Context) => {
+    const statusPattern = /^(status:\s*)\S+$/m;
+    const forceStatus = async (ctx: Context) => {
       const lang = ctx.domain_language || "";
-      if (pattern.test(lang)) {
-        await api.writeFile(`${ctx.path}/language.md`, lang.replace(pattern, `$1${newValue}`)).catch(console.error);
+      if (statusPattern.test(lang)) {
+        await api.writeFile(`${ctx.path}/language.md`, lang.replace(statusPattern, `$1${newValue}`)).catch(console.error);
+      } else if (lang.startsWith("---")) {
+        const updated = lang.replace(/^---/, `---\nstatus: ${newValue}`);
+        await api.writeFile(`${ctx.path}/language.md`, updated).catch(console.error);
+      } else {
+        const updated = `---\nstatus: ${newValue}\n---\n${lang}`;
+        await api.writeFile(`${ctx.path}/language.md`, updated).catch(console.error);
       }
-      for (const child of ctx.children) await updateCtx(child);
+      for (const child of ctx.children) await forceStatus(child);
     };
-    // Propagate downward from the current sigil — children with a different status are untouched
+    // Force status on all descendants of the current sigil
     const currentCtx = findContext(doc.sigil.root, doc.currentPath);
-    await updateCtx(currentCtx);
+    for (const child of currentCtx.children) await forceStatus(child);
     await reload(doc.sigil.root_path);
   }, [doc, reload]);
 
@@ -411,6 +417,7 @@ export function EditorShell() {
                     siblings={allRefs}
                     sigilRoot={doc.sigil.root}
                     currentContext={currentCtx}
+                    currentPath={doc.currentPath}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
