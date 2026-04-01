@@ -4,9 +4,9 @@ status: external-ontology
 
 # Agent
 
-An @attention wearing a @sigil. 
+An @observer wearing a @sigil. 
 
-@Attention identifying with the sigil is bounded to the volume of the sigil. This makes it a limited resource. It can attend to the enture @frame at low @resolution and notice patterns. I can notice an interesting disturbance, zoom in to investigate and attend to a small section with a high resolution. 
+The @observer identifying with the sigil is bounded to the volume of the sigil. This makes it a limited resource. It can attend to the enture @frame at low @resolution and notice patterns. I can notice an interesting disturbance, zoom in to investigate and attend to a small section with a high resolution. 
 
 As the result of having the @preferences induced by the @sigil, the agent is in pursuit of a @goal emerging from having to choose next @frames to keep @observations within @preferences. 
 
