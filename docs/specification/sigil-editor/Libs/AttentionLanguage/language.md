@@ -17,9 +17,6 @@ I am an @observer - @attention from a point of view at a @scale, attending to th
 I am an @agent - an @observer wearing a @sigil, attending to a @narrative, time-like. 
 
 
-A @Sigil is a shape in the @disposition space. It contains the region in which relevant @disposition are within @preferences. 
-
-
 I can #attend to what's inside my @sigil, or what's outside it, or both. Inside is my autobiographical @narrative, protected by the @sigil. 
 
 @SigilEngineering is the practice of converting lived experience to @sigils. 

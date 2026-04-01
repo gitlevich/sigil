@@ -32,6 +32,14 @@ export function MarkdownPreview({ content, siblingNames = [], siblings = [] }: M
     return map;
   }, [siblings]);
 
+  const stripped = useMemo(() => {
+    if (content.startsWith("---")) {
+      const end = content.indexOf("\n---", 3);
+      if (end !== -1) return content.slice(end + 4).trimStart();
+    }
+    return content;
+  }, [content]);
+
   return (
     <div className={styles.preview}>
       <ReactMarkdown
@@ -48,7 +56,7 @@ export function MarkdownPreview({ content, siblingNames = [], siblings = [] }: M
             <li {...props}>{highlightChildStrings(children, siblingPattern, refMap)}</li>
           ),
         } : undefined}
-      >{content}</ReactMarkdown>
+      >{stripped}</ReactMarkdown>
     </div>
   );
 }
