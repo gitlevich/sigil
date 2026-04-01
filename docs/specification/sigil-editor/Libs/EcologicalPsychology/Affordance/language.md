@@ -1,7 +1,7 @@
 ---
-status: idea
+status: draft
 ---
 
 # Affordance
 
-An affordance is a possible action the environment offers an @organism, relative to the @organism’s body, abilities, and situation. It is not just a property of the world or of the @organism alone, but of the relation between them.
+What the @Environment offers the @Organism for action. An @Affordance is neither a property of the @Environment alone nor of the @Organism alone — it is a relation between them. A horizontal flat rigid @Surface at knee height affords sitting for a human but not for an elephant. @Affordances exist whether or not the @Organism perceives them, and whether or not the @Organism acts on them. They are specified by @Information in the ambient array and picked up through @Perception.
