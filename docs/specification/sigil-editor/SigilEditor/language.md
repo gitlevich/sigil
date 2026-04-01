@@ -1,5 +1,5 @@
 ---
-status: idea
+status: 
 ---
 
 # Sigil Editor

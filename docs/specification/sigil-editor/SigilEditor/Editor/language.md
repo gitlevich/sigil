@@ -18,22 +18,22 @@ To describe a sigil, I imagine interacting with the part of the app it models. I
 
 As I type, I notice the words I choose to describe affordances. I can use names of the neighboring @sigils for the affordances they provide or could provide. When I need new @sigils to express an affordance, I define them in the context of the current @sigil. I want smooth, flowing language. I watch out for awkward language as it indicates a modeling problem: good models flow. I don't worry about defining the newly defined @sigil's structure: I will do it when I inhabit it, at the right level of abstraction. 
 
+## Structure
 
-## UX
+The Editor consists of three panels: affordance, language and disposition.
 
-This is a Markdown editor. 
+### @AffordancePanel
 
-The editor is where I type. I want the experience to be comfortable. For that, I need !simplcity-of-ux and #shortcuts to remain focused while working without distractions on "how do I do X" questions. This is why I borrowed my most frequently used functions from my favorite IDE: IntelliJ.
+This is where I specify affordances. 
 
-I am used to #syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @dispositions. I w experience is similar to writing tests first when defining an object's API. I write a test with non-existing methods on missing instances of not-yet-created types and it doesn't compile. Then I fix syntax by having the IDE create them. 
+### @LanguagePanel
 
-I want this experience here, too: language-first, syntax highlighting, the editor fixing it by creating the missing symbol via a  #shortcuts activated #auto-fix to create:
+This is the main panel where I type the narrative
 
-- an affordance for a word that starts with a `#`. Affordances live in an @AffordancePanel on top of the editor. 
-- an @disposition for a word that starts with `!`. It lives in a @DispositionPanel on the bottom of the editor.
-- a @sigil for a word that starts with `@`. It lives in the middle of the editor.
+### @DispositionPanel
 
-## 
+This is where I specify dispositions. 
+
 
 
 
