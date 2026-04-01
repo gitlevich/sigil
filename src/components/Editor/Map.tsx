@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { useDocument, useAppDispatch } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
@@ -435,8 +436,8 @@ export function SigilMap() {
             </button>
             <button
               className={styles.menuItemDanger}
-              onClick={() => {
-                if (!confirm(`Delete "${nodeMenu.ctx.name}" and all its contents?`)) { setNodeMenu(null); return; }
+              onClick={async () => {
+                if (!await confirm(`Delete "${nodeMenu.ctx.name}" and all its contents?`)) { setNodeMenu(null); return; }
                 api.deleteContext(nodeMenu.ctx.path)
                   .then(() => doc && reload(doc.sigil.root_path))
                   .catch(console.error);

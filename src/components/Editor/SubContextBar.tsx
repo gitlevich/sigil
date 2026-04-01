@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
@@ -61,7 +62,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const handleDelete = async (childName: string) => {
     if (!doc) return;
     const childPath = `${context.path}/${childName}`;
-    if (!confirm(`Delete "${childName}" and all its contents? This cannot be undone.`)) {
+    if (!await confirm(`Delete "${childName}" and all its contents? This cannot be undone.`)) {
       return;
     }
     try {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
@@ -337,7 +338,7 @@ export function OntologyEditor() {
   };
 
   const handleDelete = async (node: OntologyNode) => {
-    if (!confirm(`Delete "${node.name}" and all its contents? This cannot be undone.`)) return;
+    if (!await confirm(`Delete "${node.name}" and all its contents? This cannot be undone.`)) return;
     try { await api.deleteContext(node.fsPath); await reload(doc!.sigil.root_path); }
     catch (err) { console.error("Delete failed:", err); }
   };
