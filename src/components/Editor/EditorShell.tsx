@@ -62,6 +62,83 @@ function updateContextInTree(
   };
 }
 
+const ONTOLOGIES_NAME = "Ontologies";
+
+function makeSummary(ctx: Context): string {
+  let text = ctx.domain_language || "";
+  if (text.startsWith("---")) {
+    const end = text.indexOf("\n---", 3);
+    if (end !== -1) text = text.slice(end + 4);
+  }
+  return text.split("\n")
+    .filter((l) => l.trim() && !l.trimStart().startsWith("#"))
+    .slice(0, 3)
+    .join("\n");
+}
+
+/** Build the full lexical scope for the current path: children → ancestry levels → root. */
+function buildLexicalScope(
+  root: Context,
+  currentPath: string[],
+): { name: string; summary: string; kind: "contained" | "sibling"; absolutePath: string[] }[] {
+  const refs: { name: string; summary: string; kind: "contained" | "sibling"; absolutePath: string[] }[] = [];
+  const seen = new Set<string>();
+  const currentCtx = findContext(root, currentPath);
+
+  const add = (name: string, ctx: Context, kind: "contained" | "sibling", absolutePath: string[]) => {
+    if (!seen.has(name)) {
+      seen.add(name);
+      refs.push({ name, summary: makeSummary(ctx), kind, absolutePath });
+    }
+  };
+
+  // Innermost: children of current context
+  for (const c of currentCtx.children) {
+    add(c.name, c, "contained", [...currentPath, c.name]);
+  }
+
+  // Walk up the ancestry chain
+  for (let depth = currentPath.length; depth > 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelCtx = findContext(root, levelPath);
+    const parentPath = levelPath.slice(0, -1);
+    const parentCtx = findContext(root, parentPath);
+
+    // The ancestor at this level is reachable by name
+    add(levelCtx.name, levelCtx, "sibling", levelPath);
+
+    // Its siblings
+    for (const c of parentCtx.children) {
+      if (c.name !== levelCtx.name) {
+        add(c.name, c, "sibling", [...parentPath, c.name]);
+      }
+    }
+  }
+
+  // Root itself
+  add(root.name, root, "sibling", []);
+
+  return refs;
+}
+
+/** Flatten all descendants of the Ontologies sigil into the global scope. */
+function flattenOntologyRefs(
+  ctx: Context,
+  basePath: string[],
+  seen: Set<string>,
+): { name: string; summary: string; kind: "sibling"; absolutePath: string[] }[] {
+  const refs: { name: string; summary: string; kind: "sibling"; absolutePath: string[] }[] = [];
+  for (const child of ctx.children) {
+    const childPath = [...basePath, child.name];
+    if (!seen.has(child.name)) {
+      seen.add(child.name);
+      refs.push({ name: child.name, summary: makeSummary(child), kind: "sibling", absolutePath: childPath });
+    }
+    refs.push(...flattenOntologyRefs(child, childPath, seen));
+  }
+  return refs;
+}
+
 function buildBreadcrumb(root: Context, path: string[]): { name: string; path: string[] }[] {
   const crumbs: { name: string; path: string[] }[] = [{ name: root.name, path: [] }];
   let current = root;
@@ -131,10 +208,50 @@ export function EditorShell() {
     const dirName = humanName.replace(/\s+/g, "");
     try {
       const newCtx = await api.createContext(ctx.path, dirName);
-      await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: idea\n---\n\n# ${humanName}\n`);
+      const parentStatusMatch = ctx.domain_language?.match(/^---[\s\S]*?^status:\s*(\S+)/m);
+      const parentStatus = parentStatusMatch?.[1] ?? "idea";
+      await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
       await reload(doc.sigil.root_path);
     } catch (err) {
       console.error("Create sigil failed:", err);
+    }
+  }, [doc, reload]);
+
+  const handleRenameStatus = useCallback(async (oldValue: string, newValue: string) => {
+    if (!doc || !newValue.trim() || newValue === oldValue) return;
+    const pattern = new RegExp(`^(status:\\s*)${oldValue}$`, "m");
+    const updateCtx = async (ctx: Context) => {
+      const lang = ctx.domain_language || "";
+      if (pattern.test(lang)) {
+        await api.writeFile(`${ctx.path}/language.md`, lang.replace(pattern, `$1${newValue}`)).catch(console.error);
+      }
+      for (const child of ctx.children) await updateCtx(child);
+    };
+    // Propagate downward from the current sigil — children with a different status are untouched
+    const currentCtx = findContext(doc.sigil.root, doc.currentPath);
+    await updateCtx(currentCtx);
+    await reload(doc.sigil.root_path);
+  }, [doc, reload]);
+
+  const handleCreateAffordance = useCallback(async (name: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    try {
+      await api.writeFile(`${ctx.path}/affordance-${name}.md`, "");
+      await reload(doc.sigil.root_path);
+    } catch (err) {
+      console.error("Create affordance failed:", err);
+    }
+  }, [doc, reload]);
+
+  const handleCreateSignal = useCallback(async (name: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    try {
+      await api.writeFile(`${ctx.path}/signal-${name}.md`, "");
+      await reload(doc.sigil.root_path);
+    } catch (err) {
+      console.error("Create signal failed:", err);
     }
   }, [doc, reload]);
 
@@ -186,26 +303,14 @@ export function EditorShell() {
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
   const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
 
-  // Vocabulary: contained sigils (your story's words) + siblings (your neighbors)
-  const contained = currentCtx.children.map((c) => ({
-    name: c.name,
-    summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
-    kind: "contained" as const,
-  }));
-  const siblings = (() => {
-    if (doc.currentPath.length === 0) return [];
-    const containingPath = doc.currentPath.slice(0, -1);
-    const containingSigil = findContext(doc.sigil.root, containingPath);
-    return containingSigil.children
-      .filter((c) => c.name !== currentCtx.name)
-      .map((c) => ({
-        name: c.name,
-        summary: (c.domain_language || "").split("\n").filter((l) => l.trim()).slice(0, 3).join("\n"),
-        kind: "sibling" as const,
-      }));
-  })();
-  const allRefs = [...contained, ...siblings];
-  const allRefNames = allRefs.map((s) => s.name);
+  // Lexical scope: full ancestry chain + Ontologies descendants always in scope
+  const allRefs = buildLexicalScope(doc.sigil.root, doc.currentPath);
+  const seenNames = new Set(allRefs.map((r) => r.name));
+  const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
+  if (ontologiesSigil) {
+    allRefs.push(...flattenOntologyRefs(ontologiesSigil, [ONTOLOGIES_NAME], seenNames));
+  }
+  const allRefNames = allRefs.map((r) => r.name);
 
   const content = currentCtx.domain_language;
 
@@ -226,7 +331,7 @@ export function EditorShell() {
             filePrefix="affordance"
             title="Affordances"
             refPrefix="#"
-            color="#a07ce8"
+            color="#3d9e8c"
             namePlaceholder="I need to..."
             contentPlaceholder="so that..."
             items={currentCtx.affordances}
@@ -249,7 +354,10 @@ export function EditorShell() {
                     currentContext={currentCtx}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
+                    onCreateAffordance={handleCreateAffordance}
+                    onCreateSignal={handleCreateSignal}
                     onRenameSigil={handleRenameSigil}
+                    onRenameStatus={handleRenameStatus}
                     onNavigateToSigil={handleNavigateToSigil}
                     onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
                     keybindings={state.settings.keybindings as unknown as Record<string, string>}

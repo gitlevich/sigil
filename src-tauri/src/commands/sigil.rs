@@ -65,6 +65,9 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         }
     }
 
+    // Keep Ontologies at the end so the application sigil comes first.
+    children.sort_by_key(|c| c.name == "Ontologies");
+
     Ok(Context {
         name,
         path: dir.to_string_lossy().to_string(),
@@ -99,15 +102,20 @@ pub fn read_sigil(root_path: String) -> Result<Sigil, String> {
 pub fn create_context(parent_path: String, name: String) -> Result<Context, String> {
     let parent = Path::new(&parent_path);
 
-    let existing_dirs: Vec<_> = fs::read_dir(parent)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
-        .filter(|e| is_context_dir(&e.path()))
-        .collect();
+    // The Ontologies sigil and its descendants are exempt from the 5-child limit.
+    let under_ontologies = parent.components().any(|c| c.as_os_str() == "Ontologies");
 
-    if existing_dirs.len() >= 5 {
-        return Err("Maximum of 5 sub-contexts reached".to_string());
+    if !under_ontologies {
+        let existing_dirs: Vec<_> = fs::read_dir(parent)
+            .map_err(|e| e.to_string())?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter(|e| is_context_dir(&e.path()))
+            .collect();
+
+        if existing_dirs.len() >= 5 {
+            return Err("Maximum of 5 sub-contexts reached".to_string());
+        }
     }
 
     let context_path = parent.join(&name);
@@ -279,7 +287,7 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
 }
 
 #[tauri::command]
-pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
+pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
     let old_path = Path::new(&path);
     let name = old_path
         .file_name()
@@ -292,16 +300,22 @@ pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> 
         return Err("Target parent does not exist".to_string());
     }
 
-    // Check 5-sigil limit at destination
-    let existing_dirs: Vec<_> = fs::read_dir(new_parent)
-        .map_err(|e| e.to_string())?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
-        .filter(|e| is_context_dir(&e.path()))
-        .collect();
+    // The Ontologies sigil and its descendants are exempt from the 5-child limit.
+    let ontologies_path = Path::new(&root_path).join("Ontologies");
+    let under_ontologies = new_parent.starts_with(&ontologies_path);
 
-    if existing_dirs.len() >= 5 {
-        return Err("Target already has 5 sub-contexts".to_string());
+    // Check 5-sigil limit at destination
+    if !under_ontologies {
+        let existing_dirs: Vec<_> = fs::read_dir(new_parent)
+            .map_err(|e| e.to_string())?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter(|e| is_context_dir(&e.path()))
+            .collect();
+
+        if existing_dirs.len() >= 5 {
+            return Err("Target already has 5 sub-contexts".to_string());
+        }
     }
 
     let new_path = new_parent.join(&name);
