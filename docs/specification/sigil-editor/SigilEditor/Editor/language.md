@@ -4,19 +4,41 @@ status: idea
 
 # Editor
 
-This is where I type. I want it to be a comfortable experience. I want to remain focused, not distracted with questions like 'shit, how do I do X?'. For that, I need !simplcity-of-ux and #shortcuts. 
+The editor panel is where I define the part of my application this @sigil represents. 
 
-I want #syntax-highlighting to show @attentionlanguage@sigils, affordances and relevant signals VG TODO change to axes.
+The sigil exists because it lets me do things (provides affordances) and gives me the context to define more precise terms, to express these affordances. 
 
-I want a #shortcuts actiavted #auto-fix to create:
+An **affordance** on a sigil is like a handle on a door: it is the thing that allows me to open it. 
 
-- an affordance for a word that starts with a `#`.
-- a signal for a word that starts with `!`
-- a @attentionlanguage@sigil for a word that starts with `@`
+A @sigil gives me a context boundary: within, I only care about a finite number of specific relevant things. These things are also @sigils that live either inside the boundary, or in the neighborhood.  Everything not explicitly named is noise. 
+
+The boundary is defined in terms of my disposition towards these @sigils. For example here I care about @sigils that will make my experience while using this part of the app delightful.
+
+To describe a sigil, I imagine interacting with the part of the app it models. I inhabit it with my attention and narrate what I do there, trying to converge on a stable language. I first think of affordances. 
+
+As I type, I notice the words I choose to describe affordances. I can use names of the neighboring @sigils for the affordances they provide or could provide. When I need new @sigils to express an affordance, I define them in the context of the current @sigil. I want smooth, flowing language. I watch out for awkward language as it indicates a modeling problem: good models flow. I don't worry about defining the newly defined @sigil's structure: I will do it when I inhabit it, at the right level of abstraction. 
+
+
+## UX
+
+This is a Markdown editor. 
+
+The editor is where I type. I want the experience to be comfortable. For that, I need !simplcity-of-ux and #shortcuts to remain focused while working without distractions on "how do I do X" questions. This is why I borrowed my most frequently used functions from my favorite IDE: IntelliJ.
+
+I am used to #syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @dispositions. I w experience is similar to writing tests first when defining an object's API. I write a test with non-existing methods on missing instances of not-yet-created types and it doesn't compile. Then I fix syntax by having the IDE create them. 
+
+I want this experience here, too: language-first, syntax highlighting, the editor fixing it by creating the missing symbol via a  #shortcuts activated #auto-fix to create:
+
+- an affordance for a word that starts with a `#`. Affordances live in an @AffordancePanel on top of the editor. 
+- an @disposition for a word that starts with `!`. It lives in a @DispositionPanel on the bottom of the editor.
+- a @sigil for a word that starts with `@`. It lives in the middle of the editor.
+
+## 
+
 
 
 ## Refactoring 
 
 To have the freedom to evolve my language, I need #refactor-rename. 
 
-I'd like to #find-references of a sigil - to see where it's used. 
+I'd like to #find-references of a sigil - to see where it's used. FileFileMy
