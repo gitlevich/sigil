@@ -2,7 +2,7 @@
 
 ## Attention as Substrate
 
-Attention is not a thing you have — it is what you are when you attend. It is the substrate. The "am" in "I am." A sigil without attention is inert structure. With attention, it is experience.
+Attention is not a thing you have — it is what you are. It is the substrate. The "am" in "I am." A sigil without attention is inert structure. With attention, it is experience.
 
 Attention is undivided. But it can inhabit a sigil, and from inside that sigil, it experiences through the sigil's relevance filter. The filter determines what is visible and what is not. The domain language *is* the filter — the words define what can be seen, and the absence of words defines what cannot.
 
