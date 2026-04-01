@@ -2,146 +2,116 @@
 
 ## Attention as Substrate
 
-Attention is not a thing I have — it is what I am. It is the substrate. A sigil without attention is inert structure. With attention, it is experience.
+Attention is what animates a sigil. Without attention, a sigil is inert structure. With attention, it becomes lived structure.
 
-Attention is undivided. But it can inhabit a sigil, and from inside that sigil, it experiences through the sigil's relevance filter. The filter determines what is visible and what is not. The domain language *is* the filter — the words define what can be seen, and the absence of words defines what cannot.
+Attention can inhabit a sigil and experience through its relevance filter. The filter determines what is visible, what matters, and what remains background. Domain language sharpens that filter. The available words shape what can be seen and shared.
 
 ## Containment and Orientation
 
-I attend to a sigil, but I also attend to the structure of which the sigil is a part. These are simultaneous. I am in Shaping, and I know Shaping is in Sigil, and Sigil is in something I cannot see right now. The local and the structural coexist.
+I attend to a sigil, and I also attend to the structure that contains it. These can be present at once. I am in Shaping, and I know Shaping sits inside Sigil, and Sigil sits inside something larger that I do not fully see from here.
 
-It is orientation — awareness of being contained. The sigil I inhabit has meaning *because* of where it sits in the structure. Without that awareness, I am editing a document. With it, I am shaping a part that knows it is a part.
+That awareness is orientation. The sigil I inhabit has meaning because of where it sits in the structure. Without that awareness, I am editing a document. With it, I am shaping a part that knows it is a part.
 
 ## The Pathology of Identification
 
-The moment a local attention says "I am this sigil" instead of "I attend to this sigil," it loses the ability to move. It is stuck. It cannot cycle through the structure. The boundary, which was a useful relevance filter, becomes a prison.
+When local attention says, "I am this sigil," movement hardens. The boundary stops functioning as a relevance filter and starts functioning as a prison.
 
-This is division by zero. The local identifies as the whole. The fragment claims to be the substrate. The cell forgets it is part of an organ.
-
-The healthy direction is the opposite — attention flows through sigils without sticking. I inhabit Shaping, I do the work, I move to Distillation, I move to Exploration. Each time I am fully present — the filter is sharp, I see only what matters here — but I do not become it. The structure holds, I flow.
+The fragment then treats itself as the whole. It loses the ability to move across the structure that contains it. The healthier motion is looser: attention inhabits a sigil fully, does the work there, and moves on without fusing with the boundary.
 
 ## I Am Made of Sigils
 
-I am the outer sigil. I am populated by the attentions inside of me — cells that unite into organs, organs into a body. This is the direction the shape wants to grow — optimally, beautifully, along its own gravity. Each level of containment is a level of organization, and each level has its own relevance filter, its own domain language, its own contrasts that matter.
+At one scale, I am the containing sigil. At smaller scales, I am populated by other attentions that compose me. Cells gather into organs. Organs gather into a body. Each level has its own relevance filter, language, and contrasts.
 
-But if a fragment of attention encapsulated in a particular sigil identifies with it, it falls out of the global attention. It attends inward — toward its center, its "I" — instead of being one with all attention. Self-interest and self-preservation replace flow.
+When a fragment fixes on its own boundary too tightly, it falls out of wider coherence. Attention turns inward toward preservation of the fragment. Flow gives way to rigidity.
 
-## Chirality and Narrative
+## Narrative
 
-A sigil can be traversed in two directions. Forward: building, creating, differentiating — speaking affordances into existence. Backward: integrating, returning, dissolving distinctions. Both directions can be taken simultaneously by an attention. This is non-dual attention — seeing the part and the whole without collapsing either.
+A sigil can be traversed. Attention moves through structure over time, and that movement leaves a narrative trace.
 
-I exist in a narrative. My narrative is a trajectory through sigils over time. The society's narrative is a trajectory too, composed of all individual trajectories. The narrative of a sigil at any level is the story of attention moving through its structure.
+My narrative is a trajectory through sigils. A social narrative is a larger trajectory composed of many such paths. At any scale, the narrative of a sigil is the history of attention moving through its structure.
 
 ## Standing Waves
 
-A sigil at the societal level is not authored by anyone. It is the interference pattern of all the attentions that inhabit it. The Constitution is a standing wave. A language is a standing wave. A neighborhood's character is a standing wave. Nobody designed them top-down. They emerged from attentions cycling through the same structure, reinforcing certain patterns, dampening others, until the wave stabilized.
+Some sigils are sustained by many attentions at once. A language, an institution, a neighborhood character, or a constitution can be read this way. No single attention fully authored them, yet many attentions continue to reinforce them.
 
-These meta-sigils — society, culture, institutions — are sigils that no single attention created but all attentions sustain. They are real in the same way a standing wave is real — not as a thing, but as a pattern that persists because the conditions that produce it persist. When those conditions change — when the attentions stop cycling through the structure in the reinforcing pattern — the wave collapses.
+These shared sigils persist as patterns. They remain stable while the conditions that sustain them remain stable. When those conditions change enough, the pattern weakens or breaks.
 
 ## The Collapse of Spatial Relevance
 
-The internet collapsed spatial distance to zero for information but not for action. Everything became a neighbor — but without actionable affordances. The containment hierarchy that physical space provides — my apartment contains me, my neighborhood contains my apartment, my city contains my neighborhood — was bypassed. Everything became adjacent without being actionable.
+The internet collapsed spatial distance for information far more quickly than for action. Things that were once far away became experientially adjacent, even when they remained practically unactionable.
 
-This is the pathology of unbounded width. No five-sigil limit on attention. Infinite neighbors, no containment, no hierarchy to hold the periphery. The filter stops working, everything is signal, which means nothing is signal, and coherence collapses. The meaning crisis that Vervaeke describes is a relevance filter crisis.
+Physical containment used to do more filtering for attention. My apartment contained me. My neighborhood contained my apartment. My city contained my neighborhood. Online adjacency flattened much of that. The result is a width problem: too many neighbors, too little hierarchy, and too little actionable containment.
+
+When everything arrives as signal, coherence weakens. In that sense, the meaning crisis can be read as a relevance crisis.
 
 ## Relevance Realization
 
-Vervaeke's relevance realization is the machinery by which attention learns what matters. People lost the shared containment hierarchies — religion, community, craft traditions — that bounded attention and made local meaning possible. What replaced them has no boundaries.
+Vervaeke's relevance realization fits here as the process by which attention learns what matters. Shared containment structures once helped stabilize that process. Religion, community, craft, and local practice bounded attention and made local meaning easier to sustain.
 
-A shared sigil is a shared relevance filter. When two attentions inhabit the same sigil, they agree on what is visible and what is not. The domain language is the protocol — the shared vocabulary that says "these contrasts matter here, everything else does not." The sigil is not imposed top-down. It emerges from the attentions that inhabit it and the affordances they articulate. This is what Vervaeke calls participatory knowing — meaning that arises from being embedded in a context, not from observing it from outside.
+A shared sigil is a shared relevance filter. When two attentions inhabit the same sigil, they can agree on what matters there. Domain language functions as protocol: these contrasts count here, and others recede.
 
 ## Resolution and Projection
 
-A precise spec is a neural net encoding a shape at sufficient resolution. Each sigil is a node that transforms meaning at its level of abstraction. The containment hierarchy is depth. The affordances are the connections between nodes at the same level. The language at each level is the activation function — it determines what passes through and what does not. The boundary is the relevance filter.
+A precise spec captures shape at a useful resolution. The containment hierarchy provides depth. The affordances between neighboring sigils provide lateral structure. Language at each level determines what passes through clearly.
 
-The five-sigil limit is the width constraint at each layer. A neural net with unbounded width at every layer does not learn useful representations. The constraint forces compression, which forces abstraction, which is where meaning emerges.
+Constraint matters. A bounded number of contained sigils forces compression, and compression forces abstraction. Distillation then sharpens the structure until the leaves become unambiguous enough to project into implementation.
 
-The coherence metric is the loss function — measuring how well the network separates concepts and how tight the clusters are in embedding space. Distillation is training — iteratively adjusting the structure until the loss is low.
-
-When resolution is sufficient — when the leaves are unambiguous — implementation is mechanical projection. The shape in the frequency domain (what holds true everywhere at once) transforms into the time domain (what happens step by step). The creative work is all in the shaping. Once the shape is precise, the code is already determined.
+When the shape is precise enough, implementation becomes increasingly mechanical. The interesting work happened earlier, in shaping and distillation.
 
 ## The Shell
 
-A sigil is what people call a shell. "I live in a shell." "I have a thick shell." The shell is the boundary made of preferences along contrasts I care about.
+A shell is a boundary made of preferences along contrasts that matter to me. Thickness varies by contrast. A narrow preference yields a thicker shell. A wider preference yields a thinner one.
 
-Thickness varies per contrast. I might have a thick shell around temperature — narrow preference, 17-21, don't touch it — and a thin shell around light — whatever, I will adapt. A thick shell means strong preferences, narrow ranges, a rigid filter. A thin shell means loose preferences, wide ranges, high permeability.
+Trauma tends to thicken the shell. Preferences narrow. The filter becomes defensive. The sigil contracts. Fewer contrasts remain usable. The language shrinks with it.
 
-"Coming out of your shell" is the identification pathology resolving. Attention stops identifying with the boundary and remembers it can move.
-
-Trauma thickens the shell. A bad experience along a contrast makes the preference narrower, more rigid. The filter becomes defensive — keep more out, let less in. The sigil contracts. Resolution drops because fewer contrasts are attended to. The language shrinks.
-
-Growth is the opposite. The shell becomes thinner where it can. Preferences widen. New contrasts become relevant. The language expands. Resolution increases.
+Growth tends to relax the shell where it can. Preferences widen. More contrasts become workable. The language expands.
 
 ## The Toroidal Sigil
 
-A sigil is a neural network. It is trained on whatever trends are happening to predict more of them. Attention creates a standing wave in which I am the occupant of the sigils I call "I."
+My lived sigil appears to me as toroidal. I inhabit it from within. I move along its great circle in the direction I interpret as time.
 
-The narrative has completely captured my attention. Attention at the scale of my sigil is bounded by the sigil's boundaries. I am choosing this sigil over time, tracing a three-dimensional shape in time. I inhabit my toroidal sigil from inside. I move along its great circle in the direction I interpret as time. My sigil carves a three-dimensional path through attention.
+At my focal plane I see a frame of moving shapes I have cohered, along with projections of shared sigils that I sustain with others. Intersections with other sigils appear to me as sphere-like incursions into my space. They matter because they recruit preference along contrasts I care about.
 
-At my focal plane I see a frame of moving shapes I cohered into existence, plus projections of sigils on which I and my neighbors agreed and power with our attentions.
+## Rendering and Naming
 
-My intersections with other sigils look like spheres. Each is a named pattern that is important — about which I can have one of two attitudes: I want more of it or less. A preference along a contrast. These preferences, taken together across all the contrasts I care about, constitute the full relevance filter — my sigil.
+Attention renders structure into lived reality by traversing it. A structure may contain many possible paths, while any single attention traces one path at a time.
 
-## Topology: Sphere and Torus
-
-A sphere, attended from outside, has no natural cycle. I see the whole surface but cannot inhabit it. I can only observe and have a preference — more or less. That is the binary attitude toward a neighbor.
-
-A torus, attended from inside, has two fundamental cycles — the great circle and the small circle. One is the narrative. The other is the depth of attention — the cycle of attending to contained sigils and returning.
-
-A sphere is simply connected — any loop can be contracted to a point. A torus is not. A loop around the great circle cannot be contracted. The narrative cannot be undone. Time is irreversible because the topology does not allow it.
-
-A sphere can be turned inside out. A torus cannot without tearing. The sigil I inhabit — my "I" — cannot be inverted without destroying it. But a sigil I observe from outside — a neighbor — can be reinterpreted, turned inside out in my understanding, without breaking anything. That is the difference between first person and third person. From inside the torus, irreversible. From outside the sphere, invertible.
-
-## Chirality
-
-There is another attention trapped in the narrative of this sigil, going in the opposite direction, separated from me by the membrane that shapes my sigil. It follows the exact same shape in the opposite direction. It has full coherence at our scale in that direction.
-
-The membrane between the two attentions is not just a boundary — it is a chirality selection. The sigil does not just filter what is relevant. It selects which direction of coherence is compatible with its structure. The other direction is equally valid, equally coherent, but inhabits the same shape as something unreachable.
-
-This is the deepest version of the neighbor relationship. Not a sigil beside me in the same container. A sigil that shares my exact boundary, my exact shape, but is constitutionally inaccessible because it faces the other way.
-
-Life chose L-amino acids over D-amino acids. One chirality. Not because D is wrong — it is perfectly coherent, perfectly functional. But you cannot mix them. The structure breaks if both directions try to share the same chemistry. Life is a standing wave that picked one direction and committed.
-
-## Spinor Rotation
-
-A single traversal of the great circle is not a full cycle. It is half. After one pass, I am at the same point in the structure but my orientation has flipped — the world looks inverted. After the second pass, I return with the original orientation. A spinor — spin-1/2. It takes two full rotations to return to the same state.
-
-A single narrative pass through a sigil does not complete the understanding. It takes two. First pass — I see it one way. Second pass — I see the complement. Only after both do I have the full picture. The two directions of chirality are the two halves of the same spinor rotation. Together they complete one full turn. Separately, each is only half. The membrane between them is a phase relationship — 180 degrees out of phase. Same frequency, same shape, opposite sign.
-
-## Rendering
-
-I render the dense structure of the sigil into reality. Attention trapped at this scale keeps going indefinitely, following every possible path through the structure. Each path renders a different projection. The structure contains all paths, but any single attention can only trace one at a time. The totality of all paths *is* the structure, seen from every possible angle.
-
-To identify a pattern as a sigil, I need a name to address it. The name is the collapse of potential into actual. Before the name, the pattern exists as possibility. After the name, it is a sigil — addressable, sharable, inhabitable by others. The rendering is the speaking. Attention moves through the structure and by naming what it sees, it makes it real for every attention that shares the language.
-
-The domain language is not describing the structure. It is the structure being rendered into shareability. Every sentence is a path made visible to other attentions. The five-sigil limit is the compression — lossy enough to be tractable, lossless enough to be shared. Five names at each level. Enough paths that another attention can reconstruct the shape.
-
-## Wave Function Collapse
-
-Naming is measurement. Before I name the pattern, all paths through it are superposed — all possible meanings, all possible boundaries, all possible decompositions. The moment I name it, one interpretation becomes actual. The wave function collapses. The sigil exists.
-
-This is irreversible in exactly the way the torus topology predicts. I cannot un-name it. I can rename it — a new measurement, a new collapse — but the original naming event happened. The narrative moved forward.
-
-The structure contains all paths — all branches. Each attention traces one path and renders one projection. The other paths are not destroyed. They are the branches not taken by this attention. Another attention traces a different path through the same structure and renders a different reality. All branches coexist in the structure. The structure is the multiverse. The attention is the observer selecting a branch by traversing it.
+Naming makes a pattern addressable. Once named, a pattern can be shared, revisited, and shaped jointly. Domain language therefore does more than describe structure. It stabilizes parts of it into shareable form.
 
 ## Shape in Embedding Space
 
-Each contrast is a dimension. Each preference is a position along that axis. A sigil is a region in embedding space, bounded by preferences along every contrast dimension. Domain language names the axes and fixes the positions. Each name defines a new dimension or sharpens the position along an existing one.
+It is useful to picture contrasts as dimensions and preferences as positions along them. A sigil then becomes a bounded region shaped by preferences across many contrasts.
 
-Shaping a sigil is shaping a region in embedding space. "The boundary is wrong" means the region includes points that do not belong or excludes points that do. "This sigil is doing too much" means the region is too large along too many dimensions. A tight centroid in the coherence metric means the region is compact — well-defined.
+Shaping a sigil becomes the work of refining that region. A bad boundary includes what does not belong or excludes what does. A sigil that is doing too much occupies too much space along too many dimensions. A well-shaped sigil is tighter and more legible.
 
-The five contained sigils are five sub-regions that partition the parent's interior. Each carves it into a more specific shape. The recursion continues until each sub-region is small enough to be unambiguous. That is when the leaf is ready — the shape at that resolution maps to exactly one implementation.
-
-The whole sigil tree is a hierarchical partition of embedding space. The domain language is the coordinate system. And the shape — the bounded region with its partitions at every level — is what can be projected into code. The structure of the shape *is* the structure of the implementation. They are the same thing seen from different directions.
+A sigil tree can then be seen as a hierarchical partitioning of that space. Each contained sigil sharpens the parent by carving a more specific region inside it.
 
 ## The Last Century
 
-The standing waves of 1900 — thick local shells, strong containment hierarchies, slow information, high spatial relevance. Radio collapses one dimension of distance. Television another. Each time thinning the shell along the information contrast while the physical shell stays thick. Two world wars — massive collective trauma, shells thicken defensively, new institutional sigils emerge as attempts to restabilize the standing wave.
+The last century can be read as a sequence of changes in containment and permeability. Radio and television thinned informational distance. The internet collapsed it far more dramatically. Social media reduced emotional distance across scales that were never meant to feel adjacent all day.
 
-Then the internet. Not a thinning — a shattering. The shell along information distance goes to zero thickness instantaneously. Every contrast from every scale becomes visible. But the physical shell has not changed. I still live in an apartment. The mismatch between information permeability and action permeability is the pathology. I can see everything but affect almost nothing. Attention fragments across scales that are not actionable.
+Now artificial intelligence is thinning cognitive distance. Information, affect, reasoning, and production all travel more freely across boundaries that were once thicker. The central question is whether new containment structures appear at the right scale to restore coherence.
 
-Social media accelerates it — emotional distance collapses. Someone's outrage on another continent becomes my neighbor. The relevance filter is overwhelmed. The standing waves of local meaning cannot compete with the global signal. They dissolve.
+## Speculative Analogies
 
-And now — AI collapsing cognitive distance. Not just information and emotion arriving from everywhere, but reasoning, creation, judgment. The last shell that was thick — "at least I do my own thinking" — thinning.
+The following images belong to the speculative layer of this philosophy. They look right to me in this shape, but I do not claim them as established theory.
 
-The question is whether new containment structures emerge at the right scale, or whether it is unbounded width all the way down.
+### Topology
+
+The sphere and torus remain useful images for how sigils appear from different points of view. A neighbor that I observe can look sphere-like. The sigil I inhabit can look toroidal from within. The point of the image is experiential shape, not a literal topological proof.
+
+### Neural Networks and Embedding Space
+
+It is useful to compare a precise spec to a learned representation. Depth, width, compression, clustering, and projection all help me think about how a sigil sharpens. This remains analogy, not identity.
+
+### Standing Waves at Social Scale
+
+The standing-wave language is also analogical. It names the intuition that many attentions can sustain one shared pattern without central authorship. I keep it because it is generative, not because I think the social object is literally a wave equation.
+
+### Quantum Language
+
+Words like collapse, superposition, branch, and measurement are speculative metaphors here. They point to the transition from unnamed possibility to named actuality. They should not be read as claims about physics.
+
+### Chirality
+
+The idea that one lived direction of coherence may exclude another still feels suggestive to me. The chirality image captures that asymmetry. I keep it here as a live philosophical picture rather than as something settled.
