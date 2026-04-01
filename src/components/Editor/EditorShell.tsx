@@ -256,14 +256,14 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
-  const handleCreateSignal = useCallback(async (name: string) => {
+  const handleCreateDisposition = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
     try {
-      await api.writeFile(`${ctx.path}/signal-${name}.md`, "");
+      await api.writeFile(`${ctx.path}/disposition-${name}.md`, "");
       await reload(doc.sigil.root_path);
     } catch (err) {
-      console.error("Create signal failed:", err);
+      console.error("Create disposition failed:", err);
     }
   }, [doc, reload]);
 
@@ -369,7 +369,7 @@ export function EditorShell() {
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
-                    onCreateSignal={handleCreateSignal}
+                    onCreateDisposition={handleCreateDisposition}
                     onRenameSigil={handleRenameSigil}
                     onRenameStatus={handleRenameStatus}
                     onNavigateToSigil={handleNavigateToSigil}
@@ -391,13 +391,13 @@ export function EditorShell() {
         {(doc.contentTab || "language") !== "atlas" && (
           <SigilPropertyEditor
             sigilPath={currentCtx.path}
-            filePrefix="signal"
-            title="Relevant Signals"
+            filePrefix="disposition"
+            title="Dispositions"
             refPrefix="!"
             color="#e8a040"
-            namePlaceholder="I care about..."
-            contentPlaceholder="because..."
-            items={currentCtx.signals}
+            namePlaceholder="towards..."
+            contentPlaceholder="my preference..."
+            items={currentCtx.dispositions}
             onReload={() => reload(doc.sigil.root_path).then(() => {})}
           />
         )}
