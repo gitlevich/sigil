@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
@@ -229,7 +230,7 @@ export function TreeView() {
   };
 
   const handleDelete = async (context: Context) => {
-    if (!confirm(`Delete "${context.name}" and all its contents? This cannot be undone.`)) {
+    if (!await confirm(`Delete "${context.name}" and all its contents? This cannot be undone.`)) {
       return;
     }
     try {
