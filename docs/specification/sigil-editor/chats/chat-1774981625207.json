@@ -177,6 +177,46 @@
     {
       "role": "assistant",
       "content": "Yes, exactly. You want a small seed sentence that establishes the relational structure of the ontology, and then each term can be zoomed into and defined more precisely.\n\nSomething like this is clean and Gibson-close: “An organism lives in an environment that affords action.” If you want a slightly richer version: “An organism perceives and acts in its environment in terms of affordances.”"
+    },
+    {
+      "role": "user",
+      "content": "How do you define resolution in the context of AttentionLanguage?"
+    },
+    {
+      "role": "assistant",
+      "content": "In AttentionLanguage, I’d define resolution as the fineness of discrimination with which attention collapses a frame. It is how much detail an observer or agent can distinguish, track, and preserve at a given moment within the limits of finite attention.\n\nSo higher resolution means attending to a smaller region or fewer contrasts with greater precision, while lower resolution means compressing more of the frame into coarser distinctions. Resolution is therefore not just a property of the world or of sensing, but of attention at a given scale, in a given frame, under a given constraint."
+    },
+    {
+      "role": "user",
+      "content": "What about temporal?"
+    },
+    {
+      "role": "assistant",
+      "content": "Temporal resolution would be how finely attention distinguishes change across time, rather than across a frame. It is how small a difference in sequence, duration, or timing an observer or agent can track and preserve within finite attention.\n\nSo spatial or frame resolution asks how much structure you can distinguish at once, while temporal resolution asks how finely you can discriminate unfolding. In your language, both are probably species of resolution under different axes of collapse."
+    },
+    {
+      "role": "user",
+      "content": "Given this distinction, temporal and spatial, how would you define both?"
+    },
+    {
+      "role": "assistant",
+      "content": "Spatial resolution is how finely attention distinguishes structure within a frame at a moment. It is the degree to which an observer or agent can discriminate, localize, and preserve differences across the space of what is currently attended.\n\nTemporal resolution is how finely attention distinguishes change across frames. It is the degree to which an observer or agent can discriminate, order, and preserve differences in sequence, duration, and rate as experience unfolds."
+    },
+    {
+      "role": "user",
+      "content": "Look at this. Does it look correct? I mean that they opened Sigil."
+    },
+    {
+      "role": "assistant",
+      "content": "I can check, but I can’t see the image unless you attach it here. If you paste the text you’re looking at or upload the screenshot, I’ll tell you whether they opened `Sigil` or something else."
+    },
+    {
+      "role": "user",
+      "content": "Sorry, not the image. I ask you to read the currently opened Sigil."
+    },
+    {
+      "role": "assistant",
+      "content": "Yes. The currently opened sigil in your context is Libs > AttentionLanguage > Resolution.\n\nIt looks coherent to me. The parent definition gives the shared concept cleanly, and the spatial and temporal children split it in a natural way without overlap."
     }
   ]
 }
