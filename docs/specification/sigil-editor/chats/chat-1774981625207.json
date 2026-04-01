@@ -9,6 +9,14 @@
     {
       "role": "user",
       "content": "What do you think of the spec and especially of Attention Language?"
+    },
+    {
+      "role": "user",
+      "content": "what is dmiensionality of chatgpt embedding space?"
+    },
+    {
+      "role": "assistant",
+      "content": "OpenAI’s public embedding models have fixed output sizes, but “ChatGPT embedding space” isn’t one single official space unless you mean a specific embedding model. For example, `text-embedding-3-large` supports up to 3072 dimensions and `text-embedding-3-small` up to 1536, while older `text-embedding-ada-002` is 1536-dimensional.\n\nIf you mean the hidden internal representation space of a ChatGPT model during generation, OpenAI does not publicly specify it as a single embedding-space dimension in the way API embedding models are specified. If you want, I can also explain the difference between token embeddings, hidden state width, and API embedding vectors."
     }
   ]
 }

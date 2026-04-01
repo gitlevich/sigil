@@ -60,11 +60,18 @@ export function useChatStream() {
       const finalDoc = docRef.current;
       if (!finalDoc) return;
       dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-      if (finalDoc.activeChatId) {
+      if (finalDoc.activeChatId && accumulatorRef.current) {
+        const msgs = [...finalDoc.chatMessages];
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg && lastMsg.role === "assistant") {
+          msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
+        } else {
+          msgs.push({ role: "assistant", content: accumulatorRef.current });
+        }
         api.writeChat(finalDoc.sigil.root_path, {
           id: finalDoc.activeChatId,
           name: finalDoc.chats.find((c) => c.id === finalDoc.activeChatId)?.name || "Chat",
-          messages: finalDoc.chatMessages,
+          messages: msgs,
         }).catch(console.error);
       }
       accumulatorRef.current = "";
