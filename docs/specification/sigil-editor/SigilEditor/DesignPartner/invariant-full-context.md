@@ -1,0 +1,1 @@
+the partner always has the complete sigil and imported ontologies in scope
