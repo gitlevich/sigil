@@ -13,7 +13,7 @@ interface OntologyNode {
   fsPath: string;
   depth: number;
   affordances: string[];
-  signals: string[];
+  dispositions: string[];
   children: OntologyNode[];
 }
 
@@ -30,7 +30,7 @@ function buildOntology(ctx: Context, path: string[], depth: number): OntologyNod
     fsPath: ctx.path,
     depth,
     affordances: ctx.affordances.map((a) => a.name),
-    signals: ctx.signals.map((c) => c.name),
+    dispositions: ctx.dispositions.map((c) => c.name),
     children: ctx.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
   };
 }
@@ -201,9 +201,9 @@ function OntologyItem({
         </button>
       </div>
 
-      {(node.signals.length > 0 || node.affordances.length > 0) && (
+      {(node.dispositions.length > 0 || node.affordances.length > 0) && (
         <div className={styles.propertyList}>
-          {node.signals.map((name) => (
+          {node.dispositions.map((name) => (
             <span key={`s-${name}`} className={styles.iconWrap} title={`!${name}`}>
               <svg width="12" height="12" viewBox="0 0 14 14">
                 <circle cx="7" cy="11" r="1.5" fill="currentColor" />

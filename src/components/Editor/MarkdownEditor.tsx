@@ -32,7 +32,7 @@ interface MarkdownEditorProps {
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onCreateAffordance?: (name: string) => void;
-  onCreateSignal?: (name: string) => void;
+  onCreateDisposition?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onRenameStatus?: (oldValue: string, newValue: string) => void;
   onNavigateToSigil?: (name: string) => void;
@@ -89,7 +89,7 @@ const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
 const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
-const signalMark = Decoration.mark({ class: "cm-ref-signal" });
+const dispositionMark = Decoration.mark({ class: "cm-ref-disposition" });
 const frontMatterLineMark = Decoration.line({ class: "cm-front-matter" });
 
 const DEFAULT_STATUS = "idea";
@@ -364,11 +364,11 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                   builder.add(abs, abs + matchText.length, affordanceMark);
                 }
               } else if (matchText.startsWith("!")) {
-                const signalName = matchText.slice(1);
-                const signalExists = !!globalCurrentContext?.signals.find(
-                  (s) => s.name === signalName || s.name === fromDashForm(signalName)
+                const dispositionName = matchText.slice(1);
+                const dispositionExists = !!globalCurrentContext?.dispositions.find(
+                  (s) => s.name === dispositionName || s.name === fromDashForm(dispositionName)
                 );
-                builder.add(abs, abs + matchText.length, signalExists ? signalMark : unresolvedMark);
+                builder.add(abs, abs + matchText.length, dispositionExists ? dispositionMark : unresolvedMark);
               } else {
                 // Standalone #affordance
                 const affExists = !!findAffordance(globalCurrentContext ?? undefined, matchText.slice(1));
@@ -416,7 +416,7 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
         color: "#3d9e8c",
         fontStyle: "italic",
       },
-      ".cm-ref-signal": {
+      ".cm-ref-disposition": {
         color: "#e8a040",
         fontStyle: "italic",
       },
@@ -516,15 +516,15 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             }
             } // end else (non-external)
           } else if (matchText.startsWith("!")) {
-            // standalone !signal — look up in current context
+            // standalone !disposition — look up in current context
             if (!globalCurrentContext) return null;
-            const signalName = matchText.slice(1);
-            const signal = globalCurrentContext.signals.find(
-              (c) => c.name === signalName || c.name === fromDashForm(signalName)
+            const dispName = matchText.slice(1);
+            const disp = globalCurrentContext.dispositions.find(
+              (c) => c.name === dispName || c.name === fromDashForm(dispName)
             );
-            if (!signal) return null;
+            if (!disp) return null;
             displayName = matchText;
-            summary = signal.content.split("\n").slice(0, 3).join("\n");
+            summary = disp.content.split("\n").slice(0, 3).join("\n");
           } else {
             // standalone #affordance — look up in current context
             if (!globalCurrentContext) return null;
@@ -628,17 +628,17 @@ function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  // Case 0b: standalone !partial — offer current context's own signals
+  // Case 0b: standalone !partial — offer current context's own dispositions
   const standaloneBang = context.matchBefore(/!(?:[a-zA-Z_][\w-]*)?/);
   if (standaloneBang) {
     const lineText = context.state.doc.lineAt(standaloneBang.from).text;
     const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
     const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
     const isAfterWord = /[\w-]/.test(charBefore);
-    if (!isAfterWord && globalCurrentContext && globalCurrentContext.signals.length > 0) {
+    if (!isAfterWord && globalCurrentContext && globalCurrentContext.dispositions.length > 0) {
       return {
         from: standaloneBang.from,
-        options: globalCurrentContext.signals.map((c) => ({
+        options: globalCurrentContext.dispositions.map((c) => ({
           label: `!${toDashForm(c.name)}`,
           detail: c.content.split("\n")[0]?.slice(0, 50) || "",
           type: "property" as const,
@@ -752,8 +752,8 @@ function findRefAtCursor(view: EditorView): { name: string; from: number; known:
   return null;
 }
 
-/** Find a standalone #affordance or !signal at the cursor, with existence flag. */
-function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "signal"; name: string; exists: boolean } | null {
+/** Find a standalone #affordance or !disposition at the cursor, with existence flag. */
+function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "disposition"; name: string; exists: boolean } | null {
   const pos = view.state.selection.main.head;
   const line = view.state.doc.lineAt(pos);
   const pattern = /#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
@@ -766,10 +766,10 @@ function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "sign
       const text = match[0];
       if (text.startsWith("!")) {
         const name = text.slice(1);
-        const exists = !!globalCurrentContext?.signals.find(
+        const exists = !!globalCurrentContext?.dispositions.find(
           (s) => s.name === name || s.name === fromDashForm(name)
         );
-        return { kind: "signal", name, exists };
+        return { kind: "disposition", name, exists };
       } else {
         const name = text.slice(1);
         const exists = !!findAffordance(globalCurrentContext ?? undefined, name);
@@ -843,7 +843,7 @@ function buildCustomKeymap(
   setRefsState: SetRefsState,
   onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onCreateAffordanceRef: React.MutableRefObject<((name: string) => void) | undefined>,
-  onCreateSignalRef: React.MutableRefObject<((name: string) => void) | undefined>,
+  onCreateDispositionRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onRenameStatusRef: React.MutableRefObject<((oldValue: string, newValue: string) => void) | undefined>,
 ) {
   return keymap.of([
@@ -896,8 +896,8 @@ function buildCustomKeymap(
             onCreateAffordanceRef.current(prop.name);
             return true;
           }
-          if (prop.kind === "signal" && onCreateSignalRef.current) {
-            onCreateSignalRef.current(prop.name);
+          if (prop.kind === "disposition" && onCreateDispositionRef.current) {
+            onCreateDispositionRef.current(prop.name);
             return true;
           }
         }
@@ -944,7 +944,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateSignal, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -952,8 +952,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onCreateSigilRef.current = onCreateSigil;
   const onCreateAffordanceRef = useRef(onCreateAffordance);
   onCreateAffordanceRef.current = onCreateAffordance;
-  const onCreateSignalRef = useRef(onCreateSignal);
-  onCreateSignalRef.current = onCreateSignal;
+  const onCreateDispositionRef = useRef(onCreateDisposition);
+  onCreateDispositionRef.current = onCreateDisposition;
   const onRenameSigilRef = useRef(onRenameSigil);
   onRenameSigilRef.current = onRenameSigil;
   const onNavigateRef = useRef(onNavigateToSigil);
@@ -988,7 +988,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateDispositionRef, onRenameStatusRef)),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null)),
@@ -1086,7 +1086,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateSignalRef, onRenameStatusRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateDispositionRef, onRenameStatusRef)),
     });
   }, [keybindings]);
 
@@ -1143,7 +1143,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         <div className={styles.emptyHint}>
           <span>↑ name affordances</span>
           <span>narrate — name the sigils needed to express them</span>
-          <span>↓ declare relevant signals</span>
+          <span>↓ declare relevant dispositions</span>
         </div>
       )}
       {renameState && (

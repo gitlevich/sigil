@@ -15,7 +15,7 @@ pub struct Affordance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Signal {
+pub struct Disposition {
     pub name: String,
     pub content: String,
 }
@@ -26,7 +26,7 @@ pub struct Context {
     pub path: String,
     pub domain_language: String,
     pub affordances: Vec<Affordance>,
-    pub signals: Vec<Signal>,
+    pub dispositions: Vec<Disposition>,
     pub children: Vec<Context>,
 }
 
