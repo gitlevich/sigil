@@ -273,6 +273,34 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
+  const handleRenameProperty = useCallback(async (kind: "affordance" | "disposition", oldName: string, newName: string) => {
+    if (!doc) return;
+    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const prefix = kind === "affordance" ? "affordance" : "disposition";
+    const oldPath = `${ctx.path}/${prefix}-${oldName}.md`;
+    const newPath = `${ctx.path}/${prefix}-${newName}.md`;
+    try {
+      // Read old content, write to new path, delete old
+      const oldContent = await api.readFile(oldPath).catch(() => "");
+      await api.writeFile(newPath, oldContent);
+      await api.deleteFile(oldPath);
+      // Update references in language.md: replace #old-name or !old-name with new name
+      const langPath = `${ctx.path}/language.md`;
+      const lang = ctx.domain_language;
+      const refChar = kind === "affordance" ? "#" : "!";
+      const updated = lang.replace(
+        new RegExp(`\\${refChar}${oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[^a-zA-Z0-9_-]|$)`, "g"),
+        `${refChar}${newName}`
+      );
+      if (updated !== lang) {
+        await api.writeFile(langPath, updated);
+      }
+      await reload(doc.sigil.root_path);
+    } catch (err) {
+      console.error(`Rename ${kind} failed:`, err);
+    }
+  }, [doc, reload]);
+
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
@@ -388,6 +416,7 @@ export function EditorShell() {
                     onCreateAffordance={handleCreateAffordance}
                     onCreateDisposition={handleCreateDisposition}
                     onRenameSigil={handleRenameSigil}
+                    onRenameProperty={handleRenameProperty}
                     onRenameStatus={handleRenameStatus}
                     onNavigateToSigil={handleNavigateToSigil}
                     onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}

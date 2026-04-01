@@ -34,6 +34,7 @@ interface MarkdownEditorProps {
   onCreateAffordance?: (name: string) => void;
   onCreateDisposition?: (name: string) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
+  onRenameProperty?: (kind: "affordance" | "disposition", oldName: string, newName: string) => void;
   onRenameStatus?: (oldValue: string, newValue: string) => void;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
@@ -852,7 +853,8 @@ function findAllReferences(ctx: Context, symbolName: string, path: string[]): Re
 
 let globalPendingStatusRename: string | null = null;
 
-type SetRenameState = (s: { oldName: string; x: number; y: number } | null) => void;
+type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "disposition" };
+type SetRenameState = (s: RenameTarget | null) => void;
 type SetRefsState = (s: { hits: ReferenceHit[]; x: number; y: number } | null) => void;
 
 function buildCustomKeymap(
@@ -874,11 +876,21 @@ function buildCustomKeymap(
           view.dispatch({ selection: { anchor: status.from, head: status.from + status.value.length } });
           return true;
         }
+        // Check for #affordance or !disposition at cursor
+        const prop = findPropertyRefAtCursor(view);
+        if (prop?.exists) {
+          const pos = view.state.selection.main.head;
+          const coords = view.coordsAtPos(pos);
+          const rect = view.dom.getBoundingClientRect();
+          if (coords) setRenameState({ oldName: prop.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: prop.kind });
+          return true;
+        }
+        // Check for @sigil at cursor
         const ref = findRefAtCursor(view);
         if (ref?.known) {
           const coords = view.coordsAtPos(ref.from);
           const rect = view.dom.getBoundingClientRect();
-          if (coords) setRenameState({ oldName: ref.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4 });
+          if (coords) setRenameState({ oldName: ref.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: "sigil" });
           return true;
         }
         return false;
@@ -962,7 +974,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateDisposition, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -974,11 +986,13 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onCreateDispositionRef.current = onCreateDisposition;
   const onRenameSigilRef = useRef(onRenameSigil);
   onRenameSigilRef.current = onRenameSigil;
+  const onRenamePropertyRef = useRef(onRenameProperty);
+  onRenamePropertyRef.current = onRenameProperty;
   const onNavigateRef = useRef(onNavigateToSigil);
   onNavigateRef.current = onNavigateToSigil;
   const onNavigateAbsPathRef = useRef(onNavigateToAbsPath);
   onNavigateAbsPathRef.current = onNavigateToAbsPath;
-  const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number } | null>(null);
+  const [renameState, setRenameState] = useState<RenameTarget | null>(null);
   const [refsState, setRefsStateRaw] = useState<{ hits: ReferenceHit[]; x: number; y: number } | null>(null);
   const [refsIndex, setRefsIndex] = useState(0);
   const setRefsState: SetRefsState = (s) => { setRefsStateRaw(s); setRefsIndex(0); };
@@ -1200,8 +1214,12 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const newName = e.currentTarget.value.trim();
-                if (newName && newName !== renameState.oldName && onRenameSigilRef.current) {
-                  onRenameSigilRef.current(renameState.oldName, newName);
+                if (newName && newName !== renameState.oldName) {
+                  if (renameState.kind === "sigil" && onRenameSigilRef.current) {
+                    onRenameSigilRef.current(renameState.oldName, newName);
+                  } else if ((renameState.kind === "affordance" || renameState.kind === "disposition") && onRenamePropertyRef.current) {
+                    onRenamePropertyRef.current(renameState.kind, renameState.oldName, newName);
+                  }
                 }
                 setRenameState(null);
               }
