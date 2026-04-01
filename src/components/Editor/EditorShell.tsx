@@ -236,7 +236,7 @@ export function EditorShell() {
   }, [doc, reload]);
 
   const handleRenameStatus = useCallback(async (oldValue: string, newValue: string) => {
-    if (!doc || !newValue.trim() || newValue === oldValue) return;
+    if (!doc || !newValue.trim()) return;
     const statusPattern = /^(status:\s*)\S+$/m;
     const forceStatus = async (ctx: Context) => {
       const lang = ctx.domain_language || "";
@@ -251,9 +251,9 @@ export function EditorShell() {
       }
       for (const child of ctx.children) await forceStatus(child);
     };
-    // Force status on all descendants of the current sigil
+    // Force status on the current sigil and all its descendants
     const currentCtx = findContext(doc.sigil.root, doc.currentPath);
-    for (const child of currentCtx.children) await forceStatus(child);
+    await forceStatus(currentCtx);
     await reload(doc.sigil.root_path);
   }, [doc, reload]);
 

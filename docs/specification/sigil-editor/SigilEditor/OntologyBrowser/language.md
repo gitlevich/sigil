@@ -1,5 +1,5 @@
 ---
-status: idea
+status: implemented
 ---
 
 # Ontology Browser
@@ -11,3 +11,5 @@ I can #search to filter the tree by name. I can #add-peer to create a new sigil 
 Each node has a #definition — a one-line summary that I can edit inline. The definition is what the @DesignPartner sees when reasoning about the sigil without reading its full language.
 
 What I see must match what exists: !structural-truth is non-negotiable.
+
+Each node is decorated with #affordance-icon for each @affordance and #invariant-icon for each @invariant it declares. On hover, they show their names. 

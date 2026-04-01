@@ -993,14 +993,22 @@ function buildCustomKeymap(
     {
       key: "Enter",
       run: (view) => {
-        if (globalPendingStatusRename === null) return false;
         const status = findStatusAtCursor(view);
-        const oldValue = globalPendingStatusRename;
-        globalPendingStatusRename = null;
-        if (status && status.value !== oldValue && onRenameStatusRef.current) {
-          onRenameStatusRef.current(oldValue, status.value);
+        if (globalPendingStatusRename !== null) {
+          // Completing a rename-shortcut flow
+          const oldValue = globalPendingStatusRename;
+          globalPendingStatusRename = null;
+          if (status && status.value !== oldValue && onRenameStatusRef.current) {
+            onRenameStatusRef.current(oldValue, status.value);
+          }
+          return true;
         }
-        return true;
+        // Direct edit: cursor is on status line — propagate to children
+        if (status && onRenameStatusRef.current) {
+          onRenameStatusRef.current("", status.value);
+          return true;
+        }
+        return false;
       },
     },
     {
@@ -1114,8 +1122,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
         keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
