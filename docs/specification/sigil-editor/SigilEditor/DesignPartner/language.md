@@ -6,6 +6,6 @@ status: stub
 
 An agent that inhabits the entire @sigil (!full-context). Language in, language out.
 
-**Coherence.** Computed silently, surfaced only when broken. Ancestor @sigils are in scope and binding — contradicting an ancestor's term or violating an inherited @invariant is incoherent. Same concept in a different branch with different affordances and invariants is fine. @CoherenceMetric handles measurement.
+**Coherence.** Computed silently, surfaced only when broken. Ancestor @sigils are in scope and binding — contradicting an ancestor's term or violating an inherited @invariant is incoherent. Same concept in a different branch with different affordances and invariants is fine. @CoherenceMetric handles measurement and tracks drift over time.
 
-**Coverage.** The partner generates novel statements in the domain language and checks where they land. If a valid statement produces a trajectory through unmapped surface: either the statement is nonsensical (tighten the language) or it's meaningful and the spec hasn't accounted for it (narrate the trajectory, define the surface). The domain language must not allow statements the @sigil doesn't know what to do with.
+**Coverage.** The vision sentences are trajectories through the @sigil tree. The partner traces each one and finds where it falls off the edge. The shape of the gap constrains what fills it (!gravity). The partner surfaces gaps and degrees of freedom; the author decides (!author-decides). @Coverage is complete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.
