@@ -45,40 +45,8 @@ I want a user that is not me opens this app and has an example in front of him t
 - #Recognize-when-projectable: to know when to hand it to an implementing agent
 - #State-vision: to align design with a clear goal
 - #access-ontology-library: I could use ontology library in other projects. I think of it separately. So Libs folder is mounted as a part of the application, not user’s application sigil. so when i unmount a sigil and mount another, or create a new one, i have Libs available alongside, sorted to appear under user’s app sigil.
-- #back:
-  ---
-  status: idea
-  ---
+- #toggle-dark-light-theme: because I want to switch. 
   
-  # Back
-  
-  Navigate to the previously opened @sigil. Works like browser back — maintains a history stack as I follow links through the spec. Complements #navigate, which is forward/targeted. Back is for retracing.
-- #declare-invariants: to know what to attend to and what to ignore
-- #navigate:
-  ---
-  status: implemented
-  ---
-  
-  # Navigate
-  
-  Open a target @sigil from any surface that shows sigils and make it the current focus. Cross-cutting — works from @OntologyTree, @Atlas, or any other sigil surface. All views stay in sync.
-- #project:
-  ---
-  status: idea
-  ---
-  
-  # Project
-  
-  Spec in, code out. The spec is the single source of truth — code is a projection. When the spec changes, the projection updates. Ready for projection = @Coverage is complete.
-- #rename:
-  ---
-  status: implemented
-  ---
-  
-  # Rename
-  
-  Rename a @sigil and update all references across the spec. Accessible from any surface — @OntologyTree, @Editor, @Atlas. One operation, multiple entry points.
-
 ### Contained Sigils
 
 - Atlas
@@ -86,6 +54,19 @@ I want a user that is not me opens this app and has an example in front of him t
 - Editor
 - OntologyTree
 
-### Neighbor Relationships In This Context
+## VG Notes
 
-- none
+to build domain language, we need words to express what an affordance like "distil with partner" actually means. You can do it in a couple of ways. We can model affordances in sigils, or on sigils, which leads to an object-oriented model, or you could model sigils in affordances. So it's this weird structure: sigil, affordances, expressed in sigils, expressed through affordances, and so forth. So I actually like the second one more; these affordances establish a polynomial-like articulation chain: the more members we have in each chain, the more precision we can articulate/resolve in the frame. "Articulate" is a time-like concept; "resolve" is space-like. They are equivalent. And are probably a kind of Fourier transform from each other
+
+the UI-sounding @sigils, like @SigilEditor, are powered by my @attention. They are my surfaces of interaction with the @sigil I am envisioning and @DesignPartner that helps me with that.
+
+the domain-model-sounding @sigils are powered by the @DesignPartner's @attention. @DesignPartner attends to (1) the other side of our interaction boundary and (2) the spells, narratives of how to do tedious deterministic things step by step, ignoring the structure, requiring that all attention is focused on following the steps. Things like run this tool, see what came back. Imperative things that lead to sure resutls if you execute them verbatim. That fall apart against non-deterministic situations. These spells are instructions @DesignPartner can execute, or write code to automate.
+
+#publish, so that I can have this sigil repo pushed to GitHub, app re-projected under semantic versioning and released, and website re-published. Something like Cmd-Shift-S. And Cmd-S, which is to commit and push without release tag (no release, no publish)
+
+
+!!!!!
+
+i think we have invented an embodiment for AI: sigil is a fundamental attention structure, and this is a place to experience it. powered by any LLM but only locally persistent. as a single life.
+
+!!!!!
