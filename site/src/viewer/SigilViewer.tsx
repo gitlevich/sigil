@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import sigilSpec from "../data/sigil-spec.json";
 import type { Sigil } from "./types";
 import { ViewerProvider, useViewerState, useViewerDispatch } from "./ViewerState";
@@ -10,8 +10,24 @@ import { MarkdownPreview } from "./MarkdownPreview";
 import { PropertyBar } from "./PropertyBar";
 import { SubContextBar } from "./SubContextBar";
 import { ThemeToggle } from "./ThemeToggle";
+import { MobileViewer } from "./MobileViewer";
 import "./viewer.css";
 import styles from "./SigilViewer.module.css";
+
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.innerWidth <= MOBILE_BREAKPOINT,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isMobile;
+}
 
 function VisionPanel({ vision }: { vision: string }) {
   if (!vision) {
@@ -206,10 +222,15 @@ function ViewerContent() {
   );
 }
 
+function ViewerRouter() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileViewer /> : <ViewerContent />;
+}
+
 export function SigilViewer() {
   return (
     <ViewerProvider sigil={sigilSpec as Sigil}>
-      <ViewerContent />
+      <ViewerRouter />
     </ViewerProvider>
   );
 }

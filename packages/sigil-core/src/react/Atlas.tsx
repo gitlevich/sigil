@@ -158,7 +158,7 @@ export function Atlas({
   onNavigate,
   onEscape,
   onContextMenu,
-  instructions = "Double-click to enter a context.",
+  instructions = "Double-click to enter a sigil.",
   revealedStorageKey = "sigil-atlas-revealed",
 }: AtlasProps) {
   const containerRef = useRef<HTMLDivElement>(null);

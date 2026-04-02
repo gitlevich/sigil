@@ -34,3 +34,28 @@
   color: var(--text-primary);
   font-weight: 500;
 }
+
+@media (max-width: 768px) {
+  .breadcrumb {
+    padding: 0.3rem 0.5rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .breadcrumb::-webkit-scrollbar {
+    display: none;
+  }
+
+  .crumb {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.2rem;
+    white-space: nowrap;
+  }
+
+  .separator {
+    font-size: 0.65rem;
+    margin: 0 0.1rem;
+  }
+}
