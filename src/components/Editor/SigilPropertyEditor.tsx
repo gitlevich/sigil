@@ -137,26 +137,28 @@ function PropertyItem({
         <button className={styles.foldBtn} tabIndex={-1} onClick={onToggleFold} title={folded ? "Unfold" : "Fold"}>{folded ? "\u25B6" : "\u25BC"}</button>
         <button className={styles.deleteBtn} tabIndex={-1} onClick={onDelete} title={`Delete ${namePlaceholder}`}>x</button>
       </div>
-      <textarea
-        ref={textareaRef}
-        className={`${styles.contentArea} ${folded ? styles.contentFolded : ""}`}
-        value={item.content}
-        placeholder={contentPlaceholder}
-        onChange={(e) => { onContentChange(e.target.value); fitHeight(); }}
-        onFocus={() => { contentBeforeEdit.current = item.content; }}
-        onBlur={fitHeight}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            contentBeforeEdit.current = item.content;
-            e.currentTarget.blur();
-          }
-          if (e.key === "Escape") {
-            onContentChange(contentBeforeEdit.current);
-            e.currentTarget.blur();
-          }
-        }}
-      />
+      {!folded && (
+        <textarea
+          ref={textareaRef}
+          className={styles.contentArea}
+          value={item.content}
+          placeholder={contentPlaceholder}
+          onChange={(e) => { onContentChange(e.target.value); fitHeight(); }}
+          onFocus={() => { contentBeforeEdit.current = item.content; }}
+          onBlur={fitHeight}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              contentBeforeEdit.current = item.content;
+              e.currentTarget.blur();
+            }
+            if (e.key === "Escape") {
+              onContentChange(contentBeforeEdit.current);
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      )}
       </div>
     </div>
   );
