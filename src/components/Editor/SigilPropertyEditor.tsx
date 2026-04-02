@@ -110,7 +110,7 @@ function PropertyItem({
         onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
       >⠿</span>
       <div className={styles.itemBody}>
-      <div className={styles.itemHeader}>
+      <div className={`${styles.itemHeader} ${folded ? styles.itemHeaderFolded : ""}`}>
         <input
           className={styles.nameInput}
           style={{ "--property-color": color } as React.CSSProperties}
