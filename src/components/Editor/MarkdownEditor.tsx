@@ -302,6 +302,34 @@ function findContextByPath(path: string[], root: Context): Context | null {
   return ctx;
 }
 
+/** Find an invariant by walking from current context up through ancestors. Returns the owning context's path. */
+function findInvariantInScope(name: string): { content: string; ownerPath: string[] } | null {
+  if (!globalSigilRoot || !globalCurrentPath) return null;
+  for (let depth = globalCurrentPath.length; depth >= 0; depth--) {
+    const path = globalCurrentPath.slice(0, depth);
+    const ctx = findContextByPath(path, globalSigilRoot);
+    if (!ctx) continue;
+    const inv = ctx.invariants.find(
+      (s) => s.name === name || s.name === fromDashForm(name)
+    );
+    if (inv) return { content: inv.content, ownerPath: path };
+  }
+  return null;
+}
+
+/** Find an affordance by walking from current context up through ancestors. Returns the owning context's path. */
+function findAffordanceInScope(name: string): { content: string; ownerPath: string[] } | null {
+  if (!globalSigilRoot || !globalCurrentPath) return null;
+  for (let depth = globalCurrentPath.length; depth >= 0; depth--) {
+    const path = globalCurrentPath.slice(0, depth);
+    const ctx = findContextByPath(path, globalSigilRoot);
+    if (!ctx) continue;
+    const aff = findAffordance(ctx, name);
+    if (aff) return { content: aff.content, ownerPath: path };
+  }
+  return null;
+}
+
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
 interface RefResolution {
@@ -422,13 +450,11 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                 }
               } else if (matchText.startsWith("!")) {
                 const invariantName = matchText.slice(1);
-                const invariantExists = !!globalCurrentContext?.invariants.find(
-                  (s) => s.name === invariantName || s.name === fromDashForm(invariantName)
-                );
+                const invariantExists = findInvariantInScope(invariantName) !== null;
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
                 // Standalone #affordance
-                const affExists = !!findAffordance(globalCurrentContext ?? undefined, matchText.slice(1));
+                const affExists = findAffordanceInScope(matchText.slice(1)) !== null;
                 builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
               }
             }
@@ -1159,31 +1185,50 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos === null) return false;
             const line = view.state.doc.lineAt(pos);
-            // Include optional #affordance suffix so clicking anywhere in @Sigil#aff navigates
-            const refPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?/g;
+            // Use the same pattern as the highlighter — handles @sigil, #affordance, !invariant
+            const clickPattern = new RegExp(allRefsPattern.source, "g");
             let match;
-            while ((match = refPattern.exec(line.text)) !== null) {
+            while ((match = clickPattern.exec(line.text)) !== null) {
               const from = line.from + match.index;
               const to = from + match[0].length;
               if (pos >= from && pos <= to) {
-                // Strip #affordance or !invariant before resolving — navigation targets the sigil
-                const propIdx = findPropSeparator(match[0]);
-                const sigilRef = propIdx === -1 ? match[0] : match[0].slice(0, propIdx);
-                const resolution = resolveChainedRef(sigilRef);
-                if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
-                  event.preventDefault();
-                  onNavigateAbsPathRef.current(resolution.absolutePath);
-                  return true;
-                }
-                if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
-                  event.preventDefault();
-                  onNavigateAbsPathRef.current(resolution.path);
-                  return true;
-                }
-                if ((resolution.kind === "contained" || resolution.kind === "sibling") && onNavigateRef.current) {
-                  event.preventDefault();
-                  onNavigateRef.current(resolution.path[0]);
-                  return true;
+                const matchText = match[0];
+                if (matchText.startsWith("@")) {
+                  // @sigil ref — strip property suffix, navigate to the sigil
+                  const propIdx = findPropSeparator(matchText);
+                  const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
+                  const resolution = resolveChainedRef(sigilRef);
+                  if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
+                    event.preventDefault();
+                    onNavigateAbsPathRef.current(resolution.absolutePath);
+                    return true;
+                  }
+                  if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
+                    event.preventDefault();
+                    onNavigateAbsPathRef.current(resolution.path);
+                    return true;
+                  }
+                  if ((resolution.kind === "contained" || resolution.kind === "sibling") && onNavigateRef.current) {
+                    event.preventDefault();
+                    onNavigateRef.current(resolution.path[0]);
+                    return true;
+                  }
+                } else if (matchText.startsWith("!")) {
+                  // !invariant — navigate to the owning sigil
+                  const result = findInvariantInScope(matchText.slice(1));
+                  if (result && onNavigateAbsPathRef.current) {
+                    event.preventDefault();
+                    onNavigateAbsPathRef.current(result.ownerPath);
+                    return true;
+                  }
+                } else if (matchText.startsWith("#")) {
+                  // #affordance — navigate to the owning sigil
+                  const result = findAffordanceInScope(matchText.slice(1));
+                  if (result && onNavigateAbsPathRef.current) {
+                    event.preventDefault();
+                    onNavigateAbsPathRef.current(result.ownerPath);
+                    return true;
+                  }
                 }
               }
             }

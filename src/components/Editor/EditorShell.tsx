@@ -366,6 +366,11 @@ export function EditorShell() {
     const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
     if (ontologiesSigil) {
       for (const ontology of ontologiesSigil.children) {
+        // Add the ontology itself (e.g. AttentionLanguage) as a resolvable name
+        if (!seenNames.has(ontology.name)) {
+          seenNames.add(ontology.name);
+          refs.push({ name: ontology.name, summary: makeSummary(ontology), kind: "lib", absolutePath: [ONTOLOGIES_NAME, ontology.name], libPrefix: ontology.name });
+        }
         refs.push(...flattenOntologyRefs(ontology, [ONTOLOGIES_NAME, ontology.name], seenNames, ontology.name));
       }
     }

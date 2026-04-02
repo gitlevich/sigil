@@ -32,6 +32,9 @@ src-tauri/.tauri-updater-key
 app-icon.png
 spec/
 
+# Generated from spec at build time
+src/generated/
+
 # Python cache
 __pycache__/
 
