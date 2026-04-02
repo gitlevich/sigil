@@ -62,3 +62,36 @@ Python 3.13 is available. The export already ran successfully with my temporary 
 *Files: [scripts/export_conversations.sh](../../scripts/export_conversations.sh)*
 
 Good, 3.13. Let me verify the script works with it.
+
+### Assistant (03:04 UTC)
+
+Works. Now the second commit and push.
+
+### Assistant (03:04 UTC)
+
+The genesis markdown files are gitignored, so only the shell script change needs committing.
+
+### Assistant (03:04 UTC)
+
+Done. Two commits pushed:
+
+1. **1d81b95** — Refine DesignPartner: vision-driven coverage, gravity, and Project affordance
+2. **d14d203** — Use Homebrew Python 3.13 for genesis export
+
+Genesis captured (18 Claude sessions + 4 Codex sessions exported to `docs/genesis/`).
+
+### Assistant (03:04 UTC)
+
+*Files: [.gitignore](../../.gitignore)*
+
+Now add them to `.claudeignore` so they don't bloat AI context.
+
+### Assistant (03:05 UTC)
+
+*Files: [.claudeignore](../../.claudeignore)*
+
+Now the genesis markdown files are tracked by git but ignored by Claude. The `.export_state.json` stays gitignored (it's just local bookkeeping).
+
+### Assistant (03:05 UTC)
+
+Pushed. 22 genesis transcripts now tracked in git, excluded from Claude context via `.claudeignore`.
