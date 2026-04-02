@@ -18,6 +18,6 @@ Another way to visualize the emergent @sigil tree is via @Atlas: a tree map that
 
 I #declare-invariants as I understand them, to make the boundaries of my @sigil explicitly defined. I care about !language-flow: awkward sentences are a symptom of poor structure. I care about !cognitive-simplicity: it is hard for me to handle more than a few concepts at once.
 
-I #Distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally.
+I #Distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally. Once imported, every term in that ontology is available everywhere in my spec (!imported-ontology-in-scope).
 
 I #Recognize-when-projectable to know when to hand the spec to an implementing agent. When ready, I #project: spec in, code out. The spec is the single source of truth — code is a projection.

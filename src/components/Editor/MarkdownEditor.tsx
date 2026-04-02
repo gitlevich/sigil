@@ -269,6 +269,24 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
     match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
     if (match) return match;
   }
+  // Past tense: -ed (collapsed → collapse, attended → attend, observed → observe)
+  if (lower.endsWith("ed") && lower.length > 3) {
+    // Try dropping -ed (e.g. collapsed → collaps → no, but also check -d for silent-e verbs)
+    const stems = [lower.slice(0, -2), lower.slice(0, -1)]; // "collapse" from "collapsed" via -d, "attend" from "attended" via -ed
+    for (const stem of stems) {
+      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
+      if (match) return match;
+    }
+  }
+  // Present continuous: -ing (collapsing → collapse, attending → attend, observing → observe)
+  if (lower.endsWith("ing") && lower.length > 4) {
+    // Try dropping -ing, and dropping -ing + adding -e (for silent-e verbs)
+    const stems = [lower.slice(0, -3), lower.slice(0, -3) + "e"];
+    for (const stem of stems) {
+      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
+      if (match) return match;
+    }
+  }
   return undefined;
 }
 
@@ -389,6 +407,8 @@ function resolveChainedRef(matchText: string): RefResolution {
           const summary = ctx ? extractSummary(ctx.domain_language || "") : undefined;
           return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
         }
+        // Ontology matched but child didn't resolve — unresolved, not a boundary violation
+        return { kind: "unresolved", path: segments };
       }
     }
   }
