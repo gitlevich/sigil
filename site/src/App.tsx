@@ -296,7 +296,7 @@ export default function App() {
             <a
               ref={specLinkRef}
               href="#/viewer"
-              className="underline underline-offset-4 decoration-[var(--color-faint)] hover:decoration-[var(--color-bone)] transition-colors"
+              className="underline underline-offset-4 decoration-[var(--color-dim)] hover:decoration-[var(--color-bone)] transition-colors"
             >
               The interactive spec
             </a>{" "}
@@ -307,7 +307,7 @@ export default function App() {
               href="https://github.com/gitlevich/sigil"
               target="_blank"
               rel="noopener"
-              className="underline underline-offset-4 decoration-[var(--color-faint)] hover:decoration-[var(--color-bone)] transition-colors"
+              className="underline underline-offset-4 decoration-[var(--color-dim)] hover:decoration-[var(--color-bone)] transition-colors"
             >
               The repo
             </a>{" "}
@@ -318,7 +318,7 @@ export default function App() {
               href="https://github.com/gitlevich/sigil/releases"
               target="_blank"
               rel="noopener"
-              className="underline underline-offset-4 decoration-[var(--color-faint)] hover:decoration-[var(--color-bone)] transition-colors"
+              className="underline underline-offset-4 decoration-[var(--color-dim)] hover:decoration-[var(--color-bone)] transition-colors"
             >
               The app
             </a>{" "}
