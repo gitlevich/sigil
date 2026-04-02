@@ -4,11 +4,6 @@ status: idea
 
 # Coverage
 
-Does the domain language allow statements the @sigil doesn't know what to do with?
+Vision sentences are trajectories through the @sigil tree (!vision-is-the-test). Trace each one. Where it falls off the edge, that's a gap. The shape of the gap constrains what fills it (!gravity). The partner surfaces gaps; the author fills them (!author-decides).
 
-The partner generates novel statements in the domain language and traces their trajectories through the sigil tree. Two outcomes:
-
-- The statement is nonsensical — grammatically possible but meaningless. The language is too loose. Tighten it.
-- The statement is meaningful but hits unmapped surface — the spec hasn't accounted for it. Narrate the trajectory or declare superposition.
-
-Coverage also surfaces degrees of freedom at leaves: given the inherited @invariants and the affordance description, what choices remain for the implementing agent? The partner presents these so the author can decide: constrain or leave open.
+Complete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.

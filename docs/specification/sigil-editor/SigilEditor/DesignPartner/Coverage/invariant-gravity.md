@@ -1,0 +1,1 @@
+Gaps are filled by what the surrounding context demands, not by invention. The parent sigil, the sibling sigils, the inherited @invariants, and the vision sentence that exposed the gap together constrain the name, the affordances, and the placement of what fills it. If the fill doesn't follow from the surroundings, it's wrong.
