@@ -95,3 +95,31 @@ Now the genesis markdown files are tracked by git but ignored by Claude. The `.e
 ### Assistant (03:05 UTC)
 
 Pushed. 22 genesis transcripts now tracked in git, excluded from Claude context via `.claudeignore`.
+
+### Assistant (03:13 UTC)
+
+Now let me check existing releases to follow the versioning convention.
+
+### Assistant (03:13 UTC)
+
+There's already a version bump to 0.18.0 in the history. Let me check the current version.
+
+### Assistant (03:13 UTC)
+
+Next release would be v0.18.0 (tag doesn't exist yet, version is already bumped in tauri.conf.json).
+
+### Assistant (03:13 UTC)
+
+Released v0.18.0. Tag pushed to origin.
+
+### Assistant (03:22 UTC)
+
+All changes are in `AttentionLanguage`. Let me see what changed.
+
+### Assistant (03:22 UTC)
+
+Tightening across the entire AttentionLanguage ontology — net deletion of 54 lines.
+
+### Assistant (03:22 UTC)
+
+Done.

@@ -13,3 +13,9 @@ To an agent, any sigil is a pattern recognized and preferred along the distance 
 Emergent sigils are powered by multiple agents' attentions: the market, a language, a constitution. Agents agree to follow shared @invariants, creating structure at a higher @scale.
 
 @EcologicalPsychology@Surface describes the sigil boundary.
+
+A sigil tree is a function approximation: single input (statement in the domain language), output (expected behavior). Each level of decomposition adds a degree of freedom. @SpatialResolution of the spec = leaf granularity. More articulation = more precision.
+
+The sigil is the contract. @Contrasts are the dimensions the contract measures. @Invariants are the clauses. @Preferences are the acceptable ranges. A @contrast by itself is just an axis of discrimination — it becomes contractual only when a sigil binds a preference to it.
+
+Enterable = sigil. Doable = @EcologicalPsychology@Affordance. If you can inhabit it, it's a sigil. If you can perform it, it's an affordance.
