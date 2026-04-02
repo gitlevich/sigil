@@ -206,12 +206,6 @@
   color: var(--text-secondary);
 }
 
-.contentFolded {
-  height: 0 !important;
-  min-height: 0 !important;
-  padding: 0 8px !important;
-  overflow: hidden;
-}
 
 .foldAllBtn {
   background: transparent;
