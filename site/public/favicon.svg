@@ -10,6 +10,10 @@
         --fg: #fff;
       }
     }
+    .ghost { opacity: 0.015; }
+    @media (prefers-color-scheme: dark) {
+      .ghost { opacity: 0.03; }
+    }
   </style>
 
   <!-- Outer extension rectangle -->
@@ -19,16 +23,30 @@
   <!-- Circle -->
   <circle cx="120" cy="120" r="114" fill="var(--bg)" stroke="var(--fg)" stroke-width="2"/>
 
-  <!-- Sierpinski triangle (3rd iteration) pointing left -->
-  <polygon points="10,120 175,24.74 175,215.26" fill="var(--fg)"/>
+  <!-- Ghost triangle pointing right (the other time direction) -->
+  <g class="ghost">
+    <polygon points="230,120 65,24.74 65,215.26" fill="var(--fg)"/>
+    <polygon points="147.5,72.37 147.5,167.63 65,120" fill="var(--bg)"/>
+    <polygon points="188.75,96.185 188.75,143.815 147.5,120" fill="var(--bg)"/>
+    <polygon points="106.25,48.555 65,72.37 106.25,96.185" fill="var(--bg)"/>
+    <polygon points="106.25,191.445 65,167.63 106.25,143.815" fill="var(--bg)"/>
+    <polygon points="209.375,108.0925 209.375,131.9075 188.75,120" fill="var(--bg)"/>
+    <polygon points="168.125,84.2775 147.5,96.185 168.125,108.0925" fill="var(--bg)"/>
+    <polygon points="168.125,155.7225 147.5,143.815 168.125,131.9075" fill="var(--bg)"/>
+    <polygon points="85.625,36.6475 65,48.555 85.625,60.4625" fill="var(--bg)"/>
+    <polygon points="126.875,60.4625 126.875,84.2775 106.25,72.37" fill="var(--bg)"/>
+    <polygon points="65,96.185 85.625,108.0925 85.625,84.2775" fill="var(--bg)"/>
+    <polygon points="85.625,203.3525 65,191.445 85.625,179.5375" fill="var(--bg)"/>
+    <polygon points="126.875,179.5375 126.875,155.7225 106.25,167.63" fill="var(--bg)"/>
+    <polygon points="65,143.815 85.625,131.9075 85.625,155.7225" fill="var(--bg)"/>
+  </g>
 
-  <!-- Level 3 hole -->
+  <!-- Solid triangle pointing left (origin — present direction) -->
+  <polygon points="10,120 175,24.74 175,215.26" fill="var(--fg)"/>
   <polygon points="92.5,72.37 92.5,167.63 175,120" fill="var(--bg)"/>
-  <!-- Level 2 holes -->
   <polygon points="51.25,96.185 51.25,143.815 92.5,120" fill="var(--bg)"/>
   <polygon points="133.75,48.555 175,72.37 133.75,96.185" fill="var(--bg)"/>
   <polygon points="133.75,191.445 175,167.63 133.75,143.815" fill="var(--bg)"/>
-  <!-- Level 1 holes -->
   <polygon points="30.625,108.0925 30.625,131.9075 51.25,120" fill="var(--bg)"/>
   <polygon points="71.875,84.2775 92.5,96.185 71.875,108.0925" fill="var(--bg)"/>
   <polygon points="71.875,155.7225 92.5,143.815 71.875,131.9075" fill="var(--bg)"/>
