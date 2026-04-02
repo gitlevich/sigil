@@ -10,7 +10,7 @@
     {
       "name": "sigil-site",
       "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH && cd '/Users/vlad/Attention Lab/sigil-specs/sigil-engineering-site' && npx vite --port 5174"],
+      "runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH && cd site && npx vite --port 5174"],
       "port": 5174
     }
   ]

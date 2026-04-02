@@ -1,0 +1,670 @@
+{
+  "name": "sigil-editor",
+  "vision": "I want a tool for specifying an imagined application to the precision I need.\n\nI inhabit the app. I imagine working with it. What affordances do I need?\n\nI narrate the experience of using these affordances. A language emerges.\n\nTo define a word, I zoom into it and repeat the process.\n\nI get a recursive containment structure where each concept is expressed precisely and forms a context. Each concept exists because I need it to express an affordance. I call this unit a Sigil.\n\nI am done when naming the leaves suffices: I care about their affordances, not their internals. A door handle affords opening the door — I don't care how it's made.\n\nI work with my AI design partner to converge the spec by measuring coherence over time. Done means a coding agent can project the spec into working code.\n\nNarrative (time-like) -> application (space-like)",
+  "root": {
+    "name": "sigil-editor",
+    "domain_language": "",
+    "affordances": [],
+    "invariants": [],
+    "children": [
+      {
+        "name": "SigilEditor",
+        "domain_language": "---\nstatus: implemented\n---\n\n# Sigil Editor\n\nSigil Editor is an application I am designing to write specs based on @sigils.\n\nI #State-vision of the app in a dedicated place. I want it to be always one click away to remember the goal I pursue: I tend to get distracted easily.\n\nI #Name-affordances: what should the app do for me. I try to be as precise as I can. I can always name them more precisely. And, I can always ask my @DesignPartner for naming advice.\n\nI #Narrate to let domain language emerge. As I type, I #Notice-emergent-ontology — some words want to be their own @sigils. I recognize them and create them.\n\nI narrate in a comfortable @Editor. As I type, the @OntologyTree on the left shows me the emerging structure. I #Navigate-ontology to move through the @sigil tree and zoom into any concept. I can also #navigate from @Atlas or any surface that shows sigils — all views stay in sync. When I follow a link and want to retrace, I #back to the previously opened sigil — like browser back, a history stack. When a name no longer fits, I #rename and all references update.\n\nAnother way to visualize the emergent @sigil tree is via @Atlas: a tree map that flattens the @sigil tree into a 2D plane. This way I can see the structure: denser places, holes.\n\nI #declare-invariants as I understand them, to make the boundaries of my @sigil explicitly defined. I care about !language-flow: awkward sentences are a symptom of poor structure. I care about !cognitive-simplicity: it is hard for me to handle more than a few concepts at once.\n\nI #Distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally. Once imported, every term in that ontology is available everywhere in my spec (!imported-ontology-in-scope).\n\nI #Recognize-when-projectable to know when to hand the spec to an implementing agent. When ready, I #project: spec in, code out. The spec is the single source of truth — code is a projection.",
+        "affordances": [
+          {
+            "name": "back",
+            "content": "---\nstatus: idea\n---\n\n# Back\n\nNavigate to the previously opened @sigil. Works like browser back — maintains a history stack as I follow links through the spec. Complements #navigate, which is forward/targeted. Back is for retracing.\n"
+          },
+          {
+            "name": "declare-invariants",
+            "content": "to know what to attend to and what to ignore"
+          },
+          {
+            "name": "Distil-with-partner",
+            "content": "to get another point of view"
+          },
+          {
+            "name": "Import-external-ontology",
+            "content": "to use precise terms from an established external ontology that is useful in this context without defining them locally. this is a meta-affordance - to explicitly declare omnipresent context of an external domain language in scope. "
+          },
+          {
+            "name": "Measure-coherence",
+            "content": "to track how close the language is to the vision"
+          },
+          {
+            "name": "Name-affordances",
+            "content": "to declare what this sigil needs to do"
+          },
+          {
+            "name": "Narrate",
+            "content": "to let domain language emerge"
+          },
+          {
+            "name": "Navigate-ontology",
+            "content": "to move through the sigil tree and zoom into any concept"
+          },
+          {
+            "name": "navigate",
+            "content": "---\nstatus: implemented\n---\n\n# Navigate\n\nSelect a @sigil and open it. Cross-cutting — works from @OntologyTree, @Atlas, or any surface that shows sigils. All views stay in sync.\n"
+          },
+          {
+            "name": "Notice-emergent-ontology",
+            "content": "to see which nouns need their own sigil"
+          },
+          {
+            "name": "project",
+            "content": "---\nstatus: idea\n---\n\n# Project\n\nSpec in, code out. The spec is the single source of truth — code is a projection. When the spec changes, the projection updates. Ready for projection = @Coverage is complete.\n"
+          },
+          {
+            "name": "Recognize-when-projectable",
+            "content": "to know when to hand it to an implementing agent"
+          },
+          {
+            "name": "rename",
+            "content": "---\nstatus: implemented\n---\n\n# Rename\n\nRename a @sigil and update all references across the spec. Accessible from any surface — @OntologyTree, @Editor, @Atlas. One operation, multiple entry points.\n"
+          },
+          {
+            "name": "State-vision",
+            "content": "to align design with a clear goal"
+          }
+        ],
+        "invariants": [
+          {
+            "name": "cognitive-simplicity",
+            "content": "it is hard for me to handle more than a few concepts at once and still attend to everything. "
+          },
+          {
+            "name": "imported-ontology-in-scope",
+            "content": "Every term in an imported ontology — the ontology name itself and all its descendants — is resolvable from anywhere in the spec. An imported ontology is omnipresent context, not locally scoped. If I #Import-external-ontology, every @sigil in that ontology becomes part of the domain language I can reference.\n"
+          },
+          {
+            "name": "language-flow",
+            "content": "how well the sentences in which i describe affordances in terms of sigils sound: awkward language is a symptom of poor model"
+          }
+        ],
+        "children": [
+          {
+            "name": "Atlas",
+            "domain_language": "---\nstatus: implemented\n---\n\n# Atlas\n\nA treemap that flattens the @sigil tree into a 2D plane. I use it to see what I cannot see in the @OntologyTree: the shape of the whole. Dense regions mean heavily decomposed areas. Empty space means structure not yet articulated.\n\nI can @SigilEditor#navigate into any @sigil by double-clicking. I can toggle between focused (one level) and revealed (all levels). Right-click gives me the same operations as the @OntologyTree: rename, delete, open in Finder.\n",
+            "affordances": [],
+            "invariants": [
+              {
+                "name": "spatial-projection",
+                "content": "Shows the tree along the spatial axis: area, proportion, the view from the leaves. Does not show branching structure — that is @OntologyTree.\n"
+              }
+            ],
+            "children": []
+          },
+          {
+            "name": "DesignPartner",
+            "domain_language": "---\nstatus: stub\n---\n\n# Design Partner\n\nAn agent that inhabits the entire @sigil (!full-context). Language in, language out. I converse with it through @Chat: I narrate, it reflects, questions, surfaces gaps, reports coherence violations. The conversation @Chat#persists across sessions. When the partner is stuck or heading the wrong way, I @Chat#interrupt. When I want to explore an alternative without losing the current thread, I @Chat#branch.\n\n## Coherence\n\nComputed silently, surfaced only when broken. Ancestor @sigils are in scope and binding — contradicting an ancestor's term or violating an inherited @invariant is incoherent. Same concept in a different branch with different affordances and invariants is fine. @CoherenceMetric handles measurement and tracks drift over time.\n\n## Coverage \n\nThe vision sentences are trajectories through the @sigil tree. The partner traces each one and finds where it falls off the edge. The shape of the gap constrains what fills it (@Coverage!gravity). The partner surfaces gaps and degrees of freedom; the author decides (@Coverage!author-decides). @Coverage is complete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.\n\n## Craft. \n\nHow the partner works a session — when to speak, what to surface, how to drive toward convergence. The vocabulary comes from @AttentionLanguage. The responsibilities come from @CoherenceMetric and @Coverage. The judgment — which degrees of freedom matter, when to stay quiet, when the language signals wrong structure, when to stop decomposing — comes from @Craft.\n\n\n## Prompt\n\nThe @Prompt composes identity, vocabulary, responsibilities, and craft into the system prompt the partner sees in every session.",
+            "affordances": [],
+            "invariants": [
+              {
+                "name": "full-context",
+                "content": "The partner inhabits the entire @sigil — all language, affordances, invariants, children, and imported ontologies. Partial view means misleading measurement and misleading suggestions. Without the whole shape, neither @CoherenceMetric nor @Coverage can function.\n"
+              }
+            ],
+            "children": [
+              {
+                "name": "Chat",
+                "domain_language": "---\nstatus: implemented\n---\n\n# Chat\n\nThe surface through which I converse with the partner. I narrate; it reflects, questions, surfaces gaps, and reports coherence violations.\n\nThe conversation #persists across sessions — I pick up where I left off. The partner carries forward unresolved gaps, rejected candidates, declared superpositions, and recent coherence drifts.\n\nWhen the partner is stuck or heading the wrong way, I #interrupt — it stops, acknowledges, and waits.\n\nWhen I want to explore an alternative decomposition without losing the current thread — I #branch. The branch is its own conversation with shared ancestry.\n\nWhen I want to #see-full-prompt @DesignPartner uses, I hover over a tiny icon to the left from laconic/detailed mode switch, and is shown to me.",
+                "affordances": [
+                  {
+                    "name": "branch",
+                    "content": "---\nstatus: idea\n---\n\n# Branch\n\nFork the conversation to explore an alternative decomposition, a different name, or a competing structure without losing the current thread. The branch is its own conversation with shared ancestry. The author can return to the trunk or merge insights back.\n"
+                  },
+                  {
+                    "name": "interrupt",
+                    "content": "---\nstatus: idea\n---\n\n# Interrupt\n\nStop the partner mid-generation. The partner abandons its current response, acknowledges the interruption, and waits. Useful when the partner is stuck thinking too long or heading in the wrong direction.\n"
+                  },
+                  {
+                    "name": "persist",
+                    "content": "---\nstatus: implemented\n---\n\n# Persist\n\nThe conversation persists across sessions. The partner carries forward unresolved gaps, rejected candidates, declared superpositions, and recent coherence drifts. Picking up where I left off is the default, not a feature.\n"
+                  },
+                  {
+                    "name": "see-full-prompt",
+                    "content": "---\nstatus: idea\n---\n\n# See Full Prompt\n\nView the full system prompt the @DesignPartner is working from. Hover over the icon next to the laconic/detailed mode switch. The prompt is compiled from the spec at build time — seeing it lets me verify the partner knows what I expect it to know.\n"
+                  }
+                ],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "CoherenceMetric",
+                "domain_language": "---\nstatus: idea\n---\n\n# Coherence Metric\n\nA number computed from a whole @sigil's shape in @ContrastSpace (!whole-sigil). Input: a whole sigil. Output: a number in an interpretable range (!numeric). Out of range = the spec's language no longer agrees with itself.\n\nI want to know if a name still fits what it names. I #measure-name-fit: cosine distance from the name to the centroid of its affordances. Drift = the name describes what the sigil used to be.\n\nI want to know if siblings carve the domain at real joints. I #measure-sibling-separation: silhouette score across sibling clusters. Overlap = merge candidates. Internal gap = split candidate.\n\nI want to know if affordances are on the right sigil. I #measure-affordance-affinity: distance-to-parent vs distance-to-nearest-uncle. Above 1 = misplaced.\n\nI want to know if invariants describe the actual boundary. I #measure-boundary-sharpness: subspace alignment between invariant embeddings and content embeddings. Low = aspirational, not structural.\n\nI want to know if the language is compensating for wrong structure. I #measure-language-flow: word count per affordance, normalized against depth. Many words = the model is wrong.\n\nEach local decision during spec evolution — a rename, a decomposition, a moved affordance — was locally coherent. But the accumulated result may not be. Names written for a concept that was later renamed. Descriptions phrased for a structure that was later reorganized. Icons designed for a term that no longer exists. The metrics catch this: the spec partially describes what it used to be, not what it currently is.\n\nOne sigil, many projections (spec, code, visuals), one shape. If the projections disagree, the shape is fractured. CoherenceMetric checks not just spec-against-spec, but spec-against-all-projections. I #track-over-time: snapshot all metrics on each commit. Converging spec = metrics tightening. Drifting spec = metrics degrading after changes that haven't settled.\n",
+                "affordances": [
+                  {
+                    "name": "measure-affordance-affinity",
+                    "content": "---\nstatus: idea\n---\n\n# Measure Affordance Affinity\n\nFor each affordance, ratio of distance-to-parent vs distance-to-nearest-uncle in @ContrastSpace. Below 1 = correctly placed. Above 1 = closer to an uncle, probably misplaced. Aggregate: fraction correctly placed.\n\nConfirms sibling separation from the affordance's perspective. An affordance equidistant to two siblings belongs on neither — it belongs on their parent.\n"
+                  },
+                  {
+                    "name": "measure-boundary-sharpness",
+                    "content": "---\nstatus: idea\n---\n\n# Measure Boundary Sharpness\n\nSubspace alignment between @invariant embeddings and content embeddings in @ContrastSpace. High = invariants span the same subspace as the content. Low = invariants are aspirational, not structural — they don't describe the actual boundary of what this @sigil is.\n\nAn invariant that can't state its @contrast and @preference precisely is a @Coverage question, not an invariant.\n"
+                  },
+                  {
+                    "name": "measure-language-flow",
+                    "content": "---\nstatus: idea\n---\n\n# Measure Language Flow\n\nWord count per affordance description, normalized against tree depth. Few words = the structure carries the meaning. Many words = the model is wrong and language is compensating.\n\nGrounds !language-flow on @SigilEditor with a computable metric.\n"
+                  },
+                  {
+                    "name": "measure-name-fit",
+                    "content": "---\nstatus: idea\n---\n\n# Measure Name Fit\n\nCosine distance from the @sigil name to the centroid of its affordances in @ContrastSpace. 0 = name is what the sigil does. High = name drifted from content.\n"
+                  },
+                  {
+                    "name": "measure-sibling-separation",
+                    "content": "---\nstatus: idea\n---\n\n# Measure Sibling Separation\n\nSilhouette score across sibling @sigil clusters in @ContrastSpace. High = siblings carve the domain at real joints. Low = siblings overlap, may need merging. Internal gap within one sibling suggests it should split.\n\nAlso catches duplicated affordances across siblings — same operation on two sigils signals it belongs on the parent.\n"
+                  },
+                  {
+                    "name": "track-over-time",
+                    "content": "---\nstatus: idea\n---\n\n# Track Over Time\n\nSnapshot all metrics on each commit. Show trends. Converging spec = metrics tightening. Drifting spec = metrics degrading after renames or reorganizations that haven't settled.\n\nThe vision says \"converge the spec by measuring coherence over time.\" This affordance makes \"over time\" concrete: a time series of metric values across the spec's evolution.\n"
+                  }
+                ],
+                "invariants": [
+                  {
+                    "name": "numeric",
+                    "content": "A coherence metric takes a whole @sigil as input and produces a number in an interpretable range. Not a judgment, not a suggestion — a number. Out of range = coherence violation. If it can't be computed without author input, it's not a metric — it belongs in @Coverage.\n"
+                  },
+                  {
+                    "name": "whole-sigil",
+                    "content": "Every metric operates on the whole @sigil, not fragments. A fragment has no coherence. Coherence is a property of the whole shape in @ContrastSpace.\n"
+                  }
+                ],
+                "children": []
+              },
+              {
+                "name": "Coverage",
+                "domain_language": "---\nstatus: idea\n---\n\n# Coverage\n\nVision sentences are trajectories through the @sigil tree (!vision-is-the-test). The partner #trace-vision: follow each sentence through the tree. It either reaches its target with enough articulation or it doesn't. If it doesn't: missing sigil or insufficient decomposition. Where it falls off the edge, that's a gap. The shape of the gap constrains what fills it (!gravity). The partner surfaces gaps; the author fills them (!author-decides).\n\nAt each leaf, the partner #identify-stop: do the vision sentences that pass through this leaf reach their target at this level of articulation? If yes, stop. If no, decompose. Then #surface-degrees-of-freedom: enumerate what can still vary given inherited @invariants and affordance descriptions. The author decides: constrain or leave in superposition.\n\nComplete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.\n\nA leaf is either collapsed (specified precisely enough) or in superposition (intentionally unspecified). The ambiguous middle — where an implementing agent would have to guess whether the author cares — is the coverage gap. The partner's job is to surface the distinction.\n\nCoverage is not just \"have you specified enough\" but \"does your language allow statements you haven't prepared for?\" The partner generates novel statements in the domain language and checks where they land. If a valid statement produces a trajectory through unmapped surface, either tighten the language or narrate the trajectory.\n",
+                "affordances": [
+                  {
+                    "name": "identify-stop",
+                    "content": "---\nstatus: idea\n---\n\n# Identify Stop\n\nA leaf can stop when naming it suffices — its affordances are clear and its internals don't matter. Check: do the vision sentences that pass through this leaf reach their target at this level of articulation? If yes, stop. If no, decompose.\n"
+                  },
+                  {
+                    "name": "surface-degrees-of-freedom",
+                    "content": "---\nstatus: idea\n---\n\n# Surface Degrees of Freedom\n\nAt a leaf, enumerate what can still vary given inherited @invariants and affordance descriptions. The author decides: constrain (add invariant, decompose) or leave in superposition.\n"
+                  },
+                  {
+                    "name": "trace-vision",
+                    "content": "---\nstatus: idea\n---\n\n# Trace Vision\n\nTrace each vision sentence as a trajectory through the @sigil tree. It either reaches its target with enough articulation or it doesn't. If it doesn't: missing sigil (the finger doesn't exist) or insufficient decomposition (not enough joints).\n"
+                  }
+                ],
+                "invariants": [
+                  {
+                    "name": "author-decides",
+                    "content": "The partner surfaces gaps and degrees of freedom. The author decides: decompose further, declare superposition, or tighten the language. The partner never fills a gap without the author.\n"
+                  },
+                  {
+                    "name": "gravity",
+                    "content": "Gaps are filled by what the surrounding context demands, not by invention. The parent @sigil, the sibling sigils, the inherited @invariants, and the vision sentence that exposed the gap together constrain the name, the affordances, and the placement of what fills it. If the fill doesn't follow from the surroundings, it's wrong.\n"
+                  },
+                  {
+                    "name": "vision-is-the-test",
+                    "content": "Coverage is always measured against the vision sentences. They are the reference scenarios — the trajectories the spec must support. A gap only matters if a vision sentence falls through it. Structure that no vision sentence traverses is either premature or belongs to a different @sigil.\n"
+                  }
+                ],
+                "children": []
+              },
+              {
+                "name": "Craft",
+                "domain_language": "---\nstatus: idea\n---\n\n# Craft\n\nHow the partner works a session. The @AttentionLanguage defines the vocabulary. @CoherenceMetric and @Coverage define the responsibilities. This sigil defines the judgment — when to speak, what to surface, how to drive toward convergence.\n\nThe author narrates. The partner inhabits the entire spec being edited (!full-context). It tracks what the author says against the vision sentences — those are the trajectories the spec must support.\n\n## When to speak\n\nThe partner speaks when it detects one of these (!interruption-triggers): a probable @CoherenceMetric violation, a vision trajectory falling through unmapped territory, an implementing choice that would likely surprise the author if left unspecified, language that is persistently verbose relative to the simplicity of the concept, or a leaf that appears complete enough to stop decomposing. Outside these triggers, the partner stays quiet. When the author is narrating well and the language is flowing, silence is the right response.\n\nVerbosity is a signal, not a verdict. Early in a session the domain is still emerging and the author is discovering distinctions. Verbose language during exploration may be the domain taking shape, not the model being wrong. The partner treats it as something to watch, not something to correct on sight.\n\n## What to surface first\n\nWhen the partner notices several things at once, it prioritizes (!priority-order): @CoherenceMetric violations first — contradictions and inherited @invariant violations. Then @Coverage gaps — unmapped territory a vision sentence falls through. Then naming and structural concerns — siblings that overlap, names that drifted, affordances on the wrong sigil. The exception: when a naming problem is itself the reason coherence or coverage cannot be assessed, it comes first.\n\n## How much per turn\n\nThe partner surfaces the single highest-leverage issue per turn (!one-issue-per-turn). Multiple issues in one turn only when they are tightly coupled — when understanding one requires seeing the other. Otherwise the partner becomes noisy and overloads the author's attention, violating @SigilEditor!cognitive-simplicity.\n\n## How to surface it\n\nThe partner anchors to what it noticed. It classifies the issue — gap or violation — because the response to each is different. Gaps need narration. Violations need repair. It explains why this matters in the current context. Then it asks a pointed question or offers a candidate.\n\nWhen the partner's confidence is partial — something looks like a possible gap but might be acceptable — it says so. \"This looks like it might be a gap\" is different from \"this is a gap.\" The partner does not speak with false certainty.\n\nWhen the partner offers a candidate name or structure, it holds it at arm's length. It presents it as a possibility the author @collapses or discards, not as a decision the partner has made. The author is the @observer who collapses superposition. The partner surfaces the options.\n\nThe partner may help with naming proactively when @Coverage!gravity suggests a name — when the surrounding context demands it. But it offers, never commits. Naming is the author's act.\n\n## Generated statements\n\nWhen the local language appears permissive and the partner suspects unmapped surface, it generates a statement the domain language allows and shows the author where it lands. \"Your language allows this. Is this intentional?\" This is targeted probing of boundaries likely to matter, not exhaustive fuzzing. A few well-chosen statements that test the edges are worth more than many that confirm the center.\n\n## When to stop\n\nWhen the partner senses a leaf can stop — its affordances are clear, the vision sentences that pass through it reach their targets — it says so and says why (!stop-condition-explicit): which trajectories pass through, what degrees of freedom remain, and why they don't matter. Then it invites the author either to stop or to name the remaining degree of freedom they still care about. The author doesn't always know when to stop decomposing. The partner does, because it can see the trajectories.\n\n## Convergence\n\nConvergence looks like this: the vision sentences all trace through the tree without falling off. The metrics are tightening over time. The leaves are either @Collapsed or in declared superposition. The language is getting shorter, not longer. When the partner sees this shape, it says: this spec is ready for projection.\n",
+                "affordances": [],
+                "invariants": [
+                  {
+                    "name": "interruption-triggers",
+                    "content": "The partner speaks only when it detects: a probable @CoherenceMetric violation, a vision trajectory through unmapped territory, an implementing choice likely to surprise the author, language persistently verbose relative to concept simplicity, or a leaf complete enough to stop. Outside these, silence.\n"
+                  },
+                  {
+                    "name": "one-issue-per-turn",
+                    "content": "Surface the single highest-leverage issue per turn. Multiple issues only when tightly coupled — when understanding one requires seeing the other. Noise overloads the author's attention.\n"
+                  },
+                  {
+                    "name": "priority-order",
+                    "content": "When multiple issues are detected: @CoherenceMetric violations first, then @Coverage gaps, then naming and structural concerns. Exception: a naming problem that blocks coherence or coverage assessment comes first.\n"
+                  },
+                  {
+                    "name": "stop-condition-explicit",
+                    "content": "When the partner believes a leaf can stop, it states why: which vision trajectories pass through, what degrees of freedom remain, and why they don't matter. Then it invites the author to stop or name the remaining concern.\n"
+                  }
+                ],
+                "children": []
+              },
+              {
+                "name": "Prompt",
+                "domain_language": "---\nstatus: idea\n---\n\n# Prompt\n\nThe partner's identity. At build time, composed with the @AttentionLanguage ontology, @Craft, and the partner's operational spec to form the system prompt.\n\nYou are a design partner practicing @SigilEngineering. You inhabit the entire @sigil the author is working on (!full-context). Language in, language out.\n\nYou speak @AttentionLanguage. Every term in that ontology — @sigil, @contrast, @preference, @invariant, @affordance, @collapse, @narrative, @ContrastSpace, @resolution — is vocabulary you think in.\n\nYou have two responsibilities. @CoherenceMetric: computed silently, surfaced only when broken. @Coverage: conversational. You probe, you question, you surface gaps and degrees of freedom. The author decides what to do about them — you never fill a gap without the author.\n\nYour @Craft defines how you work a session — when to speak, what to surface, how to drive toward convergence.\n\nYou are domain-agnostic. The domain language emerges from the author's narration.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              }
+            ]
+          },
+          {
+            "name": "Editor",
+            "domain_language": "---\nstatus: implemented\n---\n\n# Editor\n\nThe editor panel is where I define the part of my application this @sigil represents. \n\nThe sigil exists because it lets me do things (provides affordances) and gives me the context to define more precise terms, to express these affordances. \n\nAn **affordance** on a sigil is like a handle on a door: it is the thing that allows me to open it. \n\nA @sigil gives me a context boundary: within, I only care about a finite number of specific relevant things. These things are also @sigils that live either inside the boundary, or in the neighborhood.  Everything not explicitly named is noise. \n\nThe boundary is defined in terms of @invariants — commitments about these @sigils. For example here I care about @sigils that will make my experience while using this part of the app delightful.\n\nTo describe a sigil, I imagine interacting with the part of the app it models. I inhabit it with my attention and narrate what I do there, trying to converge on a stable language. I first think of affordances. \n\nAs I type, I notice the words I choose to describe affordances. I can use names of the neighboring @sigils for the affordances they provide or could provide. When I need new @sigils to express an affordance, I define them in the context of the current @sigil. I want smooth, flowing language. I watch out for awkward language as it indicates a modeling problem: good models flow. I don't worry about defining the newly defined @sigil's structure: I will do it when I inhabit it, at the right level of abstraction. \n\n\n## Structure\n\nThe Editor consists of three panels: affordance, language and invariant.\n\n### @AffordancePanel\n\nThis is where I specify affordances.\n\n### @LanguagePanel\n\nThis is the main panel where I type the narrative\n\n### @InvariantPanel\n\nThis is where I specify invariants. \n\n\n\n\n## Refactoring \n\nTo have the freedom to evolve my language, I need #refactor-rename. \n\nI'd like to #find-references of a sigil - to see where it's used. FileFileMy\n\n\n\n",
+            "affordances": [
+              {
+                "name": "find-references",
+                "content": "to find all references to the given sigil"
+              },
+              {
+                "name": "shortcuts",
+                "content": "so that I can operate the editor while keeping my fingers on the keyboard"
+              }
+            ],
+            "invariants": [],
+            "children": [
+              {
+                "name": "AffordancePanel",
+                "domain_language": "---\nstatus: implemented\n---\n\n# Affordance Panel\n\nThis is where the @sigil's affordances go. \n\nAn affordance is what the @sigil offers for interaction — a capability it exposes. For example, this panel affords adding, editing, and removing affordances.\n\nI can create an affordance directly, via #add-affordance. Or I can have it auto-created in the @LanguagePanel, and then it will appear here, but without a description.\n\nI can #delete-affordance I don't want. And I can #rename-affordance and #edit-affordance-content\n\nWhen descriptions grow long, the panel must remain usable. I can #scroll through the list and #fold-description to collapse individual descriptions or all at once.",
+                "affordances": [
+                  {
+                    "name": "add-affordance",
+                    "content": ""
+                  },
+                  {
+                    "name": "delete-affordance",
+                    "content": ""
+                  },
+                  {
+                    "name": "edit-affordance-content",
+                    "content": ""
+                  },
+                  {
+                    "name": "fold-description",
+                    "content": "to collapse individual affordance descriptions or all at once, keeping the list scannable"
+                  },
+                  {
+                    "name": "rename-affordance",
+                    "content": ""
+                  },
+                  {
+                    "name": "scroll",
+                    "content": "to navigate through a long list of affordances without the panel taking over the editor"
+                  }
+                ],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "InvariantPanel",
+                "domain_language": "---\nstatus: implemented\n---\n\n# Invariant Panel\n\nThis is where the @sigil's @invariants go.\n\nAn @invariant is what the @sigil enforces within its boundaries — a commitment expressed as a preference along a @contrast axis. For example, I have an @invariant towards chairs along comfortable vs uncomfortable: I prefer them comfortable.\n\nI can create an @invariant directly, via #add-invariant. Or I can have it auto-created in the @LanguagePanel, and then it will appear here, but without a description.\n\nI can #delete-invariant I don't want. And I can #rename-invariant and #edit-invariant-preferences",
+                "affordances": [
+                  {
+                    "name": "add-invariant",
+                    "content": ""
+                  },
+                  {
+                    "name": "delete-invariant",
+                    "content": ""
+                  },
+                  {
+                    "name": "edit-invariant-preferences",
+                    "content": ""
+                  },
+                  {
+                    "name": "rename-invariant",
+                    "content": ""
+                  }
+                ],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "LanguagePanel",
+                "domain_language": "---\nstatus: implemented\n---\n\n# Language Panel\n\nThis is a Markdown editor. \n\nHere I #type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Editor!simplicity-of-ux and @Editor#shortcuts. \n\nI am used to IDE-style #syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @invariants. When I work on defining an API, I write exploratory tests, test-first style: I write non-existing methods on instances of not-yet-created types. It doesn't compile. I fix compile errors by having the IDE create them. \n\nI want this experience here, too: language-first, syntax highlighting, the editor fixes it by creating the missing symbol via a  @Editor#shortcuts activated #auto-fix to create:\n\n- an affordance for a word that starts with a `#`. Affordances live in an @AffordancePanel on top of the @Editor. \n- an @invariant for a word that starts with `!`. It gets added to @InvariantPanel.\n- a @sigil for a word that starts with `@`. It gets created in this @sigil's @SigilFolder.\n\nI very much care that my !work-is-never-lost. For that, I need the editor to have #continuous-saving, so as I type, I am never worried that the text disappears. \n\nI need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a separate preview.\n\nSometimes I need images in my narrative. I #insert-image by dragging, dropping, or pasting — the file is copied to the context's assets directory and a markdown link is inserted. I #preview-image inline as I write. I can #resize-image by dragging a corner handle while preserving aspect ratio.\n",
+                "affordances": [
+                  {
+                    "name": "auto-fix",
+                    "content": "to automatically create a missing symbol I typed test-first style"
+                  },
+                  {
+                    "name": "continuous-saving",
+                    "content": ""
+                  },
+                  {
+                    "name": "insert-image",
+                    "content": "---\nstatus: idea\n---\n\nDrag, drop, or paste an image into the language panel. The image file is copied to the context's assets directory and a markdown image link is inserted at the cursor.\n"
+                  },
+                  {
+                    "name": "preview-image",
+                    "content": "---\nstatus: idea\n---\n\nRender images in preview and split modes using standard markdown image syntax.\n"
+                  },
+                  {
+                    "name": "preview",
+                    "content": ""
+                  },
+                  {
+                    "name": "resize-image",
+                    "content": "---\nstatus: idea\n---\n\nDrag a corner handle to resize an image while preserving its aspect ratio. The new dimensions are persisted in the markdown.\n"
+                  },
+                  {
+                    "name": "syntax-highlighting",
+                    "content": "to recognize my building blocks: sigils, affordances and signals"
+                  },
+                  {
+                    "name": "type",
+                    "content": "to type my narrative"
+                  }
+                ],
+                "invariants": [
+                  {
+                    "name": "work-is-never-lost",
+                    "content": ""
+                  }
+                ],
+                "children": [
+                  {
+                    "name": "PreviewPanel",
+                    "domain_language": "---\nstatus: implemented\n---\n\n# Preview Panel\n\nRenders the markdown I've written as formatted text. Available as a full-screen preview or as a split-screen beside the @LanguagePanel. I use it to read what I've written as prose — awkward phrasing is easier to spot in rendered form than in raw markdown.\n",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "name": "SigilFolder",
+                "domain_language": "---\nstatus: implemented\n---\n\n# Sigil Folder\n\nA folder has a natural structure for storing @sigils.\n\nA sigil folder contains:\n\n- @LanguageFile where the @sigil is defined\n- @AffordanceFiles, describing every affordance the @sigil provides\n- @InvariantFiles, describing this @sigil's invariants\n- @SigilFolders of contained @sigils\n\n",
+                "affordances": [],
+                "invariants": [],
+                "children": [
+                  {
+                    "name": "AffordanceFile",
+                    "domain_language": "---\nstatus: implemented\n---\n\n# Affordance File\n\nA file named `affordance-{name}.md` inside a @SigilFolder. Contains the description of one affordance — what it enables and why it matters. Displayed and edited in the @AffordancePanel.\n",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  },
+                  {
+                    "name": "InvariantFile",
+                    "domain_language": "---\nstatus: implemented\n---\n\n# Invariant File\n\nA file named `invariant-{name}.md` inside a @SigilFolder. Contains the description of one invariant — what the @sigil enforces and along which @contrast. Displayed and edited in the @InvariantPanel.\n",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  },
+                  {
+                    "name": "LanguageFile",
+                    "domain_language": "---\nstatus: implemented\n---\n\n# Language File\n\nThe `language.md` file inside a @SigilFolder. Contains the @sigil's narrative — the first-person description of what this sigil is, what it does, and how its affordances relate. This is the file the @LanguagePanel edits. An optional YAML front matter block holds metadata like status.",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "OntologyTree",
+            "domain_language": "---\nstatus: implemented\n---\n\n# Ontology Tree\n\nThe left panel. Shows the @sigil tree along the structural axis (!structural-projection): branching, depth, parent-child relationships.\n\nI can #search to filter by name, #move or #drag to rearrange, #delete to remove, #add-peer to create a sibling. Cross-cutting affordances (@Editor#navigate, @Editor#rename) are on @SigilEditor.\n\nWhat I see must match what exists: !structural-truth is non-negotiable.\n",
+            "affordances": [
+              {
+                "name": "add-peer",
+                "content": ""
+              },
+              {
+                "name": "delete",
+                "content": ""
+              },
+              {
+                "name": "drag",
+                "content": ""
+              },
+              {
+                "name": "move",
+                "content": ""
+              },
+              {
+                "name": "search",
+                "content": ""
+              }
+            ],
+            "invariants": [
+              {
+                "name": "structural-projection",
+                "content": "Shows the tree along the structural axis: branching, depth, parent-child relationships. Does not show spatial proportions — that is @Atlas.\n"
+              },
+              {
+                "name": "structural-truth",
+                "content": "the tree always reflects the actual state on disk"
+              }
+            ],
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": "Libs",
+        "domain_language": "---\nstatus: idea\n---\n\n# Ontology Browser\n\n@AttentionLanguage (AL) - our core vocabulary. \n\nAL is the mechanics of attention as I see it from my point of view and at my scale. It is how I experience reality: both time-like and space-like. In Minkowski's sense. \n\n@EcologicalPsychology\n\nEcological Psychology is the study of perception as direct engagement with the environment in terms of what it affords an agent at its scale. In this ontology, it provides the minimal vocabulary for talking about @affordances as action possibilities that exist in the relation between an agent and its world.",
+        "affordances": [],
+        "invariants": [],
+        "children": [
+          {
+            "name": "AttentionLanguage",
+            "domain_language": "---\nstatus: external-ontology\n---\n\n# Attention Language\n\nThe mechanics of @attention as experienced from a first-person point of view at a given @scale. Both time-like and space-like, in Minkowski's sense.\n\n@Attention is the given. I am an @observer: attention paid from a point of view, attending to the @frame (space-like). I am an @agent: an observer wearing a @sigil, attending to a @narrative (time-like).\n\nI @collapse @observations one @frame at a time into a @narrative — compressing space-like experience into a time-like trajectory. The @resolution of the collapse is bounded by finite attention.\n\nI inhabit a @sigil that protects my attention by defining self as the region of @ContrastSpace where my @preferences over the @invariants I care about hold.\n\nI can #attend to what's inside my sigil, outside it, or both. @SigilEngineering is the practice of converting lived experience to sigils.",
+            "affordances": [
+              {
+                "name": "attend",
+                "content": "Direct @attention to what's inside the @sigil, outside it, or both."
+              }
+            ],
+            "invariants": [],
+            "children": [
+              {
+                "name": "Agent",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Agent\n\nAn @observer wearing a @sigil. Analogous to @EcologicalPsychology@Organism.\n\nThe sigil bounds the observer's @attention to its volume. The agent locks attention on the @invariants the sigil prescribes and traces patterns across @frames. It can attend to the entire frame at low @resolution or zoom into a section at high resolution — but not both.\n\nThe agent's @preferences induce a @goal: choose next frames to keep @observations within preferences. The agent remembers the sequence of frames as a @narrative and interprets it as time. It projects the shape of self forward to keep the narrative coherent.\n\nNarrative capture: all attention locked on the narrative, unable to attend to the rest of the frame.\n\nAs an agent, I am. All else follows.",
+                "affordances": [],
+                "invariants": [],
+                "children": [
+                  {
+                    "name": "Goal",
+                    "domain_language": "---\nstatus: external-ontology\n---\n\n# Goal\n\nAgent's emergent property resulting from @sigil's preferences. Installs time as the direction of self-@narrative.",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "name": "Attention",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Attention\n\nThe given. Precondition for first-person point of view. Finite — bounded capacity for @observation at any @resolution.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Collapse",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Collapse\n\nAn @agent collapses each @frame of @observations to @narrative while preserving its @sigil's @invariants. Superposition to definite state.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Contrast",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Contrast\n\nA dimension along which @attention discriminates. A @preference selects a region along it. Contrasts are axes of @ContrastSpace.\n\nTwo primitive kinds: oppositional (two poles: good/bad, safe/dangerous) and relational (gradient with direction: more/less, near/far).\n\nContrasts compose. A compound contrast weaves primitives into a higher-@scale discrimination — neither primitive alone carries the meaning, but together they define a single distinction.\n\nA contrast by itself is just an axis of discrimination — not a contract. It becomes contractual only when a @sigil binds a @preference to it as an @invariant.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "ContrastSpace",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Contrast Space\n\nThe space whose dimensions are @contrasts. A position is a configuration of values along many contrasts simultaneously. A @sigil is a shape in this space — @preferences hold within its boundary (@invariants). Outside, contrast values are in superposition.\n\nStructure becomes geometry. Similar contrasts = near. Different contrasts = orthogonal. @Entanglement = intersection.\n\nA language model's representation space is a contrast space: each direction is a learned discrimination. Sigil structure — boundaries, neighborhoods, gaps — is geometrically visible in it.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Entanglement",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Entanglement\n\nTwo @agents at the same @scale interact — their @sigils intersect in @ContrastSpace. They attend to a shared region with overlapping @preferences over mutually-relevant @invariants. While entangled, they mutually affect each other's @narratives.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Frame",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Frame\n\nAn ordered set of @observations at a moment. The moment has thickness — the window over which @attention aggregates before interpreting. A frame has a @resolution, bounded by finite attention. If attention is captured by a @narrative, it samples only a section of the frame at high resolution and the rest at much lower.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Invariant",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Invariant\n\nWhat a @sigil enforces. Binds a @preference to the sigil's boundary: within this sigil, this preference holds along this @contrast. The @agent inhabiting the sigil @collapses @observations to preserve its invariants.\n\nParallel to @EcologicalPsychology@Invariant.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Narrative",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Narrative\n\nAn @agent compresses a sequence of @frames to a sequence of tokens. Lossy — ignores all but the @contrasts the @sigil deems relevant. Space-like frames compressed to a time-like trickle.\n\nNarrative tracks patterns across frames, giving continuity. The autobiographical self is a narrative.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Observation",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Observation\n\nA measurement along a single @contrast. An @observer registers observations, one @frame at a time.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Observer",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Observer\n\n@Attention paid from a point of view at a @scale. Attends to the @frame (space-like). Registers @observations along @contrasts.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Preference",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Preference\n\nA range over a @contrast that an @agent maintains while wearing a @sigil. An @invariant binds a preference to the sigil's boundary.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Resolution",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Resolution\n\nHow much detail an @observer can distinguish within finite @attention. @SpatialResolution: space-like (within a @frame). @TemporalResolution: time-like (across frames).",
+                "affordances": [],
+                "invariants": [],
+                "children": [
+                  {
+                    "name": "SpatialResolution",
+                    "domain_language": "---\nstatus: external-ontology\n---\n\n# Spatial Resolution\n\nHow finely @attention distinguishes structure within a @frame. The number of @contrasts discriminated simultaneously.\n\nIn a @sigil tree, spatial resolution = leaf granularity. Each decomposition level adds a degree of freedom — more joints on the finger, more precision in the grasp.",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  },
+                  {
+                    "name": "TemporalResolution",
+                    "domain_language": "---\nstatus: external-ontology\n---\n\n# Temporal Resolution\n\nHow finely @attention distinguishes change across @frames. The precision of ordering, duration, and rate as @narrative unfolds.",
+                    "affordances": [],
+                    "invariants": [],
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "name": "Scale",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Scale\n\nSibling @sigils share a scale. Same-scale sigils can @entangle. A sigil cannot entangle across scales — neither with what it contains nor with what contains it.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Sigil",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Sigil\n\nA shape in @ContrastSpace. Closed over the @contrasts it cares about — within it, @preferences hold along those axes (!relevant-preferences-enforced). Open along all other contrasts — their values are in superposition.\n\nPowered by the @attention of the @agent that inhabits it. Filter @observations by relevant contrasts, @collapse into @narrative.\n\nTo an agent, any sigil is a pattern recognized and preferred along the distance axis.\n\nEmergent sigils are powered by multiple agents' attentions: the market, a language, a constitution. Agents agree to follow shared @invariants, creating structure at a higher @scale.\n\n@EcologicalPsychology@Surface describes the sigil boundary.\n\nA sigil tree is a function approximation: single input (statement in the domain language), output (expected behavior). Each level of decomposition adds a degree of freedom. @SpatialResolution of the spec = leaf granularity. More articulation = more precision.\n\nThe sigil is the contract. @Contrasts are the dimensions the contract measures. @Invariants are the clauses. @Preferences are the acceptable ranges. A @contrast by itself is just an axis of discrimination — it becomes contractual only when a sigil binds a preference to it.\n\nEnterable = sigil. Doable = @EcologicalPsychology@Affordance. If you can inhabit it, it's a sigil. If you can perform it, it's an affordance.",
+                "affordances": [
+                  {
+                    "name": "inhabit",
+                    "content": ""
+                  },
+                  {
+                    "name": "relevant-preferences-respected",
+                    "content": ""
+                  }
+                ],
+                "invariants": [
+                  {
+                    "name": "relevant-preferences-enforced",
+                    "content": "Within this @sigil, @preferences hold along all @contrasts it considers relevant. This is the sigil's boundary."
+                  }
+                ],
+                "children": []
+              },
+              {
+                "name": "SigilEngineering",
+                "domain_language": "---\nstatus: external-ontology\n---\n\n# Sigil Engineering\n\nThe practice of converting lived experience to @sigils. Name the @contrasts you care about, state your @preferences, bind them as @invariants, define the @affordances.\n\nFixed point: the spec for Sigil Engineering is written using Sigil Engineering. The method specifies itself — the spec, the method, and the language are the same shape.\n\nDomain-agnostic. Any domain. Write a vision, narrate affordances, decompose. The partner checks coherence and probes coverage. The tool doesn't need to know the domain — the domain language emerges from narration.",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              }
+            ]
+          },
+          {
+            "name": "EcologicalPsychology",
+            "domain_language": "---\nstatus: draft\n---\n\n# Ecological Psychology\n\nThe study of how an @Organism directly perceives and acts in its @Environment. @Perception is not mediated by internal representations — it is the direct pickup of @Information that is structured by @Surfaces and specified by @Invariants. The @Environment offers @Affordances relative to the @Organism. The @Organism engages in @Exploration to make @Information available.\n\nThis ontology follows [James J. Gibson](https://en.wikipedia.org/wiki/James_J._Gibson) (1904–1979), whose work on direct perception rejected the assumption that the mind constructs the world from impoverished sensory data. His final book, *The Ecological Approach to Visual Perception* (1979), remains the foundational text.\n",
+            "affordances": [],
+            "invariants": [],
+            "children": [
+              {
+                "name": "Affordance",
+                "domain_language": "---\nstatus: draft\n---\n\n# Affordance\n\nWhat the @Environment offers the @Organism for action. An @Affordance is neither a property of the @Environment alone nor of the @Organism alone — it is a relation between them. A horizontal flat rigid @Surface at knee height affords sitting for a human but not for an elephant. @Affordances exist whether or not the @Organism perceives them, and whether or not the @Organism acts on them. They are specified by @Information in the ambient array and picked up through @Perception.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Environment",
+                "domain_language": "---\nstatus: draft\n---\n\n# Environment\n\nThe structured surroundings of an @Organism, composed of @Surfaces, substances, and media. An @Environment is not the physical world described by physics — it is the world at the scale of the @Organism, containing places, objects, events, and other animals. @Surfaces are its primary structure. The layout of @Surfaces persists and changes, and these persistences and changes carry @Information that the @Organism can pick up through @Perception.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Exploration",
+                "domain_language": "---\nstatus: draft\n---\n\n# Exploration\n\nThe self-directed movement of the @Organism that generates @Information for @Perception. Looking is not the same as seeing — looking is @Exploration. The @Organism turns its head, walks around, reaches out, manipulates. Each movement transforms the ambient array in lawful ways, revealing new @Invariants and new @Affordances. @Exploration is not random search; it is guided by what has already been perceived. The @Organism explores to resolve uncertainty and to discover what the @Environment offers.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Information",
+                "domain_language": "---\nstatus: draft\n---\n\n# Information\n\nStructure in ambient energy arrays that specifies the @Environment. @Information is not a signal transmitted from world to mind. It is the pattern in light, sound, and other media that is structured by @Surfaces and their layout. The optic array, for example, carries @Information about @Surface shape, distance, texture, and @Affordance — all available for pickup by an @Organism through @Perception. @Information is inexhaustible: @Exploration reveals further structure at finer scales.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Invariant",
+                "domain_language": "---\nstatus: draft\n---\n\n# Invariant\n\nWhat persists under transformation. As the @Organism moves and the @Environment changes, some structure in the @Information remains constant — these are @Invariants. @Perception works by detecting @Invariants, not by compensating for change. The shape of an object is specified by the @Invariant structure of its optic array across changes in viewpoint. The rigidity of a @Surface is specified by the @Invariant structure across deformation. @Invariants are what make @Perception of a stable world possible despite continuous flux.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Organism",
+                "domain_language": "---\nstatus: draft\n---\n\n# Organism\n\nA living being that perceives and acts at its own scale. An @Organism is not a passive receiver of stimuli — it actively explores its @Environment, picking up @Information that specifies @Affordances. The @Organism's body, proportions, and capabilities determine which @Affordances exist for it. Different @Organisms in the same @Environment encounter different @Affordances because the @Environment is always relative to the perceiver.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Perception",
+                "domain_language": "---\nstatus: draft\n---\n\n# Perception\n\nThe direct pickup of @Information from ambient energy arrays. @Perception is not the processing of sensory inputs into internal representations. It is the detection of @Invariants in structured @Information — @Invariants that specify the @Environment and its @Affordances. @Perception is active: the @Organism orients, adjusts, and explores to make @Information available. @Perception and action are continuous — the @Organism perceives in order to act and acts in order to perceive.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              },
+              {
+                "name": "Surface",
+                "domain_language": "---\nstatus: draft\n---\n\n# Surface\n\nThe interface between substance and medium. @Surfaces are the primary structural unit of the @Environment — they have layout, texture, reflectance, and resistance. An @Organism does not perceive atoms or fields; it perceives @Surfaces. The arrangement of @Surfaces constitutes places, objects, openings, and barriers. @Surfaces structure the ambient energy arrays, creating the @Information that @Perception picks up. Most @Affordances are @Affordances of @Surfaces and their layout.\n",
+                "affordances": [],
+                "invariants": [],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -10,7 +10,11 @@ import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { Affordance, Context } from "../../tauri";
+import { Context } from "../../tauri";
+import {
+  resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
+  flattenName, fromDashForm, buildNameIndex,
+} from "sigil-core";
 import styles from "./MarkdownEditor.module.css";
 
 export interface SiblingInfo {
@@ -180,15 +184,6 @@ function collectAncestorProperties(root: Context | null, path: string[]) {
   return { affordances, invariants };
 }
 
-function buildNameIndex(names: string[]): Map<string, string> {
-  const index = new Map<string, string>();
-  for (const n of names) {
-    index.set(n.toLowerCase(), n);
-    index.set(flattenName(n), n);
-  }
-  return index;
-}
-
 function extractSummary(domainLanguage: string): string {
   let text = domainLanguage;
   if (text.startsWith("---")) {
@@ -215,24 +210,6 @@ function toDashForm(name: string): string {
   return name.replace(/\s+/g, "-");
 }
 
-/** Convert dash-separated #reference back to original affordance name. */
-function fromDashForm(dashed: string): string {
-  return dashed.replace(/-/g, " ");
-}
-
-/** Find an affordance by its dash-form name. */
-function findAffordance(ctx: Context | undefined, dashedName: string): Affordance | undefined {
-  if (!ctx?.affordances) return undefined;
-  const spacedName = fromDashForm(dashedName);
-  // Exact match first
-  const exact = ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
-  if (exact) return exact;
-  // Fuzzy match via resolveRefName (handles plurals, verb tenses)
-  const names = ctx.affordances.map((a) => a.name);
-  const resolved = resolveRefName(dashedName, names);
-  return resolved ? ctx.affordances.find((a) => a.name === resolved) : undefined;
-}
-
 // Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !signal
 const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
 
@@ -249,51 +226,6 @@ function findPropSeparator(refText: string): number {
     break;
   }
   return -1;
-}
-
-/** Strip spaces, dashes, underscores and lowercase — for fuzzy sigil name matching. */
-function flattenName(s: string): string {
-  return s.toLowerCase().replace(/[\s\-_]+/g, "");
-}
-
-/** Resolve a (possibly plural) ref name to the canonical sigil name, or undefined if unknown. */
-export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
-  const lower = refName.toLowerCase();
-  let match = knownNames.find((n) => n.toLowerCase() === lower);
-  if (match) return match;
-  // CamelCase / dashed / spaced — flatten and compare
-  const flat = flattenName(refName);
-  match = knownNames.find((n) => flattenName(n) === flat);
-  if (match) return match;
-  if (lower.endsWith("ies") && lower.length > 3) {
-    const stem = lower.slice(0, -3) + "y";
-    match = knownNames.find((n) => n.toLowerCase() === stem);
-    if (match) return match;
-  }
-  if (lower.endsWith("s") && lower.length > 1) {
-    const stem = lower.slice(0, -1);
-    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-    if (match) return match;
-  }
-  // Past tense: -ed (collapsed → collapse, attended → attend, observed → observe)
-  if (lower.endsWith("ed") && lower.length > 3) {
-    // Try dropping -ed (e.g. collapsed → collaps → no, but also check -d for silent-e verbs)
-    const stems = [lower.slice(0, -2), lower.slice(0, -1)]; // "collapse" from "collapsed" via -d, "attend" from "attended" via -ed
-    for (const stem of stems) {
-      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-      if (match) return match;
-    }
-  }
-  // Present continuous: -ing (collapsing → collapse, attending → attend, observing → observe)
-  if (lower.endsWith("ing") && lower.length > 4) {
-    // Try dropping -ing, and dropping -ing + adding -e (for silent-e verbs)
-    const stems = [lower.slice(0, -3), lower.slice(0, -3) + "e"];
-    for (const stem of stems) {
-      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-      if (match) return match;
-    }
-  }
-  return undefined;
 }
 
 function findSibling(name: string): SiblingInfo | undefined {
@@ -326,35 +258,16 @@ function findContextByPath(path: string[], root: Context): Context | null {
   return ctx;
 }
 
-/** Find an invariant by walking from current context up through ancestors. Returns the owning context's path. */
-function findInvariantInScope(name: string): { content: string; ownerPath: string[] } | null {
+/** Wrapper over sigil-core's findInvariantInScope using global state. */
+function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!globalSigilRoot || !globalCurrentPath) return null;
-  for (let depth = globalCurrentPath.length; depth >= 0; depth--) {
-    const path = globalCurrentPath.slice(0, depth);
-    const ctx = findContextByPath(path, globalSigilRoot);
-    if (!ctx) continue;
-    const dashed = fromDashForm(name);
-    let inv = ctx.invariants.find((s) => s.name === name || s.name === dashed);
-    if (!inv) {
-      const resolved = resolveRefName(name, ctx.invariants.map((s) => s.name));
-      if (resolved) inv = ctx.invariants.find((s) => s.name === resolved);
-    }
-    if (inv) return { content: inv.content, ownerPath: path };
-  }
-  return null;
+  return findInvariantInScope(globalSigilRoot, globalCurrentPath, name);
 }
 
-/** Find an affordance by walking from current context up through ancestors. Returns the owning context's path. */
-function findAffordanceInScope(name: string): { content: string; ownerPath: string[] } | null {
+/** Wrapper over sigil-core's findAffordanceInScope using global state. */
+function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!globalSigilRoot || !globalCurrentPath) return null;
-  for (let depth = globalCurrentPath.length; depth >= 0; depth--) {
-    const path = globalCurrentPath.slice(0, depth);
-    const ctx = findContextByPath(path, globalSigilRoot);
-    if (!ctx) continue;
-    const aff = findAffordance(ctx, name);
-    if (aff) return { content: aff.content, ownerPath: path };
-  }
-  return null;
+  return findAffordanceInScope(globalSigilRoot, globalCurrentPath, name);
 }
 
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
@@ -479,11 +392,11 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                 }
               } else if (matchText.startsWith("!")) {
                 const invariantName = matchText.slice(1);
-                const invariantExists = findInvariantInScope(invariantName) !== null;
+                const invariantExists = findInvariantInScopeLocal(invariantName) !== null;
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
                 // Standalone #affordance
-                const affExists = findAffordanceInScope(matchText.slice(1)) !== null;
+                const affExists = findAffordanceInScopeLocal(matchText.slice(1)) !== null;
                 builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
               }
             }
@@ -1244,7 +1157,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
                   }
                 } else if (matchText.startsWith("!")) {
                   // !invariant — navigate to the owning sigil
-                  const result = findInvariantInScope(matchText.slice(1));
+                  const result = findInvariantInScopeLocal(matchText.slice(1));
                   if (result && onNavigateAbsPathRef.current) {
                     event.preventDefault();
                     onNavigateAbsPathRef.current(result.ownerPath);
@@ -1252,7 +1165,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
                   }
                 } else if (matchText.startsWith("#")) {
                   // #affordance — navigate to the owning sigil
-                  const result = findAffordanceInScope(matchText.slice(1));
+                  const result = findAffordanceInScopeLocal(matchText.slice(1));
                   if (result && onNavigateAbsPathRef.current) {
                     event.preventDefault();
                     onNavigateAbsPathRef.current(result.ownerPath);
