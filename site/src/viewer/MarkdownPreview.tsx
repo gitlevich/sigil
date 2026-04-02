@@ -79,26 +79,26 @@ export function MarkdownPreview({
   refs,
   onNavigate,
 }: MarkdownPreviewProps) {
-  const refNames = useMemo(() => refs.map((r) => r.name), [refs]);
-
   const pattern = useMemo(() => {
     if (refs.length === 0) return null;
     const escaped = refs.map((r) =>
       r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     );
+    // Deduplicate names (same name may appear with different prefixes)
     const unique = [...new Set(escaped)];
-    // Generate inflected forms for regex matching
+    // Also generate inflected forms: -ed (past), -ing (continuous), -s (plural), -d (silent-e past)
     const inflected: string[] = [];
     for (const name of unique) {
       inflected.push(name);
+      // e-ending verbs: Collapse → Collapsed, Collapsing
       if (/e$/i.test(name)) {
-        inflected.push(name + "d");
-        inflected.push(name.slice(0, -1) + "ing");
+        inflected.push(name + "d");        // Collapsed
+        inflected.push(name.slice(0, -1) + "ing"); // Collapsing
       } else {
-        inflected.push(name + "ed");
-        inflected.push(name + "ing");
+        inflected.push(name + "ed");       // Attended
+        inflected.push(name + "ing");      // Attending
       }
-      inflected.push(name + "s");
+      inflected.push(name + "s");          // Collapses
     }
     const uniqueInflected = [...new Set(inflected)];
     return new RegExp(
@@ -111,6 +111,16 @@ export function MarkdownPreview({
     const map: RefLookup = {};
     for (const r of refs) {
       map[`${r.prefix}${r.name.toLowerCase()}`] = r;
+      // Add inflected forms pointing to same ref
+      const name = r.name.toLowerCase();
+      if (name.endsWith("e")) {
+        map[`${r.prefix}${name}d`] = r;
+        map[`${r.prefix}${name.slice(0, -1)}ing`] = r;
+      } else {
+        map[`${r.prefix}${name}ed`] = r;
+        map[`${r.prefix}${name}ing`] = r;
+      }
+      map[`${r.prefix}${name}s`] = r;
     }
     return map;
   }, [refs]);
@@ -126,12 +136,12 @@ export function MarkdownPreview({
             ? {
                 p: ({ children, ...props }) => (
                   <p {...props}>
-                    {highlightChildStrings(children, pattern, lookup, refNames, onNavigate)}
+                    {highlightChildStrings(children, pattern, lookup, onNavigate)}
                   </p>
                 ),
                 li: ({ children, ...props }) => (
                   <li {...props}>
-                    {highlightChildStrings(children, pattern, lookup, refNames, onNavigate)}
+                    {highlightChildStrings(children, pattern, lookup, onNavigate)}
                   </li>
                 ),
               }
@@ -148,7 +158,6 @@ function highlightRefs(
   text: string,
   pattern: RegExp,
   lookup: RefLookup,
-  refNames: string[],
   onNavigate?: (name: string) => void
 ): (string | React.ReactElement)[] {
   const parts: (string | React.ReactElement)[] = [];
@@ -161,12 +170,7 @@ function highlightRefs(
     }
     const prefix = match[1];
     const name = match[2];
-    let ref = lookup[`${prefix}${name.toLowerCase()}`];
-    if (!ref) {
-      // Fuzzy resolution via resolveRefName (handles inflected forms)
-      const resolved = resolveRefName(name, refNames);
-      if (resolved) ref = lookup[`${prefix}${resolved.toLowerCase()}`];
-    }
+    const ref = lookup[`${prefix}${name.toLowerCase()}`];
     if (!ref) {
       parts.push(match[0]);
       lastIndex = match.index + match[0].length;
@@ -194,16 +198,15 @@ function highlightChildStrings(
   children: React.ReactNode,
   pattern: RegExp,
   lookup: RefLookup,
-  refNames: string[],
   onNavigate?: (name: string) => void
 ): React.ReactNode {
   if (typeof children === "string") {
-    return <>{highlightRefs(children, pattern, lookup, refNames, onNavigate)}</>;
+    return <>{highlightRefs(children, pattern, lookup, onNavigate)}</>;
   }
   if (Array.isArray(children)) {
     return children.map((child, i) => {
       if (typeof child === "string") {
-        return <span key={i}>{highlightRefs(child, pattern, lookup, refNames, onNavigate)}</span>;
+        return <span key={i}>{highlightRefs(child, pattern, lookup, onNavigate)}</span>;
       }
       return child;
     });
