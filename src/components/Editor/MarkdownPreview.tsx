@@ -6,6 +6,7 @@ import {
   buildRefPattern,
   buildRefLookup,
   highlightText,
+  styleForPrefix,
   type Ref,
   type Segment,
 } from "sigil-core";
@@ -73,10 +74,16 @@ function renderSegments(
 ): React.ReactNode[] {
   return segments.map((seg, i) => {
     if (seg.kind === "text") return seg.text;
-    // Use contained/sibling/lib CSS classes for the Tauri app's styling
-    const refName = seg.ref.name.toLowerCase();
-    const kind = kindMap[refName] || "contained";
-    const className = kind === "sibling" ? "ref-sibling" : kind === "lib" ? "ref-lib" : "ref-contained";
+    // For # and ! refs (including compound like @Chat#branch), use prefix-based styling
+    // For @ refs, use contained/sibling/lib CSS classes
+    let className: string;
+    if (seg.prefix === "#" || seg.prefix === "!") {
+      className = styleForPrefix(seg.prefix);
+    } else {
+      const refName = seg.ref.name.toLowerCase();
+      const kind = kindMap[refName] || "contained";
+      className = kind === "sibling" ? "ref-sibling" : kind === "lib" ? "ref-lib" : "ref-contained";
+    }
     return (
       <span
         key={baseKey + i}
