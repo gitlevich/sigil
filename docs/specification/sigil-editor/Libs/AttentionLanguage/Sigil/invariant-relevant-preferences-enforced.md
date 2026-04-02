@@ -1,1 +1,1 @@
-along all contrasts this sigil considers relevant
+Within this @sigil, @preferences hold along all @contrasts it considers relevant. This is the sigil's boundary.

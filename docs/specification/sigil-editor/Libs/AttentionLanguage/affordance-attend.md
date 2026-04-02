@@ -1,1 +1,1 @@
-to make the focus of my attention
+Direct @attention to what's inside the @sigil, outside it, or both.

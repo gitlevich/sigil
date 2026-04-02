@@ -1,7 +1,7 @@
 ---
-status: idea
+status: external-ontology
 ---
 
 # Observation
 
-An observation is a measurement along a single @contrast. Registering observations is what @observer does, one @frame at a time. 
+A measurement along a single @contrast. An @observer registers observations, one @frame at a time.

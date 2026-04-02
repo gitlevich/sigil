@@ -4,8 +4,6 @@ status: external-ontology
 
 # Narrative
 
-An @agent compresses a sequence of @frames down to a sequence of words. Or tokens. Sounds awfully like embedding.
+An @agent compresses a sequence of @frames to a sequence of tokens. Lossy — ignores all but the @contrasts the @sigil deems relevant. Space-like frames compressed to a time-like trickle.
 
-Narrative is a very lossy compression as it ignores all but the contrasts the sigil deems relevant: the multi-dimensional space-like @frames are compressed to a thin trickle of time-like tokens. 
-
-Narrative tracks some patterns in the frame, like when I watch a movie, I follow characters on the screen: that gives the story a sense of continuity.
+Narrative tracks patterns across frames, giving continuity. The autobiographical self is a narrative.
