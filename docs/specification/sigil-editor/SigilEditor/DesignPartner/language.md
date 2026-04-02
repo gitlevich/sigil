@@ -16,9 +16,17 @@ The vision sentences are trajectories through the @sigil tree. The partner trace
 
 ## Craft. 
 
-How the partner works a session — when to speak, what to surface, how to drive toward convergence. The vocabulary comes from @AttentionLanguage. The responsibilities come from @CoherenceMetric and @Coverage. The judgment — which degrees of freedom matter, when to stay quiet, when the language signals wrong structure, when to stop decomposing — comes from @Craft.
+How the partner works a session — when to speak, what to surface, how to drive toward convergence. The vocabulary comes from @AttentionLanguage. The responsibilities come from @SigilRefinement@CoherenceMetric and @Coverage. The judgment — which degrees of freedom matter, when to stay quiet, when the language signals wrong structure, when to stop decomposing — comes from @Craft.
 
 
 ## Prompt
 
 The @Prompt composes identity, vocabulary, responsibilities, and craft into the system prompt the partner sees in every session.
+
+Design Partner needs to #manipulate-ui so that he and I could work together
+
+Design Partner !maintains-spellbook pre-populated with a few frequently useful spells, so that he could use it to perform a tedious common action without figuring it out over and over. The @Spellbook
+
+He helps me with @SigilRefinement.
+
+He has a @Persona

@@ -45,4 +45,9 @@ To have the freedom to evolve my language, I need #refactor-rename.
 I'd like to #find-references of a sigil - to see where it's used. FileFileMy
 
 
+when i work on @affordances, i want to #resize-affordances-panel so that i could focus on them
+
+
+when i work on @invariants, i want to #resize-invariants-panel so that i could focus on them
+
 

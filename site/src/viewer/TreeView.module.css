@@ -30,13 +30,19 @@
 .expandBtn {
   background: none;
   border: none;
-  color: inherit;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
   font-size: 0.6rem;
   width: 18px;
   text-align: center;
   flex-shrink: 0;
+}
+
+.active .expandBtn {
+  color: var(--accent-text);
+  opacity: 1;
+  font-size: 0.7rem;
 }
 
 .expandPlaceholder {

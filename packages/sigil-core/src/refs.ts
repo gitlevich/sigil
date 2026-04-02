@@ -86,38 +86,72 @@ export function findAffordance(ctx: Context | undefined, dashedName: string): Af
   return resolved ? ctx.affordances.find((a) => a.name === resolved) : undefined;
 }
 
-/** Find an invariant by walking from current context up through ancestors. */
+/** Find an invariant by name, returning its content and owning path. */
+function findInvariantOn(ctx: Context, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+  const dashed = fromDashForm(name);
+  let inv = ctx.invariants.find((s) => s.name === name || s.name === dashed);
+  if (!inv) {
+    const resolved = resolveRefName(name, ctx.invariants.map((s) => s.name));
+    if (resolved) inv = ctx.invariants.find((s) => s.name === resolved);
+  }
+  return inv ? { content: inv.content, ownerPath: path } : null;
+}
+
+/** Find an invariant in lexical scope: self, children, ancestors. */
 export function findInvariantInScope(
   root: Context,
   currentPath: string[],
   name: string
 ): { content: string; ownerPath: string[] } | null {
-  for (let depth = currentPath.length; depth >= 0; depth--) {
-    const path = currentPath.slice(0, depth);
-    const ctx = findContext(root, path);
-    const dashed = fromDashForm(name);
-    let inv = ctx.invariants.find((s) => s.name === name || s.name === dashed);
-    if (!inv) {
-      const resolved = resolveRefName(name, ctx.invariants.map((s) => s.name));
-      if (resolved) inv = ctx.invariants.find((s) => s.name === resolved);
-    }
-    if (inv) return { content: inv.content, ownerPath: path };
+  const currentCtx = findContext(root, currentPath);
+
+  // Current context
+  const own = findInvariantOn(currentCtx, currentPath, name);
+  if (own) return own;
+
+  // Children
+  for (const child of currentCtx.children) {
+    const result = findInvariantOn(child, [...currentPath, child.name], name);
+    if (result) return result;
   }
+
+  // Ancestors
+  for (let depth = currentPath.length - 1; depth >= 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelCtx = findContext(root, levelPath);
+    const result = findInvariantOn(levelCtx, levelPath, name);
+    if (result) return result;
+  }
+
   return null;
 }
 
-/** Find an affordance by walking from current context up through ancestors. */
+/** Find an affordance in lexical scope: self, children, ancestors. */
 export function findAffordanceInScope(
   root: Context,
   currentPath: string[],
   name: string
 ): { content: string; ownerPath: string[] } | null {
-  for (let depth = currentPath.length; depth >= 0; depth--) {
-    const path = currentPath.slice(0, depth);
-    const ctx = findContext(root, path);
-    const aff = findAffordance(ctx, name);
-    if (aff) return { content: aff.content, ownerPath: path };
+  const currentCtx = findContext(root, currentPath);
+
+  // Current context
+  const own = findAffordance(currentCtx, name);
+  if (own) return { content: own.content, ownerPath: currentPath };
+
+  // Children
+  for (const child of currentCtx.children) {
+    const aff = findAffordance(child, name);
+    if (aff) return { content: aff.content, ownerPath: [...currentPath, child.name] };
   }
+
+  // Ancestors
+  for (let depth = currentPath.length - 1; depth >= 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelCtx = findContext(root, levelPath);
+    const aff = findAffordance(levelCtx, name);
+    if (aff) return { content: aff.content, ownerPath: levelPath };
+  }
+
   return null;
 }
 
@@ -172,26 +206,38 @@ export function buildLexicalScope(
     }
   }
 
-  // Affordances and invariants — walk current context and all ancestors
-  for (let depth = currentPath.length; depth >= 0; depth--) {
-    const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
-    const ownerName = levelCtx.name;
-    const isCurrentCtx = depth === currentPath.length;
-    for (const a of levelCtx.affordances) {
+  // Affordances and invariants — current context, ancestors, children, and siblings at each level
+  const addProperties = (ctx: Context, navigable: boolean) => {
+    const ownerName = ctx.name;
+    for (const a of ctx.affordances) {
       const key = `#${a.name}`;
       if (!seen.has(key)) {
         seen.add(key);
-        refs.push({ name: a.name, prefix: "#", summary: a.content, navigable: !isCurrentCtx, navigateTo: ownerName });
+        refs.push({ name: a.name, prefix: "#", summary: a.content, navigable, navigateTo: ownerName });
       }
     }
-    for (const inv of levelCtx.invariants) {
+    for (const inv of ctx.invariants) {
       const key = `!${inv.name}`;
       if (!seen.has(key)) {
         seen.add(key);
-        refs.push({ name: inv.name, prefix: "!", summary: inv.content, navigable: !isCurrentCtx, navigateTo: ownerName });
+        refs.push({ name: inv.name, prefix: "!", summary: inv.content, navigable, navigateTo: ownerName });
       }
     }
+  };
+
+  // Current context's own affordances/invariants
+  addProperties(currentCtx, false);
+
+  // Children's affordances/invariants — these are your modeling tools
+  for (const child of currentCtx.children) {
+    addProperties(child, true);
+  }
+
+  // Ancestors' affordances/invariants — you can invoke things above you
+  for (let depth = currentPath.length - 1; depth >= 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelCtx = findContext(root, levelPath);
+    addProperties(levelCtx, true);
   }
 
   return refs;

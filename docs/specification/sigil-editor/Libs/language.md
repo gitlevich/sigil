@@ -11,3 +11,5 @@ AL is the mechanics of attention as I see it from my point of view and at my sca
 @EcologicalPsychology
 
 Ecological Psychology is the study of perception as direct engagement with the environment in terms of what it affords an agent at its scale. In this ontology, it provides the minimal vocabulary for talking about @affordances as action possibilities that exist in the relation between an agent and its world.
+
+This Ontology Browser is built into the application so that I can #access-ontology-lib from any spec, not just this one. 
