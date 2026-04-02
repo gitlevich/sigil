@@ -3,14 +3,15 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Ref } from "./utils";
-import { resolveRefName, stripFrontmatter } from "sigil-core";
+import {
+  stripFrontmatter,
+  buildRefPattern,
+  buildRefLookup,
+  highlightText,
+  styleForPrefix,
+  type Segment,
+} from "sigil-core";
 import styles from "./MarkdownPreview.module.css";
-
-const STYLE_FOR_PREFIX: Record<string, string> = {
-  "@": "ref-context",
-  "#": "ref-affordance",
-  "!": "ref-invariant",
-};
 
 function RefSpan({
   text,
@@ -72,59 +73,13 @@ interface MarkdownPreviewProps {
   onNavigate?: (name: string) => void;
 }
 
-type RefLookup = Record<string, Ref>;
-
 export function MarkdownPreview({
   content,
   refs,
   onNavigate,
 }: MarkdownPreviewProps) {
-  const pattern = useMemo(() => {
-    if (refs.length === 0) return null;
-    const escaped = refs.map((r) =>
-      r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    );
-    // Deduplicate names (same name may appear with different prefixes)
-    const unique = [...new Set(escaped)];
-    // Also generate inflected forms: -ed (past), -ing (continuous), -s (plural), -d (silent-e past)
-    const inflected: string[] = [];
-    for (const name of unique) {
-      inflected.push(name);
-      // e-ending verbs: Collapse → Collapsed, Collapsing
-      if (/e$/i.test(name)) {
-        inflected.push(name + "d");        // Collapsed
-        inflected.push(name.slice(0, -1) + "ing"); // Collapsing
-      } else {
-        inflected.push(name + "ed");       // Attended
-        inflected.push(name + "ing");      // Attending
-      }
-      inflected.push(name + "s");          // Collapses
-    }
-    const uniqueInflected = [...new Set(inflected)];
-    return new RegExp(
-      `([@#!])(${uniqueInflected.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`,
-      "gi"
-    );
-  }, [refs]);
-
-  const lookup = useMemo<RefLookup>(() => {
-    const map: RefLookup = {};
-    for (const r of refs) {
-      map[`${r.prefix}${r.name.toLowerCase()}`] = r;
-      // Add inflected forms pointing to same ref
-      const name = r.name.toLowerCase();
-      if (name.endsWith("e")) {
-        map[`${r.prefix}${name}d`] = r;
-        map[`${r.prefix}${name.slice(0, -1)}ing`] = r;
-      } else {
-        map[`${r.prefix}${name}ed`] = r;
-        map[`${r.prefix}${name}ing`] = r;
-      }
-      map[`${r.prefix}${name}s`] = r;
-    }
-    return map;
-  }, [refs]);
-
+  const pattern = useMemo(() => buildRefPattern(refs), [refs]);
+  const lookup = useMemo(() => buildRefLookup(refs), [refs]);
   const stripped = useMemo(() => stripFrontmatter(content), [content]);
 
   return (
@@ -154,59 +109,38 @@ export function MarkdownPreview({
   );
 }
 
-function highlightRefs(
-  text: string,
-  pattern: RegExp,
-  lookup: RefLookup,
+function renderSegments(
+  segments: Segment[],
+  baseKey: number,
   onNavigate?: (name: string) => void
-): (string | React.ReactElement)[] {
-  const parts: (string | React.ReactElement)[] = [];
-  let lastIndex = 0;
-  pattern.lastIndex = 0;
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const prefix = match[1];
-    const name = match[2];
-    const ref = lookup[`${prefix}${name.toLowerCase()}`];
-    if (!ref) {
-      parts.push(match[0]);
-      lastIndex = match.index + match[0].length;
-      continue;
-    }
-    const className = STYLE_FOR_PREFIX[prefix] || "ref-context";
-    parts.push(
+): React.ReactNode[] {
+  return segments.map((seg, i) => {
+    if (seg.kind === "text") return seg.text;
+    return (
       <RefSpan
-        key={match.index}
-        text={match[0]}
-        className={className}
-        summary={ref.summary}
-        onClick={ref.navigable && onNavigate ? () => onNavigate(ref.navigateTo ?? name) : undefined}
+        key={baseKey + i}
+        text={seg.text}
+        className={styleForPrefix(seg.prefix)}
+        summary={seg.ref.summary}
+        onClick={seg.ref.navigable && onNavigate ? () => onNavigate(seg.navigateTo!) : undefined}
       />
     );
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts;
+  });
 }
 
 function highlightChildStrings(
   children: React.ReactNode,
   pattern: RegExp,
-  lookup: RefLookup,
+  lookup: Record<string, Ref>,
   onNavigate?: (name: string) => void
 ): React.ReactNode {
   if (typeof children === "string") {
-    return <>{highlightRefs(children, pattern, lookup, onNavigate)}</>;
+    return <>{renderSegments(highlightText(children, pattern, lookup), 0, onNavigate)}</>;
   }
   if (Array.isArray(children)) {
     return children.map((child, i) => {
       if (typeof child === "string") {
-        return <span key={i}>{highlightRefs(child, pattern, lookup, onNavigate)}</span>;
+        return <span key={i}>{renderSegments(highlightText(child, pattern, lookup), i * 1000, onNavigate)}</span>;
       }
       return child;
     });
