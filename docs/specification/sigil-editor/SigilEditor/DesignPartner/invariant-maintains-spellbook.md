@@ -1,0 +1,1 @@
+So he could use @Spellbook@Spells

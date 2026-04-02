@@ -525,7 +525,9 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
 
           if (sigilPart) {
             const resolution = resolveChainedRef(sigilPart);
-            if (resolution.kind === "unresolved") return null;
+            if (resolution.kind === "unresolved") {
+              summary = `unresolved: ${sigilPart}`;
+            } else
             if (resolution.kind === "external") {
               summary = resolution.summary ?? "outside scope";
               // fall through to render tooltip with error summary
@@ -551,20 +553,21 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             }
             } // end else (non-external)
           } else if (matchText.startsWith("!")) {
-            // standalone !invariant — look up in current context
-            if (!globalCurrentContext) return null;
-            const dispName = matchText.slice(1);
-            const disp = globalCurrentContext.invariants.find(
-              (c) => c.name === dispName || c.name === fromDashForm(dispName)
-            );
-            if (!disp) return null;
-            summary = disp.content.split("\n").slice(0, 3).join("\n");
+            // standalone !invariant — walk scope
+            const result = findInvariantInScopeLocal(matchText.slice(1));
+            if (result) {
+              summary = result.content.split("\n").slice(0, 3).join("\n");
+            } else {
+              summary = `unresolved invariant: ${matchText}`;
+            }
           } else {
-            // standalone #affordance — look up in current context
-            if (!globalCurrentContext) return null;
-            const aff = findAffordance(globalCurrentContext, matchText.slice(1));
-            if (!aff) return null;
-            summary = aff.content.split("\n").slice(0, 3).join("\n");
+            // standalone #affordance — walk scope
+            const result = findAffordanceInScopeLocal(matchText.slice(1));
+            if (result) {
+              summary = result.content.split("\n").slice(0, 3).join("\n");
+            } else {
+              summary = `unresolved affordance: ${matchText}`;
+            }
           }
 
           if (!summary) return null;
