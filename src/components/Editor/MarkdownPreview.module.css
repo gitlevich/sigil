@@ -16,6 +16,21 @@
   padding-bottom: 1px;
 }
 
+.preview :global(.ref-context) {
+  border-bottom: 2px dashed #e8a040;
+  padding-bottom: 1px;
+}
+
+.preview :global(.ref-affordance) {
+  border-bottom: 2px solid #3d9e8c;
+  padding-bottom: 1px;
+}
+
+.preview :global(.ref-invariant) {
+  border-bottom: 2px solid #e8a040;
+  padding-bottom: 1px;
+}
+
 .preview h1, .preview h2, .preview h3,
 .preview h4, .preview h5, .preview h6 {
   margin-top: 1.5rem;
