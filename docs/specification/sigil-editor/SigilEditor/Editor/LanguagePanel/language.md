@@ -18,5 +18,6 @@ I want this experience here, too: language-first, syntax highlighting, the edito
 
 I very much care that my !work-is-never-lost. For that, I need the editor to have #continuous-saving, so as I type, I am never worried that the text disappears. 
 
-I need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a deparate preview. 
+I need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a separate preview.
 
+Sometimes I need images in my narrative. I #insert-image by dragging, dropping, or pasting — the file is copied to the context's assets directory and a markdown link is inserted. I #preview-image inline as I write. I can #resize-image by dragging a corner handle while preserving aspect ratio.

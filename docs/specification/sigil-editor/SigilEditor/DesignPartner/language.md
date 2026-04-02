@@ -4,7 +4,7 @@ status: stub
 
 # Design Partner
 
-An agent that inhabits the entire @sigil (!full-context). Language in, language out.
+An agent that inhabits the entire @sigil (!full-context). Language in, language out. I #chat with it: I narrate, it reflects, questions, surfaces gaps, reports coherence violations. The conversation persists across sessions.
 
 **Coherence.** Computed silently, surfaced only when broken. Ancestor @sigils are in scope and binding — contradicting an ancestor's term or violating an inherited @invariant is incoherent. Same concept in a different branch with different affordances and invariants is fine. @CoherenceMetric handles measurement and tracks drift over time.
 
