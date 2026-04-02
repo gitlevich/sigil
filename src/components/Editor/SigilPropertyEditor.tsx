@@ -337,7 +337,7 @@ export function SigilPropertyEditor({
         <span className={styles.title}>{title}</span>
         {collapsed && items.length > 0 && (
           <div className={styles.chips}>
-            {items.map((item, i) => (
+            {items.map((item) => (
               <PropertyChip key={item.id} item={item} refPrefix={refPrefix} color={color} />
             ))}
           </div>

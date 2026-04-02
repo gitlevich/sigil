@@ -553,7 +553,6 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             : null;
           const propertyPart = propIdx !== -1 ? matchText.slice(propIdx + 1) : null;
 
-          let displayName = matchText;
           let summary = "";
 
           if (sigilPart) {
@@ -561,7 +560,6 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
             if (resolution.kind === "unresolved") return null;
             if (resolution.kind === "external") {
               summary = resolution.summary ?? "outside scope";
-              displayName = matchText;
               // fall through to render tooltip with error summary
             } else {
             summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
@@ -582,7 +580,6 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
                 const aff = findAffordance(ctx, propertyPart);
                 if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
               }
-              displayName = `${sigilPart}${propChar}${propertyPart}`;
             }
             } // end else (non-external)
           } else if (matchText.startsWith("!")) {
@@ -593,14 +590,12 @@ function buildSiblingHighlighter(_names: string[], siblings: SiblingInfo[], sigi
               (c) => c.name === dispName || c.name === fromDashForm(dispName)
             );
             if (!disp) return null;
-            displayName = matchText;
             summary = disp.content.split("\n").slice(0, 3).join("\n");
           } else {
             // standalone #affordance — look up in current context
             if (!globalCurrentContext) return null;
             const aff = findAffordance(globalCurrentContext, matchText.slice(1));
             if (!aff) return null;
-            displayName = matchText;
             summary = aff.content.split("\n").slice(0, 3).join("\n");
           }
 
