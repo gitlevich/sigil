@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
@@ -433,7 +434,7 @@ export function OntologyEditor() {
           )}
           <button className={styles.menuItem} onClick={() => { dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: contextMenu.node.name } }); setContextMenu(null); }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
-          <button className={styles.menuItem} onClick={() => { navigator.clipboard.writeText(contextMenu.node.fsPath); setContextMenu(null); }}>Copy Path</button>
+          <button className={styles.menuItem} onClick={() => { writeText(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Copy Path</button>
           {contextMenu.node.path.length > 0 && contextMenu.node.name !== "Libs" && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
