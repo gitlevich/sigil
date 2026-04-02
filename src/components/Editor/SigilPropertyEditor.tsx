@@ -85,9 +85,9 @@ function PropertyItem({
   }, []);
 
   useLayoutEffect(() => {
-    fitHeight();
+    if (!folded) fitHeight();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [folded]);
 
   useEffect(() => {
     const ta = textareaRef.current;
