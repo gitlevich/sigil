@@ -1,9 +1,7 @@
 ---
-status: idea
+status: external-ontology
 ---
 
 # Collapse
 
-As an @agent, I collapse each @frame of @observations to a @narrative while preserving my @sigil's @invariants.
-
-Again, using a QM term. This is because it fits. My sigil - my rules. 
+An @agent collapses each @frame of @observations to @narrative while preserving its @sigil's @invariants. Superposition to definite state.

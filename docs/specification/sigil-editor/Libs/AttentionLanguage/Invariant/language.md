@@ -1,9 +1,9 @@
 ---
-status: idea
+status: external-ontology
 ---
 
 # Invariant
 
-An invariant is what a @sigil enforces. It binds a @preference to the @sigil's boundary: within this @sigil, this @preference holds. The @agent inhabiting the @sigil @collapses @observations in a way that preserves its invariants.
+What a @sigil enforces. Binds a @preference to the sigil's boundary: within this sigil, this preference holds along this @contrast. The @agent inhabiting the sigil @collapses @observations to preserve its invariants.
 
-This term is parallel to @EcologicalPsychology@Invariant.
+Parallel to @EcologicalPsychology@Invariant.

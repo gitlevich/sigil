@@ -4,4 +4,4 @@ status: external-ontology
 
 # Observer
 
-The origin, in 3D space, from which @attention is paid. 
+@Attention paid from a point of view at a @scale. Attends to the @frame (space-like). Registers @observations along @contrasts.

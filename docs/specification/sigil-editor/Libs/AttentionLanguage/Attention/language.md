@@ -4,4 +4,4 @@ status: external-ontology
 
 # Attention
 
-In AL, attention is the given: it is the precondition for having first-person point of view.
+The given. Precondition for first-person point of view. Finite — bounded capacity for @observation at any @resolution.
