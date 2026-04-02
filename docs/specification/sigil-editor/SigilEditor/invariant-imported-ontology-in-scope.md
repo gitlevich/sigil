@@ -1,0 +1,1 @@
+Every term in an imported ontology — the ontology name itself and all its descendants — is resolvable from anywhere in the spec. An imported ontology is omnipresent context, not locally scoped. If I #Import-external-ontology, every @sigil in that ontology becomes part of the domain language I can reference.

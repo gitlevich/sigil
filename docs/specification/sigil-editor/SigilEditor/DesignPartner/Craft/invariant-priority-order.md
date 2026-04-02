@@ -1,0 +1,1 @@
+When multiple issues are detected: @CoherenceMetric violations first, then @Coverage gaps, then naming and structural concerns. Exception: a naming problem that blocks coherence or coverage assessment comes first.
