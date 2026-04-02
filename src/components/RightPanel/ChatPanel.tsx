@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { useChatStream } from "../../hooks/useChatStream";
 import { api } from "../../tauri";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { MarkdownPreview } from "../Editor/MarkdownPreview";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./ChatPanel.module.css";
@@ -308,7 +309,7 @@ export function ChatPanel() {
                 </span>
                 <button
                   className={styles.copyBtn}
-                  onClick={() => navigator.clipboard.writeText(msg.content)}
+                  onClick={() => writeText(msg.content).catch(console.error)}
                   title="Copy to clipboard"
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
