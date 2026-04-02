@@ -235,7 +235,7 @@ export function EditorShell() {
     }
   }, [doc, reload]);
 
-  const handleRenameStatus = useCallback(async (oldValue: string, newValue: string) => {
+  const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim()) return;
     const statusPattern = /^(status:\s*)\S+$/m;
     const forceStatus = async (ctx: Context) => {
