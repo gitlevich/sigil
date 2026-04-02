@@ -401,7 +401,7 @@ export function SigilMap() {
       </div>
 
       <div className={styles.instructions}>
-        Double-click to enter a context. Right-click for options.
+        Double-click to enter a sigil. Right-click for options.
       </div>
 
       {nodeMenu && (
