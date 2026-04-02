@@ -70,3 +70,4 @@ the domain-model-sounding @sigils are powered by the @DesignPartner's @attention
 i think we have invented an embodiment for AI: sigil is a fundamental attention structure, and this is a place to experience it. powered by any LLM but only locally persistent. as a single life.
 
 !!!!!
+

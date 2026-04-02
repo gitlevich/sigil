@@ -21,3 +21,5 @@ I very much care that my !work-is-never-lost. For that, I need the editor to hav
 I need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a separate preview.
 
 Sometimes I need images in my narrative. I #insert-image by dragging, dropping, or pasting — the file is copied to the context's assets directory and a markdown link is inserted. I #preview-image inline as I write. I can #resize-image by dragging a corner handle while preserving aspect ratio.
+
+
