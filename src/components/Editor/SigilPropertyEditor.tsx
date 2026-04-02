@@ -50,6 +50,8 @@ function PropertyItem({
   namePlaceholder,
   contentPlaceholder,
   isDragOver,
+  folded,
+  onToggleFold,
   onNameCommit,
   onContentChange,
   onDelete,
@@ -62,6 +64,8 @@ function PropertyItem({
   namePlaceholder: string;
   contentPlaceholder: string;
   isDragOver: boolean;
+  folded: boolean;
+  onToggleFold: () => void;
   onNameCommit: (newName: string) => void;
   onContentChange: (content: string) => void;
   onDelete: () => void;
@@ -130,11 +134,12 @@ function PropertyItem({
             }
           }}
         />
+        <button className={styles.foldBtn} tabIndex={-1} onClick={onToggleFold} title={folded ? "Unfold" : "Fold"}>{folded ? "\u25B6" : "\u25BC"}</button>
         <button className={styles.deleteBtn} tabIndex={-1} onClick={onDelete} title={`Delete ${namePlaceholder}`}>x</button>
       </div>
       <textarea
         ref={textareaRef}
-        className={styles.contentArea}
+        className={`${styles.contentArea} ${folded ? styles.contentFolded : ""}`}
         value={item.content}
         placeholder={contentPlaceholder}
         onChange={(e) => { onContentChange(e.target.value); fitHeight(); }}
@@ -170,6 +175,8 @@ export function SigilPropertyEditor({
 }: SigilPropertyEditorProps) {
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
+  const [foldedSet, setFoldedSet] = useState<Set<string>>(new Set());
+  const [allFolded, setAllFolded] = useState(false);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragSourceIndex = useRef<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -246,6 +253,26 @@ export function SigilPropertyEditor({
     if (savedName) await onReload();
   }, [sigilPath, filePrefix, onReload, saveOrder]);
 
+  const handleToggleFold = useCallback((id: string) => {
+    setFoldedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleFoldAll = useCallback(() => {
+    setAllFolded((prev) => {
+      const next = !prev;
+      if (next) {
+        setFoldedSet(new Set(items.map((i) => i.id)));
+      } else {
+        setFoldedSet(new Set());
+      }
+      return next;
+    });
+  }, [items]);
+
   const handleAdd = useCallback(() => {
     setItems((prev) => [...prev, { id: `new-${Date.now()}`, savedName: "", name: "", content: "" }]);
     setCollapsed(false);
@@ -277,6 +304,13 @@ export function SigilPropertyEditor({
             ))}
           </div>
         )}
+        {!collapsed && items.length > 1 && (
+          <button
+            className={styles.foldAllBtn}
+            onClick={(e) => { e.stopPropagation(); handleToggleFoldAll(); }}
+            title={allFolded ? "Unfold all" : "Fold all"}
+          >{allFolded ? "unfold" : "fold"}</button>
+        )}
         <button
           className={styles.addBtn}
           onClick={(e) => { e.stopPropagation(); handleAdd(); }}
@@ -293,6 +327,8 @@ export function SigilPropertyEditor({
               namePlaceholder={namePlaceholder}
               contentPlaceholder={contentPlaceholder}
               isDragOver={dragOverIndex === i}
+              folded={foldedSet.has(item.id)}
+              onToggleFold={() => handleToggleFold(item.id)}
               onContentChange={(c) => handleContentChange(item.savedName, c)}
               onNameCommit={(n) => handleNameCommit(item.savedName, n)}
               onDelete={() => handleDelete(item.savedName)}

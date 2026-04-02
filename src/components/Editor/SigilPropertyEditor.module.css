@@ -95,6 +95,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 0 10px 10px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .item {
@@ -202,4 +204,39 @@
 
 .contentArea::placeholder {
   color: var(--text-secondary);
+}
+
+.contentFolded {
+  display: none;
+}
+
+.foldAllBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.foldAllBtn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.foldBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.foldBtn:hover {
+  opacity: 1;
 }
