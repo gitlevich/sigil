@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useViewerState, useViewerDispatch } from "./ViewerState";
 import { findContext, buildLexicalScope, buildPath } from "./utils";
-import type { Context } from "./types";
 import { TreeView } from "./TreeView";
 import { Breadcrumb } from "./Breadcrumb";
 import { Atlas } from "./Atlas";
@@ -10,22 +9,6 @@ import "./viewer.css";
 import styles from "./MobileViewer.module.css";
 
 type Panel = "none" | "tree" | "affordances" | "invariants";
-
-const HIDDEN_CHILDREN = new Set(["DesignPartner", "Libs"]);
-const CHILD_ORDER = ["OntologyTree", "Editor", "Atlas"];
-
-function orderChildren(children: Context[]): Context[] {
-  const visible = children.filter((c) => !HIDDEN_CHILDREN.has(c.name));
-  const ordered: Context[] = [];
-  for (const name of CHILD_ORDER) {
-    const found = visible.find((c) => c.name === name);
-    if (found) ordered.push(found);
-  }
-  for (const child of visible) {
-    if (!CHILD_ORDER.includes(child.name)) ordered.push(child);
-  }
-  return ordered;
-}
 
 function PropertyList({
   items,
@@ -70,34 +53,6 @@ function PropertyList({
   );
 }
 
-function ChildrenBar({
-  context,
-  currentPath,
-}: {
-  context: Context;
-  currentPath: string[];
-}) {
-  const dispatch = useViewerDispatch();
-  const children = orderChildren(context.children);
-
-  if (children.length === 0) return null;
-
-  return (
-    <div className={styles.childrenBar}>
-      {children.map((child) => (
-        <button
-          key={child.name}
-          className={styles.childBtn}
-          onClick={() =>
-            dispatch({ type: "NAVIGATE", path: [...currentPath, child.name] })
-          }
-        >
-          {child.name}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function MobileViewer() {
   const { sigil, currentPath, contentTab, theme } = useViewerState();
