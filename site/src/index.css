@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+  --color-bone: #e8e4de;
+  --color-dim: #6b6560;
+  --color-faint: #2a2725;
+  --color-ground: #0a0908;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-mono);
+    background: var(--color-ground);
+    color: var(--color-bone);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+
+  ::selection {
+    background: var(--color-bone);
+    color: var(--color-ground);
+  }
+}
+
+@keyframes pulse-attention {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+.pulse-attention {
+  animation: pulse-attention 4s ease-in-out infinite;
+}

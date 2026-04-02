@@ -5,7 +5,7 @@
  *
  * Defaults:
  *   sigil-root:  docs/specification/sigil-editor
- *   output-path: ../sigil-engineering-site/src/data/sigil-spec.json
+ *   output-path: site/src/data/sigil-spec.json
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -103,7 +103,7 @@ const sigilRoot = process.argv[2]
 
 const outputPath = process.argv[3]
   ? path.resolve(process.argv[3])
-  : path.join(repoRoot, "../sigil-engineering-site/src/data/sigil-spec.json");
+  : path.join(repoRoot, "site/src/data/sigil-spec.json");
 
 if (!fs.existsSync(sigilRoot)) {
   console.error(`Sigil root not found: ${sigilRoot}`);

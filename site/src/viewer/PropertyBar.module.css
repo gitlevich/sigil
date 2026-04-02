@@ -1,0 +1,165 @@
+.editor {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+  flex-shrink: 1;
+  min-height: 0;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-primary);
+}
+
+.header:hover {
+  background: var(--bg-hover);
+}
+
+.toggleIcon {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chipWrapper {
+  position: relative;
+  display: inline;
+}
+
+.chip {
+  font-size: 11px;
+  font-style: italic;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.chipPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-style: normal;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  width: 500px;
+  max-width: 80vw;
+  max-height: 300px;
+  overflow-y: auto;
+  resize: both;
+  box-shadow: 0 4px 16px var(--shadow);
+  pointer-events: auto;
+}
+
+.bulkFoldBtn {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.bulkFoldBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.item {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  min-height: 28px;
+}
+
+.itemHeaderFolded {
+  border-bottom: none;
+}
+
+.foldBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.foldBtn:hover {
+  opacity: 1;
+}
+
+.itemName {
+  font-size: var(--content-font-size, 16px);
+  font-weight: 600;
+  font-style: italic;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.itemContent {
+  padding: 6px 8px;
+  font-size: calc(var(--content-font-size, 16px) - 2px);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { stripFrontmatter } from "sigil-core";
 import styles from "./MarkdownPreview.module.css";
 
 export interface SiblingInfo {
@@ -32,13 +33,7 @@ export function MarkdownPreview({ content, siblingNames = [], siblings = [] }: M
     return map;
   }, [siblings]);
 
-  const stripped = useMemo(() => {
-    if (content.startsWith("---")) {
-      const end = content.indexOf("\n---", 3);
-      if (end !== -1) return content.slice(end + 4).trimStart();
-    }
-    return content;
-  }, [content]);
+  const stripped = useMemo(() => stripFrontmatter(content), [content]);
 
   return (
     <div className={styles.preview}>
@@ -61,8 +56,8 @@ export function MarkdownPreview({ content, siblingNames = [], siblings = [] }: M
   );
 }
 
-function highlightRefs(text: string, pattern: RegExp, refMap: RefMap): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = [];
+function highlightRefs(text: string, pattern: RegExp, refMap: RefMap): (string | React.ReactElement)[] {
+  const parts: (string | React.ReactElement)[] = [];
   let lastIndex = 0;
   pattern.lastIndex = 0;
   let match;

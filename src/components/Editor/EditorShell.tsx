@@ -3,7 +3,7 @@ import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext
 import { LeftPanel } from "../LeftPanel/LeftPanel";
 import { ChatPanel } from "../RightPanel/ChatPanel";
 import { Breadcrumb } from "./Breadcrumb";
-import { MarkdownEditor, resolveRefName, SiblingInfo } from "./MarkdownEditor";
+import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
@@ -12,6 +12,7 @@ import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { SigilMap } from "./Map";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
+import { buildBreadcrumb as coreBuildBreadcrumb, makeSummary, resolveRefName } from "sigil-core";
 import styles from "./EditorShell.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
@@ -63,18 +64,6 @@ function updateContextInTree(
 }
 
 const ONTOLOGIES_NAME = "Libs";
-
-function makeSummary(ctx: Context): string {
-  let text = ctx.domain_language || "";
-  if (text.startsWith("---")) {
-    const end = text.indexOf("\n---", 3);
-    if (end !== -1) text = text.slice(end + 4);
-  }
-  return text.split("\n")
-    .filter((l) => l.trim() && !l.trimStart().startsWith("#"))
-    .slice(0, 3)
-    .join("\n");
-}
 
 /** Build the full lexical scope for the current path: children → ancestry levels → root. */
 function buildLexicalScope(
@@ -141,15 +130,7 @@ function flattenOntologyRefs(
 }
 
 function buildBreadcrumb(root: Context, path: string[]): { name: string; path: string[] }[] {
-  const crumbs: { name: string; path: string[] }[] = [{ name: root.name, path: [] }];
-  let current = root;
-  for (let i = 0; i < path.length; i++) {
-    const child = current.children.find((c) => c.name === path[i]);
-    if (!child) break;
-    crumbs.push({ name: child.name, path: path.slice(0, i + 1) });
-    current = child;
-  }
-  return crumbs;
+  return [{ name: root.name, path: [] }, ...coreBuildBreadcrumb(root, path)];
 }
 
 export function EditorShell() {

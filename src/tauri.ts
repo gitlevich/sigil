@@ -1,30 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import type { Affordance, Invariant, Context as CoreContext, Sigil as CoreSigil } from "sigil-core";
 
-export interface Affordance {
-  name: string;
-  content: string;
-}
+export type { Affordance, Invariant };
 
-export interface Invariant {
-  name: string;
-  content: string;
-}
-
-export interface Context {
-  name: string;
+export interface Context extends CoreContext {
   path: string;
-  domain_language: string;
-  affordances: Affordance[];
-  invariants: Invariant[];
   children: Context[];
 }
 
-export interface Sigil {
-  name: string;
+export interface Sigil extends CoreSigil {
   root_path: string;
-  vision: string;
   root: Context;
 }
 

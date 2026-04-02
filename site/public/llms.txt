@@ -1,0 +1,24 @@
+# Sigil Engineering
+
+> A domain-agnostic specification engine. Vision in, working system out.
+
+This site hosts an interactive viewer for a sigil specification — a hierarchical ontology of contexts, affordances, and invariants.
+
+## Machine-readable spec
+
+The full specification is available as JSON:
+
+- URL: https://sigilengineering.com/sigil-spec.json
+- Format: JSON tree of contexts, each with `name`, `domain_language` (markdown), `affordances`, `invariants`, and `children`
+
+## Structure
+
+The spec is a tree. Each node (context) contains:
+- `domain_language`: narrative description in markdown
+- `affordances`: named actions the context supports
+- `invariants`: constraints that must hold
+- `children`: sub-contexts
+
+## How to use
+
+Load `/sigil-spec.json` to explore the full specification tree. You can navigate by context name, read domain language narratives, and inspect affordances and invariants at any level.
