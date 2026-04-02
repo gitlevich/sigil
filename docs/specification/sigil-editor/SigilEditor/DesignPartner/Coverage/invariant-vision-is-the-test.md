@@ -1,1 +1,1 @@
-Coverage is always measured against the vision sentences. They are the reference scenarios. A gap only matters if a vision sentence falls through it. Structure that no vision sentence traverses is either premature or belongs to a different sigil.
+Coverage is always measured against the vision sentences. They are the reference scenarios — the trajectories the spec must support. A gap only matters if a vision sentence falls through it. Structure that no vision sentence traverses is either premature or belongs to a different @sigil.
