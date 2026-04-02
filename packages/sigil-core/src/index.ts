@@ -12,3 +12,5 @@ export {
   findAffordanceInScope,
   buildLexicalScope,
 } from "./refs";
+export type { Segment } from "./highlight";
+export { styleForPrefix, buildRefPattern, buildRefLookup, highlightText } from "./highlight";

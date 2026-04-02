@@ -421,7 +421,7 @@ export function EditorShell() {
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} siblingNames={allRefNames} siblings={allRefs} />
+                  <MarkdownPreview content={content} siblings={allRefs} />
                 </div>
               )}
             </>
