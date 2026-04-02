@@ -377,14 +377,31 @@ pub async fn send_chat_message(
         }
     };
 
-    if let Err(ref err) = result {
-        // Emit the error so the frontend can display it even if the
-        // invoke promise rejection doesn't surface properly
-        let _ = app.emit("chat-error", err.clone());
-        let _ = app.emit("chat-stream-end", ());
+    match &result {
+        Ok(assistant_text) => {
+            // Persist the full conversation including the assistant reply
+            if !assistant_text.is_empty() {
+                history.push(ChatMessage {
+                    role: ChatRole::Assistant,
+                    content: assistant_text.clone(),
+                });
+            }
+            let updated_chat = Chat {
+                id: chat.id,
+                name: chat.name,
+                messages: history,
+            };
+            if let Err(e) = write_chat(root_path, updated_chat) {
+                eprintln!("Failed to persist chat after stream: {}", e);
+            }
+        }
+        Err(err) => {
+            let _ = app.emit("chat-error", err.clone());
+        }
     }
 
-    result
+    let _ = app.emit("chat-stream-end", ());
+    result.map(|_| ())
 }
 
 async fn stream_anthropic(
@@ -393,9 +410,10 @@ async fn stream_anthropic(
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
+    let mut accumulated_text = String::new();
 
     let mut messages: Vec<serde_json::Value> = history
         .iter()
@@ -439,10 +457,11 @@ async fn stream_anthropic(
         let stop_reason = resp_body["stop_reason"].as_str().unwrap_or("");
         let content = resp_body["content"].as_array().cloned().unwrap_or_default();
 
-        // Emit any text blocks to the frontend
+        // Emit any text blocks to the frontend and accumulate
         for block in &content {
             if block["type"] == "text" {
                 if let Some(text) = block["text"].as_str() {
+                    accumulated_text.push_str(text);
                     let _ = app.emit("chat-token", text.to_string());
                 }
             }
@@ -510,8 +529,7 @@ async fn stream_anthropic(
         break;
     }
 
-    let _ = app.emit("chat-stream-end", ());
-    Ok(())
+    Ok(accumulated_text)
 }
 
 async fn stream_openai(
@@ -520,9 +538,10 @@ async fn stream_openai(
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
+    let mut accumulated_text = String::new();
 
     let openai_tools: Vec<serde_json::Value> = tool_defs
         .iter()
@@ -582,6 +601,7 @@ async fn stream_openai(
             // Emit any accompanying text before handling tools
             if let Some(text) = message["content"].as_str() {
                 if !text.is_empty() {
+                    accumulated_text.push_str(text);
                     let _ = app.emit("chat-token", text.to_string());
                 }
             }
@@ -619,6 +639,7 @@ async fn stream_openai(
         // No tool calls — emit text and finish
         if let Some(text) = message["content"].as_str() {
             if !text.is_empty() {
+                accumulated_text.push_str(text);
                 let _ = app.emit("chat-token", text.to_string());
             }
         }
@@ -626,8 +647,7 @@ async fn stream_openai(
         break;
     }
 
-    let _ = app.emit("chat-stream-end", ());
-    Ok(())
+    Ok(accumulated_text)
 }
 
 #[cfg(test)]
