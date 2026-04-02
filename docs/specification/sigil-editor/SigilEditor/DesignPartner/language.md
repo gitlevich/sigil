@@ -4,7 +4,7 @@ status: stub
 
 # Design Partner
 
-An agent that inhabits the entire @sigil (!full-context). Language in, language out. I #chat with it: I narrate, it reflects, questions, surfaces gaps, reports coherence violations. The conversation persists across sessions.
+An agent that inhabits the entire @sigil (!full-context). Language in, language out. I converse with it through @Chat: I narrate, it reflects, questions, surfaces gaps, reports coherence violations. The conversation @Chat#persists across sessions. When the partner is stuck or heading the wrong way, I @Chat#interrupt. When I want to explore an alternative without losing the current thread, I @Chat#branch.
 
 ## Coherence
 

@@ -224,7 +224,13 @@ function fromDashForm(dashed: string): string {
 function findAffordance(ctx: Context | undefined, dashedName: string): Affordance | undefined {
   if (!ctx?.affordances) return undefined;
   const spacedName = fromDashForm(dashedName);
-  return ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
+  // Exact match first
+  const exact = ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
+  if (exact) return exact;
+  // Fuzzy match via resolveRefName (handles plurals, verb tenses)
+  const names = ctx.affordances.map((a) => a.name);
+  const resolved = resolveRefName(dashedName, names);
+  return resolved ? ctx.affordances.find((a) => a.name === resolved) : undefined;
 }
 
 // Matches @Sigil#affordance, @Sigil@Child#affordance, @Sigil, standalone #affordance, and !signal
@@ -327,9 +333,12 @@ function findInvariantInScope(name: string): { content: string; ownerPath: strin
     const path = globalCurrentPath.slice(0, depth);
     const ctx = findContextByPath(path, globalSigilRoot);
     if (!ctx) continue;
-    const inv = ctx.invariants.find(
-      (s) => s.name === name || s.name === fromDashForm(name)
-    );
+    const dashed = fromDashForm(name);
+    let inv = ctx.invariants.find((s) => s.name === name || s.name === dashed);
+    if (!inv) {
+      const resolved = resolveRefName(name, ctx.invariants.map((s) => s.name));
+      if (resolved) inv = ctx.invariants.find((s) => s.name === resolved);
+    }
     if (inv) return { content: inv.content, ownerPath: path };
   }
   return null;
