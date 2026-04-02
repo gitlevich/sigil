@@ -12,7 +12,7 @@
     }
     .ghost { opacity: 0.015; }
     @media (prefers-color-scheme: dark) {
-      .ghost { opacity: 0.03; }
+      .ghost { opacity: 0.08; }
     }
   </style>
 

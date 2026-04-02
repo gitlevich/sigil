@@ -7,7 +7,7 @@
   <circle cx="120" cy="120" r="114" fill="#000" stroke="#fff" stroke-width="2"/>
 
   <!-- Ghost triangle pointing right (the other time direction) -->
-  <g opacity="0.03">
+  <g opacity="0.08">
     <polygon points="230,120 65,24.74 65,215.26" fill="#fff"/>
     <polygon points="147.5,72.37 147.5,167.63 65,120" fill="#000"/>
     <polygon points="188.75,96.185 188.75,143.815 147.5,120" fill="#000"/>
