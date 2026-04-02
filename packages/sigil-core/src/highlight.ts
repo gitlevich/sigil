@@ -17,9 +17,7 @@ export function styleForPrefix(prefix: string): string {
 
 type RefLookup = Record<string, Ref>;
 
-/** Build the regex pattern that matches prefixed ref names including inflected forms. */
-export function buildRefPattern(refs: Ref[]): RegExp | null {
-  if (refs.length === 0) return null;
+function buildInflectedNames(refs: Ref[]): string[] {
   const escaped = refs.map((r) =>
     r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   );
@@ -36,9 +34,26 @@ export function buildRefPattern(refs: Ref[]): RegExp | null {
     }
     inflected.push(name + "s");
   }
-  const uniqueInflected = [...new Set(inflected)];
+  return [...new Set(inflected)];
+}
+
+/** Build the regex pattern that matches prefixed ref names including inflected forms.
+ *
+ *  Matches:
+ *  - @Context#affordance or @Context!invariant (compound, highlighted as the property type)
+ *  - @Context, #affordance, !invariant (simple)
+ */
+export function buildRefPattern(refs: Ref[]): RegExp | null {
+  if (refs.length === 0) return null;
+  const names = buildInflectedNames(refs);
+  const alt = names.join("|");
+  // Group 1: @-led context name
+  // Group 2: property prefix (# or !) in compound ref
+  // Group 3: property name in compound ref (any word, not just known refs)
+  // Group 4: standalone prefix (# or !)
+  // Group 5: standalone name
   return new RegExp(
-    `([@#!])(${uniqueInflected.join("|")})(\\.[a-zA-Z_][a-zA-Z0-9_]*)?\\b`,
+    `@(${alt})(?:([#!])([a-zA-Z_][\\w-]*))?\\b|([#!])(${alt})\\b`,
     "gi"
   );
 }
@@ -75,20 +90,62 @@ export function highlightText(
     if (match.index > lastIndex) {
       segments.push({ kind: "text", text: text.slice(lastIndex, match.index) });
     }
-    const prefix = match[1] as "@" | "#" | "!";
-    const name = match[2];
-    const ref = lookup[`${prefix}${name.toLowerCase()}`];
-    if (!ref) {
-      segments.push({ kind: "text", text: match[0] });
+
+    if (match[1]) {
+      // @-led ref
+      const contextName = match[1];
+      const propPrefix = match[2] as "#" | "!" | undefined;
+      const propName = match[3];
+
+      if (propPrefix && propName) {
+        // Compound: @Context#affordance or @Context!invariant
+        const propRef = lookup[`${propPrefix}${propName.toLowerCase()}`];
+        const contextRef = lookup[`@${contextName.toLowerCase()}`];
+        const ref = propRef || contextRef;
+        if (ref) {
+          segments.push({
+            kind: "ref",
+            text: match[0],
+            ref: propRef || ref,
+            prefix: propRef ? propPrefix : "@",
+            navigateTo: (propRef || ref).navigateTo ?? contextName,
+          });
+        } else {
+          segments.push({ kind: "text", text: match[0] });
+        }
+      } else {
+        // Simple @Context
+        const ref = lookup[`@${contextName.toLowerCase()}`];
+        if (ref) {
+          segments.push({
+            kind: "ref",
+            text: match[0],
+            ref,
+            prefix: "@",
+            navigateTo: ref.navigateTo ?? contextName,
+          });
+        } else {
+          segments.push({ kind: "text", text: match[0] });
+        }
+      }
     } else {
-      segments.push({
-        kind: "ref",
-        text: match[0],
-        ref,
-        prefix,
-        navigateTo: ref.navigateTo ?? name,
-      });
+      // Standalone #affordance or !invariant
+      const prefix = match[4] as "#" | "!";
+      const name = match[5];
+      const ref = lookup[`${prefix}${name.toLowerCase()}`];
+      if (ref) {
+        segments.push({
+          kind: "ref",
+          text: match[0],
+          ref,
+          prefix,
+          navigateTo: ref.navigateTo ?? name,
+        });
+      } else {
+        segments.push({ kind: "text", text: match[0] });
+      }
     }
+
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) {
