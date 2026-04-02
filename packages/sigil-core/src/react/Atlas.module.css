@@ -37,6 +37,16 @@
   pointer-events: none;
 }
 
+@media (max-width: 768px) {
+  .rectLabel {
+    font-size: 11px;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.2;
+  }
+}
+
 .rectIcons {
   display: flex;
   flex-wrap: wrap;

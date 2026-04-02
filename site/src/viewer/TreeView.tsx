@@ -53,13 +53,14 @@ function TreeNode({ context, path, currentPath, onNavigate }: TreeNodeProps) {
   );
 }
 
-export function TreeView() {
+export function TreeView({ onNavigate: onNavigateCallback }: { onNavigate?: () => void } = {}) {
   const { sigil, currentPath } = useViewerState();
   const dispatch = useViewerDispatch();
   const treeRef = useRef<HTMLDivElement>(null);
 
   const handleNavigate = (path: string[]) => {
     dispatch({ type: "NAVIGATE", path });
+    onNavigateCallback?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

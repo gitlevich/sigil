@@ -20,6 +20,11 @@ export function Atlas() {
     ? () => dispatch({ type: "NAVIGATE", path: currentPath.slice(0, -1) })
     : undefined;
 
+  const isTouch = window.matchMedia("(pointer: coarse)").matches;
+  const instructions = isTouch
+    ? "Double-tap to open a sigil."
+    : "Double-click to open a sigil.";
+
   return (
     <AtlasBase
       children={currentCtx.children}
@@ -27,6 +32,7 @@ export function Atlas() {
       onNavigate={handleNavigate}
       onEscape={handleEscape}
       revealedStorageKey="sigil-viewer-atlas-revealed"
+      instructions={instructions}
     />
   );
 }
