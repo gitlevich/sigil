@@ -107,7 +107,7 @@ export function highlightText(
             kind: "ref",
             text: match[0],
             ref: propRef || ref,
-            prefix: propRef ? propPrefix : "@",
+            prefix: propPrefix,
             navigateTo: (propRef || ref).navigateTo ?? contextName,
           });
         } else {

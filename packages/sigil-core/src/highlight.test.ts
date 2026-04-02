@@ -81,9 +81,10 @@ describe("highlightText", () => {
     );
     // @Chat#branch should highlight as a single context ref (since #branch isn't in scope,
     // fall back to context styling for the whole compound)
+    // The # prefix tells us the type — affordance styling even when not in scope
     expect(result).toEqual([
-      { text: "@Chat#branch", prefix: "@" },
-      { text: "@Chat#persists", prefix: "@" },
+      { text: "@Chat#branch", prefix: "#" },
+      { text: "@Chat#persists", prefix: "#" },
     ]);
   });
 });
