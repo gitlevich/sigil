@@ -1,0 +1,1 @@
+A coherence metric takes a whole @sigil as input and produces a number in an interpretable range. Not a judgment, not a suggestion — a number. Out of range = coherence violation. If it can't be computed without author input, it's not a metric — it belongs in @Checklist or @Coverage.
