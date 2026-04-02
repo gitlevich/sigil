@@ -12,7 +12,7 @@ I #Name-affordances: what should the app do for me. I try to be as precise as I 
 
 I #Narrate to let domain language emerge. As I type, I #Notice-emergent-ontology — some words want to be their own @sigils. I recognize them and create them.
 
-I narrate in a comfortable @Editor. As I type, the @OntologyTree on the left shows me the emerging structure. I #Navigate-ontology to move through the @sigil tree and zoom into any concept. I can also #navigate from @Atlas or any surface that shows sigils — all views stay in sync. When a name no longer fits, I #rename and all references update.
+I narrate in a comfortable @Editor. As I type, the @OntologyTree on the left shows me the emerging structure. I #Navigate-ontology to move through the @sigil tree and zoom into any concept. I can also #navigate from @Atlas or any surface that shows sigils — all views stay in sync. When I follow a link and want to retrace, I #back to the previously opened sigil — like browser back, a history stack. When a name no longer fits, I #rename and all references update.
 
 Another way to visualize the emergent @sigil tree is via @Atlas: a tree map that flattens the @sigil tree into a 2D plane. This way I can see the structure: denser places, holes.
 
