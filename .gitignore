@@ -35,6 +35,5 @@ spec/
 # Python cache
 __pycache__/
 
-# Genesis exports
-docs/genesis/*.md
+# Genesis export state (not the transcripts themselves)
 docs/genesis/.export_state.json
