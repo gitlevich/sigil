@@ -12,6 +12,6 @@ I #Name-affordances: what should the app do for me. I try to be as precise as i 
 
 I narrate in a comfortable @Editor. As I type, I recognize some words, like `Editor` or `DesignPartner`, as sigils: my emergent domain language. 
 
-I continue through the affordances. As I type, the @OntologyBrowser on the left shows me the emerging structure. Another way to navigate, and visualize, the emergent sigil tree is via @Atlas: a tree map that flattens the sigil tree into a 2D plane. This way I can see the structure: denser places, holes. 
+I continue through the affordances. As I type, the @OntologyTree on the left shows me the emerging structure. Another way to navigate, and visualize, the emergent sigil tree is via @Atlas: a tree map that flattens the sigil tree into a 2D plane. This way I can see the structure: denser places, holes. 
 
 I #declare-invariants as I understand them, to make the boundaries of my @sigil explicitly defined. 

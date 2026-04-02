@@ -1,0 +1,7 @@
+---
+status: implemented
+---
+
+# Navigate
+
+Select a @sigil and open it. Cross-cutting — works from @OntologyTree, @Atlas, or any surface that shows sigils. All views stay in sync.
