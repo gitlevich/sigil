@@ -1069,6 +1069,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
   const lastLocalContentRef = useRef<string | null>(null);
+  const prevPathRef = useRef<string>(currentPath.join("/"));
 
   useEffect(() => {
     if (!findReferencesName || !sigilRoot) return;
@@ -1247,12 +1248,16 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   }, [wordWrap]);
 
   // Sync external content changes into CodeMirror.
-  // Sync external content changes (e.g. navigation to different sigil).
-  // Skip echoes of our own edits — the debounced dispatch sends back content
-  // we already have, so replacing would jump the cursor.
+  // Two cases: (1) navigation to a different sigil, (2) echo of our own edits.
+  // Use currentPath to distinguish — path change always means navigation.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
+
+    const pathKey = currentPath.join("/");
+    const navigated = pathKey !== prevPathRef.current;
+    prevPathRef.current = pathKey;
+
     const currentDoc = view.state.doc.toString();
 
     if (currentDoc === content) {
@@ -1261,27 +1266,19 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
       return;
     }
 
-    // If we have local edits, check if this is an echo vs navigation.
-    // Echo: the content prop is a stale version of what the editor already has
-    //   (debounced dispatch catching up). The editor is ahead — skip.
-    // Navigation: content is from a completely different sigil — must replace.
-    // Heuristic: if the first 50 chars match, it's an echo. Different sigils
-    // have different openings (different frontmatter, headings, etc).
-    if (localEditRef.current) {
-      const prefix = Math.min(50, content.length, currentDoc.length);
-      if (content.slice(0, prefix) === currentDoc.slice(0, prefix)) {
-        return;
-      }
+    // If we have local edits and did NOT navigate, this is a debounced echo — skip.
+    if (localEditRef.current && !navigated) {
+      return;
     }
 
-    // Navigation to a different sigil. Replace content and clear undo history.
+    // Navigation to a different sigil, or external reload. Replace content and clear undo history.
     localEditRef.current = false;
     lastLocalContentRef.current = null;
     view.dispatch({
       changes: { from: 0, to: currentDoc.length, insert: content },
       annotations: [Transaction.addToHistory.of(false)],
     });
-  }, [content]);
+  }, [content, currentPath]);
 
   return (
     <div ref={containerRef} className={styles.editor}>
