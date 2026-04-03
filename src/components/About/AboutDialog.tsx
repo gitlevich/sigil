@@ -30,10 +30,10 @@ export function AboutDialog() {
 
         <a
           className={styles.contactBtn}
-          href="mailto:vlad@xaoc.com?subject=Sigil"
+          href="mailto:info@sigilengineering.com?subject=Sigil"
           onClick={(e) => {
             e.preventDefault();
-            window.open("mailto:vlad@xaoc.com?subject=Sigil");
+            window.open("mailto:info@sigilengineering.com?subject=Sigil");
           }}
         >
           Get in touch

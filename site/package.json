@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npx tsx ../scripts/export-sigil-json.ts",
     "dev": "vite",
+    "prebuild": "npx tsx ../scripts/export-sigil-json.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

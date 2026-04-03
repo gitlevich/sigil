@@ -37,4 +37,11 @@ describe("landingContent", () => {
       ]),
     );
   });
+
+  it("offers a direct contact path", () => {
+    expect(landingContent.contact.title).toBe("Send a note.");
+    expect(landingContent.contact.lede).toContain("send a message");
+    expect(landingContent.contact.directLabel).toBe("Prefer email?");
+    expect(landingContent.contact.buttonIdle).toBe("Send message");
+  });
 });
