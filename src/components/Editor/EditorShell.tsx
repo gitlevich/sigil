@@ -179,15 +179,32 @@ export function EditorShell() {
   }, [doc, state.settings.keybindings, dispatch]);
 
   const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel any pending debounced state update when navigating away.
+  // This prevents stale content from being written into the wrong sigil's tree slot.
+  const prevPathKeyRef = useRef(doc?.currentPath.join("/"));
+  useEffect(() => {
+    const pathKey = doc?.currentPath.join("/");
+    if (pathKey !== prevPathKeyRef.current) {
+      if (dispatchTimerRef.current) {
+        clearTimeout(dispatchTimerRef.current);
+        dispatchTimerRef.current = null;
+      }
+      prevPathKeyRef.current = pathKey;
+    }
+  }, [doc?.currentPath]);
+
   const handleContentChange = useCallback((content: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    // Capture path at call time so the timeout uses the correct sigil.
+    const pathSnapshot = [...doc.currentPath];
+    const ctx = findContext(doc.sigil.root, pathSnapshot);
     save(`${ctx.path}/language.md`, content);
     // Debounce the React state update — CodeMirror holds its own state,
     // so other components only need periodic sync.
     if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
     dispatchTimerRef.current = setTimeout(() => {
-      const updatedRoot = updateContextInTree(doc.sigil.root, doc.currentPath, (c) => ({
+      const updatedRoot = updateContextInTree(doc.sigil.root, pathSnapshot, (c) => ({
         ...c,
         domain_language: content,
       }));
