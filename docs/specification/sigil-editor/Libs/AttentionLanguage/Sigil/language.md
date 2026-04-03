@@ -8,6 +8,8 @@ A @sigil is a lexical scope over domain language and, in imported geometric term
 
 Children introduce nested scopes. Ancestors remain in scope. Imported ontologies are ambient scope. Scoping and shaping are two views of the same act: lexical rules say how the @sigil is built; @DifferentialGeometry says how the @sigil is perceived. In @contrastSpace, the only thing that scopes is a @sigil.
 
+A @sigil bounds what finite @attention is allowed to care about here. Scope fixes relevance; @resolution fixes how finely that relevant interior can be distinguished.
+
 Powered by the @attention of the @agent that #inhabits it. Filter @observations by relevant @contrasts, @collapse into @narrative.
 
 To an @agent, any @sigil is a pattern recognized and preferred along the distance axis.
