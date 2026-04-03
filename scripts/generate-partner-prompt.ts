@@ -60,15 +60,15 @@ function collectLanguages(dir: string, relBase: string): string[] {
 }
 
 // Layer 1: Partner identity
-const prompt = readLanguage("SigilEditor/DesignPartner/Prompt/language.md");
+const prompt = readLanguage("Application/DesignPartner/Persona/Prompt/language.md");
 
 // Layer 2: AttentionLanguage ontology — every term defined
 const ontologyDir = path.join(specRoot, "Libs/AttentionLanguage");
 const ontology = collectLanguages(ontologyDir, "Libs/AttentionLanguage");
 
 // Layer 3: DesignPartner operational spec (but skip Prompt — already in layer 1)
-const partnerDir = path.join(specRoot, "SigilEditor/DesignPartner");
-const partnerAll = collectLanguages(partnerDir, "SigilEditor/DesignPartner");
+const partnerDir = path.join(specRoot, "Application/DesignPartner");
+const partnerAll = collectLanguages(partnerDir, "Application/DesignPartner");
 // The first entry is DesignPartner/language.md itself; Prompt is somewhere in the list
 const partner = partnerAll.filter(text => !text.startsWith("# Prompt"));
 
