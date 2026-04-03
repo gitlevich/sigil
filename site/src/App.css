@@ -113,6 +113,14 @@
   letter-spacing: -0.045em;
 }
 
+.section-intro {
+  margin: 0 0 1.1rem;
+  max-width: 46rem;
+  font-size: 1.14rem;
+  line-height: 1.62;
+  color: color-mix(in srgb, var(--color-bone) 90%, var(--color-dim));
+}
+
 .story-block {
   display: grid;
   gap: 1.15rem;

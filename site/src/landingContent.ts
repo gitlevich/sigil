@@ -35,6 +35,8 @@ export const landingContent = {
   links: {
     label: "Public Artifact",
     title: "Read the actual thing.",
+    intro:
+      "This is a work in progress. I am still doing it and I do not know where it goes. I found it interesting enough to become obsessed with, and possibly interesting enough to publish now so other people can have opinions.",
     items: [
       {
         eyebrow: "Specification",

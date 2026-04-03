@@ -16,9 +16,9 @@ describe("contact", () => {
 
     const payload = buildContactRequest(formData);
 
-    expect(CONTACT_EMAIL).toBe("info@sigilengineering.com");
-    expect(CONTACT_POST_URL).toBe("https://formsubmit.co/info@sigilengineering.com");
-    expect(CONTACT_AJAX_URL).toBe("https://formsubmit.co/ajax/info@sigilengineering.com");
+    expect(CONTACT_EMAIL).toBe("vlad@sigilengineering.com");
+    expect(CONTACT_POST_URL).toBe("https://formsubmit.co/vlad@sigilengineering.com");
+    expect(CONTACT_AJAX_URL).toBe("https://formsubmit.co/ajax/vlad@sigilengineering.com");
     expect(payload.get("_subject")).toBe(CONTACT_SUBJECT);
     expect(payload.get("_template")).toBe("table");
     expect(payload.get("_replyto")).toBe("vlad@example.com");

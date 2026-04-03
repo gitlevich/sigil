@@ -176,6 +176,7 @@ export default function App() {
           <p className="eyebrow">{landingContent.links.label}</p>
           <h2>{landingContent.links.title}</h2>
         </div>
+        <p className="section-intro">{landingContent.links.intro}</p>
 
         <div className="links-grid">
           {landingContent.links.items.map((item) => {
