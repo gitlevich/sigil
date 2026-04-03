@@ -1,0 +1,1 @@
+so that I can operate the editor while keeping my fingers on the keyboard

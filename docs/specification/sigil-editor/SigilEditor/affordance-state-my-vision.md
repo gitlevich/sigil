@@ -1,1 +1,0 @@
-to align design with a clear goal

@@ -1,0 +1,1 @@
+to navigate through a long list of affordances without the panel taking over the editor

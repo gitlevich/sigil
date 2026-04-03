@@ -1,0 +1,1 @@
+I could use ontology library in other projects. I think of it separately. So Libs folder is mounted as a part of the application, not user’s application sigil. so when i unmount a sigil and mount another, or create a new one, i have Libs available alongside, sorted to appear under user’s app sigil. 

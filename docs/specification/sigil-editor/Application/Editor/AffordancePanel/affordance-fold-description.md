@@ -1,0 +1,1 @@
+to collapse individual affordance descriptions or all at once, keeping the list scannable

@@ -1,1 +1,0 @@
-it is hard for me to handle more than a few concepts at once and still attend to everything. 

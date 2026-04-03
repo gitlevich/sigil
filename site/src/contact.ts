@@ -1,4 +1,4 @@
-export const CONTACT_EMAIL = "info@sigilengineering.com";
+export const CONTACT_EMAIL = "vlad@sigilengineering.com";
 export const CONTACT_POST_URL = `https://formsubmit.co/${CONTACT_EMAIL}`;
 export const CONTACT_AJAX_URL = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
 export const CONTACT_SUBJECT = "Sigil Engineering inquiry";

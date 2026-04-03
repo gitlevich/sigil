@@ -1,0 +1,1 @@
+to see which nouns need their own sigil
