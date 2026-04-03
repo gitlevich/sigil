@@ -1,34 +1,39 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { motion, type Easing } from "framer-motion";
 import "./App.css";
+import {
+  CONTACT_AJAX_URL,
+  CONTACT_EMAIL,
+  CONTACT_POST_URL,
+  buildContactRequest,
+} from "./contact";
 import { landingContent } from "./landingContent";
 import { SigilViewer } from "./viewer/SigilViewer";
 
 const ease: Easing = "easeOut";
 
-const fade = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-100px" },
-  transition: { duration: 0.8, ease },
-} as const;
+type ContactStatus = "idle" | "submitting" | "success" | "error";
 
 function Section({
   children,
   className = "",
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <motion.section {...fade} className={`landing-section ${className}`}>
+    <section id={id} className={`landing-section ${className}`}>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
+  const [contactStatus, setContactStatus] = useState<ContactStatus>("idle");
+  const [contactMessage, setContactMessage] = useState<string | null>(null);
   const specLinkRef = useRef<HTMLAnchorElement>(null);
   const cameFromViewer = useRef(false);
   const prevHashRef = useRef(window.location.hash);
@@ -56,6 +61,49 @@ export default function App() {
     }
   }, [hash]);
 
+  const handleContactSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const payload = buildContactRequest(new FormData(form));
+    const honey = payload.get("_honey")?.toString().trim();
+
+    if (honey) {
+      form.reset();
+      setContactStatus("success");
+      setContactMessage(landingContent.contact.success);
+      return;
+    }
+
+    setContactStatus("submitting");
+    setContactMessage(null);
+
+    try {
+      const response = await fetch(CONTACT_AJAX_URL, {
+        method: "POST",
+        body: payload,
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const result = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(result?.message ?? "Unable to send message.");
+      }
+
+      form.reset();
+      setContactStatus("success");
+      setContactMessage(landingContent.contact.success);
+    } catch {
+      setContactStatus("error");
+      setContactMessage(landingContent.contact.error);
+    }
+  };
+
   if (hash.startsWith("#/viewer")) {
     return <SigilViewer />;
   }
@@ -66,14 +114,15 @@ export default function App() {
       <div className="site-orbit site-orbit-two" aria-hidden="true" />
 
       <Section className="hero-section">
-        <motion.p
+        <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease }}
-          className="eyebrow"
+          className="hero-brand"
         >
-          {landingContent.hero.kicker}
-        </motion.p>
+          <img src="/favicon.svg" alt="" aria-hidden="true" className="hero-logo" />
+          <p className="eyebrow">{landingContent.hero.kicker}</p>
+        </motion.div>
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -96,21 +145,15 @@ export default function App() {
         <div className="section-rule" aria-hidden="true" />
         <article className="story-block">
           {landingContent.story.map((paragraph, index) => (
-            <motion.p
-              key={paragraph}
-              {...fade}
-              className={index === 0 ? "story-lead" : undefined}
-            >
+            <p key={paragraph} className={index === 0 ? "story-lead" : undefined}>
               {paragraph}
-            </motion.p>
+            </p>
           ))}
         </article>
       </Section>
 
       <Section className="quote-section">
-        <motion.p {...fade} className="pull-quote">
-          {landingContent.pullQuote}
-        </motion.p>
+        <p className="pull-quote">{landingContent.pullQuote}</p>
       </Section>
 
       <Section className="implementation-section">
@@ -122,9 +165,7 @@ export default function App() {
 
         <div className="story-block">
           {landingContent.implementation.paragraphs.map((paragraph) => (
-            <motion.p key={paragraph} {...fade}>
-              {paragraph}
-            </motion.p>
+            <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
       </Section>
@@ -140,9 +181,8 @@ export default function App() {
           {landingContent.links.items.map((item) => {
             const isViewerLink = item.href === "#/viewer";
             return (
-              <motion.a
+              <a
                 key={item.title}
-                {...fade}
                 ref={isViewerLink ? specLinkRef : undefined}
                 href={item.href}
                 target={item.external ? "_blank" : undefined}
@@ -153,14 +193,107 @@ export default function App() {
                 <h3>{item.title}</h3>
                 <p className="link-description">{item.description}</p>
                 <span className="link-action">{item.action}</span>
-              </motion.a>
+              </a>
             );
           })}
         </div>
       </Section>
 
+      <Section className="contact-section" id="contact">
+        <div className="section-rule" aria-hidden="true" />
+        <div className="section-heading">
+          <p className="eyebrow">{landingContent.contact.label}</p>
+          <h2>{landingContent.contact.title}</h2>
+        </div>
+
+        <div className="contact-stack">
+          <p className="contact-intro">{landingContent.contact.lede}</p>
+
+          <form
+            action={CONTACT_POST_URL}
+            method="POST"
+            className="contact-form"
+            onSubmit={handleContactSubmit}
+          >
+            <input type="hidden" name="_subject" value="Sigil Engineering inquiry" />
+            <input type="hidden" name="_template" value="table" />
+
+            <div className="contact-row">
+              <label className="contact-field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  name="name"
+                  autoComplete="name"
+                  required
+                  placeholder="Your name"
+                />
+              </label>
+
+              <label className="contact-field">
+                <span>Email</span>
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  placeholder="you@example.com"
+                />
+              </label>
+            </div>
+
+            <label className="contact-field">
+              <span>Message</span>
+              <textarea
+                name="message"
+                rows={6}
+                required
+                placeholder="What are you trying to build, or what would you like to talk about?"
+              />
+            </label>
+
+            <label className="contact-honey" aria-hidden="true">
+              <span>Leave this field empty</span>
+              <input type="text" name="_honey" tabIndex={-1} autoComplete="off" />
+            </label>
+
+            <div className="contact-submit-row">
+              <button
+                type="submit"
+                className="contact-submit"
+                disabled={contactStatus === "submitting"}
+              >
+                {contactStatus === "submitting"
+                  ? landingContent.contact.buttonSending
+                  : landingContent.contact.buttonIdle}
+              </button>
+
+              <p
+                className={`contact-status ${
+                  contactStatus === "success"
+                    ? "contact-status-success"
+                    : contactStatus === "error"
+                      ? "contact-status-error"
+                      : ""
+                }`}
+                aria-live="polite"
+              >
+                {contactMessage}
+              </p>
+            </div>
+          </form>
+
+          <p className="contact-direct">
+            {landingContent.contact.directLabel}{" "}
+            <a href={`mailto:${CONTACT_EMAIL}?subject=Sigil%20Engineering`}>
+              {landingContent.contact.directAction}
+            </a>
+          </p>
+        </div>
+      </Section>
+
       <footer className="landing-footer">
-        <motion.p {...fade}>{landingContent.footer}</motion.p>
+        <p>{landingContent.footer}</p>
       </footer>
     </main>
   );

@@ -64,5 +64,19 @@ export const landingContent = {
       },
     ] satisfies LandingLink[],
   },
+  contact: {
+    label: "Contact",
+    title: "Send a note.",
+    lede:
+      "If you want to try the editor, talk through the method, or discuss a project, send a message. I read these directly.",
+    directLabel: "Prefer email?",
+    directAction: "Write directly",
+    success:
+      "Message sent. If this address has not been activated with the form endpoint yet, the submission will be held until it is confirmed.",
+    error:
+      "The form did not send. Use the direct email link below and I will still get it.",
+    buttonIdle: "Send message",
+    buttonSending: "Sending...",
+  },
   footer: "sigilengineering.com",
 } as const;

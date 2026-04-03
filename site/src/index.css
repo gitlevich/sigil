@@ -1,21 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  --font-body: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-display: "Avenir Next", "Avenir", "Helvetica Neue", "Segoe UI", sans-serif;
+  --font-body: "Avenir Next", "Avenir", "Helvetica Neue", "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
-  --color-bone: #241914;
-  --color-dim: #7f6e64;
-  --color-faint: #ddd3ca;
-  --color-ground: #f6efe8;
-  --color-accent: #a0663f;
-  --color-accent-strong: #7b4220;
-  --color-highlight: #d6bb98;
+  --color-bone: #22272d;
+  --color-dim: #767d86;
+  --color-faint: #d9dee4;
+  --color-ground: #f3f5f7;
+  --color-accent: #8a929c;
+  --color-accent-strong: #5f6872;
+  --color-highlight: #dfe3e8;
 }
 
 @layer base {
   html {
+    min-height: 100%;
     scroll-behavior: smooth;
+  }
+
+  body,
+  #root {
+    min-height: 100%;
   }
 
   body {
@@ -24,8 +30,10 @@
     color: var(--color-bone);
     -webkit-font-smoothing: antialiased;
     margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
     background-image:
-      radial-gradient(circle at top, rgba(160, 102, 63, 0.08), transparent 35%),
+      radial-gradient(circle at top, rgba(118, 125, 134, 0.08), transparent 35%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
   }
 
@@ -36,13 +44,13 @@
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-bone: #f3e9dd;
-      --color-dim: #b9a38f;
-      --color-faint: #4a3a2f;
-      --color-ground: #19120e;
-      --color-accent: #d6a06f;
-      --color-accent-strong: #efbb8d;
-      --color-highlight: #6a4a33;
+      --color-bone: #edf1f4;
+      --color-dim: #a3acb5;
+      --color-faint: #394149;
+      --color-ground: #171b20;
+      --color-accent: #88919a;
+      --color-accent-strong: #cbd3da;
+      --color-highlight: #2b3239;
     }
   }
 }
