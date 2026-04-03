@@ -22,9 +22,10 @@ A scope is a boundary within which local @invariants hold.
 
 The words available in that scope bound the @resolution of what I can say there.
 
+As the scope sharpens, some next words fit naturally and others feel wrong.
+
 I enter these scopes for their @affordances.
 
 I call them @sigils.
-
 
 

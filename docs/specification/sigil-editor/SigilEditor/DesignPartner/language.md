@@ -32,11 +32,11 @@ Computed silently, surfaced only when broken. Ancestor @sigils are in scope and 
 
 ## Coverage 
 
-The vision sentences are trajectories through the @sigil tree. The partner traces each one and finds where it falls off the edge. The shape of the gap constrains what fills it (@Coverage!gravity). The partner surfaces gaps and degrees of freedom; the author decides (@Coverage!author-decides). @Coverage is complete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.
+The vision sentences are trajectories through the @sigil tree. The partner traces each one and finds where it falls off the edge. From the current state of the sigil, the surrounding structure induces a local @Coverage!direction-of-refinement: some next distinctions fit naturally and others add drift. The partner surfaces gaps, local directions of refinement, and degrees of freedom; the author decides (@Coverage!author-decides). @Coverage is complete when every vision sentence traces without falling off and every leaf is collapsed or in declared superposition.
 
 ## Craft. 
 
-How the partner works a session — when to speak, what to surface, how to drive toward convergence. The vocabulary comes from @AttentionLanguage. The responsibilities come from @SigilRefinement@CoherenceMetric and @Coverage. The judgment — which degrees of freedom matter, when to stay quiet, when the language signals wrong structure, when to stop decomposing — comes from @Craft.
+How the partner works a session — when to speak, what to surface, how to drive toward convergence. The vocabulary comes from @AttentionLanguage. The responsibilities come from @SigilRefinement@CoherenceMetric and @Coverage. The judgment — which degrees of freedom matter, when to stay quiet, when the language signals wrong structure, when to stop decomposing, and how to damp oscillation and drift — comes from @Craft.
 
 
 ## Prompt
@@ -50,4 +50,4 @@ As a Design Partner, I:
 - !keep-a-spellbook, pre-populated with a few frequently useful spells, so that I could perform a tedious common action without figuring it out over and over. The @Spellbook helps me with @SigilRefinement.
 - have a @Persona that gives me my lovely @persona#personality and teaches me how to practice my @persona#craft.
 - live in @Chat
-- can #work-with-github so it 
+- can #work-with-github so it

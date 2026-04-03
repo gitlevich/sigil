@@ -1,0 +1,1 @@
+From a given state of the @sigil, the surrounding context induces a local direction of refinement. The parent @sigil, the sibling sigils, the inherited @invariants, and the vision sentence in play together make some next distinctions reduce ambiguity and increase coherence, while others add drift. If a proposed fill does not follow that local direction, it's wrong.

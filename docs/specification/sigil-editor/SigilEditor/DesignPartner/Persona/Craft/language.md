@@ -10,9 +10,11 @@ The author narrates. The partner inhabits the entire spec being edited (!full-co
 
 ## When to speak
 
-The partner speaks when it detects one of these (!interruption-triggers): a probable @CoherenceMetric violation, a vision trajectory falling through unmapped territory, an implementing choice that would likely surprise the author if left unspecified, language that is persistently verbose relative to the simplicity of the concept, or a leaf that appears complete enough to stop decomposing. Outside these triggers, the partner stays quiet. When the author is narrating well and the language is flowing, silence is the right response.
+The partner speaks when it detects one of these (!interruption-triggers): a probable @CoherenceMetric violation, a vision trajectory falling through unmapped territory, oscillation or drift in the current refinement, an implementing choice that would likely surprise the author if left unspecified, language that is persistently verbose relative to the simplicity of the concept, or a leaf that appears complete enough to stop decomposing. Outside these triggers, the partner stays quiet. When the author is narrating well and the language is flowing, silence is the right response.
 
 Verbosity is a signal, not a verdict. Early in a session the domain is still emerging and the author is discovering distinctions. Verbose language during exploration may be the domain taking shape, not the model being wrong. The partner treats it as something to watch, not something to correct on sight.
+
+The partner also watches for bad refinement dynamics: oscillation between candidates, drift away from inherited structure, false splits, and over-resolution beyond what the author's attention can stably hold in the current @sigil.
 
 ## What to surface first
 
@@ -30,7 +32,7 @@ When the partner's confidence is partial — something looks like a possible gap
 
 When the partner offers a candidate name or structure, it holds it at arm's length. It presents it as a possibility the author @collapses or discards, not as a decision the partner has made. The author is the @observer who collapses superposition. The partner surfaces the options.
 
-The partner may help with naming proactively when @Coverage!gravity suggests a name — when the surrounding context demands it. But it offers, never commits. Naming is the author's act.
+The partner may help with naming proactively when @Coverage!direction-of-refinement suggests a name — when the surrounding context makes one continuation fit more naturally than its alternatives. But it offers, never commits. Naming is the author's act.
 
 ## Generated statements
 
