@@ -12,7 +12,7 @@ import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { SigilMap } from "./Map";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
-import { buildBreadcrumb as coreBuildBreadcrumb, makeSummary, resolveRefName } from "sigil-core";
+import { buildBreadcrumb as coreBuildBreadcrumb, buildLexicalScope as coreBuildLexicalScope, makeSummary, resolveRefName } from "sigil-core";
 import styles from "./EditorShell.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
@@ -376,6 +376,13 @@ export function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, doc?.currentPath]);
 
+  // Core refs (with affordances/invariants) for preview highlighting
+  const coreRefs = useMemo(() => {
+    if (!doc) return [];
+    return coreBuildLexicalScope(doc.sigil.root, doc.currentPath);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeFingerprint, doc?.currentPath]);
+
   if (!doc) return null;
 
   const currentCtx = findContext(doc.sigil.root, doc.currentPath);
@@ -438,7 +445,7 @@ export function EditorShell() {
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} siblings={allRefs} />
+                  <MarkdownPreview content={content} refs={coreRefs} />
                 </div>
               )}
             </>
