@@ -20,7 +20,10 @@ export interface SiblingInfo {
 
 interface MarkdownPreviewProps {
   content: string;
+  refs?: Ref[];
+  /** @deprecated Use refs instead */
   siblingNames?: string[];
+  /** @deprecated Use refs instead */
   siblings?: SiblingInfo[];
 }
 
@@ -35,8 +38,11 @@ function siblingsToRefs(siblings: SiblingInfo[]): Ref[] {
   }));
 }
 
-export function MarkdownPreview({ content, siblings = [] }: MarkdownPreviewProps) {
-  const refs = useMemo(() => siblingsToRefs(siblings), [siblings]);
+export function MarkdownPreview({ content, refs: refsProp, siblings = [] }: MarkdownPreviewProps) {
+  const refs = useMemo(
+    () => refsProp ?? siblingsToRefs(siblings),
+    [refsProp, siblings],
+  );
   const pattern = useMemo(() => buildRefPattern(refs), [refs]);
   const lookup = useMemo(() => buildRefLookup(refs), [refs]);
   const stripped = useMemo(() => stripFrontmatter(content), [content]);
