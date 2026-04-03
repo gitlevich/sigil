@@ -1,1 +1,0 @@
-to know what to attend to and what to ignore

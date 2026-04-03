@@ -8,7 +8,7 @@
     },
     {
       "role": "assistant",
-      "content": "Yes. Let’s do it top-down and stay concrete.\n\nWe’re at @SigilEditor, so the right starting move is to test whether its current affordances fully support the vision sentence by sentence; I already notice likely pressure points around #State-vision, first-run onboarding from !example-included, and the split between #Navigate-ontology and #navigate. Pick one and we’ll refine it together."
+      "content": "Yes. Let’s do it top-down and stay concrete.\n\nWe’re at @Application, so the right starting move is to test whether its current affordances fully support the vision sentence by sentence; I already notice likely pressure points around #State-vision, first-run onboarding from !example-included, and the split between #Navigate-ontology and #navigate. Pick one and we’ll refine it together."
     },
     {
       "role": "user",

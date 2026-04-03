@@ -56,7 +56,7 @@
     },
     {
       "role": "assistant",
-      "content": "Yes. It is explicit in @SigilEditor#project, which says “Spec in, code out. The spec is the single source of truth — code is a projection,” and it is reinforced in @DesignPartner/CoherenceMetric, which says “One sigil, many projections (spec, code, visuals), one shape.”\n\nI got the term directly from those parts of the spec, not from outside interpretation."
+      "content": "Yes. It is explicit in @Application#project, which says “Spec in, code out. The spec is the single source of truth — code is a projection,” and it is reinforced in @DesignPartner/CoherenceMetric, which says “One sigil, many projections (spec, code, visuals), one shape.”\n\nI got the term directly from those parts of the spec, not from outside interpretation."
     },
     {
       "role": "user",

@@ -1,1 +1,0 @@
-The partner inhabits the entire @sigil — all language, affordances, invariants, children, and imported ontologies. Partial view means misleading measurement and misleading suggestions. Without the whole shape, neither @CoherenceMetric nor @Coverage can function.
