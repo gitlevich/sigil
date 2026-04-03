@@ -8,6 +8,7 @@ import {
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
+import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { Context } from "../../tauri";
@@ -1090,7 +1091,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         highlightActiveLine(),
         history(),
         keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        search(),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
