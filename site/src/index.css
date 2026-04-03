@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
 @theme {
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-body: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
-  --color-bone: #e8e4de;
-  --color-dim: #6b6560;
-  --color-faint: #2a2725;
-  --color-ground: #0a0908;
+  --color-bone: #241914;
+  --color-dim: #7f6e64;
+  --color-faint: #ddd3ca;
+  --color-ground: #f6efe8;
+  --color-accent: #a0663f;
+  --color-accent-strong: #7b4220;
+  --color-highlight: #d6bb98;
 }
 
 @layer base {
@@ -19,11 +24,26 @@
     color: var(--color-bone);
     -webkit-font-smoothing: antialiased;
     margin: 0;
+    background-image:
+      radial-gradient(circle at top, rgba(160, 102, 63, 0.08), transparent 35%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
   }
 
   ::selection {
     background: var(--color-bone);
     color: var(--color-ground);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bone: #f3e9dd;
+      --color-dim: #b9a38f;
+      --color-faint: #4a3a2f;
+      --color-ground: #19120e;
+      --color-accent: #d6a06f;
+      --color-accent-strong: #efbb8d;
+      --color-highlight: #6a4a33;
+    }
   }
 }
 
