@@ -26,6 +26,8 @@ describe("landingContent", () => {
   });
 
   it("exposes the public spec, repository, and release links", () => {
+    expect(landingContent.links.intro).toContain("work in progress");
+    expect(landingContent.links.intro).toContain("opinions");
     expect(landingContent.links.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ href: "#/viewer", title: "Browse the worked example" }),
