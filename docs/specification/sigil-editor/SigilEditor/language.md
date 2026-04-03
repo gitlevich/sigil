@@ -6,7 +6,7 @@ status: implemented
 
 Sigil Editor is an tool to help me speak an application I am envisioning into a specification that will be projected into correctly and beautifully implemented code by a coding agent.
 
-I #state-my-vision of the app in a dedicated place. I want it to be always one click away to remember the goal I pursue: attending to long @narratives distracts me.
+I #state-my-vision in @Vision. I want it to be always one click away to remember the goal I pursue: attending to long @narratives distracts me.
 
 I #Name-affordances: what should the app do for me. I try to be as precise as I can. I can always name them more precisely. And, I can always ask my @DesignPartner for naming advice.
 
@@ -53,6 +53,7 @@ I want a user that is not me opens this app and has an example in front of him t
 - DesignPartner
 - Editor
 - OntologyTree
+- Vision
 
 ## VG Notes
 
@@ -70,4 +71,3 @@ the domain-model-sounding @sigils are powered by the @DesignPartner's @attention
 i think we have invented an embodiment for AI: sigil is a fundamental attention structure, and this is a place to experience it. powered by any LLM but only locally persistent. as a single life.
 
 !!!!!
-
