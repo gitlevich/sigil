@@ -44,17 +44,24 @@ const EXTRACTION_PROMPT: &str = r#"You are extracting knowledge from a conversat
 
 Identify 0-5 concepts worth remembering (people, places, decisions, components, preferences, domain knowledge). For each concept, provide:
 - name: PascalCase identifier (e.g. "Vlad", "SanFrancisco", "AtlasComponent")
-- language: What you know about this concept, written as a short paragraph. Use @References to connect to other concepts (e.g. "@Vlad prefers concise responses").
+- language: Everything you know about this concept from the conversation, written as complete sentences. Each relationship must be a separate sentence with an @Reference. The text surrounding the @Reference IS the qualification of the relationship — it describes HOW the concepts are connected.
+
+Example of good language with qualified @references:
+"Vlad is the user. He lives on the 19th floor at @OnePolk. He lives in @SanFrancisco. He reads extensively. He has ADHD and prefers concise responses. He is building @SigilEditor."
+
+Example of BAD language (too sparse, loses relationships):
+"Vlad lives in @SanFrancisco."
 
 Rules:
-- Only extract concepts that would be useful in future conversations
+- Capture ALL stated facts and relationships, not just the most obvious one
+- Each @Reference must appear in a sentence that qualifies the relationship
 - Skip transient details (tool use, formatting, navigation)
-- Include: design decisions, user preferences, domain knowledge, structural insights, corrections
+- Include: design decisions, user preferences, domain knowledge, structural insights, corrections, personal details
 - Use @PascalCase references to link concepts together
 - If nothing is worth extracting, return "NONE"
 
 Respond with ONLY a JSON array (no markdown fencing), or the word "NONE":
-[{"name": "ConceptName", "language": "What I know, with @References to other concepts."}]
+[{"name": "ConceptName", "language": "Sentence per fact. Each relationship in its own sentence with @References."}]
 
 EXISTING CONCEPTS (refine these rather than creating duplicates):
 "#;

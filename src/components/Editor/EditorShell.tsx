@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
 import { LeftPanel } from "../LeftPanel/LeftPanel";
-import { ChatPanel } from "../RightPanel/ChatPanel";
+import { RightPanel } from "../RightPanel/RightPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
@@ -495,7 +495,7 @@ export function EditorShell() {
         )}
         <SubContextBar context={currentCtx} />
       </div>
-      <ChatPanel />
+      <RightPanel />
     </div>
   );
 }

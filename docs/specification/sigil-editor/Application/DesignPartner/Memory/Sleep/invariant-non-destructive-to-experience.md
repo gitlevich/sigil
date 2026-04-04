@@ -1,3 +1,3 @@
-Sleep only operates on @Fact sigils. @Experience frames are never decayed, pruned, or merged. What happened is preserved. What I concluded from it may be compressed, but the record of the experience itself is permanent.
+Sleep only operates on concept sigils. @Experience frames are never decayed, pruned, or merged. What happened is preserved. What I concluded from it may be compressed, but the record of the experience itself is permanent.
 
-This means experience accumulates monotonically. This is acceptable because experience frames are individually small and their value is historical — they are the raw data from which facts are derived. If storage ever becomes a concern, experience compression is a separate problem with different invariants.
+This means experience accumulates monotonically. This is acceptable because experience frames are individually small and their value is historical — they are the raw data from which concepts are derived. If storage ever becomes a concern, experience compression is a separate problem with different invariants.

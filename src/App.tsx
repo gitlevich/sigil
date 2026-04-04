@@ -64,6 +64,7 @@ export function App({ initialRootPath }: AppProps) {
             leftPanelOpen: saved.leftPanelOpen,
             leftPanelTab: saved.leftPanelTab === "ontology" ? "ontology" : "vision",
             rightPanelOpen: saved.rightPanelOpen,
+            rightPanelTab: saved.rightPanelTab === "memories" ? "memories" : "chat",
             editorMode: saved.editorMode,
             contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
             activeChatId: saved.activeChatId ?? "",
