@@ -5,6 +5,7 @@ import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
+import { getDragPropertySource, clearDragPropertySource } from "../Editor/SigilPropertyEditor";
 import styles from "./OntologyEditor.module.css";
 
 let dragSourcePath: string | null = null;
@@ -117,6 +118,7 @@ function OntologyItem({
   onDefinitionChange,
   onContextMenu,
   onDrop,
+  onPropertyDrop,
   onPeerSubmit,
   onPeerAbort,
 }: {
@@ -129,6 +131,7 @@ function OntologyItem({
   onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
   onDrop: (sourceFsPath: string, targetFsPath: string) => void;
+  onPropertyDrop: (targetFsPath: string, source: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => void;
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
 }) {
@@ -163,7 +166,8 @@ function OntologyItem({
       className={styles.item}
       onDragOver={(e) => {
         e.preventDefault(); e.stopPropagation();
-        if (!atLimit) { e.dataTransfer.dropEffect = "move"; setDropTarget(true); }
+        const isPropertyDrag = getDragPropertySource() !== null;
+        if (isPropertyDrag || !atLimit) { e.dataTransfer.dropEffect = "move"; setDropTarget(true); }
         else e.dataTransfer.dropEffect = "none";
       }}
       onDragLeave={(e) => {
@@ -172,6 +176,14 @@ function OntologyItem({
       onDrop={(e) => {
         e.preventDefault(); e.stopPropagation();
         setDropTarget(false);
+        // Property drop from SigilPropertyEditor
+        const propSrc = getDragPropertySource();
+        if (propSrc) {
+          clearDragPropertySource();
+          onPropertyDrop(node.fsPath, propSrc);
+          return;
+        }
+        // Sigil hierarchy drop
         const src = dragSourcePath; dragSourcePath = null;
         if (!src || src === node.fsPath || node.fsPath.startsWith(src + "/")) return;
         onDrop(src, node.fsPath);
@@ -252,6 +264,7 @@ function OntologyItem({
                 onDefinitionChange={onDefinitionChange}
                 onContextMenu={onContextMenu}
                 onDrop={onDrop}
+                onPropertyDrop={onPropertyDrop}
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
               />
@@ -326,6 +339,16 @@ export function OntologyEditor() {
     } catch (err) { console.error("Move failed:", err); }
   };
 
+  const handlePropertyDrop = async (targetFsPath: string, src: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => {
+    if (!doc) return;
+    if (src.sourcePath === targetFsPath) return;
+    try {
+      await api.writeFile(`${targetFsPath}/${src.kind}-${src.name}.md`, src.content);
+      await api.deleteFile(`${src.sourcePath}/${src.kind}-${src.name}.md`);
+      await reload(doc.sigil.root_path);
+    } catch (err) { console.error("Property move failed:", err); }
+  };
+
   const handleRename = async (fsPath: string, oldName: string, newName: string) => {
     if (!doc) return;
     const trimmed = newName.trim();
@@ -391,6 +414,7 @@ export function OntologyEditor() {
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
     onDrop: handleMove,
+    onPropertyDrop: handlePropertyDrop,
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),
   };

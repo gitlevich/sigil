@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EditorState, Compartment } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, tooltips } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { api, Context } from "../../tauri";
 import {
@@ -10,6 +10,25 @@ import {
   getThemeExtension,
 } from "./sigilExtensions";
 import styles from "./SigilPropertyEditor.module.css";
+
+// ── Cross-panel drag source (global, like OntologyEditor's dragSourcePath) ──
+
+export interface DragPropertySource {
+  kind: "affordance" | "invariant";
+  name: string;
+  content: string;
+  sourcePath: string;
+}
+
+let dragPropertySource: DragPropertySource | null = null;
+
+export function getDragPropertySource(): DragPropertySource | null {
+  return dragPropertySource;
+}
+
+export function clearDragPropertySource(): void {
+  dragPropertySource = null;
+}
 
 /** Normalize a property name to a valid reference token: spaces to hyphens. */
 function slugify(name: string): string {
@@ -111,6 +130,7 @@ function PropertyCodeMirror({
     const state = EditorState.create({
       doc: value,
       extensions: [
+        tooltips({ parent: document.body }),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         themeCompartRef.current.of(getThemeExtension()),
@@ -243,6 +263,10 @@ function PropertyItem({
   onContentChange,
   onDelete,
   onFoldToggle,
+  isMaximized,
+  onMaximizeToggle,
+  propertyKind,
+  sigilPath,
   onDragStart,
   onDragOver,
   onDrop,
@@ -260,10 +284,14 @@ function PropertyItem({
   contentPlaceholder: string;
   isDragOver: boolean;
   isFolded: boolean;
+  isMaximized: boolean;
+  propertyKind: "affordance" | "invariant";
+  sigilPath: string;
   onNameCommit: (newName: string) => void;
   onContentChange: (content: string) => void;
   onDelete: () => void;
   onFoldToggle: () => void;
+  onMaximizeToggle: () => void;
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
@@ -276,24 +304,48 @@ function PropertyItem({
   onCreateInvariant?: (name: string) => void;
 }) {
   const [nameValue, setNameValue] = useState(item.name);
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contentBeforeEdit = useRef(item.content);
 
   return (
     <div
-      className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""}`}
+      className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""} ${isMaximized ? styles.itemMaximized : ""}`}
       onDragOver={onDragOver}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
     >
       <span
         className={styles.dragHandle}
-        title="Drag to reorder"
+        title="Drag to reorder or move to another sigil"
         draggable
-        onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          onDragStart();
+          if (item.savedName) {
+            dragPropertySource = { kind: propertyKind, name: item.savedName, content: item.content, sourcePath: sigilPath };
+          }
+        }}
+        onDragEnd={() => { dragPropertySource = null; }}
       >&#x283F;</span>
       <div className={styles.itemBody}>
       <div className={`${styles.itemHeader} ${isFolded ? styles.itemHeaderFolded : ""}`}>
         <button className={styles.foldBtn} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onFoldToggle(); }} title="Toggle fold">
           {isFolded ? "\u25B6" : "\u25BC"}
+        </button>
+        <button className={styles.maximizeBtn} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onMaximizeToggle(); }} title={isMaximized ? "Restore" : "Maximize"}>
+          {isMaximized ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="10" height="10" rx="1"/>
+              <path d="M1 4.5H4.5V1M11 7.5H7.5V11"/>
+              <path d="M4.5 4.5L1 1M7.5 7.5L11 11"/>
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="10" height="10" rx="1"/>
+              <path d="M4.5 1V4.5H1M7.5 11V7.5H11"/>
+              <path d="M1 1L4.5 4.5M11 11L7.5 7.5"/>
+            </svg>
+          )}
         </button>
         <input
           className={styles.nameInput}
@@ -314,7 +366,22 @@ function PropertyItem({
             }
           }}
         />
-        <button className={styles.deleteBtn} tabIndex={-1} onClick={onDelete} title={`Delete ${namePlaceholder}`}>x</button>
+        <button
+          className={`${styles.deleteBtn} ${pendingDelete ? styles.deleteBtnConfirm : ""}`}
+          tabIndex={-1}
+          onClick={() => {
+            if (pendingDelete) {
+              if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+              setPendingDelete(false);
+              onDelete();
+            } else {
+              setPendingDelete(true);
+              deleteTimerRef.current = setTimeout(() => setPendingDelete(false), 2000);
+            }
+          }}
+          onBlur={() => { setPendingDelete(false); if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current); }}
+          title={pendingDelete ? "Click again to confirm" : `Delete ${namePlaceholder}`}
+        >{pendingDelete ? "?" : "x"}</button>
       </div>
       {!isFolded && (
         <PropertyCodeMirror
@@ -358,6 +425,7 @@ export function SigilPropertyEditor({
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
   const [foldedItems, setFoldedItems] = useState<Set<string>>(new Set());
+  const [maximizedItem, setMaximizedItem] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragSourceIndex = useRef<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -510,7 +578,7 @@ export function SigilPropertyEditor({
   }, [saveOrder]);
 
   return (
-    <div ref={listRef} className={styles.editor} style={{ "--property-color": color } as React.CSSProperties}>
+    <div ref={listRef} className={`${styles.editor} ${maximizedItem ? styles.editorMaximized : ""}`} style={{ "--property-color": color } as React.CSSProperties}>
       <div className={styles.header} onClick={() => setCollapsed((c) => !c)}>
         <span className={styles.toggleIcon}>{collapsed ? "\u25B6" : "\u25BC"}</span>
         <span className={styles.title}>{title}</span>
@@ -537,32 +605,39 @@ export function SigilPropertyEditor({
         >+</button>
       </div>
       {!collapsed && items.length > 0 && (
-        <div className={styles.list}>
-          {items.map((item, i) => (
-            <PropertyItem
-              key={item.id}
-              item={item}
-              color={color}
-              namePlaceholder={namePlaceholder}
-              contentPlaceholder={contentPlaceholder}
-              isDragOver={dragOverIndex === i}
-              isFolded={foldedItems.has(item.savedName)}
-              onContentChange={(c) => handleContentChange(item.savedName, c)}
-              onNameCommit={(n) => handleNameCommit(item.savedName, n)}
-              onDelete={() => handleDelete(item.savedName)}
-              onFoldToggle={() => toggleItemFold(item.savedName)}
-              onDragStart={() => { dragSourceIndex.current = i; }}
-              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
-              onDrop={() => handleDrop(i)}
-              siblings={siblings}
-              siblingNames={siblingNames}
-              sigilRoot={sigilRoot}
-              currentContext={currentContext}
-              currentPath={currentPath}
-              onCreateAffordance={onCreateAffordance}
-              onCreateInvariant={onCreateInvariant}
-            />
-          ))}
+        <div className={`${styles.list} ${maximizedItem ? styles.listMaximized : ""}`}>
+          {items.map((item, i) => {
+            if (maximizedItem && item.id !== maximizedItem) return null;
+            return (
+              <PropertyItem
+                key={item.id}
+                item={item}
+                color={color}
+                namePlaceholder={namePlaceholder}
+                contentPlaceholder={contentPlaceholder}
+                isDragOver={dragOverIndex === i}
+                isFolded={maximizedItem ? false : foldedItems.has(item.savedName)}
+                isMaximized={maximizedItem === item.id}
+                propertyKind={filePrefix as "affordance" | "invariant"}
+                sigilPath={sigilPath}
+                onContentChange={(c) => handleContentChange(item.savedName, c)}
+                onNameCommit={(n) => handleNameCommit(item.savedName, n)}
+                onDelete={() => handleDelete(item.savedName)}
+                onFoldToggle={() => toggleItemFold(item.savedName)}
+                onMaximizeToggle={() => setMaximizedItem((prev) => prev === item.id ? null : item.id)}
+                onDragStart={() => { dragSourceIndex.current = i; }}
+                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
+                onDrop={() => handleDrop(i)}
+                siblings={siblings}
+                siblingNames={siblingNames}
+                sigilRoot={sigilRoot}
+                currentContext={currentContext}
+                currentPath={currentPath}
+                onCreateAffordance={onCreateAffordance}
+                onCreateInvariant={onCreateInvariant}
+              />
+            );
+          })}
         </div>
       )}
     </div>

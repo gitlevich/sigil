@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorState, Compartment, RangeSetBuilder, Transaction } from "@codemirror/state";
+import { EditorState, Compartment, RangeSetBuilder, Transaction, StateField, StateEffect } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
-  Decoration, DecorationSet, ViewPlugin, ViewUpdate,
+  Decoration, DecorationSet, WidgetType,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
@@ -60,27 +60,99 @@ const wrapCompartment = new Compartment();
 
 const frontMatterLineMark = Decoration.line({ class: "cm-front-matter" });
 
-function buildFrontMatterPlugin() {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-      constructor(view: EditorView) { this.decorations = this.build(view); }
-      update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view);
+const toggleFrontmatter = StateEffect.define<boolean>();
+
+class FrontmatterSummaryWidget extends WidgetType {
+  constructor(private summary: string) { super(); }
+  eq(other: FrontmatterSummaryWidget) { return this.summary === other.summary; }
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = "cm-frontmatter-collapsed";
+    span.textContent = this.summary;
+    return span;
+  }
+  ignoreEvent() { return false; }
+}
+
+function extractFrontmatterSummary(doc: { line: (n: number) => { text: string } }, closeLineNum: number): string {
+  const tuples: string[] = [];
+  for (let i = 2; i < closeLineNum; i++) {
+    const text = doc.line(i).text.trim();
+    if (text) tuples.push(text);
+  }
+  if (tuples.length === 0) return "---";
+  return tuples.length === 1 ? tuples[0] : tuples[0] + " ...";
+}
+
+function buildFrontMatterExtension() {
+  const collapsed = StateField.define<boolean>({
+    create: () => true,
+    update(value, tr) {
+      for (const e of tr.effects) {
+        if (e.is(toggleFrontmatter)) return e.value;
       }
-      build(view: EditorView): DecorationSet {
-        const builder = new RangeSetBuilder<Decoration>();
-        const closeLineNum = getFrontMatterEnd(view.state.doc);
-        if (closeLineNum === -1) return builder.finish();
-        for (let i = 1; i <= closeLineNum; i++) {
-          const line = view.state.doc.line(i);
-          builder.add(line.from, line.from, frontMatterLineMark);
-        }
-        return builder.finish();
-      }
+      return value;
     },
-    { decorations: (v) => v.decorations }
-  );
+  });
+
+  const decorations = StateField.define<DecorationSet>({
+    create(state) { return buildDecos(state, true); },
+    update(_, tr) {
+      return buildDecos(tr.state, tr.state.field(collapsed));
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
+
+  function buildDecos(state: EditorState, isCollapsed: boolean): DecorationSet {
+    const builder = new RangeSetBuilder<Decoration>();
+    const closeLineNum = getFrontMatterEnd(state.doc);
+    if (closeLineNum === -1) return builder.finish();
+
+    if (isCollapsed) {
+      const summary = extractFrontmatterSummary(state.doc, closeLineNum);
+      const from = state.doc.line(1).from;
+      const to = state.doc.line(closeLineNum).to;
+      builder.add(from, to, Decoration.replace({
+        widget: new FrontmatterSummaryWidget(summary),
+      }));
+    } else {
+      for (let i = 1; i <= closeLineNum; i++) {
+        const line = state.doc.line(i);
+        builder.add(line.from, line.from, frontMatterLineMark);
+      }
+    }
+    return builder.finish();
+  }
+
+  const clickHandler = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+      const isCollapsed = view.state.field(collapsed);
+      const closeLineNum = getFrontMatterEnd(view.state.doc);
+      if (closeLineNum === -1) return false;
+
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos === null) return false;
+
+      const fmEnd = view.state.doc.line(closeLineNum).to;
+
+      if (isCollapsed && pos <= fmEnd) {
+        // Click on collapsed widget — expand
+        event.preventDefault();
+        view.dispatch({ effects: toggleFrontmatter.of(false) });
+        return true;
+      }
+
+      if (!isCollapsed && pos > fmEnd) {
+        // Click outside frontmatter — collapse
+        view.dispatch({ effects: toggleFrontmatter.of(true) });
+        return false;
+      }
+
+      return false;
+    },
+  });
+
+  return [collapsed, decorations, clickHandler];
 }
 
 
@@ -327,7 +399,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         themeCompartment.of(getThemeExtension()),
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
-        buildFrontMatterPlugin(),
+        buildFrontMatterExtension(),
         autocompletion({
           override: [siblingCompletion],
           activateOnTyping: true,
@@ -422,6 +494,13 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             fontSize: "0.8em",
             fontStyle: "italic",
             color: "var(--text-secondary)",
+          },
+          ".cm-frontmatter-collapsed": {
+            opacity: "0.45",
+            fontSize: "0.8em",
+            fontStyle: "italic",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
           },
         }),
       ],
