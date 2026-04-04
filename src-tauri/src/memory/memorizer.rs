@@ -10,15 +10,14 @@ const STRUCTURAL_DIRS: &[&str] = &[
     "ContrastIndex", "Entanglement", "Experience", "Sleep",
 ];
 
-/// Find DesignPartner/Memory directory by walking the sigil tree.
-fn find_design_partner_memory(root_path: &str) -> Option<std::path::PathBuf> {
+/// Find DesignPartner/.memories directory by walking the sigil tree.
+/// This is a hidden directory (not rendered in the ontology tree) that stores concept sigils.
+fn find_memories_dir(root_path: &str) -> Option<std::path::PathBuf> {
     let root = Path::new(root_path);
     for entry in walkdir::WalkDir::new(root).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() && entry.file_name() == "Memory" {
-            let parent = entry.path().parent()?;
-            if parent.file_name()?.to_string_lossy() == "DesignPartner" {
-                return Some(entry.path().to_path_buf());
-            }
+        if entry.file_type().is_dir() && entry.file_name() == "DesignPartner" {
+            let memories = entry.path().join(".memories");
+            return Some(memories);
         }
     }
     None
@@ -89,7 +88,7 @@ pub async fn memorize_turn(
     turn: &CompletedTurn,
     profile: &AiProfile,
 ) -> Result<usize, MemoryError> {
-    let memory_dir = find_design_partner_memory(&turn.root_path)
+    let memory_dir = find_memories_dir(&turn.root_path)
         .unwrap_or_else(|| Path::new(&turn.root_path).join(".sigil").join("memory"));
 
     if !memory_dir.exists() {

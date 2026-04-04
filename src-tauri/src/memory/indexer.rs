@@ -112,6 +112,9 @@ fn collect_md_files(root: &Path) -> Vec<(String, String)> {
             let name = e.file_name().to_string_lossy();
             // Skip hidden dirs, .sigil, chats, node_modules (but never filter the root entry)
             if e.file_type().is_dir() && e.depth() > 0 {
+                if name == ".memories" {
+                    return true; // concept sigils are indexed despite dot-prefix
+                }
                 return !name.starts_with('.') && name != "chats" && name != "node_modules";
             }
             true
