@@ -15,14 +15,12 @@ const STRUCTURAL_DIRS: &[&str] = &[
     "ContrastIndex", "Entanglement", "Experience", "Sleep",
 ];
 
-/// Find DesignPartner/Memory directory by walking the sigil tree.
-fn find_design_partner_memory(sigil_root: &Path) -> Option<std::path::PathBuf> {
+/// Find DesignPartner/.memories directory by walking the sigil tree.
+fn find_memories_dir(sigil_root: &Path) -> Option<std::path::PathBuf> {
     for entry in walkdir::WalkDir::new(sigil_root).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() && entry.file_name() == "Memory" {
-            let parent = entry.path().parent()?;
-            if parent.file_name()?.to_string_lossy() == "DesignPartner" {
-                return Some(entry.path().to_path_buf());
-            }
+        if entry.file_type().is_dir() && entry.file_name() == "DesignPartner" {
+            let memories = entry.path().join(".memories");
+            return Some(memories);
         }
     }
     None
@@ -86,7 +84,7 @@ pub async fn consolidate(
     let sigil_root = state.sigil_root().await
         .ok_or(MemoryError::NotInitialized)?;
 
-    let memory_dir = find_design_partner_memory(&sigil_root)
+    let memory_dir = find_memories_dir(&sigil_root)
         .unwrap_or_else(|| sigil_root.join(".sigil").join("memory"));
 
     if !memory_dir.exists() {

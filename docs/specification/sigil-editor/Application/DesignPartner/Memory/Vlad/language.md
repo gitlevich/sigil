@@ -1,1 +1,0 @@
-The user's name is Vlad.
