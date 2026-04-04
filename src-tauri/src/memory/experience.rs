@@ -4,25 +4,11 @@ use std::path::{Path, PathBuf};
 use super::{CompletedTurn, MemoryError, MemoryState};
 use super::indexer;
 
-/// Find DesignPartner directory by walking the sigil tree.
-fn find_design_partner(root_path: &str) -> Option<PathBuf> {
-    let root = Path::new(root_path);
-    for entry in walkdir::WalkDir::new(root).max_depth(5).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() && entry.file_name() == "DesignPartner" {
-            // Verify it's a sigil (has language.md)
-            if entry.path().join("language.md").exists() {
-                return Some(entry.path().to_path_buf());
-            }
-        }
-    }
-    None
-}
-
 /// Record a conversation turn as an experience frame sigil.
 ///
 /// Structure on disk:
 /// ```text
-/// DesignPartner/Experience/{chat_id}/
+/// .private/DesignPartnerState/Experience/{chat_id}/
 ///   language.md          — conversation summary (updated incrementally)
 ///   frame-{n}/
 ///     language.md        — this decision frame: what was said, what was decided
@@ -31,9 +17,7 @@ pub fn record_turn(
     state: &MemoryState,
     turn: &CompletedTurn,
 ) -> Result<PathBuf, MemoryError> {
-    let dp_dir = find_design_partner(&turn.root_path)
-        .unwrap_or_else(|| Path::new(&turn.root_path).join(".sigil"));
-    let experience_root = dp_dir.join("Experience");
+    let experience_root = Path::new(&turn.root_path).join(".private/DesignPartnerState/Experience");
 
     let conv_dir = experience_root.join(&turn.chat_id);
     fs::create_dir_all(&conv_dir)?;

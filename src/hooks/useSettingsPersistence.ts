@@ -16,6 +16,7 @@ interface PersistedDocState {
   contentTab: "language" | "atlas";
   activeChatId: string;
   wordWrap: boolean;
+  collapsedPaths?: string[];
 }
 
 export function useSettingsPersistence() {
@@ -177,6 +178,7 @@ export function useSettingsPersistence() {
       prev.activeChatId === doc.activeChatId &&
       prev.wordWrap === doc.wordWrap &&
       JSON.stringify(prev.currentPath) === JSON.stringify(doc.currentPath) &&
+      JSON.stringify(prev.collapsedPaths) === JSON.stringify(doc.collapsedPaths) &&
       prev.sigil.root_path === doc.sigil.root_path
     ) {
       return;
@@ -197,6 +199,7 @@ export function useSettingsPersistence() {
           contentTab: doc.contentTab,
           activeChatId: doc.activeChatId,
           wordWrap: doc.wordWrap,
+          collapsedPaths: doc.collapsedPaths,
         } as PersistedDocState);
         await store.save();
       } catch (err) {

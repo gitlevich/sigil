@@ -42,6 +42,9 @@ __pycache__/
 docs/genesis/.export_state.json
 .cache/
 
+# Instance private state (DP memories, user data)
+.private/
+
 # Memory system derived data
 .sigil/
 src-tauri/.fastembed_cache/

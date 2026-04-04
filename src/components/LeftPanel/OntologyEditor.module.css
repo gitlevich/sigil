@@ -75,6 +75,11 @@
   color: inherit;
 }
 
+.row.active .chevron {
+  color: inherit;
+  filter: none;
+}
+
 .row.dropTarget {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
@@ -115,6 +120,11 @@
 
 .row.active .term {
   background: transparent;
+}
+
+.imported {
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
 .peerInputRow {

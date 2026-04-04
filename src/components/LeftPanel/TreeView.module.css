@@ -82,13 +82,17 @@
 .expandBtn {
   background: none;
   border: none;
-  color: inherit;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
   font-size: 0.6rem;
   width: 18px;
   text-align: center;
   flex-shrink: 0;
+}
+
+.active .expandBtn {
+  color: inherit;
 }
 
 .expandPlaceholder {

@@ -8,6 +8,7 @@ import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
 import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
+import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { useToast } from "../../hooks/useToast";
@@ -63,8 +64,6 @@ function updateContextInTree(
     ),
   };
 }
-
-const ONTOLOGIES_NAME = "Libs";
 
 /** Build the full lexical scope for the current path: children → ancestry levels → root. */
 function buildLexicalScope(
@@ -366,15 +365,15 @@ export function EditorShell() {
     if (!doc) return { allRefs: [] as SiblingInfo[], allRefNames: [] as string[] };
     const refs: SiblingInfo[] = buildLexicalScope(doc.sigil.root, doc.currentPath);
     const seenNames = new Set(refs.map((r) => r.name));
-    const ontologiesSigil = doc.sigil.root.children.find((c) => c.name === ONTOLOGIES_NAME);
-    if (ontologiesSigil) {
-      for (const ontology of ontologiesSigil.children) {
-        // Add the ontology itself (e.g. AttentionLanguage) as a resolvable name
+    const importedSigil = doc.sigil.imported_ontologies ?? null;
+    setGlobalImportedOntologies(importedSigil);
+    if (importedSigil) {
+      for (const ontology of importedSigil.children) {
         if (!seenNames.has(ontology.name)) {
           seenNames.add(ontology.name);
-          refs.push({ name: ontology.name, summary: makeSummary(ontology), kind: "lib", absolutePath: [ONTOLOGIES_NAME, ontology.name], libPrefix: ontology.name });
+          refs.push({ name: ontology.name, summary: makeSummary(ontology), kind: "lib", absolutePath: ["Imported Ontologies", ontology.name], libPrefix: ontology.name });
         }
-        refs.push(...flattenOntologyRefs(ontology, [ONTOLOGIES_NAME, ontology.name], seenNames, ontology.name));
+        refs.push(...flattenOntologyRefs(ontology, ["Imported Ontologies", ontology.name], seenNames, ontology.name));
       }
     }
     return { allRefs: refs, allRefNames: refs.map((r) => r.name) };

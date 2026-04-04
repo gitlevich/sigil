@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 use regex::Regex;
+use tauri::{AppHandle, Manager};
 use crate::models::sigil::{Context, Invariant, Sigil};
 
 /// Returns the path to the domain language file in a context directory.
@@ -23,7 +24,7 @@ fn is_context_dir(dir: &Path) -> bool {
 }
 
 
-fn read_context(dir: &Path) -> Result<Context, String> {
+fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
     use crate::models::sigil::Affordance;
 
     let name = dir
@@ -60,14 +61,11 @@ fn read_context(dir: &Path) -> Result<Context, String> {
                     continue;
                 }
                 if is_context_dir(&path) {
-                    children.push(read_context(&path)?);
+                    children.push(read_context(&path, is_imported)?);
                 }
             }
         }
     }
-
-    // Keep Ontologies at the end so the application sigil comes first.
-    children.sort_by_key(|c| c.name == "Libs");
 
     Ok(Context {
         name,
@@ -76,11 +74,20 @@ fn read_context(dir: &Path) -> Result<Context, String> {
         affordances,
         invariants,
         children,
+        is_imported,
     })
 }
 
 #[tauri::command]
-pub fn read_sigil(root_path: String) -> Result<Sigil, String> {
+pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
+    let libs_path = app.path().resource_dir()
+        .ok()
+        .map(|res| res.join("Libs"))
+        .filter(|p| p.exists());
+    read_sigil_with_libs(root_path, libs_path)
+}
+
+pub fn read_sigil_with_libs(root_path: String, libs_path: Option<std::path::PathBuf>) -> Result<Sigil, String> {
     let root = Path::new(&root_path);
     if !root.exists() {
         return Err(format!("Path does not exist: {}", root_path));
@@ -89,13 +96,27 @@ pub fn read_sigil(root_path: String) -> Result<Sigil, String> {
     let vision_path = root.join("vision.md");
     let vision = fs::read_to_string(&vision_path).unwrap_or_default();
 
-    let context = read_context(root)?;
+    let context = read_context(root, false)?;
+
+    // Mount imported ontologies from resolved libs path, falling back to sibling Libs dir
+    let imported_ontologies = libs_path
+        .or_else(|| root.parent().map(|p| p.join("Libs")))
+        .and_then(|libs_dir| {
+            if libs_dir.exists() && libs_dir.is_dir() {
+                let mut imported = read_context(&libs_dir, true).ok()?;
+                imported.name = "Imported Ontologies".to_string();
+                Some(imported)
+            } else {
+                None
+            }
+        });
 
     Ok(Sigil {
         name: context.name.clone(),
         root_path: root_path.clone(),
         vision,
         root: context,
+        imported_ontologies,
     })
 }
 
@@ -103,10 +124,8 @@ pub fn read_sigil(root_path: String) -> Result<Sigil, String> {
 pub fn create_context(parent_path: String, name: String) -> Result<Context, String> {
     let parent = Path::new(&parent_path);
 
-    // The Ontologies sigil and its descendants are exempt from the 5-child limit.
-    let under_ontologies = parent.components().any(|c| c.as_os_str() == "Libs");
-
-    if !under_ontologies {
+    // 5-child limit applies to all user-created contexts.
+    {
         let existing_dirs: Vec<_> = fs::read_dir(parent)
             .map_err(|e| e.to_string())?
             .filter_map(|e| e.ok())
@@ -134,6 +153,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         affordances: Vec::new(),
         invariants: Vec::new(),
         children: Vec::new(),
+        is_imported: false,
     })
 }
 
@@ -388,12 +408,12 @@ pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> R
         return Err("Target parent does not exist".to_string());
     }
 
-    // The Ontologies sigil and its descendants are exempt from the 5-child limit.
-    let ontologies_path = Path::new(&root_path).join("Libs");
-    let under_ontologies = new_parent.starts_with(&ontologies_path);
+    // Imported ontologies (outside root_path) are exempt from the 5-child limit.
+    let root = Path::new(&root_path);
+    let under_imported = !new_parent.starts_with(root);
 
     // Check 5-sigil limit at destination
-    if !under_ontologies {
+    if !under_imported {
         let existing_dirs: Vec<_> = fs::read_dir(new_parent)
             .map_err(|e| e.to_string())?
             .filter_map(|e| e.ok())
@@ -452,7 +472,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);
 
-        let sigil = read_sigil(root_path).unwrap();
+        let sigil = read_sigil_with_libs(root_path, None).unwrap();
 
         assert_eq!(sigil.name, "MyApp");
         assert_eq!(sigil.vision, "Build the best app");
@@ -587,7 +607,7 @@ mod tests {
         fs::create_dir(&hidden).unwrap();
         fs::write(hidden.join("language.md"), "should be ignored").unwrap();
 
-        let sigil = read_sigil(root_path).unwrap();
+        let sigil = read_sigil_with_libs(root_path, None).unwrap();
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(!names.contains(&".git"));
     }
@@ -600,7 +620,7 @@ mod tests {
         let random_dir = Path::new(&root_path).join("random");
         fs::create_dir(&random_dir).unwrap();
 
-        let sigil = read_sigil(root_path).unwrap();
+        let sigil = read_sigil_with_libs(root_path, None).unwrap();
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(!names.contains(&"random"));
     }

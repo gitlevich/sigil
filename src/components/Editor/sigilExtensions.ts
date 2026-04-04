@@ -29,11 +29,13 @@ let globalSiblings: SiblingInfo[] = [];
 let globalSiblingNames: string[] = [];
 let globalNameIndex: Map<string, string> = new Map();
 let globalSigilRoot: Context | null = null;
+let globalImportedOntologies: Context | null = null;
 let globalCurrentContext: Context | null = null;
 let globalCurrentPath: string[] = [];
 
 export function getGlobalSiblings() { return globalSiblings; }
 export function getGlobalSigilRoot() { return globalSigilRoot; }
+export function setGlobalImportedOntologies(ctx: Context | null) { globalImportedOntologies = ctx; }
 export function getGlobalCurrentContext() { return globalCurrentContext; }
 export function getGlobalCurrentPath() { return globalCurrentPath; }
 
@@ -166,21 +168,17 @@ export function resolveChainedRef(matchText: string): RefResolution {
     }
   }
 
-  if (globalSigilRoot) {
-    const libsCtx = globalSigilRoot.children.find((c) => c.name === "Libs");
-    if (libsCtx) {
-      const ontologyCanonical = resolveRefName(segments[0], libsCtx.children.map((c) => c.name));
-      if (ontologyCanonical) {
-        const ontologyCtx = libsCtx.children.find((c) => c.name === ontologyCanonical)!;
-        const resolved = walkTree(segments.slice(1), ontologyCtx);
-        if (resolved !== null) {
-          const fullPath = ["Libs", ontologyCanonical, ...resolved];
-          const ctx = findContextByPath(fullPath, globalSigilRoot);
-          const summary = ctx ? extractSummary(ctx.domain_language || "") : undefined;
-          return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
-        }
-        return { kind: "unresolved", path: segments };
+  if (globalImportedOntologies) {
+    const ontologyCanonical = resolveRefName(segments[0], globalImportedOntologies.children.map((c) => c.name));
+    if (ontologyCanonical) {
+      const ontologyCtx = globalImportedOntologies.children.find((c) => c.name === ontologyCanonical)!;
+      const resolved = walkTree(segments.slice(1), ontologyCtx);
+      if (resolved !== null) {
+        const fullPath = [globalImportedOntologies.name, ontologyCanonical, ...resolved];
+        const summary = extractSummary(ontologyCtx.domain_language || "");
+        return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
       }
+      return { kind: "unresolved", path: segments };
     }
   }
 

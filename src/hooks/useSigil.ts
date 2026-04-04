@@ -56,6 +56,7 @@ export function useSigil() {
         wordWrap: false,
         renamingRequest: false,
         findReferencesName: null,
+        collapsedPaths: [],
         ...overrides,
       },
     });

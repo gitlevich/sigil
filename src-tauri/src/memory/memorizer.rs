@@ -10,30 +10,23 @@ const STRUCTURAL_DIRS: &[&str] = &[
     "ContrastIndex", "Entanglement", "Experience", "Sleep",
 ];
 
-/// Find DesignPartner/.memories directory by walking the sigil tree.
-/// This is a hidden directory (not rendered in the ontology tree) that stores concept sigils.
+/// Find the DesignPartner memories directory under the root's .private area.
 fn find_memories_dir(root_path: &str) -> Option<std::path::PathBuf> {
-    let root = Path::new(root_path);
-    for entry in walkdir::WalkDir::new(root).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() && entry.file_name() == "DesignPartner" {
-            let memories = entry.path().join(".memories");
-            return Some(memories);
-        }
-    }
-    None
+    let memories = Path::new(root_path).join(".private/DesignPartnerState/memories");
+    Some(memories)
 }
 
-/// A concept sigil found in the nested .memories/ tree.
+/// A concept sigil found in the memories tree.
 struct ExistingConcept {
     /// Just the directory name (e.g. "ToolUsagePreference")
     name: String,
     /// Full path to the concept directory
     path: std::path::PathBuf,
-    /// Path relative to .memories/ root (e.g. "Vlad/ToolUsagePreference")
+    /// Path relative to memories root (e.g. "Vlad/ToolUsagePreference")
     relative: String,
 }
 
-/// Recursively list all concept sigils under .memories/, at any depth.
+/// Recursively list all concept sigils under the memories dir, at any depth.
 fn list_existing_concepts(memory_dir: &Path) -> Vec<ExistingConcept> {
     let mut concepts = Vec::new();
     collect_concepts_recursive(memory_dir, memory_dir, &mut concepts);
@@ -115,7 +108,7 @@ Respond with ONLY the updated paragraph text (no markdown fencing, no preamble).
 #[derive(Debug, serde::Deserialize)]
 struct ExtractedConcept {
     name: String,
-    /// Parent concept name (None = root level in .memories/)
+    /// Parent concept name (None = root level in memories dir)
     parent: Option<String>,
     language: String,
 }

@@ -14,6 +14,7 @@ export interface Context {
   affordances: Affordance[];
   invariants: Invariant[];
   children: Context[];
+  is_imported?: boolean;
 }
 
 export interface Sigil {

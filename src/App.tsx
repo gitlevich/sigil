@@ -70,6 +70,7 @@ export function App({ initialRootPath }: AppProps) {
             activeChatId: saved.activeChatId ?? "",
             chatMessages,
             wordWrap: saved.wordWrap ?? false,
+            collapsedPaths: saved.collapsedPaths ?? [],
           });
         } catch {
           // Sigil no longer exists — stay on picker

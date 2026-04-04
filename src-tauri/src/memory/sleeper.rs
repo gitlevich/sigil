@@ -11,15 +11,10 @@ const STRUCTURAL_DIRS: &[&str] = &[
     "ContrastIndex", "Entanglement", "Experience", "Sleep",
 ];
 
-/// Find DesignPartner/.memories directory by walking the sigil tree.
+/// Find the DesignPartner memories directory under the root's .private area.
 fn find_memories_dir(sigil_root: &Path) -> Option<std::path::PathBuf> {
-    for entry in walkdir::WalkDir::new(sigil_root).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() && entry.file_name() == "DesignPartner" {
-            let memories = entry.path().join(".memories");
-            return Some(memories);
-        }
-    }
-    None
+    let memories = sigil_root.join(".private/DesignPartnerState/memories");
+    Some(memories)
 }
 
 /// Cosine similarity threshold for merging related concepts.

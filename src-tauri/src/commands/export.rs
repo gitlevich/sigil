@@ -1,5 +1,6 @@
 use std::fs;
-use crate::commands::sigil::read_sigil;
+use tauri::{AppHandle, Manager};
+use crate::commands::sigil::read_sigil_with_libs;
 use crate::models::sigil::Context;
 
 fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool) {
@@ -30,8 +31,16 @@ fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool
 }
 
 #[tauri::command]
-pub fn export_sigil(root_path: String, output_path: String) -> Result<(), String> {
-    let sigil = read_sigil(root_path)?;
+pub fn export_sigil(app: AppHandle, root_path: String, output_path: String) -> Result<(), String> {
+    let libs_path = app.path().resource_dir()
+        .ok()
+        .map(|res| res.join("Libs"))
+        .filter(|p| p.exists());
+    export_sigil_inner(root_path, output_path, libs_path)
+}
+
+fn export_sigil_inner(root_path: String, output_path: String, libs_path: Option<std::path::PathBuf>) -> Result<(), String> {
+    let sigil = read_sigil_with_libs(root_path, libs_path)?;
     let mut output = String::new();
 
     output.push_str(&format!("# {}\n\n", sigil.name));
@@ -71,7 +80,7 @@ mod tests {
         let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_sigil(root_path, output_path.clone()).unwrap();
+        export_sigil_inner(root_path, output_path.clone(), None).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("# TestApp"));
@@ -85,7 +94,7 @@ mod tests {
         let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_sigil(root_path, output_path.clone()).unwrap();
+        export_sigil_inner(root_path, output_path.clone(), None).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("Root domain language"));
@@ -98,7 +107,7 @@ mod tests {
         let root_path = setup_sigil(&tmp);
         let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
 
-        export_sigil(root_path, output_path.clone()).unwrap();
+        export_sigil_inner(root_path, output_path.clone(), None).unwrap();
 
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("Auth"));

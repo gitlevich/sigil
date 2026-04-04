@@ -13,6 +13,7 @@ export interface Context extends CoreContext {
 export interface Sigil extends CoreSigil {
   root_path: string;
   root: Context;
+  imported_ontologies?: Context;
 }
 
 export interface ChatMessage {

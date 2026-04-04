@@ -6,6 +6,8 @@ pub struct Sigil {
     pub root_path: String,
     pub vision: String,
     pub root: Context,
+    #[serde(default)]
+    pub imported_ontologies: Option<Context>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +30,8 @@ pub struct Context {
     pub affordances: Vec<Affordance>,
     pub invariants: Vec<Invariant>,
     pub children: Vec<Context>,
+    #[serde(default)]
+    pub is_imported: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

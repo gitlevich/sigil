@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
@@ -18,6 +18,7 @@ interface OntologyNode {
   affordances: string[];
   invariants: string[];
   children: OntologyNode[];
+  is_imported: boolean;
 }
 
 interface ContextMenuState {
@@ -35,6 +36,7 @@ function buildOntology(ctx: Context, path: string[], depth: number): OntologyNod
     affordances: ctx.affordances.map((a) => a.name),
     invariants: ctx.invariants.map((c) => c.name),
     children: ctx.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
+    is_imported: ctx.is_imported ?? false,
   };
 }
 
@@ -108,12 +110,17 @@ function InlinePeerInput({
   );
 }
 
+function pathKey(path: string[]): string {
+  return path.join("/");
+}
+
 function OntologyItem({
   node,
   currentPath,
   search,
   definitions,
   addingPeerAfterPath,
+  collapsedPaths,
   onNavigate,
   onDefinitionChange,
   onContextMenu,
@@ -121,12 +128,14 @@ function OntologyItem({
   onPropertyDrop,
   onPeerSubmit,
   onPeerAbort,
+  onToggleCollapse,
 }: {
   node: OntologyNode;
   currentPath: string[];
   search: string;
   definitions: Record<string, string>;
   addingPeerAfterPath: string[] | null;
+  collapsedPaths: Set<string>;
   onNavigate: (path: string[]) => void;
   onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
@@ -134,16 +143,17 @@ function OntologyItem({
   onPropertyDrop: (targetFsPath: string, source: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => void;
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
+  onToggleCollapse: (path: string[]) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const isActive = pathsEqual(currentPath, node.path);
   const forceExpand = search.length > 0 && node.children.some((c) => nodeMatches(c, search));
-  const [expanded, setExpanded] = useState(true);
+  const isRoot = node.path.length === 0;
+  const expanded = !collapsedPaths.has(pathKey(node.path));
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
-  const open = forceExpand || expanded;
-  const underOntologies = node.path[0] === "Libs";
-  const atLimit = !underOntologies && node.children.length >= 5;
+  const open = isRoot || forceExpand || expanded;
+  const atLimit = !node.is_imported && node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {
@@ -199,14 +209,14 @@ function OntologyItem({
         {hasChildren ? (
           <button
             className={styles.chevron}
-            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            onClick={(e) => { e.stopPropagation(); onToggleCollapse(node.path); }}
           >
             {open ? "\u25BC" : "\u25B6"}
           </button>
         ) : (
           <span className={styles.chevronPlaceholder} />
         )}
-        <span className={styles.term}>{node.name}</span>
+        <span className={`${styles.term} ${node.is_imported ? styles.imported : ""}`}>{node.name}</span>
         <button
           className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.fsPath]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}
@@ -260,6 +270,7 @@ function OntologyItem({
                 search={search}
                 definitions={definitions}
                 addingPeerAfterPath={addingPeerAfterPath}
+                collapsedPaths={collapsedPaths}
                 onNavigate={onNavigate}
                 onDefinitionChange={onDefinitionChange}
                 onContextMenu={onContextMenu}
@@ -267,6 +278,7 @@ function OntologyItem({
                 onPropertyDrop={onPropertyDrop}
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
+                onToggleCollapse={onToggleCollapse}
               />
               {addingPeerAfterPath && pathsEqual(child.path, addingPeerAfterPath) && (
                 <InlinePeerInput
@@ -402,14 +414,29 @@ export function OntologyEditor() {
   if (!doc) return null;
 
   const root = buildOntology(doc.sigil.root, [], 0);
+  const importedOntologies = doc.sigil.imported_ontologies
+    ? buildOntology(doc.sigil.imported_ontologies, ["Imported Ontologies"], 0)
+    : null;
   const query = search.toLowerCase().trim();
   const rootVisible = !query || nodeMatches(root, query);
+  const importedVisible = importedOntologies && (!query || nodeMatches(importedOntologies, query));
+
+  const collapsedSet = useMemo(() => new Set(doc.collapsedPaths), [doc.collapsedPaths]);
+
+  const handleToggleCollapse = useCallback((path: string[]) => {
+    const key = pathKey(path);
+    const updated = collapsedSet.has(key)
+      ? doc.collapsedPaths.filter((p) => p !== key)
+      : [...doc.collapsedPaths, key];
+    dispatch({ type: "UPDATE_DOCUMENT", updates: { collapsedPaths: updated } });
+  }, [collapsedSet, doc.collapsedPaths, dispatch]);
 
   const sharedProps = {
     currentPath: doc.currentPath,
     search: query,
     definitions,
     addingPeerAfterPath: addingPeerOf,
+    collapsedPaths: collapsedSet,
     onNavigate: (path: string[]) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } }),
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
@@ -417,6 +444,7 @@ export function OntologyEditor() {
     onPropertyDrop: handlePropertyDrop,
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),
+    onToggleCollapse: handleToggleCollapse,
   };
 
   return (
@@ -435,31 +463,23 @@ export function OntologyEditor() {
         />
       </div>
       <div className={styles.tree}>
-        {rootVisible && root.children
-          .filter((c) => !query || nodeMatches(c, query))
-          .map((child) => (
-            <div key={child.name}>
-              <OntologyItem node={child} {...sharedProps} />
-              {addingPeerOf && pathsEqual(child.path, addingPeerOf) && (
-                <InlinePeerInput
-                  parentFsPath={root.fsPath}
-                  onSubmit={handlePeerSubmit}
-                  onAbort={() => setAddingPeerOf(null)}
-                />
-              )}
-            </div>
-          ))}
+        {rootVisible && (
+          <OntologyItem node={root} {...sharedProps} />
+        )}
+        {importedVisible && importedOntologies && (
+          <OntologyItem node={importedOntologies} {...sharedProps} />
+        )}
       </div>
 
       {contextMenu && (
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
-          {contextMenu.node.name !== "Libs" && (
+          {!contextMenu.node.is_imported && (
             <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
           )}
           <button className={styles.menuItem} onClick={() => { dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: contextMenu.node.name } }); setContextMenu(null); }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { writeText(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Copy Path</button>
-          {contextMenu.node.path.length > 0 && contextMenu.node.name !== "Libs" && (
+          {contextMenu.node.path.length > 0 && !contextMenu.node.is_imported && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
         </div>

@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::sigil::Context;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
-use crate::commands::sigil::read_sigil;
+use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::tools;
 use crate::memory;
 use crate::{MemoryHandle, SleepSender, SleepRx};
@@ -141,8 +141,8 @@ fn find_context_by_path<'a>(root: &'a Context, path: &[String]) -> Option<&'a Co
 }
 
 #[allow(dead_code)]
-fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<String, String> {
-    let sigil = read_sigil(root_path.to_string())?;
+fn assemble_sigil_context(_app: &tauri::AppHandle, root_path: &str, current_path: &[String]) -> Result<String, String> {
+    let sigil = read_sigil_with_libs(root_path.to_string(), None)?;
     let mut output = String::new();
 
     output.push_str(&format!("Sigil root: {}\n\n", root_path));
@@ -168,7 +168,7 @@ fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<St
 }
 
 fn chats_dir(root_path: &str) -> std::path::PathBuf {
-    Path::new(root_path).join("chats")
+    Path::new(root_path).join(".private/chats")
 }
 
 fn chat_file(root_path: &str, chat_id: &str) -> std::path::PathBuf {
@@ -874,21 +874,12 @@ pub struct MemoryGraph {
     pub edges: Vec<MemoryEdge>,
 }
 
-/// Find DesignPartner/.memories/ and return concept sigils as a graph.
+/// Find concept sigils under .private/DesignPartnerState/memories/ and return as a graph.
 #[tauri::command]
 pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
     let root = Path::new(&root_path);
 
-    // Find DesignPartner directory
-    let dp_dir = walkdir::WalkDir::new(root)
-        .max_depth(6)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .find(|e| e.file_type().is_dir() && e.file_name() == "DesignPartner")
-        .map(|e| e.path().to_path_buf())
-        .ok_or_else(|| "DesignPartner not found".to_string())?;
-
-    let memories_dir = dp_dir.join(".memories");
+    let memories_dir = root.join(".private/DesignPartnerState/memories");
     if !memories_dir.exists() {
         return Ok(MemoryGraph { nodes: vec![], edges: vec![] });
     }
@@ -899,7 +890,7 @@ pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
-    // Recursively walk the .memories/ tree
+    // Recursively walk the memories tree
     fn walk_memories(
         dir: &Path,
         nodes: &mut Vec<MemoryNode>,

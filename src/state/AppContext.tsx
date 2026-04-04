@@ -18,6 +18,7 @@ export interface OpenDocument {
   wordWrap: boolean;
   renamingRequest: boolean;
   findReferencesName: string | null;
+  collapsedPaths: string[];
 }
 
 export interface UIState {
