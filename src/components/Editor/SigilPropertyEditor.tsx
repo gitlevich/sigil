@@ -9,6 +9,7 @@ import {
   buildPropertyExtensions,
   buildCollapsibleFrontmatter,
   getThemeExtension,
+  PropertyEditorCallbacks,
 } from "./sigilExtensions";
 import styles from "./SigilPropertyEditor.module.css";
 
@@ -62,6 +63,11 @@ interface SigilPropertyEditorProps {
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;
+  onRenameSigil?: (oldName: string, newName: string) => void;
+  onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
+  onNavigateToSigil?: (name: string) => void;
+  onNavigateToAbsPath?: (path: string[]) => void;
+  keybindings?: Record<string, string>;
 }
 
 function PropertyChip({ item, refPrefix, color }: { item: LocalItem; refPrefix: string; color: string }) {
@@ -96,6 +102,7 @@ function PropertyCodeMirror({
   currentPath,
   onCreateAffordance,
   onCreateInvariant,
+  editorCallbacks,
 }: {
   value: string;
   placeholder: string;
@@ -109,6 +116,7 @@ function PropertyCodeMirror({
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;
+  editorCallbacks?: PropertyEditorCallbacks;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -147,6 +155,7 @@ function PropertyCodeMirror({
         ...buildPropertyExtensions(
           onCreateAffordanceRef.current,
           onCreateInvariantRef.current,
+          editorCallbacks,
         ),
         buildCollapsibleFrontmatter(),
         EditorView.updateListener.of((update) => {
@@ -292,6 +301,7 @@ function PropertyItem({
   currentPath,
   onCreateAffordance,
   onCreateInvariant,
+  editorCallbacks,
 }: {
   item: LocalItem;
   color: string;
@@ -317,6 +327,7 @@ function PropertyItem({
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;
+  editorCallbacks?: PropertyEditorCallbacks;
 }) {
   const [nameValue, setNameValue] = useState(item.name);
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -412,6 +423,7 @@ function PropertyItem({
           currentPath={currentPath}
           onCreateAffordance={onCreateAffordance}
           onCreateInvariant={onCreateInvariant}
+          editorCallbacks={editorCallbacks}
         />
       )}
       </div>
@@ -436,15 +448,35 @@ export function SigilPropertyEditor({
   currentPath,
   onCreateAffordance,
   onCreateInvariant,
+  onRenameSigil,
+  onRenameProperty,
+  onNavigateToSigil,
+  onNavigateToAbsPath,
+  keybindings = {},
 }: SigilPropertyEditorProps) {
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
   const [foldedItems, setFoldedItems] = useState<Set<string>>(new Set());
   const [maximizedItem, setMaximizedItem] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" } | null>(null);
+  const [refsState, setRefsState] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
+  const [refsIndex, setRefsIndex] = useState(0);
   const dragSourceIndex = useRef<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const listRef = useRef<HTMLDivElement>(null);
+
+  const editorCallbacks: PropertyEditorCallbacks = {
+    onCreateAffordance,
+    onCreateInvariant,
+    onRenameSigil,
+    onRenameProperty,
+    onNavigateToSigil,
+    onNavigateToAbsPath,
+    keybindings,
+    onRenameStart: (target) => setRenameState(target),
+    onFindReferences: (hits, x, y) => { setRefsState({ hits, x, y }); setRefsIndex(0); },
+  };
 
   const orderPath = `${sigilPath}/${filePrefix}.order`;
   const foldPath = `${sigilPath}/${filePrefix}.folded`;
@@ -650,9 +682,58 @@ export function SigilPropertyEditor({
                 currentPath={currentPath}
                 onCreateAffordance={onCreateAffordance}
                 onCreateInvariant={onCreateInvariant}
+                editorCallbacks={editorCallbacks}
               />
             );
           })}
+        </div>
+      )}
+      {renameState && (
+        <div style={{ position: "absolute", left: renameState.x, top: renameState.y, zIndex: 100 }}>
+          <input
+            autoFocus
+            defaultValue={renameState.oldName}
+            className={styles.renameInput}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const newName = e.currentTarget.value.trim();
+                if (newName && newName !== renameState.oldName) {
+                  if (renameState.kind === "sigil" && onRenameSigil) onRenameSigil(renameState.oldName, newName);
+                  else if ((renameState.kind === "affordance" || renameState.kind === "invariant") && onRenameProperty) onRenameProperty(renameState.kind, renameState.oldName, newName);
+                }
+                setRenameState(null);
+              }
+              if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenameState(null); }
+            }}
+            onBlur={() => setRenameState(null)}
+          />
+        </div>
+      )}
+      {refsState && (
+        <div
+          className={styles.refsDropdown}
+          style={{ left: refsState.x, top: refsState.y }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setRefsIndex((i) => Math.min(i + 1, refsState.hits.length - 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setRefsIndex((i) => Math.max(i - 1, 0)); }
+            else if (e.key === "Enter") { e.preventDefault(); const hit = refsState.hits[refsIndex]; if (hit && onNavigateToAbsPath) onNavigateToAbsPath(hit.contextPath); setRefsState(null); }
+            else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRefsState(null); }
+          }}
+          onBlur={() => setRefsState(null)}
+        >
+          {refsState.hits.map((hit, i) => (
+            <div
+              key={`${hit.contextPath.join("/")}:${i}`}
+              className={`${styles.refsItem} ${i === refsIndex ? styles.refsItemActive : ""}`}
+              onMouseEnter={() => setRefsIndex(i)}
+              onMouseDown={(e) => { e.preventDefault(); if (onNavigateToAbsPath) onNavigateToAbsPath(hit.contextPath); setRefsState(null); setRefsIndex(0); }}
+            >
+              <span className={styles.refsContext}>{hit.contextPath.length ? hit.contextPath.join(" > ") : hit.contextName}</span>
+              <span className={styles.refsLine}>{hit.line}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

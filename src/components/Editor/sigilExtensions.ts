@@ -5,7 +5,7 @@
 import { EditorState, RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
 import {
   EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate,
-  hoverTooltip, WidgetType,
+  hoverTooltip, WidgetType, keymap,
 } from "@codemirror/view";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -893,17 +893,37 @@ export function getThemeExtension(): typeof oneDark | typeof lightTheme {
 
 // ── Compact extensions for property panels ──
 
+export interface PropertyEditorCallbacks {
+  onCreateAffordance?: (name: string) => void;
+  onCreateInvariant?: (name: string) => void;
+  onRenameSigil?: (oldName: string, newName: string) => void;
+  onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
+  onNavigateToSigil?: (name: string) => void;
+  onNavigateToAbsPath?: (path: string[]) => void;
+  onRenameStart?: (target: { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" }) => void;
+  onFindReferences?: (hits: { contextName: string; contextPath: string[]; line: string }[], x: number, y: number) => void;
+  keybindings?: Record<string, string>;
+}
+
 export function buildPropertyExtensions(
   onCreateAffordance?: (name: string) => void,
   onCreateInvariant?: (name: string) => void,
+  callbacks?: PropertyEditorCallbacks,
 ) {
-  return [
+  const cb = callbacks ?? {};
+  const kb = cb.keybindings ?? {};
+
+  const extensions: ReturnType<typeof autocompletion>[] = [
     autocompletion({
       override: [refCompletion],
       activateOnTyping: true,
       activateOnTypingDelay: 0,
     }),
-    ...(onCreateAffordance || onCreateInvariant ? [
+  ];
+
+  // Alt+Enter: create affordance/invariant
+  if (onCreateAffordance || onCreateInvariant) {
+    extensions.push(
       EditorView.domEventHandlers({
         keydown: (event, view) => {
           if (event.altKey && event.key === "Enter") {
@@ -920,15 +940,189 @@ export function buildPropertyExtensions(
                 return true;
               }
             }
-            const ref = findRefAtCursor(view);
-            if (ref && !ref.known) {
-              // No sigil creation from property panels — just consume the key
-              return false;
+            return false;
+          }
+          return false;
+        },
+      }),
+    );
+  }
+
+  // Rename shortcut
+  if (cb.onRenameStart) {
+    const onRenameStart = cb.onRenameStart;
+    extensions.push(
+      keymap.of([{
+        key: kb["rename-sigil"] || "Alt-Mod-r",
+        run: (view) => {
+          const prop = findPropertyRefAtCursor(view);
+          if (prop?.exists) {
+            const pos = view.state.selection.main.head;
+            const coords = view.coordsAtPos(pos);
+            const rect = view.dom.getBoundingClientRect();
+            if (coords) onRenameStart({ oldName: prop.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: prop.kind });
+            return true;
+          }
+          const ref = findRefAtCursor(view);
+          if (ref?.known) {
+            const coords = view.coordsAtPos(ref.from);
+            const rect = view.dom.getBoundingClientRect();
+            if (coords) onRenameStart({ oldName: ref.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: "sigil" });
+            return true;
+          }
+          return false;
+        },
+      }]),
+    );
+  }
+
+  // Find references shortcut
+  if (cb.onFindReferences) {
+    const onFindReferences = cb.onFindReferences;
+    extensions.push(
+      keymap.of([{
+        key: kb["find-references"] || "Alt-Mod-f",
+        run: (view) => {
+          let symbolName: string | null = null;
+          const ref = findRefAtCursor(view);
+          if (ref?.known) {
+            symbolName = ref.name;
+          } else {
+            const prop = findPropertyRefAtCursor(view);
+            if (prop) symbolName = fromDashForm(prop.name);
+          }
+          const root = getGlobalSigilRoot();
+          if (!symbolName || !root) return false;
+          const hits = findAllReferencesInTree(root, symbolName, []);
+          if (hits.length === 0) return false;
+          const pos = view.state.selection.main.head;
+          const coords = view.coordsAtPos(pos);
+          const rect = view.dom.getBoundingClientRect();
+          if (coords) onFindReferences(hits, coords.left - rect.left, coords.bottom - rect.top + 4);
+          return true;
+        },
+      }]),
+    );
+  }
+
+  // Delete line (Cmd+D)
+  extensions.push(
+    keymap.of([{
+      key: kb["delete-line"] || "Mod-d",
+      run: (view) => {
+        const pos = view.state.selection.main.head;
+        const line = view.state.doc.lineAt(pos);
+        const from = line.from;
+        const to = Math.min(line.to + 1, view.state.doc.length);
+        view.dispatch({ changes: { from, to } });
+        return true;
+      },
+    }]),
+  );
+
+  // Cmd+click navigation
+  if (cb.onNavigateToAbsPath || cb.onNavigateToSigil) {
+    extensions.push(
+      EditorView.domEventHandlers({
+        keydown: (event, view) => {
+          if (event.key === "Meta" || event.key === "Control") view.dom.classList.add("cm-cmd-held");
+          return false;
+        },
+        keyup: (event, view) => {
+          if (event.key === "Meta" || event.key === "Control") view.dom.classList.remove("cm-cmd-held");
+          return false;
+        },
+        blur: (_event, view) => {
+          view.dom.classList.remove("cm-cmd-held");
+          return false;
+        },
+        mousedown: (event, view) => {
+          if (!(event.metaKey || event.ctrlKey)) return false;
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+          if (pos === null) return false;
+          const line = view.state.doc.lineAt(pos);
+          const clickPattern = new RegExp(allRefsPattern.source, "g");
+          let match;
+          while ((match = clickPattern.exec(line.text)) !== null) {
+            const from = line.from + match.index;
+            const to = from + match[0].length;
+            if (pos >= from && pos <= to) {
+              const matchText = match[0];
+              if (matchText.startsWith("@")) {
+                const propIdx = findPropSeparator(matchText);
+                const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
+                const resolution = resolveChainedRef(sigilRef);
+                if (cb.onNavigateToAbsPath && resolution.absolutePath !== undefined) {
+                  event.preventDefault();
+                  cb.onNavigateToAbsPath(resolution.absolutePath);
+                  return true;
+                }
+                if (resolution.kind === "absolute" && cb.onNavigateToAbsPath) {
+                  event.preventDefault();
+                  cb.onNavigateToAbsPath(resolution.path);
+                  return true;
+                }
+                if ((resolution.kind === "contained" || resolution.kind === "sibling") && cb.onNavigateToSigil) {
+                  event.preventDefault();
+                  cb.onNavigateToSigil(resolution.path[0]);
+                  return true;
+                }
+              } else if (matchText.startsWith("!")) {
+                const result = findInvariantInScopeLocal(matchText.slice(1));
+                if (result && cb.onNavigateToAbsPath) {
+                  event.preventDefault();
+                  cb.onNavigateToAbsPath(result.ownerPath);
+                  return true;
+                }
+              } else if (matchText.startsWith("#")) {
+                const result = findAffordanceInScopeLocal(matchText.slice(1));
+                if (result && cb.onNavigateToAbsPath) {
+                  event.preventDefault();
+                  cb.onNavigateToAbsPath(result.ownerPath);
+                  return true;
+                }
+              }
             }
           }
           return false;
         },
       }),
-    ] : []),
-  ];
+    );
+  }
+
+  return extensions;
+}
+
+/** Find all references to a symbol across the entire sigil tree. */
+export function findAllReferencesInTree(ctx: Context, symbolName: string, path: string[]): { contextName: string; contextPath: string[]; line: string }[] {
+  const results: { contextName: string; contextPath: string[]; line: string }[] = [];
+  const lines = ctx.domain_language.split("\n");
+  for (const line of lines) {
+    let match;
+    allRefsPattern.lastIndex = 0;
+    while ((match = allRefsPattern.exec(line)) !== null) {
+      if (isInCodeSpan(line, match.index)) continue;
+      const text = match[0];
+      let refName: string;
+      if (text.startsWith("@")) {
+        const parts = text.slice(1).split("@");
+        const lastPart = parts[parts.length - 1];
+        const propMatch = lastPart.search(/[#!]/);
+        if (propMatch >= 0) parts[parts.length - 1] = lastPart.slice(0, propMatch);
+        refName = parts[parts.length - 1];
+      } else if (text.startsWith("#")) {
+        refName = fromDashForm(text.slice(1));
+      } else {
+        refName = fromDashForm(text.slice(1));
+      }
+      if (flattenName(refName) === flattenName(symbolName) || resolveRefName(refName, [symbolName]) !== undefined) {
+        results.push({ contextName: ctx.name, contextPath: path, line: line.trim() });
+        break;
+      }
+    }
+  }
+  for (const child of ctx.children) {
+    results.push(...findAllReferencesInTree(child, symbolName, [...path, child.name]));
+  }
+  return results;
 }

@@ -9,7 +9,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
 import { Context } from "../../tauri";
-import { resolveRefName, flattenName, fromDashForm } from "sigil-core";
+import { fromDashForm } from "sigil-core";
 import {
   SiblingInfo,
   siblingCompletion,
@@ -17,7 +17,6 @@ import {
   buildCollapsibleFrontmatter,
   getThemeExtension,
   allRefsPattern,
-  isInCodeSpan,
   findPropSeparator,
   resolveChainedRef,
   findRefAtCursor,
@@ -26,6 +25,7 @@ import {
   getGlobalSigilRoot,
   findInvariantInScopeLocal,
   findAffordanceInScopeLocal,
+  findAllReferencesInTree,
 } from "./sigilExtensions";
 import styles from "./MarkdownEditor.module.css";
 
@@ -78,50 +78,11 @@ function findStatusAtCursor(view: EditorView): { value: string; from: number } |
   return { value: match[1], from: valueStart };
 }
 
-interface ReferenceHit {
-  contextName: string;
-  contextPath: string[];
-  line: string;
-}
-
-function findAllReferences(ctx: Context, symbolName: string, path: string[]): ReferenceHit[] {
-  const results: ReferenceHit[] = [];
-  const lines = ctx.domain_language.split("\n");
-  for (const line of lines) {
-    let match;
-    allRefsPattern.lastIndex = 0;
-    while ((match = allRefsPattern.exec(line)) !== null) {
-      if (isInCodeSpan(line, match.index)) continue;
-      const text = match[0];
-      let refName: string;
-      if (text.startsWith("@")) {
-        const parts = text.slice(1).split("@");
-        const lastPart = parts[parts.length - 1];
-        const propMatch = lastPart.search(/[#!]/);
-        if (propMatch >= 0) parts[parts.length - 1] = lastPart.slice(0, propMatch);
-        refName = parts[parts.length - 1];
-      } else if (text.startsWith("#")) {
-        refName = fromDashForm(text.slice(1));
-      } else {
-        refName = fromDashForm(text.slice(1));
-      }
-      if (flattenName(refName) === flattenName(symbolName) || resolveRefName(refName, [symbolName]) !== undefined) {
-        results.push({ contextName: ctx.name, contextPath: path, line: line.trim() });
-        break;
-      }
-    }
-  }
-  for (const child of ctx.children) {
-    results.push(...findAllReferences(child, symbolName, [...path, child.name]));
-  }
-  return results;
-}
-
 let globalPendingStatusRename: string | null = null;
 
 type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" };
 type SetRenameState = (s: RenameTarget | null) => void;
-type SetRefsState = (s: { hits: ReferenceHit[]; x: number; y: number } | null) => void;
+type SetRefsState = (s: { hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null) => void;
 
 function buildCustomKeymap(
   kb: Record<string, string>,
@@ -226,7 +187,7 @@ function buildCustomKeymap(
         }
         const sigilRoot = getGlobalSigilRoot();
         if (!symbolName || !sigilRoot) return false;
-        const hits = findAllReferences(sigilRoot, symbolName, []);
+        const hits = findAllReferencesInTree(sigilRoot, symbolName, []);
         if (hits.length === 0) return false;
         const pos = view.state.selection.main.head;
         const coords = view.coordsAtPos(pos);
@@ -268,7 +229,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   const onNavigateAbsPathRef = useRef(onNavigateToAbsPath);
   onNavigateAbsPathRef.current = onNavigateToAbsPath;
   const [renameState, setRenameState] = useState<RenameTarget | null>(null);
-  const [refsState, setRefsStateRaw] = useState<{ hits: ReferenceHit[]; x: number; y: number } | null>(null);
+  const [refsState, setRefsStateRaw] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
   const [refsIndex, setRefsIndex] = useState(0);
   const setRefsState: SetRefsState = (s) => { setRefsStateRaw(s); setRefsIndex(0); };
   const onRenameStatusRef = useRef(onRenameStatus);
@@ -281,7 +242,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   useEffect(() => {
     if (!findReferencesName || !sigilRoot) return;
     onFindReferencesClear?.();
-    const hits = findAllReferences(sigilRoot, findReferencesName, []);
+    const hits = findAllReferencesInTree(sigilRoot, findReferencesName, []);
     if (hits.length === 0) return;
     // Position at top-left of editor since there's no cursor context
     setRefsState({ hits, x: 32, y: 32 });
