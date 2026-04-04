@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorState, Compartment, Transaction } from "@codemirror/state";
+import { EditorState, Compartment, Transaction, StateEffect, StateField, RangeSetBuilder } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
+  Decoration, DecorationSet,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
-import { Context } from "../../tauri";
+import { Context, events } from "../../tauri";
 import { fromDashForm } from "sigil-core";
 import {
   SiblingInfo,
@@ -58,8 +59,27 @@ const siblingCompartment = new Compartment();
 const keymapCompartment = new Compartment();
 const wrapCompartment = new Compartment();
 
+// AI-initiated text highlight (translucent yellow)
+const setAiHighlight = StateEffect.define<{ from: number; to: number } | null>();
+const aiHighlightMark = Decoration.mark({ class: "cm-ai-highlight" });
 
-
+const aiHighlightField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setAiHighlight)) {
+        if (!e.value) return Decoration.none;
+        const builder = new RangeSetBuilder<Decoration>();
+        builder.add(e.value.from, e.value.to, aiHighlightMark);
+        return builder.finish();
+      }
+    }
+    // Clear on any user edit
+    if (tr.docChanged) return Decoration.none;
+    return value;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 
 
@@ -265,6 +285,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         buildCollapsibleFrontmatter(),
+        aiHighlightField,
         autocompletion({
           override: [siblingCompletion],
           activateOnTyping: true,
@@ -382,6 +403,10 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             fontStyle: "italic",
             color: "var(--text-secondary)",
           },
+          ".cm-ai-highlight": {
+            backgroundColor: "rgba(227, 97, 113, 0.35)",
+            borderRadius: "2px",
+          },
           ".cm-frontmatter-collapsed": {
             opacity: "0.45",
             fontSize: "0.8em",
@@ -422,6 +447,60 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  // Listen for select-text and replace-selected-text events from AI tools
+  useEffect(() => {
+    const unlistenSelect = events.onSelectText((payload: string) => {
+      const view = viewRef.current;
+      if (!view) return;
+      const data = JSON.parse(payload);
+      const doc = view.state.doc;
+
+      let from = -1, to = -1;
+      if (data.excerpt) {
+        const text = doc.toString();
+        const idx = text.indexOf(data.excerpt);
+        if (idx !== -1) { from = idx; to = idx + data.excerpt.length; }
+      } else if (data.from_line != null) {
+        const fromLine = Math.max(1, Math.min(data.from_line, doc.lines));
+        const toLine = Math.max(fromLine, Math.min(data.to_line ?? data.from_line, doc.lines));
+        from = doc.line(fromLine).from;
+        to = doc.line(toLine).to;
+      }
+      if (from >= 0 && to >= 0) {
+        view.dispatch({
+          selection: { anchor: from },
+          effects: setAiHighlight.of({ from, to }),
+          scrollIntoView: true,
+        });
+        view.focus();
+      }
+    });
+
+    const unlistenReplace = events.onReplaceSelectedText((text: string) => {
+      const view = viewRef.current;
+      if (!view) return;
+      // Use AI highlight range if present, fall back to selection
+      const highlight = view.state.field(aiHighlightField);
+      let from = -1, to = -1;
+      highlight.between(0, view.state.doc.length, (a, b) => { from = a; to = b; return false; });
+      if (from < 0) {
+        from = view.state.selection.main.from;
+        to = view.state.selection.main.to;
+      }
+      if (from === to) return;
+      view.dispatch({
+        changes: { from, to, insert: text },
+        effects: setAiHighlight.of(null),
+      });
+      view.focus();
+    });
+
+    return () => {
+      unlistenSelect.then((fn) => fn());
+      unlistenReplace.then((fn) => fn());
+    };
   }, []);
 
   // Reconfigure custom keymap when keybindings change

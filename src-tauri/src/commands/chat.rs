@@ -42,7 +42,7 @@ fn read_context_relationships(context_path: &Path) -> Vec<ContextRelationship> {
         .unwrap_or_default()
 }
 
-fn render_named_entry(output: &mut String, token_prefix: &str, name: &str, content: &str) {
+pub(crate) fn render_named_entry(output: &mut String, token_prefix: &str, name: &str, content: &str) {
     let trimmed = content.trim();
     if trimmed.is_empty() {
         output.push_str(&format!("- {}{}\n", token_prefix, name));
@@ -60,7 +60,7 @@ fn render_named_entry(output: &mut String, token_prefix: &str, name: &str, conte
     output.push_str(&format!("- {}{}: {}\n", token_prefix, name, trimmed));
 }
 
-fn render_context(ctx: &Context, depth: usize, output: &mut String) {
+pub(crate) fn render_context(ctx: &Context, depth: usize, output: &mut String) {
     let prefix = "#".repeat(depth + 2);
     let detail_prefix = "#".repeat(depth + 3);
 
@@ -368,12 +368,17 @@ pub async fn send_chat_message(
         content: message,
     });
 
+    let editor_ctx = tools::EditorContext {
+        root_path: root_path.clone(),
+        current_path: current_path.clone(),
+    };
+
     let result = match profile.provider {
         AiProvider::Anthropic => {
-            stream_anthropic(&app, &spec_context, &history, &profile, &system_prompt).await
+            stream_anthropic(&app, &spec_context, &history, &profile, &system_prompt, &editor_ctx).await
         }
         AiProvider::OpenAI => {
-            stream_openai(&app, &spec_context, &history, &profile, &system_prompt).await
+            stream_openai(&app, &spec_context, &history, &profile, &system_prompt, &editor_ctx).await
         }
     };
 
@@ -410,6 +415,7 @@ async fn stream_anthropic(
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
+    editor_ctx: &tools::EditorContext,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
@@ -496,7 +502,7 @@ async fn stream_anthropic(
                     "input": tool_input,
                 }));
 
-                let result = match tools::execute_tool(tool_name, tool_input) {
+                let result = match tools::execute_tool(tool_name, tool_input, Some(&app), Some(editor_ctx)).await {
                     Ok(output) => serde_json::json!({
                         "type": "tool_result",
                         "tool_use_id": tool_id,
@@ -538,6 +544,7 @@ async fn stream_openai(
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
+    editor_ctx: &tools::EditorContext,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
@@ -620,7 +627,7 @@ async fn stream_openai(
                     "input": &tool_input,
                 }));
 
-                let result = match tools::execute_tool(tool_name, &tool_input) {
+                let result = match tools::execute_tool(tool_name, &tool_input, Some(&app), Some(editor_ctx)).await {
                     Ok(output) => output,
                     Err(err) => format!("Error: {}", err),
                 };

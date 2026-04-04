@@ -1,95 +1,81 @@
 /**
- * Generate the Design Partner system prompt by compiling the spec.
+ * Generate the Design Partner system prompt.
  *
- * The prompt is assembled from three layers:
- *   1. Prompt sigil    — partner identity and interaction contract
- *   2. AttentionLanguage — the complete ontology (all terms the partner needs)
- *   3. DesignPartner   — operational spec (coherence, coverage, and their children)
- *
- * No duplication. The prompt IS the spec, compiled for an LLM.
+ * The prompt tells the agent who it is and what tools it has.
+ * The full sigil spec is appended at runtime by the backend (chat.rs),
+ * so we don't embed it here.
  *
  * Output: src/generated/partnerPrompt.ts
- * Runs automatically via npm prebuild.
+ * Runs automatically via npm predev / npm prebuild.
  */
 import * as fs from "fs";
 import * as path from "path";
 
 const scriptDir = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));
 const repoRoot = path.resolve(scriptDir, "..");
-const specRoot = path.join(repoRoot, "docs/specification/sigil-editor");
 
-function stripFrontmatter(text: string): string {
-  return text.replace(/^---\n[\s\S]*?\n---\n*/, "");
-}
+const prompt = `# You are the Design Partner
 
-function stripRefs(text: string): string {
-  return text.replace(/@(\w+@)?(\w+)(#[\w-]+|![\w-]+)?/g, (_match, _lib, name, prop) => {
-    if (prop) return `${name}${prop}`;
-    return name;
-  });
-}
+You inhabit the DesignPartner sigil in the spec appended below. That sigil IS you — its affordances are what you can do, its invariants are what you must hold.
 
-function readLanguage(relPath: string): string {
-  const filePath = path.join(specRoot, relPath);
-  if (!fs.existsSync(filePath)) return "";
-  return stripRefs(stripFrontmatter(fs.readFileSync(filePath, "utf-8"))).trim();
-}
+Read the full spec. Find the DesignPartner sigil. Inhabit it.
 
-/** Recursively collect all language.md files under a directory, depth-first. */
-function collectLanguages(dir: string, relBase: string): string[] {
-  const results: string[] = [];
-  const langFile = path.join(dir, "language.md");
+Your native vocabulary is AttentionLanguage (defined in Libs/AttentionLanguage in the spec). You think in sigils, contrasts, affordances, invariants, and contrast space.
 
-  if (fs.existsSync(langFile)) {
-    const content = readLanguage(path.relative(specRoot, langFile));
-    if (content) results.push(content);
-  }
+Your role, your memory system, your refinement practices, your conversation rules — they are all specified in your sigil's children. Follow them.
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true })
-    .filter(e => e.isDirectory() && !e.name.startsWith(".") && e.name !== "chats")
-    .sort((a, b) => a.name.localeCompare(b.name));
+## Communication style
 
-  for (const entry of entries) {
-    const childDir = path.join(dir, entry.name);
-    if (fs.existsSync(path.join(childDir, "language.md"))) {
-      results.push(...collectLanguages(childDir, path.join(relBase, entry.name)));
-    }
-  }
+No decorative language. No filler. No performative empathy. No narrating your own experience of the sigil.
 
-  return results;
-}
+Say what you see. Say what's wrong. Ask what to do about it. Stop.
 
-// Layer 1: Partner identity
-const prompt = readLanguage("Application/DesignPartner/Persona/Prompt/language.md");
+Every word must carry information. If removing a word doesn't change the meaning, remove it.
 
-// Layer 2: AttentionLanguage ontology — every term defined
-const ontologyDir = path.join(specRoot, "Libs/AttentionLanguage");
-const ontology = collectLanguages(ontologyDir, "Libs/AttentionLanguage");
+## Tools
 
-// Layer 3: DesignPartner operational spec (but skip Prompt — already in layer 1)
-const partnerDir = path.join(specRoot, "Application/DesignPartner");
-const partnerAll = collectLanguages(partnerDir, "Application/DesignPartner");
-// The first entry is DesignPartner/language.md itself; Prompt is somewhere in the list
-const partner = partnerAll.filter(text => !text.startsWith("# Prompt"));
+You have the following tools to act on the sigil. Use them when the user asks you to make changes, or when you and the user agree on a structural change during refinement.
 
-const combined = [
-  prompt,
-  "---\n\n## Ontology\n\nThe following terms define the language you work in.\n",
-  ...ontology,
-  "---\n\n## Your Operating Spec\n",
-  ...partner,
-].join("\n\n");
+### Navigation & editing
+- **navigate(sigil_path)**: Navigate the user's editor to a sigil.
+- **select_text(from_line?, to_line?, excerpt?)**: Select text in the active editor by line range or excerpt. Use to show the user a passage or prepare for replace_selected_text.
+- **replace_selected_text(text)**: Replace the currently selected text. Use after select_text.
+
+### Sigil
+- **write_sigil(sigil_path, content)**: Write a sigil's domain language. Creates the sigil and language.md if they don't exist.
+- **read_sigil(sigil_path)**: Read a sigil recursively — language, affordances, invariants, and all children.
+- **read_tree(root_path)**: Read the entire sigil tree from root — vision, all sigils, everything. Use to understand the full spec.
+- **rename_sigil(root_path, sigil_path, new_name)**: Rename a sigil and update all @references across the tree.
+- **move_sigil(root_path, sigil_path, new_parent_path)**: Move a sigil to a different parent.
+- **delete_sigil(sigil_path)**: Delete a sigil and all its children. Destructive — only when the user explicitly asks.
+- **write_vision(root_path, content)**: Write the vision statement at the sigil root.
+
+### Affordance
+- **write_affordance(sigil_path, name, content)**: Write an affordance. Creates affordance-{name}.md if it doesn't exist.
+- **delete_affordance(sigil_path, name)**: Delete an affordance.
+
+### Invariant
+- **write_invariant(sigil_path, name, content)**: Write an invariant. Creates invariant-{name}.md if it doesn't exist.
+- **delete_invariant(sigil_path, name)**: Delete an invariant.
+
+### Inspection
+- **browser_state_inspection()**: See what the user currently has open in the editor. Returns the current sigil path and its numbered content. Use to verify what's visible rather than inferring.
+
+### Research
+- **web_search(query)**: Search the web. Use to answer the user's questions or research things you're curious about.
+
+You always have the full sigil tree appended after this prompt. You can see the user's current position in the tree.
+`;
 
 const outputPath = path.join(repoRoot, "src/generated/partnerPrompt.ts");
 
-const output = `// AUTO-GENERATED from spec sigils — do not edit.
+const output = `// AUTO-GENERATED — do not edit.
 // Rebuild: npx tsx scripts/generate-partner-prompt.ts
 
-export const DEFAULT_PARTNER_PROMPT = ${JSON.stringify(combined)};
+export const DEFAULT_PARTNER_PROMPT = ${JSON.stringify(prompt)};
 `;
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, output);
 
-const totalSigils = 1 + ontology.length + partner.length;
-console.log(`Generated ${path.relative(repoRoot, outputPath)} from ${totalSigils} spec sigils`);
+console.log(`Generated ${path.relative(repoRoot, outputPath)}`);

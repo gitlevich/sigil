@@ -56,6 +56,18 @@ export function useChatStream() {
       }
     });
 
+    const unlistenNavigate = events.onNavigateTo((sigilPath: string) => {
+      const currentDoc = docRef.current;
+      if (!currentDoc) return;
+      // Convert absolute path to relative path segments from root
+      const rootPath = currentDoc.sigil.root_path;
+      if (sigilPath.startsWith(rootPath)) {
+        const relative = sigilPath.slice(rootPath.length).replace(/^\//, "");
+        const segments = relative ? relative.split("/") : [];
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: segments } });
+      }
+    });
+
     const unlistenEnd = events.onChatStreamEnd(() => {
       const finalDoc = docRef.current;
       if (!finalDoc) return;
@@ -82,6 +94,7 @@ export function useChatStream() {
       unlistenError.then((fn) => fn());
       unlistenToolUse.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
+      unlistenNavigate.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
   }, [dispatch]);

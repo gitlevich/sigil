@@ -1,0 +1,1 @@
+Replaces the text selected in the active view with another. used in combination with #select-text
