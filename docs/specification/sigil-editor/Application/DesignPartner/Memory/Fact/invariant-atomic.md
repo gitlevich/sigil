@@ -1,1 +1,0 @@
-A fact is one statement. Not a paragraph, not a list, not a summary. One statement that stands alone and means one thing. If a fact contains "and" connecting two independent claims, it should be two facts.

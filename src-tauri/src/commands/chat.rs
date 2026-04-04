@@ -140,6 +140,7 @@ fn find_context_by_path<'a>(root: &'a Context, path: &[String]) -> Option<&'a Co
     Some(ctx)
 }
 
+#[allow(dead_code)]
 fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<String, String> {
     let sigil = read_sigil(root_path.to_string())?;
     let mut output = String::new();
@@ -403,8 +404,6 @@ pub async fn send_chat_message(
         eprintln!("[memory] Init failed (non-fatal): {}", e);
     }
 
-    let spec_context = assemble_sigil_context(&root_path, &current_path)?;
-
     // #recall — query memory for relevant context
     let recall_context = {
         let guard = memory_handle.0.lock().await;
@@ -441,17 +440,22 @@ pub async fn send_chat_message(
 
     // Build the full system string with recall context injected
     let system_with_memory = if recall_context.is_empty() {
+        eprintln!("[memory:recall] No recall context for this message");
         system_prompt.clone()
     } else {
-        format!("{}\n\n---\n\n# What I Remember\n\n{}", system_prompt, recall_context)
+        eprintln!("[memory:recall] Injecting {} bytes of recall context", recall_context.len());
+        format!(
+            "{}\n\n---\n\n# What I Remember\n\nThe following is my active memory — facts, experience, and spec fragments that resonate with the current context. This is not aspirational; this is what I actually recall right now.\n\n{}",
+            system_prompt, recall_context
+        )
     };
 
     let result = match profile.provider {
         AiProvider::Anthropic => {
-            stream_anthropic(&app, &spec_context, &history, &profile, &system_with_memory, &editor_ctx).await
+            stream_anthropic(&app, &history, &profile, &system_with_memory, &editor_ctx).await
         }
         AiProvider::OpenAI => {
-            stream_openai(&app, &spec_context, &history, &profile, &system_with_memory, &editor_ctx).await
+            stream_openai(&app, &history, &profile, &system_with_memory, &editor_ctx).await
         }
     };
 
@@ -515,7 +519,6 @@ pub async fn send_chat_message(
 
 async fn stream_anthropic(
     app: &AppHandle,
-    sigil_context: &str,
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
@@ -535,7 +538,7 @@ async fn stream_anthropic(
         })
         .collect();
 
-    let system = format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context);
+    let system = system_prompt.to_string();
 
     // Tool use loop: keep calling until the model responds with text only (no tool_use)
     loop {
@@ -644,7 +647,6 @@ async fn stream_anthropic(
 
 async fn stream_openai(
     app: &AppHandle,
-    sigil_context: &str,
     history: &[ChatMessage],
     profile: &AiProfile,
     system_prompt: &str,
@@ -668,7 +670,7 @@ async fn stream_openai(
 
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
-        "content": format!("{}\n\n---\n\nHere is the full sigil:\n\n{}", system_prompt, sigil_context),
+        "content": system_prompt,
     })];
 
     for m in history {
