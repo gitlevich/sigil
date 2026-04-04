@@ -7,6 +7,7 @@ import {
   SiblingInfo,
   buildSiblingHighlighter,
   buildPropertyExtensions,
+  buildCollapsibleFrontmatter,
   getThemeExtension,
 } from "./sigilExtensions";
 import styles from "./SigilPropertyEditor.module.css";
@@ -147,6 +148,7 @@ function PropertyCodeMirror({
           onCreateAffordanceRef.current,
           onCreateInvariantRef.current,
         ),
+        buildCollapsibleFrontmatter(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString());
@@ -189,6 +191,19 @@ function PropertyCodeMirror({
           },
           ".cm-line": { padding: "0" },
           ".cm-cursor": { borderLeftColor: "var(--text-primary)" },
+          ".cm-front-matter": {
+            opacity: "0.45",
+            fontSize: "0.8em",
+            fontStyle: "italic",
+            color: "var(--text-secondary)",
+          },
+          ".cm-frontmatter-collapsed": {
+            opacity: "0.45",
+            fontSize: "0.8em",
+            fontStyle: "italic",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+          },
           ".cm-selectionBackground": {
             backgroundColor: "var(--accent) !important",
             opacity: "0.3",
