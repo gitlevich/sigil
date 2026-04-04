@@ -48,10 +48,36 @@
 
 .chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.chipsOverflow {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.chipsTooltip {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--property-color, #a07ce8);
+  white-space: pre-wrap;
+  max-width: 400px;
+  pointer-events: none;
 }
 
 .chip {

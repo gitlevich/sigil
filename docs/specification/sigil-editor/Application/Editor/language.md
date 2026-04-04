@@ -4,7 +4,15 @@ status: implemented
 
 # Editor
 
-This is where I live, narrating in comfort. 
+```
+*** P O I N T    O F   V I E W ***
+*                                *
+*     Mine. I am the @User.      *
+*                                *
+*** -------------------------- ***
+```
+
+This is where I live, narrating in comfort. This @sigil is mostly occupied by my attention. Sometimes @DesignPartner comes over to @DesignPartner#chat.
 
 As I type, @OntologyTree on the left shows me the emerging structure. 
 
@@ -15,14 +23,14 @@ I #navigate @OntologyTree, @atlas to a @sigil and click it once to open. All vie
 
 I #declare-invariants as I understand them, to make the boundaries of my @sigil explicitly defined. I care about !language-flow: awkward sentences are a symptom of poor structure. I care about !cognitive-simplicity: it is hard for me to handle more than a few concepts at once.
 
-I #Distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the @vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally. Once imported, every term in that ontology is available everywhere in my spec (!imported-ontology-in-scope).
+I #distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the @vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally. Once imported, every term in that ontology is available everywhere in my spec (!imported-ontology-in-scope).
 
-I #Recognize-when-projectable to know when to hand the spec to an implementing agent. When ready, I #project: spec in, code out. The spec is the single source of truth — code is a projection.
+I #recognize-when-projectable to know when to hand the spec to an implementing agent. When ready, I #project: spec in, code out. The spec is the single source of truth — code is a projection.
 
 
 ## Static for SigilAtlas the application
 
-I want a user that is not me opens this app and has an example in front of him to see how I did it and can follow, see what he likes, doesn’t and how he can benefit
+I want a user other than me that is not me opens this app and has an example in front of him to see how I did it and can follow, see what he likes, doesn’t and how he can benefit
 
 ### Invariants
 

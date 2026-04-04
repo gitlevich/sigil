@@ -631,7 +631,7 @@ export function buildSiblingHighlighter(
         decorations: DecorationSet;
         constructor(view: EditorView) { this.decorations = this.build(view); }
         update(update: ViewUpdate) {
-          if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view);
+          this.decorations = this.build(update.view);
         }
         build(view: EditorView): DecorationSet {
           const builder = new RangeSetBuilder<Decoration>();

@@ -215,6 +215,15 @@ export const events = {
   onSigilChanged: (handler: () => void): Promise<UnlistenFn> =>
     listen("sigil-changed", () => handler()),
 
+  onNavigateTo: (handler: (sigilPath: string) => void): Promise<UnlistenFn> =>
+    listen<string>("navigate-to", (event) => handler(event.payload)),
+
+  onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
+    listen<string>("select-text", (event) => handler(event.payload)),
+
+  onReplaceSelectedText: (handler: (text: string) => void): Promise<UnlistenFn> =>
+    listen<string>("replace-selected-text", (event) => handler(event.payload)),
+
   onFsChange: (handler: (paths: string[]) => void): Promise<UnlistenFn> =>
     listen<string[]>("fs-change", (event) => handler(event.payload)),
 };

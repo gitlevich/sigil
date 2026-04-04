@@ -1,0 +1,1 @@
+allows me to search the web, mostly to answer @user's question, but also to research things I get curious about

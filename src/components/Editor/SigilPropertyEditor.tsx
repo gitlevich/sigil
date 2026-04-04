@@ -70,20 +70,37 @@ interface SigilPropertyEditorProps {
   keybindings?: Record<string, string>;
 }
 
-function PropertyChip({ item, refPrefix, color }: { item: LocalItem; refPrefix: string; color: string }) {
+function CollapsedChips({ items, refPrefix, color }: { items: LocalItem[]; refPrefix: string; color: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
   const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setOverflowing(el.scrollWidth > el.clientWidth);
+  }, [items]);
+
   return (
-    <span
-      className={styles.chip}
+    <div
+      className={styles.chips}
+      ref={containerRef}
       style={{ "--property-color": color } as React.CSSProperties}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {refPrefix}{item.name || "..."}
-      {hovered && item.content && (
-        <div className={styles.chipPopover}>{item.content}</div>
+      {items.map((item) => (
+        <span key={item.id} className={styles.chip}>
+          {refPrefix}{item.name || "..."}
+        </span>
+      ))}
+      {overflowing && <span className={styles.chipsOverflow}>...</span>}
+      {hovered && overflowing && (
+        <div className={styles.chipsTooltip}>
+          {items.map((item) => `${refPrefix}${item.name || "..."}`).join("  ")}
+        </div>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -630,11 +647,7 @@ export function SigilPropertyEditor({
         <span className={styles.toggleIcon}>{collapsed ? "\u25B6" : "\u25BC"}</span>
         <span className={styles.title}>{title}</span>
         {collapsed && items.length > 0 && (
-          <div className={styles.chips}>
-            {items.map((item) => (
-              <PropertyChip key={item.id} item={item} refPrefix={refPrefix} color={color} />
-            ))}
-          </div>
+          <CollapsedChips items={items} refPrefix={refPrefix} color={color} />
         )}
         {!collapsed && items.length > 0 && (
           <button
