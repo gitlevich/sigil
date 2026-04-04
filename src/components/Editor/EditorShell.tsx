@@ -423,6 +423,11 @@ export function EditorShell() {
             currentPath={doc.currentPath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
+            onRenameSigil={handleRenameSigil}
+            onRenameProperty={handleRenameProperty}
+            onNavigateToSigil={handleNavigateToSigil}
+            onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
+            keybindings={state.settings.keybindings as unknown as Record<string, string>}
           />
         )}
         <div className={styles.editorArea}>
@@ -481,6 +486,11 @@ export function EditorShell() {
             currentPath={doc.currentPath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
+            onRenameSigil={handleRenameSigil}
+            onRenameProperty={handleRenameProperty}
+            onNavigateToSigil={handleNavigateToSigil}
+            onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
+            keybindings={state.settings.keybindings as unknown as Record<string, string>}
           />
         )}
         <SubContextBar context={currentCtx} />
