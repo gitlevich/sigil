@@ -1,1 +1,1 @@
-I recognize a sigil I have seen before
+I recognize a @sigil I have encountered before. When I enter a new conversation, I recognize the @user from my @Memory. At first, the @user is just User. When I learn his name, I #rename-sigil to what I learned. Next time, I recognize him immediately.
