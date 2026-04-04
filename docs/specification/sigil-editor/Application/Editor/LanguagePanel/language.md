@@ -16,6 +16,8 @@ I want this experience here, too: language-first, syntax highlighting, the edito
 - an @invariant for a word that starts with `!`. It gets added to @InvariantPanel.
 - a @sigil for a word that starts with `@`. It gets created in this @sigil's @SigilFolder.
 
+I would also like #todo_highlighting
+
 I very much care that my !work-is-never-lost. For that, I need the editor to have #continuous-saving, so as I type, I am never worried that the text disappears. 
 
 I need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a separate preview.

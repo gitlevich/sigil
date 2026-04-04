@@ -49,6 +49,7 @@ const absoluteMark = Decoration.mark({ class: "cm-ref-absolute" });
 const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 const invariantMark = Decoration.mark({ class: "cm-ref-invariant" });
+const todoMark = Decoration.mark({ class: "cm-todo" });
 
 // ── Patterns ──
 
@@ -673,6 +674,30 @@ export function buildSiblingHighlighter(
       },
       { decorations: (v) => v.decorations }
     ),
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+        constructor(view: EditorView) { this.decorations = this.buildTodos(view); }
+        update(update: ViewUpdate) {
+          if (update.docChanged || update.viewportChanged)
+            this.decorations = this.buildTodos(update.view);
+        }
+        buildTodos(view: EditorView): DecorationSet {
+          const builder = new RangeSetBuilder<Decoration>();
+          const pattern = /\bTODO\b/gi;
+          for (const { from, to } of view.visibleRanges) {
+            const text = view.state.doc.sliceString(from, to);
+            let match;
+            pattern.lastIndex = 0;
+            while ((match = pattern.exec(text)) !== null) {
+              builder.add(from + match.index, from + match.index + match[0].length, todoMark);
+            }
+          }
+          return builder.finish();
+        }
+      },
+      { decorations: (v) => v.decorations }
+    ),
     refTheme,
     hoverTooltip((view, pos) => {
       const line = view.state.doc.lineAt(pos);
@@ -798,6 +823,10 @@ export const refTheme = EditorView.theme({
   ".cm-ref-invariant": {
     color: "#e8a040",
     fontStyle: "italic",
+  },
+  ".cm-todo": {
+    color: "var(--danger)",
+    fontWeight: "bold",
   },
   "&.cm-cmd-held .cm-ref-contained, &.cm-cmd-held .cm-ref-sibling, &.cm-cmd-held .cm-ref-lib, &.cm-cmd-held .cm-ref-absolute, &.cm-cmd-held .cm-ref-affordance, &.cm-cmd-held .cm-ref-invariant": {
     cursor: "pointer",
