@@ -168,8 +168,13 @@ struct ConceptEntry {
 
 fn collect_concepts(memory_dir: &Path, state: &MemoryState) -> Result<Vec<ConceptEntry>, MemoryError> {
     let mut concepts = Vec::new();
+    collect_concepts_recursive(memory_dir, state, &mut concepts)?;
+    Ok(concepts)
+}
 
-    for entry in fs::read_dir(memory_dir)?.filter_map(|e| e.ok()) {
+fn collect_concepts_recursive(dir: &Path, state: &MemoryState, out: &mut Vec<ConceptEntry>) -> Result<(), MemoryError> {
+    let entries = fs::read_dir(dir).map_err(MemoryError::Io)?;
+    for entry in entries.filter_map(|e| e.ok()) {
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -181,33 +186,31 @@ fn collect_concepts(memory_dir: &Path, state: &MemoryState) -> Result<Vec<Concep
         }
 
         let language_path = path.join("language.md");
-        if !language_path.exists() {
-            continue;
+        if language_path.exists() {
+            let text = fs::read_to_string(&language_path).unwrap_or_default();
+            if !text.trim().is_empty() {
+                let embeddings = state.embedder.embed(&[text.as_str()])?;
+                let embedding = embeddings.into_iter().next().unwrap_or_default();
+
+                let indexed_at = {
+                    let neighbors = state.db.nearest_neighbors(&embedding, 1)?;
+                    neighbors.first().map(|n| n.chunk.indexed_at).unwrap_or(0)
+                };
+
+                out.push(ConceptEntry {
+                    dir_path: path.to_string_lossy().to_string(),
+                    text,
+                    embedding,
+                    indexed_at,
+                    weight: 1.0,
+                });
+            }
         }
 
-        let text = fs::read_to_string(&language_path).unwrap_or_default();
-        if text.trim().is_empty() {
-            continue;
-        }
-
-        let embeddings = state.embedder.embed(&[text.as_str()])?;
-        let embedding = embeddings.into_iter().next().unwrap_or_default();
-
-        let indexed_at = {
-            let neighbors = state.db.nearest_neighbors(&embedding, 1)?;
-            neighbors.first().map(|n| n.chunk.indexed_at).unwrap_or(0)
-        };
-
-        concepts.push(ConceptEntry {
-            dir_path: path.to_string_lossy().to_string(),
-            text,
-            embedding,
-            indexed_at,
-            weight: 1.0,
-        });
+        // Recurse into child concepts
+        collect_concepts_recursive(&path, state, out)?;
     }
-
-    Ok(concepts)
+    Ok(())
 }
 
 /// Find pairs of concepts similar enough to merge. Returns (keep_idx, merge_idx) pairs.

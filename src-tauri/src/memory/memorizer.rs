@@ -23,21 +23,46 @@ fn find_memories_dir(root_path: &str) -> Option<std::path::PathBuf> {
     None
 }
 
-/// List existing concept sigil names under Memory/.
-fn list_existing_concepts(memory_dir: &Path) -> Vec<String> {
-    let mut names = Vec::new();
-    if let Ok(entries) = fs::read_dir(memory_dir) {
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.is_dir() {
-                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                if !STRUCTURAL_DIRS.contains(&name.as_str()) && path.join("language.md").exists() {
-                    names.push(name);
-                }
-            }
+/// A concept sigil found in the nested .memories/ tree.
+struct ExistingConcept {
+    /// Just the directory name (e.g. "ToolUsagePreference")
+    name: String,
+    /// Full path to the concept directory
+    path: std::path::PathBuf,
+    /// Path relative to .memories/ root (e.g. "Vlad/ToolUsagePreference")
+    relative: String,
+}
+
+/// Recursively list all concept sigils under .memories/, at any depth.
+fn list_existing_concepts(memory_dir: &Path) -> Vec<ExistingConcept> {
+    let mut concepts = Vec::new();
+    collect_concepts_recursive(memory_dir, memory_dir, &mut concepts);
+    concepts
+}
+
+fn collect_concepts_recursive(dir: &Path, root: &Path, out: &mut Vec<ExistingConcept>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
         }
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if STRUCTURAL_DIRS.contains(&name.as_str()) {
+            continue;
+        }
+        if path.join("language.md").exists() {
+            let relative = path.strip_prefix(root)
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| name.clone());
+            out.push(ExistingConcept { name: name.clone(), path: path.clone(), relative });
+        }
+        // Recurse into children regardless
+        collect_concepts_recursive(&path, root, out);
     }
-    names
 }
 
 const EXTRACTION_PROMPT: &str = r#"You are extracting knowledge from a conversation turn into concept sigils for long-term memory.
@@ -62,10 +87,12 @@ Rules:
 - Use @PascalCase references to link concepts together
 - If nothing is worth extracting, return "NONE"
 
-Respond with ONLY a JSON array (no markdown fencing), or the word "NONE":
-[{"name": "ConceptName", "language": "Sentence per fact. Each relationship in its own sentence with @References."}]
+Concepts are nested — a concept scoped to another belongs INSIDE it (e.g. ToolUsagePreference inside Vlad). For each concept, provide a "parent" field: the name of the existing concept it belongs inside, or null if it is independent (root-level).
 
-EXISTING CONCEPTS (refine these rather than creating duplicates):
+Respond with ONLY a JSON array (no markdown fencing), or the word "NONE":
+[{"name": "ConceptName", "parent": "ParentName or null", "language": "Sentence per fact. Each relationship in its own sentence with @References."}]
+
+EXISTING CONCEPT TREE (refine these rather than creating duplicates):
 "#;
 
 const REFINEMENT_PROMPT: &str = r#"You are refining a concept sigil's knowledge by merging existing knowledge with new information from a conversation.
@@ -88,6 +115,8 @@ Respond with ONLY the updated paragraph text (no markdown fencing, no preamble).
 #[derive(Debug, serde::Deserialize)]
 struct ExtractedConcept {
     name: String,
+    /// Parent concept name (None = root level in .memories/)
+    parent: Option<String>,
     language: String,
 }
 
@@ -114,7 +143,22 @@ pub async fn memorize_turn(
 
     let mut written = 0;
     for concept in &concepts {
-        let concept_dir = memory_dir.join(&concept.name);
+        // Resolve placement: find parent directory or use root
+        let parent_dir = if let Some(ref parent_name) = concept.parent {
+            existing.iter()
+                .find(|c| c.name == *parent_name)
+                .map(|c| c.path.clone())
+                .unwrap_or_else(|| memory_dir.clone())
+        } else {
+            memory_dir.clone()
+        };
+
+        // Check if concept already exists anywhere in the tree
+        let concept_dir = if let Some(ex) = existing.iter().find(|c| c.name == concept.name) {
+            ex.path.clone()
+        } else {
+            parent_dir.join(&concept.name)
+        };
         let language_path = concept_dir.join("language.md");
 
         if language_path.exists() {
@@ -158,13 +202,14 @@ fn is_near_duplicate(language: &str, state: &MemoryState) -> Result<bool, Memory
 /// Call the LLM to extract concepts from a conversation turn.
 async fn extract_concepts(
     turn_text: &str,
-    existing: &[String],
+    existing: &[ExistingConcept],
     profile: &AiProfile,
 ) -> Result<Vec<ExtractedConcept>, MemoryError> {
     let existing_list = if existing.is_empty() {
         "(none yet)".to_string()
     } else {
-        existing.join(", ")
+        // Show tree structure: "Vlad, Vlad/ToolUsagePreference, SanFrancisco"
+        existing.iter().map(|c| c.relative.as_str()).collect::<Vec<_>>().join(", ")
     };
 
     let prompt = format!("{}{}\n\nConversation turn:\n{}", EXTRACTION_PROMPT, existing_list, turn_text);

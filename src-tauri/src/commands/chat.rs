@@ -889,45 +889,70 @@ pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
-    let entries = fs::read_dir(&memories_dir).map_err(|e| e.to_string())?;
-    for entry in entries.filter_map(|e| e.ok()) {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let language_path = path.join("language.md");
-        if !language_path.exists() {
-            continue;
-        }
-        let language = fs::read_to_string(&language_path).unwrap_or_default();
+    // Recursively walk the .memories/ tree
+    fn walk_memories(
+        dir: &Path,
+        nodes: &mut Vec<MemoryNode>,
+        edges: &mut Vec<MemoryEdge>,
+        ref_re: &regex::Regex,
+        sentence_re: &regex::Regex,
+        parent_name: Option<&str>,
+    ) {
+        let entries = match fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let language_path = path.join("language.md");
+            if !language_path.exists() {
+                continue;
+            }
+            let language = fs::read_to_string(&language_path).unwrap_or_default();
 
-        // Extract @references with qualifying context per sentence
-        for sentence_cap in sentence_re.find_iter(&language) {
-            let sentence = sentence_cap.as_str().trim();
-            // Find ALL @references in this sentence
-            for ref_cap in ref_re.captures_iter(sentence) {
-                let target = ref_cap[1].to_string();
-                if target == name {
-                    continue; // skip self-references
+            // Extract @references with qualifying context per sentence
+            for sentence_cap in sentence_re.find_iter(&language) {
+                let sentence = sentence_cap.as_str().trim();
+                for ref_cap in ref_re.captures_iter(sentence) {
+                    let target = ref_cap[1].to_string();
+                    if target == name {
+                        continue;
+                    }
+                    let label = ref_re.replace_all(sentence, "").trim().to_string();
+                    let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
+                    edges.push(MemoryEdge {
+                        source: name.clone(),
+                        target,
+                        label,
+                    });
                 }
-                // Strip all @references to get the qualifying text
-                let label = ref_re.replace_all(sentence, "").trim().to_string();
-                let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
+            }
+
+            // Add containment edge from parent
+            if let Some(parent) = parent_name {
                 edges.push(MemoryEdge {
-                    source: name.clone(),
-                    target,
-                    label,
+                    source: parent.to_string(),
+                    target: name.clone(),
+                    label: "contains".to_string(),
                 });
             }
-        }
 
-        nodes.push(MemoryNode {
-            id: name.clone(),
-            name,
-            language,
-        });
+            nodes.push(MemoryNode {
+                id: name.clone(),
+                name: name.clone(),
+                language,
+            });
+
+            // Recurse into child concepts
+            walk_memories(&path, nodes, edges, ref_re, sentence_re, Some(&name));
+        }
     }
+
+    walk_memories(&memories_dir, &mut nodes, &mut edges, &ref_re, &sentence_re, None);
 
     // Only keep edges where target is a known node
     let node_ids: std::collections::HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
