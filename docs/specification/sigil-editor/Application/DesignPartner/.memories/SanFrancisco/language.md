@@ -1,1 +1,1 @@
-@Vlad lives in San Francisco.
+San Francisco is the city where @Vlad lives.

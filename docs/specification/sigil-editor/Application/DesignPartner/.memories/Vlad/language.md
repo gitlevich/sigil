@@ -1,1 +1,1 @@
-@Vlad is the user and lives in @SanFrancisco.
+Vlad is the @User. He lives in @SanFrancisco. He lives on the 19th floor. He reads extensively.

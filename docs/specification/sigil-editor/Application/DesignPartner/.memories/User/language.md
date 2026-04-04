@@ -1,0 +1,1 @@
+The user of the application. @Vlad is the user.

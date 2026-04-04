@@ -98,16 +98,16 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "read_tree",
-            "description": "Read the entire sigil tree from root — vision, all sigils, affordances, invariants, recursively. Use to understand the full spec.",
+            "description": "Read the entire sigil tree from root — vision, all sigils, affordances, invariants, recursively. Use to understand the full spec. Call with no arguments to read the current sigil.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "root_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil root directory"
+                        "description": "Absolute path to the sigil root directory. Omit to use the current sigil root."
                     }
                 },
-                "required": ["root_path"]
+                "required": []
             }
         }),
         serde_json::json!({
@@ -383,6 +383,7 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             let sigil_path = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
+                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
                 .ok_or("Missing sigil_path")?;
             let sigil = read_sigil(sigil_path.to_string())?;
             let mut output = String::new();
@@ -390,7 +391,9 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             Ok(output)
         }
         "read_tree" => {
-            let root_path = input["root_path"].as_str().ok_or("Missing root_path")?;
+            let root_path = input["root_path"].as_str()
+                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
+                .ok_or("Missing root_path")?;
             let sigil = read_sigil(root_path.to_string())?;
             let mut output = String::new();
             output.push_str(&format!("Sigil root: {}\n\n", root_path));

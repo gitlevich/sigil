@@ -884,8 +884,8 @@ pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
     }
 
     let ref_re = regex::Regex::new(r"@(\w+)").unwrap();
-    // Match the sentence (or clause) containing an @reference
-    let sentence_re = regex::Regex::new(r"[^.!?\n]*@(\w+)[^.!?\n]*[.!?\n]?").unwrap();
+    // Match sentences that contain at least one @reference
+    let sentence_re = regex::Regex::new(r"[^.!?\n]*@\w+[^.!?\n]*[.!?\n]?").unwrap();
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
@@ -902,14 +902,17 @@ pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
         }
         let language = fs::read_to_string(&language_path).unwrap_or_default();
 
-        // Extract @references with qualifying context
-        for cap in sentence_re.captures_iter(&language) {
-            let target = cap[1].to_string();
-            if target != name {
-                // Strip the @reference itself to get the qualifying text
-                let full_match = cap[0].trim().to_string();
-                let label = ref_re.replace_all(&full_match, "").trim().to_string();
-                // Clean up extra whitespace
+        // Extract @references with qualifying context per sentence
+        for sentence_cap in sentence_re.find_iter(&language) {
+            let sentence = sentence_cap.as_str().trim();
+            // Find ALL @references in this sentence
+            for ref_cap in ref_re.captures_iter(sentence) {
+                let target = ref_cap[1].to_string();
+                if target == name {
+                    continue; // skip self-references
+                }
+                // Strip all @references to get the qualifying text
+                let label = ref_re.replace_all(sentence, "").trim().to_string();
                 let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
                 edges.push(MemoryEdge {
                     source: name.clone(),
