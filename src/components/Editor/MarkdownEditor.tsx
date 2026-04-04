@@ -283,6 +283,28 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
             if (event.key === "Meta" || event.key === "Control") {
               view.dom.classList.add("cm-cmd-held");
             }
+            // Alt-Enter: create sigil/affordance/invariant from unresolved ref
+            // Handle at DOM level to prevent autocomplete from swallowing the event
+            if (event.altKey && event.key === "Enter") {
+              const prop = findPropertyRefAtCursor(view);
+              if (prop && !prop.exists) {
+                event.preventDefault();
+                if (prop.kind === "affordance" && onCreateAffordanceRef.current) {
+                  onCreateAffordanceRef.current(prop.name);
+                  return true;
+                }
+                if (prop.kind === "invariant" && onCreateInvariantRef.current) {
+                  onCreateInvariantRef.current(prop.name);
+                  return true;
+                }
+              }
+              const ref = findRefAtCursor(view);
+              if (ref && !ref.known && onCreateSigilRef.current) {
+                event.preventDefault();
+                onCreateSigilRef.current(ref.name);
+                return true;
+              }
+            }
             return false;
           },
           keyup: (event, view) => {
