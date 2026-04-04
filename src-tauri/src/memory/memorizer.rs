@@ -53,6 +53,8 @@ Example of BAD language (too sparse, loses relationships):
 "Vlad lives in @SanFrancisco."
 
 Rules:
+- NEVER @-reference the concept you are defining. "Vlad" should not say "@Vlad". That is a self-reference and is meaningless.
+- Separate concepts must be separate entries. If Vlad is the user, create both a "Vlad" concept and a "User" concept linked by @references.
 - Capture ALL stated facts and relationships, not just the most obvious one
 - Each @Reference must appear in a sentence that qualifies the relationship
 - Skip transient details (tool use, formatting, navigation)

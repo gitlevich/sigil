@@ -143,20 +143,7 @@ export function MemoriesPanel() {
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
-          linkCurvature={(link: any) => {
-            // Curve parallel edges in opposite directions so they don't overlap
-            const src = typeof link.source === "object" ? link.source.id : link.source;
-            const tgt = typeof link.target === "object" ? link.target.id : link.target;
-            // Find if there's a reverse edge
-            const hasReverse = graph.links.some((l) => {
-              const ls = typeof l.source === "object" ? (l.source as any).id : l.source;
-              const lt = typeof l.target === "object" ? (l.target as any).id : l.target;
-              return ls === tgt && lt === src;
-            });
-            if (!hasReverse) return 0;
-            // Curve based on alphabetical order of source to get consistent direction
-            return src < tgt ? 0.2 : -0.2;
-          }}
+          linkCurvature={0.2}
           onNodeClick={handleNodeClick}
           onLinkClick={handleLinkClick}
           onBackgroundClick={() => setDetail(null)}
