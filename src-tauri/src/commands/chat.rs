@@ -8,7 +8,7 @@ use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 use crate::commands::tools;
 use crate::memory;
-use crate::{MemoryHandle, SleepTrigger, SleepRx};
+use crate::{MemoryHandle, SleepSender, SleepRx};
 
 #[derive(Debug, serde::Deserialize)]
 struct ContextRelationship {
@@ -381,7 +381,7 @@ async fn ensure_memory_initialized(
         tokio::spawn(async move {
             memory::sleeper::sleep_loop(handle, rx).await;
         });
-        eprintln!("[memory] Sleep loop started (45min interval)");
+        eprintln!("[memory] Sleep loop started (trigger-driven)");
     }
 
     Ok(())
@@ -839,9 +839,19 @@ pub async fn memory_trigger_reindex(
 
 #[tauri::command]
 pub async fn memory_trigger_sleep(
-    sleep_trigger: tauri::State<'_, SleepTrigger>,
+    sleep_sender: tauri::State<'_, SleepSender>,
 ) -> Result<(), String> {
-    sleep_trigger.0.send(()).await.map_err(|e| e.to_string())
+    let trigger = memory::sleeper::SleepTrigger {
+        reason: memory::sleeper::SleepReason::UserRequest,
+        profile: AiProfile {
+            id: String::new(),
+            name: String::new(),
+            provider: AiProvider::Anthropic,
+            api_key: String::new(),
+            model: String::new(),
+        },
+    };
+    sleep_sender.0.send(trigger).await.map_err(|e| e.to_string())
 }
 
 #[derive(Debug, serde::Serialize)]

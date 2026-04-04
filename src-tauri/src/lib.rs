@@ -8,15 +8,15 @@ use std::sync::{Arc, Mutex};
 /// Lazily-initialized memory state. Opened on first use when sigil root is known.
 pub struct MemoryHandle(pub Arc<tokio::sync::Mutex<Option<memory::MemoryState>>>);
 
-/// Channel to trigger early sleep consolidation.
-pub struct SleepTrigger(pub tokio::sync::mpsc::Sender<()>);
+/// Channel to trigger sleep consolidation.
+pub struct SleepSender(pub tokio::sync::mpsc::Sender<memory::sleeper::SleepTrigger>);
 
 /// Receiver side of sleep trigger — taken once to start the sleep loop.
-pub struct SleepRx(pub Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<()>>>>);
+pub struct SleepRx(pub Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<memory::sleeper::SleepTrigger>>>>);
 
 pub fn run() {
     let memory_handle = MemoryHandle(Arc::new(tokio::sync::Mutex::new(None)));
-    let (sleep_tx, sleep_rx) = tokio::sync::mpsc::channel::<()>(4);
+    let (sleep_tx, sleep_rx) = tokio::sync::mpsc::channel::<memory::sleeper::SleepTrigger>(4);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -26,7 +26,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
         .manage(memory_handle)
-        .manage(SleepTrigger(sleep_tx))
+        .manage(SleepSender(sleep_tx))
         .invoke_handler(tauri::generate_handler![
             commands::sigil::read_sigil,
             commands::sigil::create_context,
