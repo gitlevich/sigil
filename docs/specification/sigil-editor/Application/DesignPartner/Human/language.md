@@ -1,5 +1,0 @@
----
-status: stub
----
-
-# Human

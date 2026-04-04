@@ -10,6 +10,7 @@ import { SubContextBar } from "./SubContextBar";
 import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
+import { useToast } from "../../hooks/useToast";
 import { SigilMap } from "./Map";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import { buildBreadcrumb as coreBuildBreadcrumb, buildLexicalScope as coreBuildLexicalScope, makeSummary, resolveRefName } from "sigil-core";
@@ -139,6 +140,7 @@ export function EditorShell() {
   const doc = useDocument();
   const { save } = useAutoSave();
   const { reload } = useSigil();
+  const { addToast } = useToast();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -229,9 +231,10 @@ export function EditorShell() {
       await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
       await reload(doc.sigil.root_path);
     } catch (err) {
-      console.error("Create sigil failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast(msg, "error");
     }
-  }, [doc, reload]);
+  }, [doc, reload, addToast]);
 
   const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim()) return;
@@ -262,9 +265,10 @@ export function EditorShell() {
       await api.writeFile(`${ctx.path}/affordance-${name}.md`, "");
       await reload(doc.sigil.root_path);
     } catch (err) {
-      console.error("Create affordance failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast(msg, "error");
     }
-  }, [doc, reload]);
+  }, [doc, reload, addToast]);
 
   const handleCreateInvariant = useCallback(async (name: string) => {
     if (!doc) return;
@@ -273,9 +277,10 @@ export function EditorShell() {
       await api.writeFile(`${ctx.path}/invariant-${name}.md`, "");
       await reload(doc.sigil.root_path);
     } catch (err) {
-      console.error("Create invariant failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast(msg, "error");
     }
-  }, [doc, reload]);
+  }, [doc, reload, addToast]);
 
   const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
     if (!doc) return;
@@ -411,6 +416,13 @@ export function EditorShell() {
             contentPlaceholder="so that..."
             items={currentCtx.affordances}
             onReload={() => reload(doc.sigil.root_path).then(() => {})}
+            siblings={allRefs}
+            siblingNames={allRefNames}
+            sigilRoot={doc.sigil.root}
+            currentContext={currentCtx}
+            currentPath={doc.currentPath}
+            onCreateAffordance={handleCreateAffordance}
+            onCreateInvariant={handleCreateInvariant}
           />
         )}
         <div className={styles.editorArea}>
@@ -462,6 +474,13 @@ export function EditorShell() {
             contentPlaceholder="because..."
             items={currentCtx.invariants}
             onReload={() => reload(doc.sigil.root_path).then(() => {})}
+            siblings={allRefs}
+            siblingNames={allRefNames}
+            sigilRoot={doc.sigil.root}
+            currentContext={currentCtx}
+            currentPath={doc.currentPath}
+            onCreateAffordance={handleCreateAffordance}
+            onCreateInvariant={handleCreateInvariant}
           />
         )}
         <SubContextBar context={currentCtx} />
