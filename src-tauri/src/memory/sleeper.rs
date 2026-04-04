@@ -1,14 +1,10 @@
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 
-use crate::models::settings::{AiProfile, AiProvider};
+use crate::models::settings::AiProfile;
 use super::{MemoryState, MemoryError};
 use super::embedder::cosine_similarity;
-
-/// How often the proactive sleep fires (for the user's benefit).
-const SLEEP_INTERVAL: Duration = Duration::from_secs(45 * 60);
 
 /// Known sub-sigils that are NOT concept sigils (skip during scans).
 const STRUCTURAL_DIRS: &[&str] = &[
@@ -35,41 +31,104 @@ const NOISE_FLOOR: f32 = 0.1;
 /// Weight decay applied to concepts older than 24 hours during sleep.
 const DECAY_FACTOR: f32 = 0.8;
 
-/// Run the sleep loop. Fires every 45 minutes or on early trigger.
+/// New concepts since last sleep before saturation triggers consolidation.
+const SATURATION_THRESHOLD: usize = 20;
+
+/// Sleep triggers: context pressure, saturation, session end, or user request.
+/// No fixed timer — sleep responds to state, not to a clock.
 pub async fn sleep_loop(
     memory_handle: Arc<tokio::sync::Mutex<Option<MemoryState>>>,
-    mut early_trigger: tokio::sync::mpsc::Receiver<()>,
+    mut trigger: tokio::sync::mpsc::Receiver<SleepTrigger>,
 ) {
-    let mut interval = tokio::time::interval(SLEEP_INTERVAL);
-    // Skip the initial immediate tick
-    interval.tick().await;
-
     loop {
-        tokio::select! {
-            _ = interval.tick() => {
-                log_sleep("Proactive sleep triggered (45min interval)");
+        match trigger.recv().await {
+            Some(trigger) => {
+                log_sleep(&format!("Sleep triggered: {}", trigger.reason()));
+                let guard = memory_handle.lock().await;
+                if let Some(ref state) = *guard {
+                    if let Err(e) = consolidate(state, &trigger.profile).await {
+                        eprintln!("[memory:sleep] Consolidation error: {}", e);
+                    }
+                } else {
+                    log_sleep("Memory not initialized yet, skipping");
+                }
             }
-            Some(()) = early_trigger.recv() => {
-                log_sleep("Early sleep triggered (context pressure)");
+            None => {
+                log_sleep("Trigger channel closed, exiting sleep loop");
+                break;
             }
-        }
-
-        let guard = memory_handle.lock().await;
-        if let Some(ref state) = *guard {
-            let profile = AiProfile {
-                id: String::new(),
-                name: String::new(),
-                provider: AiProvider::Anthropic,
-                api_key: String::new(),
-                model: String::new(),
-            };
-            if let Err(e) = consolidate(state, &profile).await {
-                eprintln!("[memory:sleep] Consolidation error: {}", e);
-            }
-        } else {
-            log_sleep("Memory not initialized yet, skipping");
         }
     }
+}
+
+/// Why sleep was triggered.
+pub enum SleepReason {
+    ContextPressure,
+    Saturation,
+    SessionEnd,
+    UserRequest,
+}
+
+pub struct SleepTrigger {
+    pub reason: SleepReason,
+    pub profile: AiProfile,
+}
+
+impl SleepTrigger {
+    fn reason(&self) -> &'static str {
+        match self.reason {
+            SleepReason::ContextPressure => "context pressure",
+            SleepReason::Saturation => "saturation",
+            SleepReason::SessionEnd => "session end",
+            SleepReason::UserRequest => "user request",
+        }
+    }
+}
+
+/// Check if enough concepts have accumulated to warrant sleep.
+pub async fn is_saturated(state: &MemoryState) -> Result<bool, MemoryError> {
+    let last_sleep = state.db.get_meta("last_sleep_at")?
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
+
+    let sigil_root = state.sigil_root().await
+        .ok_or(MemoryError::NotInitialized)?;
+
+    let memory_dir = find_memories_dir(&sigil_root)
+        .unwrap_or_else(|| sigil_root.join(".sigil").join("memory"));
+
+    if !memory_dir.exists() {
+        return Ok(false);
+    }
+
+    let mut recent_count = 0;
+    count_recent_concepts(&memory_dir, state, last_sleep, &mut recent_count)?;
+    Ok(recent_count >= SATURATION_THRESHOLD)
+}
+
+fn count_recent_concepts(dir: &Path, state: &MemoryState, since: i64, count: &mut usize) -> Result<(), MemoryError> {
+    let entries = fs::read_dir(dir).map_err(MemoryError::Io)?;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if !path.is_dir() { continue; }
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if STRUCTURAL_DIRS.contains(&name.as_str()) { continue; }
+
+        let language_path = path.join("language.md");
+        if language_path.exists() {
+            if let Ok(meta) = fs::metadata(&language_path) {
+                if let Ok(modified) = meta.modified() {
+                    let modified_secs = modified.duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default().as_secs() as i64;
+                    if modified_secs > since {
+                        *count += 1;
+                    }
+                }
+            }
+        }
+        count_recent_concepts(&path, state, since, count)?;
+    }
+    Ok(())
 }
 
 fn log_sleep(msg: &str) {
