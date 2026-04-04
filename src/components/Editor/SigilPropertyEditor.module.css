@@ -5,6 +5,13 @@
   min-height: 0;
   max-height: 30vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorMaximized {
+  max-height: none;
+  flex: 1;
 }
 
 .header {
@@ -193,6 +200,61 @@
 .deleteBtn:hover {
   opacity: 1;
   color: var(--danger);
+}
+
+.deleteBtnConfirm {
+  opacity: 1;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.maximizeBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.5;
+}
+
+.maximizeBtn:hover {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.listMaximized {
+  flex: 1;
+  min-height: 0;
+}
+
+.itemMaximized {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.itemMaximized .itemBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.itemMaximized .contentArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.itemMaximized :global(.cm-editor) {
+  height: 100%;
+}
+
+.itemMaximized :global(.cm-scroller) {
+  overflow: auto !important;
 }
 
 .contentArea {
