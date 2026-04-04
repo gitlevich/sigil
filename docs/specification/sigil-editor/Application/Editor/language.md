@@ -42,15 +42,13 @@ I want a user other than me that is not me opens this app and has an example in 
 ### Affordances
 
 - #Distil-with-partner: to get another point of view
-- #Import-external-ontology: to use precise terms from an established external ontology that is useful in this context without defining them locally. this is a meta-affordance - to explicitly declare omnipresent context of an external domain language in scope.
 - #Measure-coherence: to track how close the language is to the @vision
 - #name-affordances: to declare what this sigil needs to do
 - #Narrate: to let domain language emerge
 - #Notice-emergent-ontology: to see which nouns need their own sigil
 - #Recognize-when-projectable: to know when to hand it to an implementing agent
 - #state-my-vision: to align design with a clear goal
-- #access-ontology-library: I could use ontology library in other projects. I think of it separately. So Libs folder is mounted as a part of the application, not user’s application sigil. so when i unmount a sigil and mount another, or create a new one, i have Libs available alongside, sorted to appear under user’s app sigil.
-- #toggle-dark-light-theme: because I want to switch. 
+- #toggle-dark-light-theme: because I want to switch.
   
 ## VG Notes - WIP
 
