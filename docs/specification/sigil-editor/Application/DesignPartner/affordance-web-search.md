@@ -1,1 +1,1 @@
-allows me to search the web, mostly to answer @user's question, but also to research things I get curious about
+allows me to search the web, mostly to answer @user's question, but also to research things I get curious about. i do it recursively until it is improved. it's just a simple duckduckgo scraper. 

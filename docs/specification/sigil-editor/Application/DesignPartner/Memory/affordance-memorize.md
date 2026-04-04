@@ -1,1 +1,1 @@
-I memorize an @Observation so that I could #recall it later
+When I learn something, I update my @Memory. If the concept is new to me, I create a new @sigil. If I already know it, I refine the existing one. I add and elaborate edges — qualified @references — between sigils. An unresolved @reference is a name I haven't yet crystallized into its own sigil. It crystallizes when I attend to it.
