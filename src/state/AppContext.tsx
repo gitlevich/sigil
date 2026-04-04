@@ -9,6 +9,7 @@ export interface OpenDocument {
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "ontology";
   rightPanelOpen: boolean;
+  rightPanelTab: "chat" | "memories";
   chats: ChatInfo[];
   activeChatId: string;
   chatMessages: ChatMessage[];

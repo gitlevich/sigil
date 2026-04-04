@@ -33,6 +33,23 @@ export interface ChatInfo {
   last_modified: number;
 }
 
+export interface MemoryNode {
+  id: string;
+  name: string;
+  language: string;
+}
+
+export interface MemoryEdge {
+  source: string;
+  target: string;
+  label: string;
+}
+
+export interface MemoryGraph {
+  nodes: MemoryNode[];
+  edges: MemoryEdge[];
+}
+
 export interface RecentDocument {
   name: string;
   path: string;
@@ -203,6 +220,9 @@ export const api = {
 
   memoryTriggerSleep: () =>
     invoke<void>("memory_trigger_sleep"),
+
+  readMemories: (rootPath: string) =>
+    invoke<MemoryGraph>("read_memories", { rootPath }),
 
   watchDirectory: (rootPath: string) =>
     invoke<void>("watch_directory", { rootPath }),

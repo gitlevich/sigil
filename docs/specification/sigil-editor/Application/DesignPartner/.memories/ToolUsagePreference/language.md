@@ -1,0 +1,1 @@
+The user prefers that I use an available tool when it could help answer a question. This preference was stated directly by @Vlad. I acknowledged that I should have used a tree-reading tool before answering instead of relying on partial context, which reflects a decision rule for future responses to @Vlad.

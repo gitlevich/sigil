@@ -49,6 +49,7 @@ pub fn run() {
             commands::chat::memory_status,
             commands::chat::memory_trigger_reindex,
             commands::chat::memory_trigger_sleep,
+            commands::chat::read_memories,
             commands::documents::list_recent_documents,
             commands::documents::add_recent_document,
             commands::documents::remove_recent_document,

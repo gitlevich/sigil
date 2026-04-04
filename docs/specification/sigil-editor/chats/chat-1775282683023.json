@@ -9,6 +9,38 @@
     {
       "role": "assistant",
       "content": "Yes, I know your name is Vlad."
+    },
+    {
+      "role": "user",
+      "content": "You know where I live?"
+    },
+    {
+      "role": "assistant",
+      "content": "No, I don’t know where you live."
+    },
+    {
+      "role": "user",
+      "content": "I live in San Francisco."
+    },
+    {
+      "role": "assistant",
+      "content": "Got it. You live in San Francisco."
+    },
+    {
+      "role": "user",
+      "content": "I live on the 19th floor."
+    },
+    {
+      "role": "assistant",
+      "content": "Got it. You live on the 19th floor."
+    },
+    {
+      "role": "user",
+      "content": "I live at 1 Polk Street."
+    },
+    {
+      "role": "assistant",
+      "content": "Got it. You live at 1 Polk Street."
     }
   ]
 }

@@ -5,7 +5,7 @@ import { useAppDispatch, useAppState, OpenDocument } from "../state/AppContext";
 
 type UIOverrides = Partial<Pick<OpenDocument,
   "currentPath" | "editorMode" | "contentTab" |
-  "leftPanelOpen" | "leftPanelTab" | "rightPanelOpen" |
+  "leftPanelOpen" | "leftPanelTab" | "rightPanelOpen" | "rightPanelTab" |
   "activeChatId" | "chatMessages" | "wordWrap"
 >>;
 
@@ -47,6 +47,7 @@ export function useSigil() {
         leftPanelOpen: true,
         leftPanelTab: "ontology",
         rightPanelOpen: false,
+        rightPanelTab: "chat",
         chats,
         activeChatId,
         chatMessages,

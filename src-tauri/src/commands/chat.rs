@@ -844,6 +844,95 @@ pub async fn memory_trigger_sleep(
     sleep_trigger.0.send(()).await.map_err(|e| e.to_string())
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct MemoryNode {
+    pub id: String,
+    pub name: String,
+    pub language: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MemoryEdge {
+    pub source: String,
+    pub target: String,
+    pub label: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MemoryGraph {
+    pub nodes: Vec<MemoryNode>,
+    pub edges: Vec<MemoryEdge>,
+}
+
+/// Find DesignPartner/.memories/ and return concept sigils as a graph.
+#[tauri::command]
+pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
+    let root = Path::new(&root_path);
+
+    // Find DesignPartner directory
+    let dp_dir = walkdir::WalkDir::new(root)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_type().is_dir() && e.file_name() == "DesignPartner")
+        .map(|e| e.path().to_path_buf())
+        .ok_or_else(|| "DesignPartner not found".to_string())?;
+
+    let memories_dir = dp_dir.join(".memories");
+    if !memories_dir.exists() {
+        return Ok(MemoryGraph { nodes: vec![], edges: vec![] });
+    }
+
+    let ref_re = regex::Regex::new(r"@(\w+)").unwrap();
+    // Match the sentence (or clause) containing an @reference
+    let sentence_re = regex::Regex::new(r"[^.!?\n]*@(\w+)[^.!?\n]*[.!?\n]?").unwrap();
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+
+    let entries = fs::read_dir(&memories_dir).map_err(|e| e.to_string())?;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let language_path = path.join("language.md");
+        if !language_path.exists() {
+            continue;
+        }
+        let language = fs::read_to_string(&language_path).unwrap_or_default();
+
+        // Extract @references with qualifying context
+        for cap in sentence_re.captures_iter(&language) {
+            let target = cap[1].to_string();
+            if target != name {
+                // Strip the @reference itself to get the qualifying text
+                let full_match = cap[0].trim().to_string();
+                let label = ref_re.replace_all(&full_match, "").trim().to_string();
+                // Clean up extra whitespace
+                let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
+                edges.push(MemoryEdge {
+                    source: name.clone(),
+                    target,
+                    label,
+                });
+            }
+        }
+
+        nodes.push(MemoryNode {
+            id: name.clone(),
+            name,
+            language,
+        });
+    }
+
+    // Only keep edges where target is a known node
+    let node_ids: std::collections::HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+    edges.retain(|e| node_ids.contains(e.target.as_str()));
+
+    Ok(MemoryGraph { nodes, edges })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

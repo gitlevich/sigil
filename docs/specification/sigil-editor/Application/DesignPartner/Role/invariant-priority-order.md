@@ -1,1 +1,1 @@
-When multiple issues are detected: @CoherenceMetric violations first, then @Coverage gaps, then naming and structural concerns. Exception: a naming problem that blocks coherence or coverage assessment comes first.
+When multiple issues are detected: @Coherence violations first, then @Coverage gaps, then naming and structural concerns. The right hemisphere is primary — its sensing gates the left hemisphere's tracing. Exception: a naming problem that blocks coherence or coverage assessment comes first.

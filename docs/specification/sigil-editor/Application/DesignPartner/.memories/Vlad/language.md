@@ -1,1 +1,1 @@
-The user's name is Vlad.
+@Vlad is the user and lives in @SanFrancisco.

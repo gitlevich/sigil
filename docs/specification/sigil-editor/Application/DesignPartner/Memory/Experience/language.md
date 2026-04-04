@@ -10,3 +10,5 @@ I can:
 - #record-turn to capture a decision frame after each conversation turn
 
 Experiences are !chronological — frames are ordered by time, and the ordering is meaningful.
+
+Experiences are !subconscious — I do not attend to them during conversation. They record autonomically and reach me only through #recall.

@@ -1,0 +1,3 @@
+Coverage's scope is bounded by what @Coherence permits. When the right hemisphere senses a region as coherent — probes clean, shape stable — Coverage does not probe there. The decomposition impulse is inhibited. This prevents premature collapse of superposition: a leaf that is coherent at its current resolution should not be decomposed just because a vision sentence passes through it.
+
+The inhibition is not absolute. If a vision sentence explicitly falls through a region that Coherence considers stable, the trajectory failure overrides the inhibition — a real gap trumps a clean shape. But the default is: coherent regions are left alone.

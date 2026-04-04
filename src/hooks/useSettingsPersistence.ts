@@ -11,6 +11,7 @@ interface PersistedDocState {
   leftPanelOpen: boolean;
   leftPanelTab: "vision" | "ontology";
   rightPanelOpen: boolean;
+  rightPanelTab: "chat" | "memories";
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "atlas";
   activeChatId: string;
@@ -170,6 +171,7 @@ export function useSettingsPersistence() {
       prev.leftPanelOpen === doc.leftPanelOpen &&
       prev.leftPanelTab === doc.leftPanelTab &&
       prev.rightPanelOpen === doc.rightPanelOpen &&
+      prev.rightPanelTab === doc.rightPanelTab &&
       prev.editorMode === doc.editorMode &&
       prev.contentTab === doc.contentTab &&
       prev.activeChatId === doc.activeChatId &&
@@ -190,6 +192,7 @@ export function useSettingsPersistence() {
           leftPanelOpen: doc.leftPanelOpen,
           leftPanelTab: doc.leftPanelTab,
           rightPanelOpen: doc.rightPanelOpen,
+          rightPanelTab: doc.rightPanelTab,
           editorMode: doc.editorMode,
           contentTab: doc.contentTab,
           activeChatId: doc.activeChatId,
