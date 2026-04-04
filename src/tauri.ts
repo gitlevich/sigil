@@ -192,6 +192,18 @@ export const api = {
   exportSigil: (rootPath: string, outputPath: string) =>
     invoke<void>("export_sigil", { rootPath, outputPath }),
 
+  memoryRecallForSigil: (sigilPath: string) =>
+    invoke<string[]>("memory_recall_for_sigil", { sigilPath }),
+
+  memoryStatus: () =>
+    invoke<{ initialized: boolean; chunk_count: number; last_sleep_at: string | null }>("memory_status"),
+
+  memoryTriggerReindex: (rootPath: string) =>
+    invoke<string>("memory_trigger_reindex", { rootPath }),
+
+  memoryTriggerSleep: () =>
+    invoke<void>("memory_trigger_sleep"),
+
   watchDirectory: (rootPath: string) =>
     invoke<void>("watch_directory", { rootPath }),
 

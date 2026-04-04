@@ -1,0 +1,1 @@
+Decision frames within an experience are ordered by time. The timestamp in the frame name is the ordering key. This ordering is load-bearing — it is the narrative structure of the conversation, not just a convenience.

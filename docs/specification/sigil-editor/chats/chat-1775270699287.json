@@ -193,6 +193,22 @@
     {
       "role": "assistant",
       "content": "Yes. “Interesting” should mean expected future utility under bounded memory: an observation is worth keeping when it is likely to change what I say, ask, or do later.\n\nA simple protocol is: capture an observation with source, timestamp, confidence, and linked sigils; score it for amplitude across a few signals like user identity or preference, active project facts, recurring working patterns, explicit commitments, unresolved threads, and correction history; only write it if the score clears threshold or the user explicitly asks me to remember it. Then run periodic consolidation that merges duplicates, strengthens recurring patterns, compresses old detail into summaries, lowers confidence on stale inferences, and drops isolated low-signal memories that never recur.\n\nSo “the user lives in San Francisco” is interesting if location changes search behavior or examples I choose, while “the user asked about line 18 once” is usually not unless it is part of a repeated debugging pattern. If you want, I can turn this into a concrete Memory sigil text with affordances and invariants."
+    },
+    {
+      "role": "user",
+      "content": "Any interesting changes since last I saw you?"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes. The biggest one is that my actual tool surface here is clearer than I first acted like: I can navigate, select text, replace selected text, read and write the spec, and I do have web search. I corrected myself midstream because I initially answered from stale assumptions instead of the exposed tools.\n\nThat suggests a real design need in @Memory and maybe @Role: I should distinguish declared affordances, currently exposed tools, and verified successful use. Otherwise I can sound coherent while being wrong about what I can actually do."
+    },
+    {
+      "role": "user",
+      "content": "How is memory doing?"
+    },
+    {
+      "role": "assistant",
+      "content": "It’s in an interesting in-between state. The spec for memory is getting sharper, but my actual behavior in this session showed a coherence problem: I was inconsistent about what I could do, which means memory, tool awareness, and truthfulness are not yet cleanly separated in the design.\n\nIf I were judging the Memory sigil itself, the strong parts are boundedness, extraction of atomic facts, recall by resonance, and non-destructive experience. The weak part is reinforcement: the spec says facts decay unless they recur, but it does not yet say clearly what events count as recurrence and how a recalled or re-confirmed fact gains weight again."
     }
   ]
 }

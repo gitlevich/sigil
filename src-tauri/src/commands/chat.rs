@@ -1,11 +1,14 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::sigil::Context;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil;
 use crate::commands::tools;
+use crate::memory;
+use crate::{MemoryHandle, SleepTrigger, SleepRx};
 
 #[derive(Debug, serde::Deserialize)]
 struct ContextRelationship {
@@ -343,9 +346,51 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
     }
 }
 
+/// Ensure memory is initialized for the given sigil root. Lazy — first call loads the ONNX model.
+async fn ensure_memory_initialized(
+    memory_handle: &MemoryHandle,
+    sleep_rx: &SleepRx,
+    root_path: &str,
+) -> Result<(), String> {
+    let mut guard = memory_handle.0.lock().await;
+    if guard.is_some() {
+        return Ok(());
+    }
+
+    eprintln!("[memory] Initializing memory for: {}", root_path);
+    let embedder = memory::FastEmbedProvider::load()
+        .map_err(|e| format!("Failed to load embedding model: {}", e))?;
+    let embedder: Arc<dyn memory::embedder::EmbeddingProvider> = Arc::new(embedder);
+    let root = Path::new(root_path);
+    let state = memory::MemoryState::open(root, embedder).await
+        .map_err(|e| format!("Failed to open memory: {}", e))?;
+
+    // Index the sigil tree on first load
+    eprintln!("[memory] Indexing sigil tree...");
+    let stats = memory::indexer::index_sigil_tree(root, &state.db, state.embedder.as_ref())
+        .map_err(|e| format!("Index error: {}", e))?;
+    eprintln!("[memory] Indexed {} chunks, skipped {}, removed {}", stats.indexed, stats.skipped, stats.removed);
+
+    *guard = Some(state);
+
+    // Start the sleep loop now that memory is initialized (take the receiver once)
+    let mut rx_guard = sleep_rx.0.lock().await;
+    if let Some(rx) = rx_guard.take() {
+        let handle = memory_handle.0.clone();
+        tokio::spawn(async move {
+            memory::sleeper::sleep_loop(handle, rx).await;
+        });
+        eprintln!("[memory] Sleep loop started (45min interval)");
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn send_chat_message(
     app: AppHandle,
+    memory_handle: tauri::State<'_, MemoryHandle>,
+    sleep_rx: tauri::State<'_, SleepRx>,
     root_path: String,
     chat_id: String,
     message: String,
@@ -353,7 +398,28 @@ pub async fn send_chat_message(
     system_prompt: String,
     current_path: Vec<String>,
 ) -> Result<(), String> {
+    // Initialize memory lazily on first chat message
+    if let Err(e) = ensure_memory_initialized(&memory_handle, &sleep_rx, &root_path).await {
+        eprintln!("[memory] Init failed (non-fatal): {}", e);
+    }
+
     let spec_context = assemble_sigil_context(&root_path, &current_path)?;
+
+    // #recall — query memory for relevant context
+    let recall_context = {
+        let guard = memory_handle.0.lock().await;
+        if let Some(ref state) = *guard {
+            match memory::retriever::recall(&state.db, state.embedder.as_ref(), &message, 8) {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    eprintln!("[memory:recall] Error: {}", e);
+                    String::new()
+                }
+            }
+        } else {
+            String::new()
+        }
+    };
 
     let system_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
@@ -365,7 +431,7 @@ pub async fn send_chat_message(
     let mut history = chat.messages;
     history.push(ChatMessage {
         role: ChatRole::User,
-        content: message,
+        content: message.clone(),
     });
 
     let editor_ctx = tools::EditorContext {
@@ -373,12 +439,19 @@ pub async fn send_chat_message(
         current_path: current_path.clone(),
     };
 
+    // Build the full system string with recall context injected
+    let system_with_memory = if recall_context.is_empty() {
+        system_prompt.clone()
+    } else {
+        format!("{}\n\n---\n\n# What I Remember\n\n{}", system_prompt, recall_context)
+    };
+
     let result = match profile.provider {
         AiProvider::Anthropic => {
-            stream_anthropic(&app, &spec_context, &history, &profile, &system_prompt, &editor_ctx).await
+            stream_anthropic(&app, &spec_context, &history, &profile, &system_with_memory, &editor_ctx).await
         }
         AiProvider::OpenAI => {
-            stream_openai(&app, &spec_context, &history, &profile, &system_prompt, &editor_ctx).await
+            stream_openai(&app, &spec_context, &history, &profile, &system_with_memory, &editor_ctx).await
         }
     };
 
@@ -392,12 +465,43 @@ pub async fn send_chat_message(
                 });
             }
             let updated_chat = Chat {
-                id: chat.id,
+                id: chat.id.clone(),
                 name: chat.name,
                 messages: history,
             };
-            if let Err(e) = write_chat(root_path, updated_chat) {
+            if let Err(e) = write_chat(root_path.clone(), updated_chat) {
                 eprintln!("Failed to persist chat after stream: {}", e);
+            }
+
+            // #memorize — extract facts and record experience (fire-and-forget)
+            if !assistant_text.is_empty() {
+                let mem_handle = memory_handle.0.clone();
+                let turn = memory::CompletedTurn {
+                    root_path: root_path.clone(),
+                    chat_id: chat.id,
+                    user_message: message,
+                    assistant_message: assistant_text.clone(),
+                    current_path,
+                };
+                let profile_clone = profile.clone();
+                tokio::spawn(async move {
+                    let guard = mem_handle.lock().await;
+                    if let Some(ref state) = *guard {
+                        // Record experience frame
+                        if let Err(e) = memory::experience::record_turn(state, &turn) {
+                            eprintln!("[memory:experience] Error: {}", e);
+                        }
+                        // Extract and persist facts
+                        match memory::memorizer::memorize_turn(state, &turn, &profile_clone).await {
+                            Ok(n) => {
+                                if n > 0 {
+                                    eprintln!("[memory:memorize] Extracted {} facts", n);
+                                }
+                            }
+                            Err(e) => eprintln!("[memory:memorize] Error: {}", e),
+                        }
+                    }
+                });
             }
         }
         Err(err) => {
@@ -655,6 +759,87 @@ async fn stream_openai(
     }
 
     Ok(accumulated_text)
+}
+
+// ── Memory Commands ──
+
+#[derive(serde::Serialize)]
+pub struct MemoryStatusInfo {
+    pub initialized: bool,
+    pub chunk_count: usize,
+    pub last_sleep_at: Option<String>,
+}
+
+#[tauri::command]
+pub async fn memory_recall_for_sigil(
+    memory_handle: tauri::State<'_, MemoryHandle>,
+    sigil_path: String,
+) -> Result<Vec<String>, String> {
+    let guard = memory_handle.0.lock().await;
+    let state = guard.as_ref().ok_or("Memory not initialized")?;
+
+    // Use the sigil path as the query — find what the DP knows about this sigil
+    let sigil_name = Path::new(&sigil_path)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let chunks = memory::retriever::recall_chunks(&state.db, state.embedder.as_ref(), &sigil_name, 5)
+        .map_err(|e| e.to_string())?;
+
+    Ok(chunks.into_iter()
+        .map(|sc| format!("[{:.2}] {}", sc.score, sc.chunk.text))
+        .collect())
+}
+
+#[tauri::command]
+pub async fn memory_status(
+    memory_handle: tauri::State<'_, MemoryHandle>,
+) -> Result<MemoryStatusInfo, String> {
+    let guard = memory_handle.0.lock().await;
+    match guard.as_ref() {
+        Some(state) => {
+            let chunk_count = state.db.chunk_count().map_err(|e| e.to_string())?;
+            let last_sleep = state.db.get_meta("last_sleep_at").map_err(|e| e.to_string())?;
+            Ok(MemoryStatusInfo {
+                initialized: true,
+                chunk_count,
+                last_sleep_at: last_sleep,
+            })
+        }
+        None => Ok(MemoryStatusInfo {
+            initialized: false,
+            chunk_count: 0,
+            last_sleep_at: None,
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn memory_trigger_reindex(
+    memory_handle: tauri::State<'_, MemoryHandle>,
+    sleep_rx: tauri::State<'_, SleepRx>,
+    root_path: String,
+) -> Result<String, String> {
+    if let Err(e) = ensure_memory_initialized(&memory_handle, &sleep_rx, &root_path).await {
+        return Err(e);
+    }
+
+    let guard = memory_handle.0.lock().await;
+    let state = guard.as_ref().ok_or("Memory not initialized")?;
+
+    let stats = memory::indexer::index_sigil_tree(Path::new(&root_path), &state.db, state.embedder.as_ref())
+        .map_err(|e| e.to_string())?;
+
+    Ok(format!("Indexed {} chunks, skipped {}, removed {}", stats.indexed, stats.skipped, stats.removed))
+}
+
+#[tauri::command]
+pub async fn memory_trigger_sleep(
+    sleep_trigger: tauri::State<'_, SleepTrigger>,
+) -> Result<(), String> {
+    sleep_trigger.0.send(()).await.map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

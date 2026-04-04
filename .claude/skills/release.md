@@ -1,38 +1,40 @@
 ---
-description: Commit all changes, bump version, push, and create a GitHub release with changelog.
+description: Build, commit, version bump, push, tag, and release Sigil — app DMGs + site.
 user-invocable: true
 ---
 
 # release
 
-Commit, push, and release a new version of Sigil.
+Full release pipeline for Sigil. Produces DMG executables via GitHub Actions and publishes the website.
 
 ## Steps
 
-1. **Check state**: Run `git status -s` and `git diff --stat`. If there are no changes, abort with "Nothing to release."
+1. **Check state**: Run `git status` and `git diff --stat`. If there are no changes to commit, skip to step 5 (version bump only).
 
-2. **Determine version**: Read the current version from `src-tauri/tauri.conf.json`. Bump the patch number by default (e.g. 0.14.0 → 0.14.1). If the user specifies a version, use that instead.
+2. **Regenerate**: Run `PATH="/opt/homebrew/bin:$PATH" npx tsx scripts/generate-partner-prompt.ts` to rebuild the partner prompt from the spec.
 
-3. **Update version files**: Set the new version in both:
-   - `src-tauri/tauri.conf.json` (`"version"` field)
-   - `src-tauri/Cargo.toml` (`version` field under `[package]`)
+3. **Build check**:
+   - TypeScript: `node ./node_modules/.bin/tsc --noEmit`
+   - Rust: `PATH="$HOME/.cargo/bin:$PATH" cargo check --manifest-path src-tauri/Cargo.toml`
+   - Vite: `node ./node_modules/.bin/vite build`
+   - If any fail, stop and report errors. Do not commit broken code.
 
-4. **Build check**: Run `npx tsc --noEmit` and `cd src-tauri && cargo check`. If either fails, stop and report the errors. Do not commit broken code.
-
-5. **Stage and commit**: Stage all modified and untracked files relevant to the changes (review `git status` — skip docs/specification changes unless they are part of the feature work). Commit with message:
-
+4. **Stage and commit**: Stage all modified and untracked files. Include spec documents, generated files, source code. Commit with message:
    ```
-   Bump version to X.Y.Z
-
-   - bullet summary of changes since last release
+   <summary of changes>
 
    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
    ```
+   Derive the summary from `git log` since the last version tag and `git diff --stat`.
 
-   Derive the bullet summary from `git diff` and `git log` since the last version tag.
+5. **Bump version**: Read current version from `src-tauri/tauri.conf.json`. Increment patch (e.g. 0.25.7 → 0.25.8). Update both:
+   - `src-tauri/tauri.conf.json` (`"version"` field)
+   - `src-tauri/Cargo.toml` (`version` field under `[package]`)
 
-6. **Push**: `git push`
+   Commit: `Release X.Y.Z`
 
-7. **Create release**: Use `gh release create vX.Y.Z --title "vX.Y.Z" --notes "<changelog>"`. The changelog should list the user-visible changes as concise bullets (same as the commit body).
+6. **Push**: `git push origin main`
 
-8. **Report**: Print the release URL.
+7. **Tag and push tag**: `git tag -a vX.Y.Z -m "Release X.Y.Z"` then `git push origin vX.Y.Z`. This triggers the GitHub Actions release workflow which builds macOS DMGs (aarch64 + x86_64) and deploys the site to GitHub Pages.
+
+8. **Report**: Print the tag name. The release workflow handles DMG builds and site deployment automatically.

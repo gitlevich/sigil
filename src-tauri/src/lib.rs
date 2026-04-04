@@ -1,10 +1,23 @@
 mod commands;
 mod models;
+pub mod memory;
 
 use commands::watcher::WatcherState;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+/// Lazily-initialized memory state. Opened on first use when sigil root is known.
+pub struct MemoryHandle(pub Arc<tokio::sync::Mutex<Option<memory::MemoryState>>>);
+
+/// Channel to trigger early sleep consolidation.
+pub struct SleepTrigger(pub tokio::sync::mpsc::Sender<()>);
+
+/// Receiver side of sleep trigger — taken once to start the sleep loop.
+pub struct SleepRx(pub Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<()>>>>);
 
 pub fn run() {
+    let memory_handle = MemoryHandle(Arc::new(tokio::sync::Mutex::new(None)));
+    let (sleep_tx, sleep_rx) = tokio::sync::mpsc::channel::<()>(4);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
@@ -12,6 +25,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
+        .manage(memory_handle)
+        .manage(SleepTrigger(sleep_tx))
         .invoke_handler(tauri::generate_handler![
             commands::sigil::read_sigil,
             commands::sigil::create_context,
@@ -30,6 +45,10 @@ pub fn run() {
             commands::chat::delete_chat,
             commands::chat::rename_chat,
             commands::chat::send_chat_message,
+            commands::chat::memory_recall_for_sigil,
+            commands::chat::memory_status,
+            commands::chat::memory_trigger_reindex,
+            commands::chat::memory_trigger_sleep,
             commands::documents::list_recent_documents,
             commands::documents::add_recent_document,
             commands::documents::remove_recent_document,
@@ -38,6 +57,7 @@ pub fn run() {
             commands::watcher::watch_directory,
             commands::watcher::stop_watching,
         ])
+        .manage(SleepRx(Arc::new(tokio::sync::Mutex::new(Some(sleep_rx)))))
         .run(tauri::generate_context!())
         .expect("error while running Sigil");
 }
