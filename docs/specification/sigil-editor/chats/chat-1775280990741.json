@@ -1,0 +1,22 @@
+{
+  "id": "chat-1775280990741",
+  "name": "Chat 7",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Who are you?"
+    },
+    {
+      "role": "assistant",
+      "content": "I’m your AI assistant in this conversation.\n\nI try to be a practical co-creator: I answer questions, help think things through, and can work with the sigil/editor tools available here when you want."
+    },
+    {
+      "role": "user",
+      "content": "my name is Vlad"
+    },
+    {
+      "role": "assistant",
+      "content": "Nice to meet you, Vlad.\n\nI’ll remember you as Vlad in this conversation."
+    }
+  ]
+}

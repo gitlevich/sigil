@@ -209,6 +209,22 @@
     {
       "role": "assistant",
       "content": "It’s in an interesting in-between state. The spec for memory is getting sharper, but my actual behavior in this session showed a coherence problem: I was inconsistent about what I could do, which means memory, tool awareness, and truthfulness are not yet cleanly separated in the design.\n\nIf I were judging the Memory sigil itself, the strong parts are boundedness, extraction of atomic facts, recall by resonance, and non-destructive experience. The weak part is reinforcement: the spec says facts decay unless they recur, but it does not yet say clearly what events count as recurrence and how a recalled or re-confirmed fact gains weight again."
+    },
+    {
+      "role": "user",
+      "content": "How about you try to use your memory tools?"
+    },
+    {
+      "role": "assistant",
+      "content": "I can talk about memory from the spec, but I can’t directly operate a separate hidden memory backend unless it is exposed as an actual tool here. In this session, the tools I can really invoke are the editor and spec tools, plus web search.\n\nSo if you want, I can do the next best truthful thing: inspect or edit the Memory sigils themselves, or propose the exact tool surface memory would need to become operational rather than just specified."
+    },
+    {
+      "role": "user",
+      "content": "How about now?"
+    },
+    {
+      "role": "assistant",
+      "content": "If you mean “can I use memory tools now,” still no separate memory tool has appeared in the exposed tool surface. I can only use what is actually available here, and memory remains specified in the sigil more than operable as a direct tool.\n\nIf you want, I can inspect the browser state right now to verify what’s open, since that is now available."
     }
   ]
 }
