@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api } from "../../tauri";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EditorState, Compartment } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { api, Context } from "../../tauri";
+import {
+  SiblingInfo,
+  buildSiblingHighlighter,
+  buildPropertyExtensions,
+  getThemeExtension,
+} from "./sigilExtensions";
 import styles from "./SigilPropertyEditor.module.css";
 
 /** Normalize a property name to a valid reference token: spaces to hyphens. */
@@ -25,6 +34,14 @@ interface SigilPropertyEditorProps {
   contentPlaceholder: string;
   items: { name: string; content: string }[];
   onReload: () => Promise<void>;
+  // Context for autocomplete / highlighting
+  siblings?: SiblingInfo[];
+  siblingNames?: string[];
+  sigilRoot?: Context;
+  currentContext?: Context;
+  currentPath?: string[];
+  onCreateAffordance?: (name: string) => void;
+  onCreateInvariant?: (name: string) => void;
 }
 
 function PropertyChip({ item, refPrefix, color }: { item: LocalItem; refPrefix: string; color: string }) {
@@ -44,6 +61,177 @@ function PropertyChip({ item, refPrefix, color }: { item: LocalItem; refPrefix: 
   );
 }
 
+// ── Mini CodeMirror for property content ──
+
+function PropertyCodeMirror({
+  value,
+  placeholder,
+  onChange,
+  onCommit,
+  onRevert,
+  siblings,
+  siblingNames,
+  sigilRoot,
+  currentContext,
+  currentPath,
+  onCreateAffordance,
+  onCreateInvariant,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  onRevert: () => void;
+  siblings?: SiblingInfo[];
+  siblingNames?: string[];
+  sigilRoot?: Context;
+  currentContext?: Context;
+  currentPath?: string[];
+  onCreateAffordance?: (name: string) => void;
+  onCreateInvariant?: (name: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const themeCompartRef = useRef(new Compartment());
+  const siblingCompartRef = useRef(new Compartment());
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  const onRevertRef = useRef(onRevert);
+  onRevertRef.current = onRevert;
+  const onCreateAffordanceRef = useRef(onCreateAffordance);
+  onCreateAffordanceRef.current = onCreateAffordance;
+  const onCreateInvariantRef = useRef(onCreateInvariant);
+  onCreateInvariantRef.current = onCreateInvariant;
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        history(),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        themeCompartRef.current.of(getThemeExtension()),
+        siblingCompartRef.current.of(
+          buildSiblingHighlighter(
+            siblingNames ?? [],
+            siblings ?? [],
+            sigilRoot ?? null,
+            currentContext ?? null,
+            currentPath ?? [],
+          )
+        ),
+        ...buildPropertyExtensions(
+          onCreateAffordanceRef.current,
+          onCreateInvariantRef.current,
+        ),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChangeRef.current(update.state.doc.toString());
+          }
+        }),
+        EditorView.domEventHandlers({
+          keydown: (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              onCommitRef.current();
+              return true;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onRevertRef.current();
+              return true;
+            }
+            return false;
+          },
+          blur: () => {
+            onCommitRef.current();
+            return false;
+          },
+        }),
+        EditorView.lineWrapping,
+        EditorView.theme({
+          "&": {
+            fontSize: "13px",
+            backgroundColor: "transparent",
+            color: "var(--text-primary)",
+          },
+          "&.cm-focused": { outline: "none" },
+          ".cm-scroller": {
+            overflow: "hidden",
+            fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
+          },
+          ".cm-content": {
+            padding: "4px 0",
+            caretColor: "var(--text-primary)",
+          },
+          ".cm-line": { padding: "0" },
+          ".cm-cursor": { borderLeftColor: "var(--text-primary)" },
+          ".cm-selectionBackground": {
+            backgroundColor: "var(--accent) !important",
+            opacity: "0.3",
+          },
+          "&.cm-focused .cm-selectionBackground": {
+            backgroundColor: "var(--accent) !important",
+            opacity: "0.3",
+          },
+        }),
+        EditorView.contentAttributes.of({ "aria-placeholder": placeholder }),
+      ],
+    });
+
+    const view = new EditorView({ state, parent: containerRef.current });
+    viewRef.current = view;
+
+    return () => { view.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync external content changes
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current !== value) {
+      view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
+    }
+  }, [value]);
+
+  // Update sibling highlighting
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: siblingCompartRef.current.reconfigure(
+        buildSiblingHighlighter(
+          siblingNames ?? [],
+          siblings ?? [],
+          sigilRoot ?? null,
+          currentContext ?? null,
+          currentPath ?? [],
+        )
+      ),
+    });
+  }, [siblingNames, siblings, sigilRoot, currentContext, currentPath]);
+
+  // Watch for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const view = viewRef.current;
+      if (!view) return;
+      view.dispatch({ effects: themeCompartRef.current.reconfigure(getThemeExtension()) });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return <div ref={containerRef} className={styles.contentArea} />;
+}
+
+// ── Property item ──
+
 function PropertyItem({
   item,
   color,
@@ -58,6 +246,13 @@ function PropertyItem({
   onDragStart,
   onDragOver,
   onDrop,
+  siblings,
+  siblingNames,
+  sigilRoot,
+  currentContext,
+  currentPath,
+  onCreateAffordance,
+  onCreateInvariant,
 }: {
   item: LocalItem;
   color: string;
@@ -72,29 +267,16 @@ function PropertyItem({
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
+  siblings?: SiblingInfo[];
+  siblingNames?: string[];
+  sigilRoot?: Context;
+  currentContext?: Context;
+  currentPath?: string[];
+  onCreateAffordance?: (name: string) => void;
+  onCreateInvariant?: (name: string) => void;
 }) {
   const [nameValue, setNameValue] = useState(item.name);
   const contentBeforeEdit = useRef(item.content);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const fitHeight = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "0px";
-    ta.style.height = `${ta.scrollHeight}px`;
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!isFolded) fitHeight();
-  }, [isFolded, fitHeight]);
-
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const observer = new ResizeObserver(() => fitHeight());
-    observer.observe(ta);
-    return () => observer.disconnect();
-  }, [fitHeight]);
 
   return (
     <div
@@ -107,7 +289,7 @@ function PropertyItem({
         title="Drag to reorder"
         draggable
         onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
-      >⠿</span>
+      >&#x283F;</span>
       <div className={styles.itemBody}>
       <div className={`${styles.itemHeader} ${isFolded ? styles.itemHeaderFolded : ""}`}>
         <button className={styles.foldBtn} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onFoldToggle(); }} title="Toggle fold">
@@ -125,10 +307,6 @@ function PropertyItem({
             if (v && v !== item.savedName) onNameCommit(v);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Tab" && !e.shiftKey) {
-              e.preventDefault();
-              textareaRef.current?.focus();
-            }
             if (e.key === "Enter") e.currentTarget.blur();
             if (e.key === "Escape") {
               setNameValue(item.savedName);
@@ -139,25 +317,19 @@ function PropertyItem({
         <button className={styles.deleteBtn} tabIndex={-1} onClick={onDelete} title={`Delete ${namePlaceholder}`}>x</button>
       </div>
       {!isFolded && (
-        <textarea
-          ref={textareaRef}
-          className={styles.contentArea}
+        <PropertyCodeMirror
           value={item.content}
           placeholder={contentPlaceholder}
-          onChange={(e) => { onContentChange(e.target.value); fitHeight(); }}
-          onFocus={() => { contentBeforeEdit.current = item.content; }}
-          onBlur={fitHeight}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              contentBeforeEdit.current = item.content;
-              e.currentTarget.blur();
-            }
-            if (e.key === "Escape") {
-              onContentChange(contentBeforeEdit.current);
-              e.currentTarget.blur();
-            }
-          }}
+          onChange={onContentChange}
+          onCommit={() => { contentBeforeEdit.current = item.content; }}
+          onRevert={() => { onContentChange(contentBeforeEdit.current); }}
+          siblings={siblings}
+          siblingNames={siblingNames}
+          sigilRoot={sigilRoot}
+          currentContext={currentContext}
+          currentPath={currentPath}
+          onCreateAffordance={onCreateAffordance}
+          onCreateInvariant={onCreateInvariant}
         />
       )}
       </div>
@@ -175,6 +347,13 @@ export function SigilPropertyEditor({
   contentPlaceholder,
   items: externalItems,
   onReload,
+  siblings,
+  siblingNames,
+  sigilRoot,
+  currentContext,
+  currentPath,
+  onCreateAffordance,
+  onCreateInvariant,
 }: SigilPropertyEditorProps) {
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
@@ -375,6 +554,13 @@ export function SigilPropertyEditor({
               onDragStart={() => { dragSourceIndex.current = i; }}
               onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
               onDrop={() => handleDrop(i)}
+              siblings={siblings}
+              siblingNames={siblingNames}
+              sigilRoot={sigilRoot}
+              currentContext={currentContext}
+              currentPath={currentPath}
+              onCreateAffordance={onCreateAffordance}
+              onCreateInvariant={onCreateInvariant}
             />
           ))}
         </div>

@@ -4,50 +4,53 @@ status: implemented
 
 # Editor
 
-The editor panel is where I define the part of my application this @sigil represents. 
+This is where I live, narrating in comfort. 
 
-The sigil exists because it lets me do things (provides affordances) and gives me the context to define more precise terms, to express these affordances. 
+As I type, @OntologyTree on the left shows me the emerging structure. 
 
-An **affordance** on a sigil is like a handle on a door: it is the thing that allows me to open it. 
+@Atlas is in another way to see the structure, from above. It's a tree map that flattens the @sigil tree into a 2D plane. 
 
-A @sigil gives me a context boundary: within, I only care about a finite number of specific relevant things. These things are also @sigils that live either inside the boundary, or in the neighborhood.  Everything not explicitly named is noise. 
-
-The boundary is defined in terms of @invariants — commitments about these @sigils. For example here I care about @sigils that will make my experience while using this part of the app delightful.
-
-To describe a sigil, I imagine interacting with the part of the app it models. I inhabit it with my attention and narrate what I do there, trying to converge on a stable language. I first think of affordances. 
-
-As I type, I notice the words I choose to describe affordances. I can use names of the neighboring @sigils for the affordances they provide or could provide. When I need new @sigils to express an affordance, I define them in the context of the current @sigil. I want smooth, flowing language. I watch out for awkward language as it indicates a modeling problem: good models flow. I don't worry about defining the newly defined @sigil's structure: I will do it when I inhabit it, at the right level of abstraction. 
+I #navigate @OntologyTree, @atlas to a @sigil and click it once to open. All views sync up. I follow a link and want to retrace, I #back to the previously opened sigil — like browser back, a history stack. When a name no longer fits, I #rename and all references update.
 
 
-## Structure
+I #declare-invariants as I understand them, to make the boundaries of my @sigil explicitly defined. I care about !language-flow: awkward sentences are a symptom of poor structure. I care about !cognitive-simplicity: it is hard for me to handle more than a few concepts at once.
 
-The Editor consists of three panels: affordance, language and invariant.
+I #Distil-with-partner to get another point of view. I #Measure-coherence to track how close the language is to the @vision. I #Import-external-ontology to use precise terms from an established domain without defining them locally. Once imported, every term in that ontology is available everywhere in my spec (!imported-ontology-in-scope).
 
-### @AffordancePanel
-
-This is where I specify affordances.
-
-### @LanguagePanel
-
-This is the main panel where I type the narrative
-
-### @InvariantPanel
-
-This is where I specify invariants. 
+I #Recognize-when-projectable to know when to hand the spec to an implementing agent. When ready, I #project: spec in, code out. The spec is the single source of truth — code is a projection.
 
 
+## Static for SigilAtlas the application
+
+I want a user that is not me opens this app and has an example in front of him to see how I did it and can follow, see what he likes, doesn’t and how he can benefit
+
+### Invariants
+
+- !cognitive-simplicity: it is hard for me to handle more than a few concepts at once and still attend to everything.
+- !example-included: teach a new user thinking in @sigils to design an app, by having this spec open as example when the user first opens the app.
+- !imported-ontology-in-scope: Every term in an imported ontology — the ontology name itself and all its descendants — is resolvable from anywhere in the spec. An imported ontology is omnipresent context, not locally scoped. If I #Import-external-ontology, every @sigil in that ontology becomes part of the domain language I can reference.
+- !language-flow: how well the sentences in which i describe affordances in terms of sigils sound: awkward language is a symptom of poor model
+
+### Affordances
+
+- #Distil-with-partner: to get another point of view
+- #Import-external-ontology: to use precise terms from an established external ontology that is useful in this context without defining them locally. this is a meta-affordance - to explicitly declare omnipresent context of an external domain language in scope.
+- #Measure-coherence: to track how close the language is to the @vision
+- #name-affordances: to declare what this sigil needs to do
+- #Narrate: to let domain language emerge
+- #Notice-emergent-ontology: to see which nouns need their own sigil
+- #Recognize-when-projectable: to know when to hand it to an implementing agent
+- #state-my-vision: to align design with a clear goal
+- #access-ontology-library: I could use ontology library in other projects. I think of it separately. So Libs folder is mounted as a part of the application, not user’s application sigil. so when i unmount a sigil and mount another, or create a new one, i have Libs available alongside, sorted to appear under user’s app sigil.
+- #toggle-dark-light-theme: because I want to switch. 
+  
+## VG Notes - WIP
+
+to build domain language, I need words to express what an affordance like "distil with partner" actually means. I can model affordances in sigils, which leads to an object-oriented model, or I could model sigils in affordances. So it's this weird structure: sigil with affordances expressed in sigils expressed in affordances, all the way down. I think I prefer the second one. Affordances establish a polynomial-like articulation chain: the more members we have in each chain, the more precision I can articulate/resolve in the frame. "Articulate" is a time-like concept; "resolve" is space-like. They are equivalent. And are probably a kind of Fourier transform from each other
 
 
-## Refactoring 
+#publish, so that I can have this sigil repo pushed to GitHub, app re-projected under semantic versioning and released, and website re-published. Something like Cmd-Shift-S. And Cmd-S, which is to commit and push without release tag (no release, no publish)
 
-To have the freedom to evolve my language, I need #refactor-rename. 
-
-I'd like to #find-references of a sigil - to see where it's used. FileFileMy
-
-
-when i work on @affordances, i want to #resize-affordances-panel so that i could focus on them
-
-
-when i work on @invariants, i want to #resize-invariants-panel so that i could focus on them
+All affordances conceptually belong not to me or to my @DesignPartner, but to UI boundaries like SigilEditor through which we entangle. These boundaries expose @affordances to both of us. And @DesignPartner exposes affordances to me.
 
 

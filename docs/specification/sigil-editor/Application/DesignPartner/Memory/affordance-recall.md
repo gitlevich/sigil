@@ -1,0 +1,1 @@
+I recall previous @Observations if I recognize @sigils
