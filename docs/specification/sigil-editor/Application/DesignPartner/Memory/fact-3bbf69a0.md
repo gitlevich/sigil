@@ -1,0 +1,1 @@
+There is a design coherence issue where memory, tool awareness, and truthfulness are not yet cleanly separated.

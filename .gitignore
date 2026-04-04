@@ -41,3 +41,7 @@ __pycache__/
 # Genesis export state (not the transcripts themselves)
 docs/genesis/.export_state.json
 .cache/
+
+# Memory system derived data
+.sigil/
+src-tauri/.fastembed_cache/

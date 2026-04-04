@@ -1,0 +1,1 @@
+The memory design emphasizes boundedness, extraction of atomic facts, recall by resonance, and non-destructive experience.
