@@ -265,21 +265,6 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
 pub fn create_context(parent_path: String, name: String) -> Result<Context, String> {
     let parent = Path::new(&parent_path);
 
-    // 5-child limit applies only outside imported ontologies (Libs).
-    let in_libs = parent.components().any(|c| c.as_os_str() == "Libs");
-    if !in_libs {
-        let existing_dirs: Vec<_> = fs::read_dir(parent)
-            .map_err(|e| e.to_string())?
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .filter(|e| is_context_dir(&e.path()))
-            .collect();
-
-        if existing_dirs.len() >= 5 {
-            return Err("Maximum of 5 sub-contexts reached".to_string());
-        }
-    }
-
     let context_path = parent.join(&name);
     if context_path.exists() {
         return Err(format!("Context '{}' already exists", name));
@@ -538,7 +523,7 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
 }
 
 #[tauri::command]
-pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
+pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
     let old_path = Path::new(&path);
     let name = old_path
         .file_name()
@@ -549,25 +534,6 @@ pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> R
     let new_parent = Path::new(&new_parent_path);
     if !new_parent.exists() {
         return Err("Target parent does not exist".to_string());
-    }
-
-    // Imported ontologies are exempt from the 5-child limit.
-    let root = Path::new(&root_path);
-    let under_imported = !new_parent.starts_with(root)
-        || new_parent.components().any(|c| c.as_os_str() == "Libs");
-
-    // Check 5-sigil limit at destination
-    if !under_imported {
-        let existing_dirs: Vec<_> = fs::read_dir(new_parent)
-            .map_err(|e| e.to_string())?
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .filter(|e| is_context_dir(&e.path()))
-            .collect();
-
-        if existing_dirs.len() >= 5 {
-            return Err("Target already has 5 sub-contexts".to_string());
-        }
     }
 
     let new_path = new_parent.join(&name);
