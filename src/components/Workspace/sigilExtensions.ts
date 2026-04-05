@@ -581,9 +581,36 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
   return null;
 }
 
-export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "invariant"; name: string; exists: boolean } | null {
+export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "invariant"; name: string; exists: boolean; targetContext?: Context } | null {
   const pos = view.state.selection.main.head;
   const line = view.state.doc.lineAt(pos);
+
+  // First check for qualified refs like @Sigil#affordance or @Sigil!invariant
+  allRefsPattern.lastIndex = 0;
+  let qMatch;
+  while ((qMatch = allRefsPattern.exec(line.text)) !== null) {
+    if (!qMatch[0].startsWith("@")) continue;
+    const propIdx = findPropSeparator(qMatch[0]);
+    if (propIdx === -1) continue;
+    if (isInCodeSpan(line.text, qMatch.index)) continue;
+    const from = line.from + qMatch.index;
+    const to = from + qMatch[0].length;
+    if (pos >= from && pos <= to) {
+      const propChar = qMatch[0][propIdx];
+      const propName = qMatch[0].slice(propIdx + 1);
+      const sigilRef = qMatch[0].slice(0, propIdx);
+      const targetCtx = resolveRefToContext(sigilRef);
+      if (propChar === "!") {
+        const exists = !!targetCtx?.invariants.find((s) => s.name === propName || s.name === fromDashForm(propName));
+        return { kind: "invariant", name: propName, exists, targetContext: targetCtx ?? undefined };
+      } else {
+        const exists = !!findAffordance(targetCtx ?? undefined, propName);
+        return { kind: "affordance", name: propName, exists, targetContext: targetCtx ?? undefined };
+      }
+    }
+  }
+
+  // Then check for bare #affordance or !invariant
   const pattern = /#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
   let match;
   while ((match = pattern.exec(line.text)) !== null) {
@@ -657,7 +684,19 @@ export function buildSiblingHighlighter(
                   builder.add(abs, abs + matchText.length, mark);
                 } else {
                   const propChar = matchText[propIdx];
-                  builder.add(abs, abs + matchText.length, propChar === "!" ? invariantMark : affordanceMark);
+                  const propName = matchText.slice(propIdx + 1);
+                  const sigilRef = matchText.slice(0, propIdx);
+                  const targetCtx = resolveRefToContext(sigilRef);
+                  let propExists = false;
+                  if (targetCtx) {
+                    if (propChar === "#") {
+                      propExists = !!findAffordance(targetCtx, propName);
+                    } else {
+                      propExists = targetCtx.invariants.some((inv) => inv.name === propName || inv.name === fromDashForm(propName));
+                    }
+                  }
+                  const mark = propExists ? (propChar === "!" ? invariantMark : affordanceMark) : unresolvedMark;
+                  builder.add(abs, abs + matchText.length, mark);
                 }
               } else if (matchText.startsWith("!")) {
                 const invariantName = matchText.slice(1);

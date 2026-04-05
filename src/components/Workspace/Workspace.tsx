@@ -52,6 +52,14 @@ function findContext(root: Context, path: string[]): Context | null {
   return current;
 }
 
+/** Resolve context for the current path, routing imported ontology paths correctly. */
+function resolveCurrentContext(doc: { currentPath: string[]; sigil: { root: Context; imported_ontologies?: Context } }): Context | null {
+  const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+  const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
+  const path = isImported ? doc.currentPath.slice(1) : doc.currentPath;
+  return findContext(root, path);
+}
+
 function updateContextInTree(
   root: Context,
   path: string[],
@@ -237,47 +245,50 @@ export function Workspace() {
 
   const handleCreateSigil = useCallback(async (name: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     await actions.createSigil(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim()) return;
-    const currentCtx = findContext(doc.sigil.root, doc.currentPath);
+    const currentCtx = resolveCurrentContext(doc);
     if (!currentCtx) return;
     await actions.updateStatus(currentCtx, newValue, actionDeps);
   }, [doc, actionDeps]);
 
   const handleCreateAffordance = useCallback(async (name: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     await actions.createAffordance(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleCreateInvariant = useCallback(async (name: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     await actions.createInvariant(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     await actions.renameProperty(ctx, kind, oldName, newName, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     let target = ctx.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     if (!target && doc.currentPath.length > 0) {
       const parentPath = doc.currentPath.slice(0, -1);
-      const parent = findContext(doc.sigil.root, parentPath);
+      const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+      const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
+      const resolvedParent = isImported ? parentPath.slice(1) : parentPath;
+      const parent = findContext(root, resolvedParent);
       target = parent?.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     }
     if (target) {
@@ -287,7 +298,7 @@ export function Workspace() {
 
   const handleNavigateToSigil = useCallback((name: string) => {
     if (!doc) return;
-    const ctx = findContext(doc.sigil.root, doc.currentPath);
+    const ctx = resolveCurrentContext(doc);
     if (!ctx) return;
     // Check if it's a contained sigil (resolving plurals)
     const containedNames = ctx.children.map((c) => c.name);
@@ -299,7 +310,10 @@ export function Workspace() {
     // Check if it's a neighbor — navigate to it at the same level
     if (doc.currentPath.length > 0) {
       const parentPath = doc.currentPath.slice(0, -1);
-      const parent = findContext(doc.sigil.root, parentPath);
+      const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+      const parentRoot = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
+      const resolvedParent = isImported ? parentPath.slice(1) : parentPath;
+      const parent = findContext(parentRoot, resolvedParent);
       const neighborNames = parent ? parent.children.filter((c) => c.name !== ctx.name).map((c) => c.name) : [];
       const resolvedNeighbor = resolveRefName(name, neighborNames);
       if (resolvedNeighbor) {

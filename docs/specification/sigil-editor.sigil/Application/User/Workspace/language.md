@@ -8,13 +8,10 @@ The .sigil directory. This is where I work on the @sigil I am specifying. The wo
 
 @VisionPanel - where my @Vision lives, one click away. The counter-measure to distraction.
 
-I engage with the spec through three modes:
+I engage with the spec through three modes: I define the language by @narrating, get around my @sigils by @navigating and refine it with @DesignPartner by @conversing.
 
-@Narrating - @Language is foreground, @OntologyTree is peripheral context. I type, define words, let the ontology emerge.
-@Navigating - @OntologyTree and @Atlas are foreground. I explore the structure, see the shape of the whole.
-@Conversing - @Chat is foreground, @Memories is context. I entangle with @DesignPartner.
 
-It maintains its !integrity and offers !clear-organization of documents on disk and panels in front of me. It #remembers-its-state across sessions. I care about !cognitive-simplicity and !imported-ontology-in-scope.
+It maintains its !integrity and offers !clear-organization of documents on disk and panels in front of me. It #remembers-its-state across sessions. I care about !cognitive-simplicity, !imported-ontology-in-scope, and !lexical-scoping.
 
 Only one @Application instance is allowed to open a workspace. Many @Applications can run at the same time with their own workspaces. No @Applications ever share a workspace at the same time.
 
