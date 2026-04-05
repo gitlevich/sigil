@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
-import { LeftPanel } from "../LeftPanel/LeftPanel";
-import { RightPanel } from "../RightPanel/RightPanel";
+import { OntologyPanel } from "../OntologyTree/OntologyPanel";
+import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
@@ -12,10 +12,10 @@ import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { useToast } from "../../hooks/useToast";
-import { SigilMap } from "./Map";
+import { Atlas } from "./Atlas";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import { buildBreadcrumb as coreBuildBreadcrumb, buildLexicalScope as coreBuildLexicalScope, makeSummary, resolveRefName } from "sigil-core";
-import styles from "./EditorShell.module.css";
+import styles from "./Workspace.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
 function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
@@ -133,7 +133,7 @@ function buildBreadcrumb(root: Context, path: string[]): { name: string; path: s
   return [{ name: root.name, path: [] }, ...coreBuildBreadcrumb(root, path)];
 }
 
-export function EditorShell() {
+export function Workspace() {
   const dispatch = useAppDispatch();
   const state = useAppState();
   const doc = useDocument();
@@ -400,7 +400,7 @@ export function EditorShell() {
 
   return (
     <div className={styles.shell}>
-      <LeftPanel />
+      <OntologyPanel />
       <div className={styles.center}>
         <Breadcrumb
           crumbs={breadcrumbs}
@@ -436,7 +436,7 @@ export function EditorShell() {
         )}
         <div className={styles.editorArea}>
           {(doc.contentTab || "language") === "atlas" ? (
-            <SigilMap />
+            <Atlas />
           ) : (
             <>
               {(doc.editorMode === "edit" || doc.editorMode === "split") && (
@@ -499,7 +499,7 @@ export function EditorShell() {
         )}
         <SubContextBar context={currentCtx} />
       </div>
-      <RightPanel />
+      <DesignPartnerPanel />
     </div>
   );
 }

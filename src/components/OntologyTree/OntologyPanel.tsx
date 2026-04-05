@@ -1,14 +1,14 @@
 import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
 import { VisionEditor } from "./VisionEditor";
-import { OntologyEditor } from "./OntologyEditor";
+import { OntologyTree } from "./OntologyTree";
 import { ResizeHandle } from "../shared/ResizeHandle";
-import styles from "./LeftPanel.module.css";
+import styles from "./OntologyPanel.module.css";
 
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 500;
 
-export function LeftPanel() {
+export function OntologyPanel() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();
@@ -82,7 +82,7 @@ export function LeftPanel() {
 
         <div className={styles.content}>
           {doc.leftPanelTab === "vision" && <VisionEditor />}
-          {doc.leftPanelTab === "ontology" && <OntologyEditor />}
+          {doc.leftPanelTab === "ontology" && <OntologyTree />}
         </div>
       </div>
       <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />

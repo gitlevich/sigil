@@ -7,7 +7,7 @@ import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useAutoSave } from "../../hooks/useAutoSave";
-import { MarkdownPreview } from "../Editor/MarkdownPreview";
+import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
   buildSiblingHighlighter,
   getThemeExtension,
@@ -15,7 +15,7 @@ import {
   getGlobalSigilRoot,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
-} from "../Editor/sigilExtensions";
+} from "../Workspace/sigilExtensions";
 import styles from "./VisionEditor.module.css";
 
 const themeCompartment = new Compartment();

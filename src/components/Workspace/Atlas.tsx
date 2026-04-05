@@ -5,13 +5,13 @@ import { api, Context } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
 import { findContext as coreFindContext, buildPath, type Context as CoreContext } from "sigil-core";
 import { Atlas } from "sigil-core/react/Atlas";
-import styles from "./Map.module.css";
+import styles from "./Atlas.module.css";
 
 function findContext(root: Context, path: string[]): Context {
   return coreFindContext(root, path) as Context;
 }
 
-export function SigilMap() {
+export function Atlas() {
   const doc = useDocument();
   const dispatch = useAppDispatch();
   const { reload } = useSigil();

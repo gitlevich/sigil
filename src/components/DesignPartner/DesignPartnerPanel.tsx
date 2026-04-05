@@ -3,12 +3,12 @@ import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext
 import { ChatPanel } from "./ChatPanel";
 import { MemoriesPanel } from "./MemoriesPanel";
 import { ResizeHandle } from "../shared/ResizeHandle";
-import styles from "./RightPanel.module.css";
+import styles from "./DesignPartnerPanel.module.css";
 
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
 
-export function RightPanel() {
+export function DesignPartnerPanel() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const doc = useDocument();

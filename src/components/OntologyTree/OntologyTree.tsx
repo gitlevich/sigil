@@ -5,8 +5,8 @@ import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
-import { getDragPropertySource, clearDragPropertySource } from "../Editor/SigilPropertyEditor";
-import styles from "./OntologyEditor.module.css";
+import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
+import styles from "./OntologyTree.module.css";
 
 let dragSourcePath: string | null = null;
 
@@ -292,7 +292,7 @@ function OntologyItem({
   );
 }
 
-export function OntologyEditor() {
+export function OntologyTree() {
   const doc = useDocument();
   const dispatch = useAppDispatch();
   const { reload } = useSigil();

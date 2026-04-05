@@ -10,7 +10,7 @@ import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
 import { api } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
-import { EditorShell } from "./components/Editor/EditorShell";
+import { Workspace } from "./components/Workspace/Workspace";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
 import { AboutDialog } from "./components/About/AboutDialog";
 import { HelpDialog } from "./components/Help/HelpDialog";
@@ -82,7 +82,7 @@ export function App({ initialRootPath }: AppProps) {
 
   return (
     <>
-      {state.screen === "picker" ? <DocumentPicker /> : <EditorShell />}
+      {state.screen === "picker" ? <DocumentPicker /> : <Workspace />}
       <SettingsDialog />
       <AboutDialog />
       <HelpDialog />
