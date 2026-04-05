@@ -159,6 +159,15 @@ export const api = {
   revealInFinder: (path: string) =>
     invoke<void>("reveal_in_finder", { path }),
 
+  copyImage: (sourcePath: string, destDir: string) =>
+    invoke<string>("copy_image", { sourcePath, destDir }),
+
+  writeImageBytes: (destPath: string, data: number[]) =>
+    invoke<string>("write_image_bytes", { destPath, data }),
+
+  readImageBase64: (path: string) =>
+    invoke<string>("read_image_base64", { path }),
+
   createContext: (parentPath: string, name: string) =>
     invoke<Context>("create_context", { parentPath, name }),
 

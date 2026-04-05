@@ -9,7 +9,8 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
-import { Context, events } from "../../tauri";
+import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
+import { Context, api, events } from "../../tauri";
 import { fromDashForm } from "sigil-core";
 import {
   SiblingInfo,
@@ -32,6 +33,51 @@ import styles from "./MarkdownEditor.module.css";
 
 export type { SiblingInfo } from "./sigilExtensions";
 
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp"]);
+
+function isImageFile(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+async function insertImagesFromPaths(paths: string[], view: EditorView, sigilDir: string): Promise<void> {
+  const images = paths.filter((p) => isImageFile(p));
+  if (images.length === 0) return;
+  const assetsDir = `${sigilDir}/assets`;
+  const insertions: string[] = [];
+  for (const path of images) {
+    const filename = await api.copyImage(path, assetsDir);
+    insertions.push(`![](assets/${filename})`);
+  }
+  const text = insertions.join("\n") + "\n";
+  const pos = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: pos, insert: text },
+    selection: { anchor: pos + text.length },
+  });
+}
+
+async function insertImagesFromClipboard(files: FileList, view: EditorView, sigilDir: string): Promise<void> {
+  const assetsDir = `${sigilDir}/assets`;
+  const insertions: string[] = [];
+  for (const file of Array.from(files)) {
+    const name = file.name || "clipboard.png";
+    if (!isImageFile(name)) continue;
+    const buffer = await file.arrayBuffer();
+    const data = Array.from(new Uint8Array(buffer));
+    const destPath = `${assetsDir}/${name}`;
+    const filename = await api.writeImageBytes(destPath, data);
+    insertions.push(`![](assets/${filename})`);
+  }
+  if (insertions.length === 0) return;
+  const text = insertions.join("\n") + "\n";
+  const pos = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: pos, insert: text },
+    selection: { anchor: pos + text.length },
+  });
+}
+
 interface MarkdownEditorProps {
   content: string;
   onChange: (content: string) => void;
@@ -40,6 +86,7 @@ interface MarkdownEditorProps {
   sigilRoot?: Context;
   currentContext?: Context;
   currentPath?: string[];
+  sigilDir?: string;
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
   onCreateAffordance?: (name: string) => void;
@@ -230,7 +277,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -254,6 +301,8 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   const setRefsState: SetRefsState = (s) => { setRefsStateRaw(s); setRefsIndex(0); };
   const onRenameStatusRef = useRef(onRenameStatus);
   onRenameStatusRef.current = onRenameStatus;
+  const sigilDirRef = useRef(sigilDir);
+  sigilDirRef.current = sigilDir;
   onChangeRef.current = onChange;
   const localEditRef = useRef(false);
   const lastLocalContentRef = useRef<string | null>(null);
@@ -333,6 +382,15 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
               view.dom.classList.remove("cm-cmd-held");
             }
             return false;
+          },
+          paste: (event, view) => {
+            const files = event.clipboardData?.files;
+            const dir = sigilDirRef.current;
+            if (!files || files.length === 0 || !dir) return false;
+            if (!Array.from(files).some((f) => isImageFile(f.name || "clipboard.png"))) return false;
+            event.preventDefault();
+            insertImagesFromClipboard(files, view, dir);
+            return true;
           },
           blur: (_event, view) => {
             view.dom.classList.remove("cm-cmd-held");
@@ -447,6 +505,21 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  // Listen for Tauri drag-drop events (OS file drops)
+  useEffect(() => {
+    const unlisten = getCurrentWebview().onDragDropEvent((event: { payload: DragDropEvent }) => {
+      if (event.payload.type !== "drop") return;
+      const view = viewRef.current;
+      const dir = sigilDirRef.current;
+      if (!view || !dir) return;
+      const paths = event.payload.paths;
+      if (paths.some((p) => isImageFile(p))) {
+        insertImagesFromPaths(paths, view, dir);
+      }
+    });
+    return () => { unlisten.then((fn: () => void) => fn()); };
   }, []);
 
   // Listen for select-text and replace-selected-text events from AI tools

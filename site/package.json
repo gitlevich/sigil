@@ -12,13 +12,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "sigil-core": "*",
     "@tailwindcss/vite": "^4.2.2",
     "framer-motion": "^12.38.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "sigil-core": "*",
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {

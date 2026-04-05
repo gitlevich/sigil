@@ -6,12 +6,13 @@ status: idea
 
 My @workspace consists of my entanglement surfaces. 
 
-@Structural:
+There are two kinds.
 
-@ApplicationSpec - the @sigil in which I specify my @application. Has @ApplicationSpec#application-name affordance.
-@ChatPanel - where I can chat with @DesignPartner
-@MemoriesPanel - where I can spy over what @DesignPartner remembered
-I use @NavigationPanel to navigate @sigils.
+The @structural gives me surfaces to either sculpt new @sigils or entangle with @observers wearing other @sigils.
+
+The @functional is to operate the @application's @timelike 
+
+
 
 @Functional:
 

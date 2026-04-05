@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import type { Ref } from "./utils";
 import {
   stripFrontmatter,
@@ -86,22 +87,28 @@ export function MarkdownPreview({
     <div className={styles.preview}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={
-          pattern
+        rehypePlugins={[rehypeRaw]}
+        components={{
+          ...(pattern
             ? {
-                p: ({ children, ...props }) => (
-                  <p {...props}>
-                    {highlightChildStrings(children, pattern, lookup, onNavigate)}
+                p: ({ children, ...props }: Record<string, unknown>) => (
+                  <p {...(props as React.HTMLAttributes<HTMLParagraphElement>)}>
+                    {highlightChildStrings(children as React.ReactNode, pattern, lookup, onNavigate)}
                   </p>
                 ),
-                li: ({ children, ...props }) => (
-                  <li {...props}>
-                    {highlightChildStrings(children, pattern, lookup, onNavigate)}
+                li: ({ children, ...props }: Record<string, unknown>) => (
+                  <li {...(props as React.HTMLAttributes<HTMLLIElement>)}>
+                    {highlightChildStrings(children as React.ReactNode, pattern, lookup, onNavigate)}
                   </li>
                 ),
               }
-            : undefined
-        }
+            : {}),
+          img: ({ src, alt, width, ...props }: Record<string, unknown>) => {
+            const style: React.CSSProperties = { maxWidth: "100%", height: "auto", borderRadius: 4 };
+            if (width) style.width = typeof width === "number" ? `${width}px` : String(width);
+            return <img src={src as string} alt={(alt as string) ?? ""} style={style} {...(props as React.ImgHTMLAttributes<HTMLImageElement>)} />;
+          },
+        }}
       >
         {stripped}
       </ReactMarkdown>

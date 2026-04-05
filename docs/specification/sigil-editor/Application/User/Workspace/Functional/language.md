@@ -4,4 +4,5 @@ status: idea
 
 # Functional
 
-Machinery that provides @timelike experience. Like handling of my input and side effects of my thying and navigation.
+Machinery that provides @timelike experience, like the @editor to handle specifics of @sigil sculpting. 
+

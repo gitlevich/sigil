@@ -12,15 +12,15 @@ I am used to IDE-style #syntax-highlighting, so I specify it here as an affordan
 
 I want this experience here, too: language-first, syntax highlighting, the editor fixes it by creating the missing symbol via a  @Editor#shortcuts activated #auto-fix to create:
 
-- an affordance for a word that starts with a `#`. Affordances live in an @AffordancePanel on top of the @Editor. 
-- an @invariant for a word that starts with `!`. It gets added to @InvariantPanel.
+- an affordance for a word that starts with a `#`. Affordances live in an @Affordances on top of the @Editor. 
+- an @invariant for a word that starts with `!`. It gets added to @Invariants.
 - a @sigil for a word that starts with `@`. It gets created in this @sigil's @SigilFolder.
 
 I would also like #todo_highlighting
 
 I very much care that my !work-is-never-lost. For that, I need the editor to have #continuous-saving, so as I type, I am never worried that the text disappears. 
 
-I need a way to quickly #preview markdown I have written. For that, I have a @PreviewPanel, in two flavors: as split-screen and as a separate preview.
+I need a way to quickly #preview markdown I have written. For that, I have a @Preview, in two flavors: as split-screen and as a separate preview.
 
 Sometimes I need images in my narrative. I #insert-image by dragging, dropping, or pasting — the file is copied to the context's assets directory and a markdown link is inserted. I #preview-image inline as I write. I can #resize-image by dragging a corner handle while preserving aspect ratio.
 

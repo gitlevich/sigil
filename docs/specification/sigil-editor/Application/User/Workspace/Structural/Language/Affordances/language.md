@@ -8,7 +8,7 @@ This is where the @sigil's affordances go.
 
 An affordance is what the @sigil offers for interaction — a capability it exposes. For example, this panel affords adding, editing, and removing affordances.
 
-I can create an affordance directly, via #add-affordance. Or I can have it auto-created in the @LanguagePanel, and then it will appear here, but without a description.
+I can create an affordance directly, via #add-affordance. Or I can have it auto-created in the @Language, and then it will appear here, but without a description.
 
 I can #delete-affordance I don't want. And I can #rename-affordance and #edit-affordance-content
 

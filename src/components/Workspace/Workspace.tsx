@@ -388,6 +388,7 @@ export function Workspace() {
                     sigilRoot={doc.sigil.root}
                     currentContext={currentCtx}
                     currentPath={doc.currentPath}
+                    sigilDir={currentCtx.path}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
@@ -405,7 +406,7 @@ export function Workspace() {
               )}
               {(doc.editorMode === "preview" || doc.editorMode === "split") && (
                 <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} refs={coreRefs} />
+                  <MarkdownPreview content={content} refs={coreRefs} sigilDir={currentCtx.path} onContentChange={handleContentChange} />
                 </div>
               )}
             </>

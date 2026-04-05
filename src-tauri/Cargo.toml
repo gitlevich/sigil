@@ -1,6 +1,6 @@
 [package]
 name = "sigil"
-version = "0.31.1"
+version = "0.32.0"
 edition = "2021"
 
 [lib]
@@ -37,3 +37,4 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 fastembed = "4"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"
