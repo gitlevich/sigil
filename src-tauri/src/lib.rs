@@ -57,6 +57,7 @@ pub fn run() {
         .manage(memory_handle)
         .manage(SleepSender(sleep_tx))
         .invoke_handler(tauri::generate_handler![
+            commands::sigil::scaffold_sigil,
             commands::sigil::read_sigil,
             commands::sigil::create_context,
             commands::sigil::rename_context,

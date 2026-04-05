@@ -151,6 +151,9 @@ export const api = {
   closeWorkspace: () =>
     invoke<void>("close_workspace"),
 
+  scaffoldSigil: (rootPath: string) =>
+    invoke<void>("scaffold_sigil", { rootPath }),
+
   takePendingOpenPath: () =>
     invoke<string | null>("take_pending_open_path"),
 

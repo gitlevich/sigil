@@ -97,6 +97,39 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
     })
 }
 
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {e}", dst.display()))?;
+    for entry in fs::read_dir(src).map_err(|e| format!("Failed to read {}: {e}", src.display()))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy {}: {e}", src_path.display()))?;
+        }
+    }
+    Ok(())
+}
+
+/// Create a new sigil directory with vision.md, language.md, and a copy of Libs.
+#[tauri::command]
+pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
+    let root = Path::new(&root_path);
+    fs::create_dir_all(root).map_err(|e| format!("Failed to create sigil directory: {e}"))?;
+    fs::write(root.join("vision.md"), "").map_err(|e| e.to_string())?;
+    fs::write(root.join("language.md"), "").map_err(|e| e.to_string())?;
+
+    // Copy bundled Libs as a template
+    if let Some(libs_src) = app.path().resource_dir().ok().map(|r| r.join("Libs")).filter(|p| p.exists()) {
+        let libs_dst = root.join("Libs");
+        copy_dir_recursive(&libs_src, &libs_dst)?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
     let lock_state = app.state::<WorkspaceLock>();
@@ -119,8 +152,10 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
 
     let context = read_context(root, false)?;
 
-    // Mount imported ontologies from sibling Libs directory
-    let imported_ontologies = root.parent().map(|p| p.join("Libs"))
+    // Mount imported ontologies from Libs inside the sigil root, or sibling Libs
+    let imported_ontologies = Some(root.join("Libs"))
+        .filter(|p| p.exists())
+        .or_else(|| root.parent().map(|p| p.join("Libs")))
         .and_then(|libs_dir| {
             if libs_dir.exists() && libs_dir.is_dir() {
                 let mut imported = read_context(&libs_dir, true).ok()?;

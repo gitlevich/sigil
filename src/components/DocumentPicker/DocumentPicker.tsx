@@ -22,8 +22,7 @@ export function DocumentPicker() {
     if (!selected) return;
 
     const rootPath = `${selected}/${newName.trim()}`;
-    await api.writeFile(`${rootPath}/vision.md`, "");
-    await api.writeFile(`${rootPath}/language.md`, "");
+    await api.scaffoldSigil(rootPath);
     // Open in the current window (this is the picker window)
     try {
       await openDocument(rootPath);
