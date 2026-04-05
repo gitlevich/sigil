@@ -189,6 +189,8 @@ export function Workspace() {
   }, [ws, appState.settings.keybindings, narratingDispatch]);
 
   const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
 
   // Cancel any pending debounced state update when navigating away.
   const prevPathKeyRef = useRef(ws.currentPath.join("/"));
@@ -205,26 +207,30 @@ export function Workspace() {
 
   const handleContentChange = useCallback((content: string) => {
     const pathSnapshot = [...ws.currentPath];
+    const pathKey = pathSnapshot.join("/");
     const { scopeRoot, scopePath } = scopeInfo(ws);
     const folder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
     if (!folder) return;
     save(`${folder.path}/language.md`, content);
-    // Debounce the React state update
+    // Debounce the React state update — read fresh ws from ref to avoid stale closures
     if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
     dispatchTimerRef.current = setTimeout(() => {
-      const isImported = isImportedPath(ws);
-      if (isImported && ws.spec.importedOntologies) {
-        const updatedImported = updateFolderInTree(ws.spec.importedOntologies, scopePath, (f) => ({
+      const current = wsRef.current;
+      // Guard: if the user navigated away, don't update the wrong node
+      if (current.currentPath.join("/") !== pathKey) return;
+      const imported = isImportedPath(current);
+      if (imported && current.spec.importedOntologies) {
+        const updatedImported = updateFolderInTree(current.spec.importedOntologies, scopePath, (f) => ({
           ...f,
           language: content,
         }));
-        wsDispatch({ type: "UPDATE_SPEC", spec: { ...ws.spec, importedOntologies: updatedImported } });
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, importedOntologies: updatedImported } });
       } else {
-        const updatedRoot = updateFolderInTree(ws.spec.root, pathSnapshot, (f) => ({
+        const updatedRoot = updateFolderInTree(current.spec.root, pathSnapshot, (f) => ({
           ...f,
           language: content,
         }));
-        wsDispatch({ type: "UPDATE_SPEC", spec: { ...ws.spec, root: updatedRoot } });
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, root: updatedRoot } });
       }
     }, 300);
   }, [ws, save, wsDispatch]);

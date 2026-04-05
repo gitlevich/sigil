@@ -23,21 +23,41 @@ export interface SiblingInfo {
   libPrefix?: string;
 }
 
-// ── Global state (set by buildSiblingHighlighter, read by completion/decoration) ──
+// ── Editor context (set by buildSiblingHighlighter, read by completion/decoration) ──
+//
+// Single mutable object holding the sigil tree context for CodeMirror extensions.
+// Mutation happens ONLY in buildSiblingHighlighter() and setGlobalImportedOntologies().
+// Long-term: migrate to a CodeMirror StateField so each editor instance owns its context.
 
-let globalSiblings: SiblingInfo[] = [];
-let globalSiblingNames: string[] = [];
-let globalNameIndex: Map<string, string> = new Map();
-let globalSigilRoot: SigilFolder | null = null;
-let globalImportedOntologies: SigilFolder | null = null;
-let globalCurrentContext: SigilFolder | null = null;
-let globalCurrentPath: string[] = [];
+export interface SigilEditorContext {
+  siblings: SiblingInfo[];
+  siblingNames: string[];
+  nameIndex: Map<string, string>;
+  sigilRoot: SigilFolder | null;
+  importedOntologies: SigilFolder | null;
+  currentContext: SigilFolder | null;
+  currentPath: string[];
+}
 
-export function getGlobalSiblings() { return globalSiblings; }
-export function getGlobalSigilRoot() { return globalSigilRoot; }
-export function setGlobalImportedOntologies(ctx: SigilFolder | null) { globalImportedOntologies = ctx; }
-export function getGlobalCurrentContext() { return globalCurrentContext; }
-export function getGlobalCurrentPath() { return globalCurrentPath; }
+const editorCtx: SigilEditorContext = {
+  siblings: [],
+  siblingNames: [],
+  nameIndex: new Map(),
+  sigilRoot: null,
+  importedOntologies: null,
+  currentContext: null,
+  currentPath: [],
+};
+
+/** Read the current editor context. Do not mutate — use buildSiblingHighlighter. */
+export function getEditorContext(): Readonly<SigilEditorContext> { return editorCtx; }
+
+// Convenience accessors (match existing call sites, thin wrappers)
+export function getGlobalSiblings() { return editorCtx.siblings; }
+export function getGlobalSigilRoot() { return editorCtx.sigilRoot; }
+export function setGlobalImportedOntologies(ctx: SigilFolder | null) { editorCtx.importedOntologies = ctx; }
+export function getGlobalCurrentContext() { return editorCtx.currentContext; }
+export function getGlobalCurrentPath() { return editorCtx.currentPath; }
 
 // ── Decoration marks ──
 
@@ -94,10 +114,10 @@ function extractSummary(domainLanguage: string): string {
 }
 
 export function findSibling(name: string): SiblingInfo | undefined {
-  const fast = globalNameIndex.get(name.toLowerCase()) ?? globalNameIndex.get(flattenName(name));
-  if (fast) return globalSiblings.find((s) => s.name === fast);
-  const canonical = resolveRefName(name, globalSiblingNames);
-  return canonical ? globalSiblings.find((s) => s.name === canonical) : undefined;
+  const fast = editorCtx.nameIndex.get(name.toLowerCase()) ?? editorCtx.nameIndex.get(flattenName(name));
+  if (fast) return editorCtx.siblings.find((s) => s.name === fast);
+  const canonical = resolveRefName(name, editorCtx.siblingNames);
+  return canonical ? editorCtx.siblings.find((s) => s.name === canonical) : undefined;
 }
 
 export function walkTree(segments: string[], ctx: SigilFolder): string[] | null {
@@ -121,13 +141,13 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 }
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
-  if (!globalSigilRoot || !globalCurrentPath) return null;
-  return findInvariantInScope(globalSigilRoot, globalCurrentPath, name);
+  if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
+  return findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
-  if (!globalSigilRoot || !globalCurrentPath) return null;
-  return findAffordanceInScope(globalSigilRoot, globalCurrentPath, name);
+  if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
+  return findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
 }
 
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
@@ -143,8 +163,8 @@ export function resolveChainedRef(matchText: string): RefResolution {
   const segments = matchText.slice(1).split("@");
 
   if (segments.length === 1) {
-    if (globalSigilRoot && resolveRefName(segments[0], [globalSigilRoot.name])) {
-      const summary = extractSummary(globalSigilRoot.language || "");
+    if (editorCtx.sigilRoot && resolveRefName(segments[0], [editorCtx.sigilRoot.name])) {
+      const summary = extractSummary(editorCtx.sigilRoot.language || "");
       return { kind: "absolute", path: [], summary };
     }
     const info = findSibling(segments[0]);
@@ -157,25 +177,25 @@ export function resolveChainedRef(matchText: string): RefResolution {
     return { kind: "unresolved", path: segments };
   }
 
-  if (!globalSigilRoot) return { kind: "external", path: segments };
+  if (!editorCtx.sigilRoot) return { kind: "external", path: segments };
 
-  const rootCanonical = resolveRefName(segments[0], [globalSigilRoot.name]);
+  const rootCanonical = resolveRefName(segments[0], [editorCtx.sigilRoot.name]);
   if (rootCanonical) {
-    const resolved = walkTree(segments.slice(1), globalSigilRoot);
+    const resolved = walkTree(segments.slice(1), editorCtx.sigilRoot);
     if (resolved !== null) {
-      const ctx = findContextByPath(resolved, globalSigilRoot);
+      const ctx = findContextByPath(resolved, editorCtx.sigilRoot);
       const summary = ctx ? extractSummary(ctx.language || "") : undefined;
       return { kind: "absolute", path: resolved, absolutePath: resolved, summary };
     }
   }
 
-  if (globalImportedOntologies) {
-    const ontologyCanonical = resolveRefName(segments[0], globalImportedOntologies.children.map((c) => c.name));
+  if (editorCtx.importedOntologies) {
+    const ontologyCanonical = resolveRefName(segments[0], editorCtx.importedOntologies.children.map((c) => c.name));
     if (ontologyCanonical) {
-      const ontologyCtx = globalImportedOntologies.children.find((c) => c.name === ontologyCanonical)!;
+      const ontologyCtx = editorCtx.importedOntologies.children.find((c) => c.name === ontologyCanonical)!;
       const resolved = walkTree(segments.slice(1), ontologyCtx);
       if (resolved !== null) {
-        const fullPath = [globalImportedOntologies.name, ontologyCanonical, ...resolved];
+        const fullPath = [editorCtx.importedOntologies.name, ontologyCanonical, ...resolved];
         const summary = extractSummary(ontologyCtx.language || "");
         return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
       }
@@ -198,11 +218,11 @@ function findContextByName(name: string, root: SigilFolder): SigilFolder | null 
 }
 
 export function resolveRefToContext(sigilRef: string): SigilFolder | null {
-  if (!globalSigilRoot) return null;
+  if (!editorCtx.sigilRoot) return null;
   const resolution = resolveChainedRef(sigilRef);
-  if (resolution.kind === "absolute") return findContextByPath(resolution.path, globalSigilRoot);
+  if (resolution.kind === "absolute") return findContextByPath(resolution.path, editorCtx.sigilRoot);
   if (resolution.kind === "contained" || resolution.kind === "sibling") {
-    return findContextByName(resolution.path[0], globalSigilRoot);
+    return findContextByName(resolution.path[0], editorCtx.sigilRoot);
   }
   return null;
 }
@@ -286,7 +306,7 @@ export function refCompletion(context: CompletionContext) {
 }
 
 function siblingCompletionBody(context: CompletionContext) {
-  const ancestorProps = collectAncestorProperties(globalSigilRoot, globalCurrentPath);
+  const ancestorProps = collectAncestorProperties(editorCtx.sigilRoot, editorCtx.currentPath);
 
   // Case 0: standalone #partial — offer affordances
   const standaloneHash = context.matchBefore(context.explicit ? /#(?:[a-zA-Z_][\w-]*)?/ : /#[a-zA-Z_][\w-]*/);
@@ -303,7 +323,7 @@ function siblingCompletionBody(context: CompletionContext) {
           return {
             label: dash,
             displayLabel: `#${dash}`,
-            detail: `${a.source !== globalCurrentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            detail: `${a.source !== editorCtx.currentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
             type: "property" as const,
           };
         }),
@@ -327,7 +347,7 @@ function siblingCompletionBody(context: CompletionContext) {
           return {
             label: dash,
             displayLabel: `!${dash}`,
-            detail: `${d.source !== globalCurrentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            detail: `${d.source !== editorCtx.currentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
             type: "property" as const,
           };
         }),
@@ -390,10 +410,10 @@ function siblingCompletionBody(context: CompletionContext) {
   const segments = typed.slice(1).split("@");
 
   if (segments.length <= 1) {
-    if (globalSiblings.length === 0) return null;
+    if (editorCtx.siblings.length === 0) return null;
     return {
       from: before.from,
-      options: globalSiblings.map((s) => ({
+      options: editorCtx.siblings.map((s) => ({
         label: s.kind === "lib" && s.libPrefix ? `@${s.libPrefix}@${s.name}` : `@${s.name}`,
         detail: `${s.kind === "sibling" ? "[neighbor] " : s.kind === "lib" ? "[lib] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
         type: s.kind === "sibling" ? "property" as const : s.kind === "lib" ? "enum" as const : "variable" as const,
@@ -402,13 +422,13 @@ function siblingCompletionBody(context: CompletionContext) {
     };
   }
 
-  if (!globalSigilRoot) return null;
+  if (!editorCtx.sigilRoot) return null;
   const prefix = segments.slice(0, -1);
 
-  const rootCanonical = resolveRefName(prefix[0], [globalSigilRoot.name]);
+  const rootCanonical = resolveRefName(prefix[0], [editorCtx.sigilRoot.name]);
   if (!rootCanonical) return null;
 
-  let ctx: SigilFolder = globalSigilRoot;
+  let ctx: SigilFolder = editorCtx.sigilRoot;
   const resolvedParts: string[] = [rootCanonical];
   for (const seg of prefix.slice(1)) {
     const canonical = resolveRefName(seg, ctx.children.map((c) => c.name));
@@ -471,9 +491,9 @@ function collectStatusesExcluding(ctx: SigilFolder, excludePath: string): string
 }
 
 function getKnownStatuses(): string[] {
-  const excludePath = globalCurrentContext?.path ?? "";
-  const found = globalSigilRoot
-    ? collectStatusesExcluding(globalSigilRoot, excludePath)
+  const excludePath = editorCtx.currentContext?.path ?? "";
+  const found = editorCtx.sigilRoot
+    ? collectStatusesExcluding(editorCtx.sigilRoot, excludePath)
     : [];
   return [DEFAULT_STATUS, ...found].filter((s, i, arr) => arr.indexOf(s) === i);
 }
@@ -595,7 +615,7 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
     const to = from + match[0].length;
     if (pos >= from && pos <= to) {
       const raw = match[1];
-      const canonical = resolveRefName(raw, globalSiblings.map((s) => s.name));
+      const canonical = resolveRefName(raw, editorCtx.siblings.map((s) => s.name));
       const known = canonical !== undefined;
       return { name: canonical ?? raw, from, known };
     }
@@ -643,13 +663,13 @@ export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" 
       const text = match[0];
       if (text.startsWith("!")) {
         const name = text.slice(1);
-        const exists = !!globalCurrentContext?.invariants.find(
+        const exists = !!editorCtx.currentContext?.invariants.find(
           (s) => s.name === name || s.name === fromDashForm(name)
         );
         return { kind: "invariant", name, exists };
       } else {
         const name = text.slice(1);
-        const exists = !!findAffordance(globalCurrentContext ?? undefined, name);
+        const exists = !!findAffordance(editorCtx.currentContext ?? undefined, name);
         return { kind: "affordance", name, exists };
       }
     }
@@ -666,12 +686,12 @@ export function buildSiblingHighlighter(
   currentCtx: SigilFolder | null,
   path: string[] = [],
 ) {
-  globalSiblings = siblings;
-  globalSiblingNames = siblings.map((s) => s.name);
-  globalNameIndex = buildNameIndex(globalSiblingNames);
-  globalSigilRoot = sigilRoot;
-  globalCurrentContext = currentCtx;
-  globalCurrentPath = path;
+  editorCtx.siblings = siblings;
+  editorCtx.siblingNames = siblings.map((s) => s.name);
+  editorCtx.nameIndex = buildNameIndex(editorCtx.siblingNames);
+  editorCtx.sigilRoot = sigilRoot;
+  editorCtx.currentContext = currentCtx;
+  editorCtx.currentPath = path;
 
   return [
     ViewPlugin.fromClass(
@@ -788,11 +808,11 @@ export function buildSiblingHighlighter(
               summary = resolution.summary ?? "outside scope";
             } else {
               summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
-                ? (globalSiblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
+                ? (editorCtx.siblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
                 : "");
               if (propertyPart) {
-                const ctx = globalSigilRoot
-                  ? findContextByPath(resolution.absolutePath ?? resolution.path, globalSigilRoot)
+                const ctx = editorCtx.sigilRoot
+                  ? findContextByPath(resolution.absolutePath ?? resolution.path, editorCtx.sigilRoot)
                   : null;
                 if (propChar === "!" && ctx) {
                   const disp = ctx.invariants.find(
