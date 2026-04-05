@@ -14,4 +14,4 @@ I #re-read it to make sure I do not get distracted by irrelevant shiny things. O
 
 I #update it as my @vision evolves.
 
-It lives in the @VisionPanel
+I access it in my @Workspace through the @VisionPanel.

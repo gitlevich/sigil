@@ -6,7 +6,9 @@ status: idea
 
 The .sigil directory. This is where I work on the @sigil I am specifying. The workspace IS the spec being worked on.
 
-I engage with it through three modes:
+@VisionPanel - where my @Vision lives, one click away. The counter-measure to distraction.
+
+I engage with the spec through three modes:
 
 @Narrating - @Language is foreground, @OntologyTree is peripheral context. I type, define words, let the ontology emerge.
 @Navigating - @OntologyTree and @Atlas are foreground. I explore the structure, see the shape of the whole.
