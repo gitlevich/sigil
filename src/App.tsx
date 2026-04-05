@@ -45,17 +45,33 @@ export function App({ initialRootPath }: AppProps) {
       const pendingPath = await api.takePendingOpenPath().catch(() => null);
       const startPath = initialRootPath || pendingPath;
 
+      // Restore last session state (used for both explicit and implicit opens)
+      const saved = await getPersistedDocState();
+
+      const restoreOverrides = (rootPath: string) => {
+        if (!saved || saved.rootPath !== rootPath) return {};
+        return {
+          currentPath: saved.currentPath || [],
+          ontologyPanelOpen: saved.ontologyPanelOpen,
+          ontologyPanelTab: (saved.ontologyPanelTab === "ontology" ? "ontology" : "vision") as "ontology" | "vision",
+          designPartnerPanelOpen: saved.designPartnerPanelOpen,
+          designPartnerPanelTab: (saved.designPartnerPanelTab === "memories" ? "memories" : "chat") as "memories" | "chat",
+          editorMode: saved.editorMode,
+          contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
+          wordWrap: saved.wordWrap ?? false,
+          collapsedPaths: saved.collapsedPaths ?? [],
+        };
+      };
+
       if (startPath) {
         try {
-          await openDocument(startPath);
+          await openDocument(startPath, restoreOverrides(startPath));
         } catch {
           dispatch({ type: "CLEAR_DOCUMENT" });
         }
         return;
       }
 
-      // No explicit path — restore last session
-      const saved = await getPersistedDocState();
       if (saved?.rootPath) {
         try {
           const chatMessages = saved.activeChatId
@@ -63,20 +79,11 @@ export function App({ initialRootPath }: AppProps) {
             : [];
 
           await openDocument(saved.rootPath, {
-            currentPath: saved.currentPath || [],
-            ontologyPanelOpen: saved.ontologyPanelOpen,
-            ontologyPanelTab: saved.ontologyPanelTab === "ontology" ? "ontology" : "vision",
-            designPartnerPanelOpen: saved.designPartnerPanelOpen,
-            designPartnerPanelTab: saved.designPartnerPanelTab === "memories" ? "memories" : "chat",
-            editorMode: saved.editorMode,
-            contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
+            ...restoreOverrides(saved.rootPath),
             activeChatId: saved.activeChatId ?? "",
             chatMessages,
-            wordWrap: saved.wordWrap ?? false,
-            collapsedPaths: saved.collapsedPaths ?? [],
           });
         } catch {
-          // Sigil no longer exists — stay on picker
           dispatch({ type: "CLEAR_DOCUMENT" });
         }
       }
