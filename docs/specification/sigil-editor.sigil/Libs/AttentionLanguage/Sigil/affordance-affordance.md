@@ -1,0 +1,1 @@
+a thing that this @sigil offers. See @EcologicalPsychology@Affordance.

@@ -12,6 +12,6 @@ Here the exact semantics are lexical: @sigils are nested scopes over domain lang
 
 I @collapse @observations one @frame at a time into a @narrative — compressing @DifferentialGeometry@spacelike experience into a @DifferentialGeometry@timelike trajectory. The @resolution of the collapse is bounded by finite @attention.
 
-I inhabit a @sigil that protects my attention by defining self as the region of @contrastSpace where my @preferences over the @invariants I care about hold.
+I inhabit a @sigil that protects my attention by defining self as the region of @contrastSpace where some @invariants about @contrasts I care about hold.
 
-I can #attend to what's inside my @sigil, outside it, or both. @SigilEngineering is the practice of converting lived experience to @sigils.
+@SigilEngineering is the practice of converting lived experience to @sigils.

@@ -4,7 +4,7 @@ status: external-ontology
 
 # Contrast Space
 
-The space whose dimensions are @contrasts. A position is a configuration of values along many contrasts simultaneously. A @sigil is a shape in this space — @preferences hold within its boundary (@invariants). Outside, contrast values are in superposition.
+The space whose dimensions are @contrasts. A position is a configuration of values along many contrasts simultaneously. A @sigil is a shape in this space within which @invariants hold. Outside, contrast values are in superposition.
 
 Structure becomes geometry. Similar contrasts = near. Different contrasts = orthogonal. @Entanglement = intersection.
 
