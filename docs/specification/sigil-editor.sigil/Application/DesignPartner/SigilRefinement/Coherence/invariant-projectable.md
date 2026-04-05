@@ -1,0 +1,1 @@
+The spec is projectable when coherence is high enough that a coding agent can project it into working code without getting surprised by implementation. This is the termination condition: when to stop refining.

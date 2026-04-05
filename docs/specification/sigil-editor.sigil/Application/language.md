@@ -18,7 +18,7 @@ To fix the meaning, I define a word. To avoid overwhelm, I let myself enter the 
 
 I call this structure a @sigil: the boundary of a lexical scope, contained in a lexical scope, containing lexical scopes. Think of it as a tree in which each node contains its children, and no root.
 
-It allows me to do these things in the @Editor.
+It allows me to do these things in my @Workspace.
 
 I am the @User.
 
