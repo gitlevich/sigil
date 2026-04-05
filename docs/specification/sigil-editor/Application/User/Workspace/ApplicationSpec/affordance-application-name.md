@@ -1,0 +1,1 @@
+name of this sigil. don't want to tie myself to a folder name as this name may change quickly in the beginning: I am discovering what my app is.

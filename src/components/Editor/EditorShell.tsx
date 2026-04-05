@@ -389,8 +389,13 @@ export function EditorShell() {
 
   if (!doc) return null;
 
-  const currentCtx = findContext(doc.sigil.root, doc.currentPath);
-  const breadcrumbs = buildBreadcrumb(doc.sigil.root, doc.currentPath);
+  const isImportedPath = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+  const resolveRoot = isImportedPath ? doc.sigil.imported_ontologies! : doc.sigil.root;
+  const resolvePath = isImportedPath ? doc.currentPath.slice(1) : doc.currentPath;
+  const currentCtx = findContext(resolveRoot, resolvePath);
+  const breadcrumbs = isImportedPath
+    ? [{ name: "Imported Ontologies", path: ["Imported Ontologies"] }, ...buildBreadcrumb(resolveRoot, resolvePath)]
+    : buildBreadcrumb(doc.sigil.root, doc.currentPath);
   const content = currentCtx.domain_language;
 
   return (

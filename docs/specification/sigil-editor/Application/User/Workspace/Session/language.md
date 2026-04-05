@@ -2,4 +2,4 @@
 status: idea
 ---
 
-# Spec Editor
+# Session
