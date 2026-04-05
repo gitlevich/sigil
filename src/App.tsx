@@ -8,7 +8,7 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
-import { api, events } from "./tauri";
+import { api } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { Workspace } from "./components/Workspace/Workspace";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -33,18 +33,6 @@ export function App({ initialRootPath }: AppProps) {
   useFontZoom();
   useSelectAll();
 
-  // Listen for Finder double-click on .sigil folders (macOS RunEvent::Opened)
-  useEffect(() => {
-    const unlisten = events.onOpenSigil(async (path) => {
-      try {
-        await openDocument(path);
-      } catch (e) {
-        console.error("Failed to open sigil from Finder:", e);
-      }
-    });
-    return () => { unlisten.then((fn) => fn()); };
-  }, [openDocument]);
-
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
@@ -53,10 +41,13 @@ export function App({ initialRootPath }: AppProps) {
       // Clean up stale recent documents before anything else
       await api.pruneRecentDocuments().catch(console.error);
 
-      if (initialRootPath) {
-        // Opened from menu/URL — open that specific sigil
+      // Check for path from Finder double-click (arrived before frontend was ready)
+      const pendingPath = await api.takePendingOpenPath().catch(() => null);
+      const startPath = initialRootPath || pendingPath;
+
+      if (startPath) {
         try {
-          await openDocument(initialRootPath);
+          await openDocument(startPath);
         } catch {
           dispatch({ type: "CLEAR_DOCUMENT" });
         }

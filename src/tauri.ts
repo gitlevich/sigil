@@ -151,6 +151,9 @@ export const api = {
   closeWorkspace: () =>
     invoke<void>("close_workspace"),
 
+  takePendingOpenPath: () =>
+    invoke<string | null>("take_pending_open_path"),
+
   readFile: (path: string) =>
     invoke<string>("read_file", { path }),
 

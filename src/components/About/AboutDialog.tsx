@@ -1,9 +1,16 @@
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useAppState, useAppDispatch } from "../../state/AppContext";
 import styles from "./AboutDialog.module.css";
 
 export function AboutDialog() {
   const state = useAppState();
   const dispatch = useAppDispatch();
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    if (state.aboutOpen) getVersion().then(setVersion).catch(() => {});
+  }, [state.aboutOpen]);
 
   if (!state.aboutOpen) return null;
 
@@ -11,7 +18,7 @@ export function AboutDialog() {
     <div className={styles.overlay} onClick={() => dispatch({ type: "SET_ABOUT_OPEN", open: false })}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         <h1 className={styles.title}>Sigil</h1>
-        <p className={styles.version}>Version 0</p>
+        <p className={styles.version}>Version {version}</p>
 
         <div className={styles.body}>
           <p>

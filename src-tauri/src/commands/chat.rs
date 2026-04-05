@@ -142,7 +142,7 @@ fn find_context_by_path<'a>(root: &'a Context, path: &[String]) -> Option<&'a Co
 
 #[allow(dead_code)]
 fn assemble_sigil_context(_app: &tauri::AppHandle, root_path: &str, current_path: &[String]) -> Result<String, String> {
-    let sigil = read_sigil_with_libs(root_path.to_string(), None)?;
+    let sigil = read_sigil_with_libs(root_path.to_string())?;
     let mut output = String::new();
 
     output.push_str(&format!("Sigil root: {}\n\n", root_path));

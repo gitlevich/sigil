@@ -105,14 +105,10 @@ pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
     let lock_file = super::workspace_lock::acquire(&root_path)?;
     lock_state.0.lock().expect("WorkspaceLock mutex poisoned").replace(lock_file);
 
-    let libs_path = app.path().resource_dir()
-        .ok()
-        .map(|res| res.join("Libs"))
-        .filter(|p| p.exists());
-    read_sigil_with_libs(root_path, libs_path)
+    read_sigil_with_libs(root_path)
 }
 
-pub fn read_sigil_with_libs(root_path: String, libs_path: Option<std::path::PathBuf>) -> Result<Sigil, String> {
+pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
     let root = Path::new(&root_path);
     if !root.exists() {
         return Err(format!("Path does not exist: {}", root_path));
@@ -123,9 +119,8 @@ pub fn read_sigil_with_libs(root_path: String, libs_path: Option<std::path::Path
 
     let context = read_context(root, false)?;
 
-    // Mount imported ontologies from resolved libs path, falling back to sibling Libs dir
-    let imported_ontologies = libs_path
-        .or_else(|| root.parent().map(|p| p.join("Libs")))
+    // Mount imported ontologies from sibling Libs directory
+    let imported_ontologies = root.parent().map(|p| p.join("Libs"))
         .and_then(|libs_dir| {
             if libs_dir.exists() && libs_dir.is_dir() {
                 let mut imported = read_context(&libs_dir, true).ok()?;
@@ -498,7 +493,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);
 
-        let sigil = read_sigil_with_libs(root_path, None).unwrap();
+        let sigil = read_sigil_with_libs(root_path).unwrap();
 
         assert_eq!(sigil.name, "MyApp");
         assert_eq!(sigil.vision, "Build the best app");
@@ -633,7 +628,7 @@ mod tests {
         fs::create_dir(&hidden).unwrap();
         fs::write(hidden.join("language.md"), "should be ignored").unwrap();
 
-        let sigil = read_sigil_with_libs(root_path, None).unwrap();
+        let sigil = read_sigil_with_libs(root_path).unwrap();
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(!names.contains(&".git"));
     }
@@ -646,7 +641,7 @@ mod tests {
         let random_dir = Path::new(&root_path).join("random");
         fs::create_dir(&random_dir).unwrap();
 
-        let sigil = read_sigil_with_libs(root_path, None).unwrap();
+        let sigil = read_sigil_with_libs(root_path).unwrap();
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(!names.contains(&"random"));
     }

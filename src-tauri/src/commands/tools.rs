@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 use regex::Regex;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use crate::commands::sigil::{create_context, delete_context, rename_sigil, move_sigil, read_sigil_with_libs};
 use crate::commands::chat::render_context;
 
@@ -385,8 +385,7 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
                 .and_then(|v| v.as_str())
                 .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
                 .ok_or("Missing sigil_path")?;
-            let libs_path = app.and_then(|a| a.path().resource_dir().ok()).map(|p| p.join("Libs")).filter(|p| p.exists());
-            let sigil = read_sigil_with_libs(sigil_path.to_string(), libs_path)?;
+            let sigil = read_sigil_with_libs(sigil_path.to_string())?;
             let mut output = String::new();
             render_context(&sigil.root, 0, &mut output);
             Ok(output)
@@ -395,8 +394,7 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             let root_path = input["root_path"].as_str()
                 .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
                 .ok_or("Missing root_path")?;
-            let libs_path = app.and_then(|a| a.path().resource_dir().ok()).map(|p| p.join("Libs")).filter(|p| p.exists());
-            let sigil = read_sigil_with_libs(root_path.to_string(), libs_path)?;
+            let sigil = read_sigil_with_libs(root_path.to_string())?;
             let mut output = String::new();
             output.push_str(&format!("Sigil root: {}\n\n", root_path));
             output.push_str("# Vision\n\n");
