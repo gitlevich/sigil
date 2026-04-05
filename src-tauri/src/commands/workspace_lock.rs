@@ -15,9 +15,9 @@ pub fn acquire(locks: &WorkspaceLocks, root_path: &str) -> Result<(), String> {
     let canonical = PathBuf::from(root_path);
     let mut guard = locks.0.lock().expect("WorkspaceLocks mutex poisoned");
 
-    // Already open in this process?
+    // Already open in this process — idempotent for reloads
     if guard.contains_key(&canonical) {
-        return Err("This workspace is already open.".to_string());
+        return Ok(());
     }
 
     let lock_path = Path::new(root_path).join(LOCK_FILE);
