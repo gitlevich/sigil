@@ -42,7 +42,7 @@
         "ext": ["sigil"],
         "exportedType": {
           "identifier": "com.sigilengineering.package",
-          "conformsTo": ["public.folder"]
+          "conformsTo": ["com.apple.package"]
         },
         "rank": "Owner"
       }

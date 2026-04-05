@@ -86,7 +86,11 @@ async function buildMenu(
     text: "Open Sigil...",
     accelerator: "CmdOrCtrl+O",
     action: async () => {
-      const selected = await open({ directory: true, title: "Open sigil root directory" });
+      const selected = await open({
+        directory: false,
+        title: "Open Sigil",
+        filters: [{ name: "Sigil", extensions: ["sigil"] }],
+      });
       if (selected) {
         openInNewWindow(selected as string);
       }
