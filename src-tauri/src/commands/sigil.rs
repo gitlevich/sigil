@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager};
 use tauri::path::BaseDirectory;
 use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
-use crate::models::sigil::{Context, Invariant, Sigil};
+use crate::models::sigil::{SigilFolder, Invariant, ApplicationSpec};
 
 #[derive(Serialize)]
 pub struct OntologyStatus {
@@ -33,7 +33,7 @@ fn is_context_dir(dir: &Path) -> bool {
 }
 
 
-fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
+fn read_context(dir: &Path, is_imported: bool) -> Result<SigilFolder, String> {
     use crate::models::sigil::Affordance;
 
     let name = dir
@@ -42,7 +42,7 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
         .unwrap_or("Unknown")
         .to_string();
 
-    let domain_language = fs::read_to_string(&language_file(dir))
+    let language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
 
     // Detect image files: image.ext, image-1.ext, image-2.ext, ...
@@ -94,10 +94,10 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
         }
     }
 
-    Ok(Context {
+    Ok(SigilFolder {
         name,
         path: dir.to_string_lossy().to_string(),
-        domain_language,
+        language,
         affordances,
         invariants,
         children,
@@ -221,14 +221,14 @@ pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>,
 }
 
 #[tauri::command]
-pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
+pub fn read_sigil(app: AppHandle, root_path: String) -> Result<ApplicationSpec, String> {
     let locks = app.state::<WorkspaceLocks>();
     super::workspace_lock::acquire(&locks, &root_path)?;
 
     read_sigil_with_libs(root_path)
 }
 
-pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
+pub fn read_sigil_with_libs(root_path: String) -> Result<ApplicationSpec, String> {
     let root = Path::new(&root_path);
     if !root.exists() {
         return Err(format!("Path does not exist: {}", root_path));
@@ -253,7 +253,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
             }
         });
 
-    Ok(Sigil {
+    Ok(ApplicationSpec {
         name: context.name.clone(),
         root_path: root_path.clone(),
         vision,
@@ -263,7 +263,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
 }
 
 #[tauri::command]
-pub fn create_context(parent_path: String, name: String) -> Result<Context, String> {
+pub fn create_context(parent_path: String, name: String) -> Result<SigilFolder, String> {
     let parent = Path::new(&parent_path);
 
     let context_path = parent.join(&name);
@@ -274,10 +274,10 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
     fs::create_dir(&context_path).map_err(|e| e.to_string())?;
     fs::write(context_path.join("language.md"), "").map_err(|e| e.to_string())?;
 
-    Ok(Context {
+    Ok(SigilFolder {
         name,
         path: context_path.to_string_lossy().to_string(),
-        domain_language: String::new(),
+        language: String::new(),
         affordances: Vec::new(),
         invariants: Vec::new(),
         children: Vec::new(),
@@ -587,7 +587,7 @@ mod tests {
 
         assert_eq!(sigil.name, "MyApp");
         assert_eq!(sigil.vision, "Build the best app");
-        assert_eq!(sigil.root.domain_language, "# MyApp\nRoot domain language");
+        assert_eq!(sigil.root.language, "# MyApp\nRoot domain language");
         assert_eq!(sigil.root.children.len(), 2);
 
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
@@ -608,7 +608,7 @@ mod tests {
 
         let ctx = create_context(root_path.clone(), "Notifications".to_string()).unwrap();
         assert_eq!(ctx.name, "Notifications");
-        assert!(ctx.domain_language.is_empty());
+        assert!(ctx.language.is_empty());
         assert!(ctx.children.is_empty());
 
         let lang_path = Path::new(&root_path).join("Notifications/language.md");
@@ -749,9 +749,9 @@ mod tests {
         fs::write(child.join("spec.md"), "Old child content").unwrap();
 
         let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
-        assert_eq!(sigil.root.domain_language, "Legacy root content");
+        assert_eq!(sigil.root.language, "Legacy root content");
         assert_eq!(sigil.root.children.len(), 1);
-        assert_eq!(sigil.root.children[0].domain_language, "Old child content");
+        assert_eq!(sigil.root.children[0].language, "Old child content");
     }
 
     #[test]
@@ -764,7 +764,7 @@ mod tests {
         fs::write(root.join("language.md"), "new content").unwrap();
 
         let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
-        assert_eq!(sigil.root.domain_language, "new content");
+        assert_eq!(sigil.root.language, "new content");
     }
 
     #[test]

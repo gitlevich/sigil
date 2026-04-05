@@ -8,13 +8,13 @@
  * pre-conditions, the operation, post-conditions, and error handling.
  */
 
-import { api, Context } from "../tauri";
+import { api, SigilFolder } from "../tauri";
 
 // ── Dependencies injected by callers ──
 
 export interface ActionDeps {
   rootPath: string;
-  reload: (rootPath: string) => Promise<unknown>;
+  reload: (rootPath?: string) => Promise<unknown>;
   addToast: (message: string, type?: "error" | "info") => void;
 }
 
@@ -59,7 +59,7 @@ async function execute(
 // ── Sigil operations ──
 
 /**
- * Create a new sigil as a child of the given context.
+ * Create a new sigil as a child of the given sigil folder.
  *
  * Pre: name is non-empty.
  * Op: createContext + write language.md with inherited status.
@@ -67,7 +67,7 @@ async function execute(
  * Error: toast.
  */
 export async function createSigil(
-  ctx: Context,
+  folder: SigilFolder,
   name: string,
   deps: ActionDeps,
 ): Promise<void> {
@@ -81,10 +81,10 @@ export async function createSigil(
 
   await execute(deps, async () => {
     requireNonEmpty(dirName, "Sigil name");
-    const parentStatusMatch = ctx.domain_language?.match(/^---[\s\S]*?^status:\s*(\S+)/m);
+    const parentStatusMatch = folder.language?.match(/^---[\s\S]*?^status:\s*(\S+)/m);
     const parentStatus = parentStatusMatch?.[1] ?? "idea";
-    const newCtx = await api.createContext(ctx.path, dirName);
-    await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
+    const newFolder = await api.createContext(folder.path, dirName);
+    await api.writeFile(`${newFolder.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
   });
 }
 
@@ -169,7 +169,7 @@ export async function deleteSigil(
 // ── Property operations (affordances & invariants) ──
 
 /**
- * Create a new affordance on the current context.
+ * Create a new affordance on the current sigil folder.
  *
  * Pre: name non-empty.
  * Op: write empty affordance-{name}.md.
@@ -177,18 +177,18 @@ export async function deleteSigil(
  * Error: toast.
  */
 export async function createAffordance(
-  ctx: Context,
+  folder: SigilFolder,
   name: string,
   deps: ActionDeps,
 ): Promise<void> {
   await execute(deps, async () => {
     requireNonEmpty(name, "Affordance name");
-    await api.writeFile(`${ctx.path}/affordance-${name}.md`, "");
+    await api.writeFile(`${folder.path}/affordance-${name}.md`, "");
   });
 }
 
 /**
- * Create a new invariant on the current context.
+ * Create a new invariant on the current sigil folder.
  *
  * Pre: name non-empty.
  * Op: write empty invariant-{name}.md.
@@ -196,13 +196,13 @@ export async function createAffordance(
  * Error: toast.
  */
 export async function createInvariant(
-  ctx: Context,
+  folder: SigilFolder,
   name: string,
   deps: ActionDeps,
 ): Promise<void> {
   await execute(deps, async () => {
     requireNonEmpty(name, "Invariant name");
-    await api.writeFile(`${ctx.path}/invariant-${name}.md`, "");
+    await api.writeFile(`${folder.path}/invariant-${name}.md`, "");
   });
 }
 
@@ -215,7 +215,7 @@ export async function createInvariant(
  * Error: toast.
  */
 export async function renameProperty(
-  ctx: Context,
+  folder: SigilFolder,
   kind: "affordance" | "invariant",
   oldName: string,
   newName: string,
@@ -225,21 +225,21 @@ export async function renameProperty(
     requireNonEmpty(newName, "Property name");
     requireDifferent(oldName, newName, "Property rename");
     const prefix = kind === "affordance" ? "affordance" : "invariant";
-    const oldPath = `${ctx.path}/${prefix}-${oldName}.md`;
-    const newPath = `${ctx.path}/${prefix}-${newName}.md`;
+    const oldPath = `${folder.path}/${prefix}-${oldName}.md`;
+    const newPath = `${folder.path}/${prefix}-${newName}.md`;
     const oldContent = await api.readFile(oldPath).catch(() => "");
     await api.writeFile(newPath, oldContent);
     await api.deleteFile(oldPath);
 
     // Update references in language.md
     const refChar = kind === "affordance" ? "#" : "!";
-    const lang = ctx.domain_language;
+    const lang = folder.language;
     const updated = lang.replace(
       new RegExp(`\\${refChar}${oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[^a-zA-Z0-9_-]|$)`, "g"),
       `${refChar}${newName}`,
     );
     if (updated !== lang) {
-      await api.writeFile(`${ctx.path}/language.md`, updated);
+      await api.writeFile(`${folder.path}/language.md`, updated);
     }
   });
 }
@@ -268,30 +268,30 @@ export async function moveProperty(
  * Update status frontmatter recursively on a sigil and all descendants.
  *
  * Pre: newValue non-empty.
- * Op: update status in language.md for ctx and all children.
+ * Op: update status in language.md for folder and all children.
  * Post: reload tree.
  * Error: toast.
  */
 export async function updateStatus(
-  ctx: Context,
+  folder: SigilFolder,
   newValue: string,
   deps: ActionDeps,
 ): Promise<void> {
   await execute(deps, async () => {
     requireNonEmpty(newValue, "Status value");
     const statusPattern = /^(status:\s*)\S+$/m;
-    const forceStatus = async (c: Context) => {
-      const lang = c.domain_language || "";
+    const forceStatus = async (f: SigilFolder) => {
+      const lang = f.language || "";
       if (statusPattern.test(lang)) {
-        await api.writeFile(`${c.path}/language.md`, lang.replace(statusPattern, `$1${newValue}`));
+        await api.writeFile(`${f.path}/language.md`, lang.replace(statusPattern, `$1${newValue}`));
       } else if (lang.startsWith("---")) {
-        await api.writeFile(`${c.path}/language.md`, lang.replace(/^---/, `---\nstatus: ${newValue}`));
+        await api.writeFile(`${f.path}/language.md`, lang.replace(/^---/, `---\nstatus: ${newValue}`));
       } else {
-        await api.writeFile(`${c.path}/language.md`, `---\nstatus: ${newValue}\n---\n${lang}`);
+        await api.writeFile(`${f.path}/language.md`, `---\nstatus: ${newValue}\n---\n${lang}`);
       }
-      for (const child of c.children) await forceStatus(child);
+      for (const child of f.children) await forceStatus(child);
     };
-    await forceStatus(ctx);
+    await forceStatus(folder);
   });
 }
 

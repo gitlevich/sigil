@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useAppDispatch, useAppState, useDocument } from "../../state/AppContext";
+import { useAppState } from "../../state/AppContext";
+import {
+  useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
+  resolveCurrentFolder, scopeInfo, isImportedPath,
+} from "../../state/WorkspaceContext";
+import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
 import { OntologyPanel } from "../OntologyTree/OntologyPanel";
 import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
@@ -7,16 +12,20 @@ import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
-import { Context, DEFAULT_KEYBINDINGS } from "../../tauri";
+import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { useAutoSave } from "../../hooks/useAutoSave";
-import { useSigil } from "../../hooks/useSigil";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import { Atlas } from "./Atlas";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
-import { buildBreadcrumb as coreBuildBreadcrumb, buildLexicalScope as coreBuildLexicalScope, makeSummary, resolveRefName } from "sigil-core";
+import {
+  buildBreadcrumb as coreBuildBreadcrumb,
+  buildLexicalScope as coreBuildLexicalScope,
+  makeSummary, resolveRefName, findContext,
+} from "sigil-core";
+import type { Sigil } from "sigil-core";
 import styles from "./Workspace.module.css";
 
 /** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
@@ -42,75 +51,55 @@ function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
   return e.key.toLowerCase() === keyChar;
 }
 
-function findContext(root: Context, path: string[]): Context | null {
-  let current = root;
-  for (const segment of path) {
-    const child = current.children.find((c) => c.name === segment);
-    if (!child) return null;
-    current = child;
-  }
-  return current;
-}
-
-/** Resolve context for the current path, routing imported ontology paths correctly. */
-function resolveCurrentContext(doc: { currentPath: string[]; sigil: { root: Context; imported_ontologies?: Context } }): Context | null {
-  const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-  const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
-  const path = isImported ? doc.currentPath.slice(1) : doc.currentPath;
-  return findContext(root, path);
-}
-
-function updateContextInTree(
-  root: Context,
+function updateFolderInTree(
+  root: SigilFolder,
   path: string[],
-  updater: (ctx: Context) => Context
-): Context {
+  updater: (folder: SigilFolder) => SigilFolder
+): SigilFolder {
   if (path.length === 0) return updater(root);
   const [head, ...rest] = path;
   return {
     ...root,
     children: root.children.map((child) =>
-      child.name === head ? updateContextInTree(child, rest, updater) : child
+      child.name === head ? updateFolderInTree(child, rest, updater) : child
     ),
   };
 }
 
 /** Build the full lexical scope for the current path: children → ancestry levels → root. */
 function buildLexicalScope(
-  root: Context,
+  root: SigilFolder,
   currentPath: string[],
-): { name: string; summary: string; kind: "contained" | "sibling"; absolutePath: string[] }[] {
-  const refs: { name: string; summary: string; kind: "contained" | "sibling"; absolutePath: string[] }[] = [];
+): SiblingInfo[] {
+  const refs: SiblingInfo[] = [];
   const seen = new Set<string>();
-  const currentCtx = findContext(root, currentPath);
-  if (!currentCtx) return refs;
+  const currentFolder = findContext(root as Sigil, currentPath) as SigilFolder;
+  if (!currentFolder) return refs;
 
-  const add = (name: string, ctx: Context, kind: "contained" | "sibling", absolutePath: string[]) => {
+  const add = (name: string, sigil: Sigil, kind: "contained" | "sibling", absolutePath: string[]) => {
     if (!seen.has(name)) {
       seen.add(name);
-      refs.push({ name, summary: makeSummary(ctx), kind, absolutePath });
+      refs.push({ name, summary: makeSummary(sigil), kind, absolutePath });
     }
   };
 
-  // Innermost: children of current context
-  for (const c of currentCtx.children) {
+  // Innermost: children of current sigil
+  for (const c of currentFolder.children) {
     add(c.name, c, "contained", [...currentPath, c.name]);
   }
 
   // Walk up the ancestry chain
   for (let depth = currentPath.length; depth > 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
+    const levelSigil = findContext(root as Sigil, levelPath);
     const parentPath = levelPath.slice(0, -1);
-    const parentCtx = findContext(root, parentPath);
-    if (!levelCtx || !parentCtx) break;
+    const parentSigil = findContext(root as Sigil, parentPath);
+    if (!levelSigil || !parentSigil) break;
 
-    // The ancestor at this level is reachable by name
-    add(levelCtx.name, levelCtx, "sibling", levelPath);
+    add(levelSigil.name, levelSigil, "sibling", levelPath);
 
-    // Its siblings
-    for (const c of parentCtx.children) {
-      if (c.name !== levelCtx.name) {
+    for (const c of parentSigil.children) {
+      if (c.name !== levelSigil.name) {
         add(c.name, c, "sibling", [...parentPath, c.name]);
       }
     }
@@ -124,13 +113,13 @@ function buildLexicalScope(
 
 /** Flatten all descendants of the Ontologies sigil into the global scope. */
 function flattenOntologyRefs(
-  ctx: Context,
+  sigil: Sigil,
   basePath: string[],
   seen: Set<string>,
   ontologyName: string,
 ): SiblingInfo[] {
   const refs: SiblingInfo[] = [];
-  for (const child of ctx.children) {
+  for (const child of sigil.children) {
     const childPath = [...basePath, child.name];
     if (!seen.has(child.name)) {
       seen.add(child.name);
@@ -141,53 +130,55 @@ function flattenOntologyRefs(
   return refs;
 }
 
-function buildBreadcrumb(root: Context, path: string[]): { name: string; path: string[] }[] {
+function buildBreadcrumb(root: Sigil, path: string[]): { name: string; path: string[] }[] {
   return [{ name: root.name, path: [] }, ...coreBuildBreadcrumb(root, path)];
 }
 
 export function Workspace() {
-  const dispatch = useAppDispatch();
-  const state = useAppState();
-  const doc = useDocument();
+  const appState = useAppState();
+  const ws = useWorkspaceState();
+  const wsDispatch = useWorkspaceDispatch();
+  const { navigate, reload } = useWorkspaceActions();
+  const narrating = useNarratingState();
+  const narratingDispatch = useNarratingDispatch();
   const { save } = useAutoSave();
-  const { reload } = useSigil();
   const { addToast } = useToast();
 
+  // Ephemeral UI state
+  const findReferencesNameRef = useRef<string | null>(null);
+
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
   // Global keyboard shortcuts
   useEffect(() => {
-    if (!doc) return;
-    const kb = state.settings.keybindings || DEFAULT_KEYBINDINGS;
+    const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "atlas" } });
+        narratingDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" });
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "vision", ontologyPanelOpen: true } });
+        narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "vision" });
         return;
       }
       if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "ontology", ontologyPanelOpen: true } });
+        narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
         return;
       }
-      // Find References — only handle when focus is outside the CodeMirror editor
-      // (CodeMirror has its own keymap handler for this when focused)
       if (matchesBinding(e, kb["find-references"] || "Alt-Mod-f")) {
         const cm = (e.target as HTMLElement)?.closest(".cm-editor");
         if (!cm) {
           e.preventDefault();
-          const ctx = findContext(doc.sigil.root, doc.currentPath);
-          if (ctx) dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
+          const currentFolder = resolveCurrentFolder(ws);
+          if (currentFolder) findReferencesNameRef.current = currentFolder.name;
         }
         return;
       }
@@ -195,15 +186,16 @@ export function Workspace() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [doc, state.settings.keybindings, dispatch]);
+  }, [ws, appState.settings.keybindings, narratingDispatch]);
 
   const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
 
   // Cancel any pending debounced state update when navigating away.
-  // This prevents stale content from being written into the wrong sigil's tree slot.
-  const prevPathKeyRef = useRef(doc?.currentPath.join("/"));
+  const prevPathKeyRef = useRef(ws.currentPath.join("/"));
   useEffect(() => {
-    const pathKey = doc?.currentPath.join("/");
+    const pathKey = ws.currentPath.join("/");
     if (pathKey !== prevPathKeyRef.current) {
       if (dispatchTimerRef.current) {
         clearTimeout(dispatchTimerRef.current);
@@ -211,147 +203,127 @@ export function Workspace() {
       }
       prevPathKeyRef.current = pathKey;
     }
-  }, [doc?.currentPath]);
+  }, [ws.currentPath]);
 
   const handleContentChange = useCallback((content: string) => {
-    if (!doc) return;
-    // Capture path at call time so the timeout uses the correct sigil.
-    const pathSnapshot = [...doc.currentPath];
-    const isImported = pathSnapshot[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-    const searchRoot = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
-    const searchPath = isImported ? pathSnapshot.slice(1) : pathSnapshot;
-    const ctx = findContext(searchRoot, searchPath);
-    if (!ctx) return;
-    save(`${ctx.path}/language.md`, content);
-    // Debounce the React state update — CodeMirror holds its own state,
-    // so other components only need periodic sync.
+    const pathSnapshot = [...ws.currentPath];
+    const pathKey = pathSnapshot.join("/");
+    const { scopeRoot, scopePath } = scopeInfo(ws);
+    const folder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
+    if (!folder) return;
+    save(`${folder.path}/language.md`, content);
+    // Debounce the React state update — read fresh ws from ref to avoid stale closures
     if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
     dispatchTimerRef.current = setTimeout(() => {
-      if (isImported && doc.sigil.imported_ontologies) {
-        const updatedImported = updateContextInTree(doc.sigil.imported_ontologies, searchPath, (c) => ({
-          ...c,
-          domain_language: content,
+      const current = wsRef.current;
+      // Guard: if the user navigated away, don't update the wrong node
+      if (current.currentPath.join("/") !== pathKey) return;
+      const imported = isImportedPath(current);
+      if (imported && current.spec.importedOntologies) {
+        const updatedImported = updateFolderInTree(current.spec.importedOntologies, scopePath, (f) => ({
+          ...f,
+          language: content,
         }));
-        dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, imported_ontologies: updatedImported } });
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, importedOntologies: updatedImported } });
       } else {
-        const updatedRoot = updateContextInTree(doc.sigil.root, pathSnapshot, (c) => ({
-          ...c,
-          domain_language: content,
+        const updatedRoot = updateFolderInTree(current.spec.root, pathSnapshot, (f) => ({
+          ...f,
+          language: content,
         }));
-        dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, root: updatedRoot } });
       }
     }, 300);
-  }, [doc, save, dispatch]);
+  }, [ws, save, wsDispatch]);
+
+  const currentFolder = resolveCurrentFolder(ws);
 
   const handleCreateSigil = useCallback(async (name: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    await actions.createSigil(ctx, name, actionDeps);
-  }, [doc, actionDeps]);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    await actions.createSigil(folder, name, actionDeps);
+  }, [ws, actionDeps]);
 
   const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
-    if (!doc || !newValue.trim()) return;
-    const currentCtx = resolveCurrentContext(doc);
-    if (!currentCtx) return;
-    await actions.updateStatus(currentCtx, newValue, actionDeps);
-  }, [doc, actionDeps]);
+    if (!newValue.trim()) return;
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    await actions.updateStatus(folder, newValue, actionDeps);
+  }, [ws, actionDeps]);
 
   const handleCreateAffordance = useCallback(async (name: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    await actions.createAffordance(ctx, name, actionDeps);
-  }, [doc, actionDeps]);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    await actions.createAffordance(folder, name, actionDeps);
+  }, [ws, actionDeps]);
 
   const handleCreateInvariant = useCallback(async (name: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    await actions.createInvariant(ctx, name, actionDeps);
-  }, [doc, actionDeps]);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    await actions.createInvariant(folder, name, actionDeps);
+  }, [ws, actionDeps]);
 
   const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    await actions.renameProperty(ctx, kind, oldName, newName, actionDeps);
-  }, [doc, actionDeps]);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    await actions.renameProperty(folder, kind, oldName, newName, actionDeps);
+  }, [ws, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    let target = ctx.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
-    if (!target && doc.currentPath.length > 0) {
-      const parentPath = doc.currentPath.slice(0, -1);
-      const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-      const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
-      const resolvedParent = isImported ? parentPath.slice(1) : parentPath;
-      const parent = findContext(root, resolvedParent);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    const { scopeRoot, scopePath } = scopeInfo(ws);
+    let target = folder.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
+    if (!target && ws.currentPath.length > 0) {
+      const parentPath = scopePath.slice(0, -1);
+      const parent = findContext(scopeRoot as Sigil, parentPath) as SigilFolder | null;
       target = parent?.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     }
     if (target) {
       await actions.renameSigil(target.path, newName, actionDeps);
     }
-  }, [doc, actionDeps]);
+  }, [ws, actionDeps]);
 
   const handleNavigateToSigil = useCallback((name: string) => {
-    if (!doc) return;
-    const ctx = resolveCurrentContext(doc);
-    if (!ctx) return;
-    // Check if it's a contained sigil (resolving plurals)
-    const containedNames = ctx.children.map((c) => c.name);
+    const folder = resolveCurrentFolder(ws);
+    if (!folder) return;
+    // Check contained sigils
+    const containedNames = folder.children.map((c) => c.name);
     const resolvedContained = resolveRefName(name, containedNames);
     if (resolvedContained) {
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...doc.currentPath, resolvedContained] } });
+      navigate([...ws.currentPath, resolvedContained]);
       return;
     }
-    // Check if it's a neighbor — navigate to it at the same level
-    if (doc.currentPath.length > 0) {
-      const parentPath = doc.currentPath.slice(0, -1);
-      const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-      const parentRoot = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
-      const resolvedParent = isImported ? parentPath.slice(1) : parentPath;
-      const parent = findContext(parentRoot, resolvedParent);
-      const neighborNames = parent ? parent.children.filter((c) => c.name !== ctx.name).map((c) => c.name) : [];
+    // Check neighbors
+    if (ws.currentPath.length > 0) {
+      const parentPath = ws.currentPath.slice(0, -1);
+      const { scopeRoot, scopePath } = scopeInfo(ws);
+      const resolvedParentPath = isImportedPath(ws) ? scopePath.slice(0, -1) : parentPath;
+      const parent = findContext(scopeRoot as Sigil, resolvedParentPath);
+      const neighborNames = parent ? parent.children.filter((c) => c.name !== folder.name).map((c) => c.name) : [];
       const resolvedNeighbor = resolveRefName(name, neighborNames);
       if (resolvedNeighbor) {
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...parentPath, resolvedNeighbor] } });
+        navigate([...parentPath, resolvedNeighbor]);
       }
     }
-  }, [doc, dispatch]);
+  }, [ws, navigate]);
 
   // Stable fingerprint of tree structure (names only, ignoring content changes)
   const treeFingerprint = useMemo(() => {
-    function walk(ctx: Context): string {
-      return ctx.name + "(" + ctx.children.map(walk).join(",") + ")";
+    function walk(sigil: Sigil): string {
+      return sigil.name + "(" + sigil.children.map(walk).join(",") + ")";
     }
-    if (!doc) return "";
-    let fp = walk(doc.sigil.root);
-    if (doc.sigil.imported_ontologies) fp += "|" + walk(doc.sigil.imported_ontologies);
+    let fp = walk(ws.spec.root);
+    if (ws.spec.importedOntologies) fp += "|" + walk(ws.spec.importedOntologies);
     return fp;
-  }, [doc?.sigil.root, doc?.sigil.imported_ontologies]);
+  }, [ws.spec.root, ws.spec.importedOntologies]);
 
-  // Resolve scope root and path for imported ontology paths
-  const scopeRoot = useMemo(() => {
-    if (!doc) return null;
-    return doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies
-      ? doc.sigil.imported_ontologies : doc.sigil.root;
-  }, [doc?.sigil.root, doc?.sigil.imported_ontologies, doc?.currentPath]);
+  const { scopeRoot, scopePath } = scopeInfo(ws);
 
-  const scopePath = useMemo(() => {
-    if (!doc) return [];
-    return doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies
-      ? doc.currentPath.slice(1) : doc.currentPath;
-  }, [doc?.currentPath, doc?.sigil.imported_ontologies]);
-
-  // Memoize lexical scope — only recomputes when tree structure or current path changes
+  // Memoize lexical scope
   const { allRefs, allRefNames } = useMemo(() => {
-    if (!doc || !scopeRoot) return { allRefs: [] as SiblingInfo[], allRefNames: [] as string[] };
     const refs: SiblingInfo[] = buildLexicalScope(scopeRoot, scopePath);
     const seenNames = new Set(refs.map((r) => r.name));
-    const importedSigil = doc.sigil.imported_ontologies ?? null;
+    const importedSigil = ws.spec.importedOntologies ?? null;
     setGlobalImportedOntologies(importedSigil);
     if (importedSigil) {
       for (const ontology of importedSigil.children) {
@@ -366,31 +338,23 @@ export function Workspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
 
-  // Core refs (with affordances/invariants) for preview highlighting
+  // Core refs for preview highlighting
   const coreRefs = useMemo(() => {
-    if (!scopeRoot) return [];
-    return coreBuildLexicalScope(scopeRoot, scopePath);
+    return coreBuildLexicalScope(scopeRoot as Sigil, scopePath);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
 
-  if (!doc) return null;
-
-  const isImportedPath = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-  const resolveRoot = isImportedPath ? doc.sigil.imported_ontologies! : doc.sigil.root;
-  const resolvePath = isImportedPath ? doc.currentPath.slice(1) : doc.currentPath;
-  const resolvedCtx = findContext(resolveRoot, resolvePath);
-
-  // Stale currentPath (e.g. from wrong workspace state) — reset to root
-  if (!resolvedCtx) {
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [] } });
+  // Stale currentPath — reset to root
+  if (!currentFolder) {
+    navigate([]);
     return null;
   }
 
-  const currentCtx = resolvedCtx;
-  const breadcrumbs = isImportedPath
-    ? [{ name: "Imported Ontologies", path: ["Imported Ontologies"] }, ...buildBreadcrumb(resolveRoot, resolvePath)]
-    : buildBreadcrumb(doc.sigil.root, doc.currentPath);
-  const content = currentCtx.domain_language;
+  const isImported = isImportedPath(ws);
+  const breadcrumbs = isImported
+    ? [{ name: "Imported Ontologies", path: ["Imported Ontologies"] }, ...buildBreadcrumb(ws.spec.importedOntologies!, scopePath)]
+    : buildBreadcrumb(ws.spec.root, ws.currentPath);
+  const content = currentFolder.language;
 
   return (
     <div className={styles.shell}>
@@ -398,54 +362,51 @@ export function Workspace() {
       <div className={styles.center}>
         <Breadcrumb
           crumbs={breadcrumbs}
-          onNavigate={(path) =>
-            dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })
-          }
+          onNavigate={(path) => navigate(path)}
         />
         <EditorToolbar />
-        {(doc.contentTab || "language") !== "atlas" && (
+        {narrating.contentTab !== "atlas" && (
           <SigilPropertyEditor
-            sigilPath={currentCtx.path}
+            sigilPath={currentFolder.path}
             filePrefix="affordance"
             title="Affordances"
             refPrefix="#"
             color="#3d9e8c"
             namePlaceholder="I need to..."
             contentPlaceholder="so that..."
-            items={currentCtx.affordances}
-
+            items={currentFolder.affordances}
             siblings={allRefs}
             siblingNames={allRefNames}
-            sigilRoot={scopeRoot!}
-            currentContext={currentCtx}
+            sigilRoot={scopeRoot}
+            currentContext={currentFolder}
             currentPath={scopePath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
             onRenameSigil={handleRenameSigil}
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
-            onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
-            keybindings={state.settings.keybindings as unknown as Record<string, string>}
+            onNavigateToAbsPath={(path) => navigate(path)}
+            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />
         )}
         <div className={styles.editorArea}>
-          {(doc.contentTab || "language") === "atlas" ? (
+          {narrating.contentTab === "atlas" ? (
             <Atlas />
           ) : (
             <>
-              {(doc.editorMode === "edit" || doc.editorMode === "split") && (
-                <div className={doc.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
+              {(narrating.editorMode === "edit" || narrating.editorMode === "split") && (
+                <div className={narrating.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
                   <MarkdownEditor
                     content={content}
                     onChange={handleContentChange}
                     siblingNames={allRefNames}
                     siblings={allRefs}
-                    sigilRoot={scopeRoot!}
-                    currentContext={currentCtx}
+                    sigilRoot={scopeRoot}
+                    currentContext={currentFolder}
                     currentPath={scopePath}
-                    sigilDir={currentCtx.path}
-                    wordWrap={doc.wordWrap}
+                    sigilDir={currentFolder.path}
+                    wordWrap={narrating.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
                     onCreateInvariant={handleCreateInvariant}
@@ -453,48 +414,47 @@ export function Workspace() {
                     onRenameProperty={handleRenameProperty}
                     onRenameStatus={handleRenameStatus}
                     onNavigateToSigil={handleNavigateToSigil}
-                    onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
-                    keybindings={state.settings.keybindings as unknown as Record<string, string>}
-                    findReferencesName={doc.findReferencesName}
-                    onFindReferencesClear={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: null } })}
+                    onNavigateToAbsPath={(path) => navigate(path)}
+                    keybindings={appState.settings.keybindings as unknown as Record<string, string>}
+                    findReferencesName={findReferencesNameRef.current}
+                    onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
                   />
                 </div>
               )}
-              {(doc.editorMode === "preview" || doc.editorMode === "split") && (
-                <div className={doc.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} refs={coreRefs} sigilDir={currentCtx.path} images={currentCtx.images} onContentChange={handleContentChange} />
+              {(narrating.editorMode === "preview" || narrating.editorMode === "split") && (
+                <div className={narrating.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
+                  <MarkdownPreview content={content} refs={coreRefs} sigilDir={currentFolder.path} images={currentFolder.images} onContentChange={handleContentChange} />
                 </div>
               )}
             </>
           )}
         </div>
-        {(doc.contentTab || "language") !== "atlas" && (
+        {narrating.contentTab !== "atlas" && (
           <SigilPropertyEditor
-            sigilPath={currentCtx.path}
+            sigilPath={currentFolder.path}
             filePrefix="invariant"
             title="Invariants"
             refPrefix="!"
             color="#e8a040"
             namePlaceholder="what must hold..."
             contentPlaceholder="because..."
-            items={currentCtx.invariants}
-
+            items={currentFolder.invariants}
             siblings={allRefs}
             siblingNames={allRefNames}
-            sigilRoot={scopeRoot!}
-            currentContext={currentCtx}
+            sigilRoot={scopeRoot}
+            currentContext={currentFolder}
             currentPath={scopePath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
             onRenameSigil={handleRenameSigil}
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
-            onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
-            keybindings={state.settings.keybindings as unknown as Record<string, string>}
+            onNavigateToAbsPath={(path) => navigate(path)}
+            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />
         )}
-        <SubContextBar context={currentCtx} />
+        <SubContextBar context={currentFolder} />
       </div>
       <DesignPartnerPanel />
     </div>

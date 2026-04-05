@@ -1,10 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
-import { api, Context } from "../../tauri";
+import {
+  useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
+} from "../../state/WorkspaceContext";
+import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
-import { useSigil } from "../../hooks/useSigil";
 import { useToast } from "../../hooks/useToast";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
 import * as actions from "../../actions/workspace";
@@ -21,7 +22,7 @@ interface OntologyNode {
   affordances: string[];
   invariants: string[];
   children: OntologyNode[];
-  is_imported: boolean;
+  isImported: boolean;
 }
 
 interface ContextMenuState {
@@ -30,16 +31,16 @@ interface ContextMenuState {
   node: OntologyNode;
 }
 
-function buildOntology(ctx: Context, path: string[], depth: number): OntologyNode {
+function buildOntology(folder: SigilFolder, path: string[], depth: number): OntologyNode {
   return {
-    name: ctx.name,
+    name: folder.name,
     path,
-    fsPath: ctx.path,
+    fsPath: folder.path,
     depth,
-    affordances: ctx.affordances.map((a) => a.name),
-    invariants: ctx.invariants.map((c) => c.name),
-    children: ctx.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
-    is_imported: ctx.is_imported ?? false,
+    affordances: folder.affordances.map((a) => a.name),
+    invariants: folder.invariants.map((c) => c.name),
+    children: folder.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
+    isImported: folder.isImported ?? false,
   };
 }
 
@@ -159,7 +160,7 @@ function OntologyItem({
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
-  const atLimit = !node.is_imported && node.children.length >= 5;
+  const atLimit = !node.isImported && node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {
@@ -219,7 +220,7 @@ function OntologyItem({
         ) : (
           <span className={styles.chevronPlaceholder} />
         )}
-        <span className={`${styles.term} ${node.is_imported ? styles.imported : ""}`}>{node.name}</span>
+        <span className={`${styles.term} ${node.isImported ? styles.imported : ""}`}>{node.name}</span>
         <button
           className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.fsPath]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}
@@ -301,17 +302,17 @@ function OntologyItem({
 }
 
 export function OntologyTree() {
-  const doc = useDocument();
-  const dispatch = useAppDispatch();
-  const { reload } = useSigil();
+  const ws = useWorkspaceState();
+  const wsDispatch = useWorkspaceDispatch();
+  const { navigate, reload } = useWorkspaceActions();
   const { save } = useAutoSave();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
   const [search, setSearch] = useState("");
   const [definitions, setDefinitions] = useState<Record<string, string>>({});
@@ -321,15 +322,14 @@ export function OntologyTree() {
   const renameInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const reloadDefinitions = useCallback(async (root: Context) => {
+  const reloadDefinitions = useCallback(async (root: SigilFolder) => {
     const defs = await loadDefinitions(buildOntology(root, [], 0));
     setDefinitions(defs);
   }, []);
 
   useEffect(() => {
-    if (!doc) return;
-    reloadDefinitions(doc.sigil.root);
-  }, [doc?.sigil.root_path]);
+    reloadDefinitions(ws.spec.root);
+  }, [ws.spec.rootPath]);
 
   useEffect(() => {
     const hide = () => setContextMenu(null);
@@ -343,39 +343,29 @@ export function OntologyTree() {
     }
   }, [renaming]);
 
-  useEffect(() => {
-    if (!doc?.renamingRequest) return;
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: false } });
-    const node = findNodeByPath(buildOntology(doc.sigil.root, [], 0), doc.currentPath);
-    if (node) setRenaming({ fsPath: node.fsPath, name: node.name });
-  }, [doc?.renamingRequest]);
-
   const handleDefinitionChange = useCallback((fsPath: string, value: string) => {
     setDefinitions((prev) => ({ ...prev, [fsPath]: value }));
     save(`${fsPath}/definition.md`, value);
   }, [save]);
 
   const handleMove = async (sourceFsPath: string, targetFsPath: string) => {
-    if (!doc) return;
     await actions.moveSigil(sourceFsPath, targetFsPath, actionDeps);
-    const sigil = await reload(doc.sigil.root_path);
-    if (sigil) await reloadDefinitions(sigil.root);
+    const spec = await reload();
+    if (spec) await reloadDefinitions(spec.root);
   };
 
   const handlePropertyDrop = async (targetFsPath: string, src: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => {
-    if (!doc) return;
     await actions.moveProperty(targetFsPath, src, actionDeps);
-    const sigil = await reload(doc.sigil.root_path);
-    if (sigil) await reloadDefinitions(sigil.root);
+    const spec = await reload();
+    if (spec) await reloadDefinitions(spec.root);
   };
 
   const handleRename = async (fsPath: string, oldName: string, newName: string) => {
-    if (!doc) return;
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) { setRenaming(null); return; }
     await actions.renameSigil(fsPath, trimmed, actionDeps);
-    const sigil = await reload(doc.sigil.root_path);
-    if (sigil) await reloadDefinitions(sigil.root);
+    const spec = await reload();
+    if (spec) await reloadDefinitions(spec.root);
     setRenaming(null);
   };
 
@@ -385,64 +375,52 @@ export function OntologyTree() {
   };
 
   const handlePeerSubmit = async () => {
-    if (!doc) return;
-    await reload(doc.sigil.root_path);
+    await reload();
     setAddingPeerOf(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (renaming || addingPeerOf) return;
-    if (!doc) return;
 
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
-      const root = buildOntology(doc.sigil.root, [], 0);
+      const root = buildOntology(ws.spec.root, [], 0);
       const all = flattenPaths(root);
-      const idx = all.findIndex((p) => pathsEqual(p, doc.currentPath));
-      if (e.key === "ArrowUp" && idx > 0) dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: all[idx - 1] } });
-      if (e.key === "ArrowDown" && idx < all.length - 1) dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: all[idx + 1] } });
+      const idx = all.findIndex((p) => pathsEqual(p, ws.currentPath));
+      if (e.key === "ArrowUp" && idx > 0) navigate(all[idx - 1]);
+      if (e.key === "ArrowDown" && idx < all.length - 1) navigate(all[idx + 1]);
       return;
     }
 
-    if (e.key === "Enter" && e.shiftKey && doc.currentPath.length > 0) {
+    if (e.key === "Enter" && e.shiftKey && ws.currentPath.length > 0) {
       e.preventDefault();
-      setAddingPeerOf(doc.currentPath);
+      setAddingPeerOf(ws.currentPath);
       return;
-    }
-
-    if (e.key === "Enter" && !e.shiftKey && doc.currentPath.length > 0) {
-      e.preventDefault();
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: doc.currentPath } });
     }
   };
 
-  if (!doc) return null;
-
-  const root = buildOntology(doc.sigil.root, [], 0);
-  const importedOntologies = doc.sigil.imported_ontologies
-    ? buildOntology(doc.sigil.imported_ontologies, ["Imported Ontologies"], 0)
+  const root = buildOntology(ws.spec.root, [], 0);
+  const importedOntologies = ws.spec.importedOntologies
+    ? buildOntology(ws.spec.importedOntologies, ["Imported Ontologies"], 0)
     : null;
   const query = search.toLowerCase().trim();
   const rootVisible = !query || nodeMatches(root, query);
   const importedVisible = importedOntologies && (!query || nodeMatches(importedOntologies, query));
 
-  const collapsedSet = useMemo(() => new Set(doc.collapsedPaths), [doc.collapsedPaths]);
+  const collapsedSet = useMemo(() => new Set(ws.collapsedPaths), [ws.collapsedPaths]);
 
   const handleToggleCollapse = useCallback((path: string[]) => {
     const key = pathKey(path);
-    const updated = collapsedSet.has(key)
-      ? doc.collapsedPaths.filter((p) => p !== key)
-      : [...doc.collapsedPaths, key];
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { collapsedPaths: updated } });
-  }, [collapsedSet, doc.collapsedPaths, dispatch]);
+    wsDispatch({ type: "TOGGLE_COLLAPSE", pathKey: key });
+  }, [wsDispatch]);
 
   const sharedProps = {
-    currentPath: doc.currentPath,
+    currentPath: ws.currentPath,
     search: query,
     definitions,
     addingPeerAfterPath: addingPeerOf,
     collapsedPaths: collapsedSet,
-    onNavigate: (path: string[]) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } }),
+    onNavigate: (path: string[]) => navigate(path),
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
     onDrop: handleMove,
@@ -480,7 +458,6 @@ export function OntologyTree() {
       {contextMenu && (
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
-          <button className={styles.menuItem} onClick={() => { dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: contextMenu.node.name } }); setContextMenu(null); }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { writeText(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Copy Path</button>
           {contextMenu.node.path.length > 0 && (
@@ -510,8 +487,3 @@ export function OntologyTree() {
   );
 }
 
-function findNodeByPath(root: OntologyNode, path: string[]): OntologyNode | null {
-  if (path.length === 0) return root;
-  const child = root.children.find((c) => c.name === path[0]);
-  return child ? findNodeByPath(child, path.slice(1)) : null;
-}

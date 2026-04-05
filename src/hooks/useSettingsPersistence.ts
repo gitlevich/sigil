@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { load } from "@tauri-apps/plugin-store";
 import { useAppState, useAppDispatch, ThemePreference, UIState } from "../state/AppContext";
 import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";
+import { WorkspaceState } from "../state/WorkspaceContext";
+import { NarratingState } from "../state/NarratingContext";
 
 const STORE_FILE = "settings.json";
 
@@ -19,7 +21,10 @@ interface PersistedDocState {
   collapsedPaths?: string[];
 }
 
-export function useSettingsPersistence() {
+export function useSettingsPersistence(
+  workspaceState?: WorkspaceState | null,
+  narratingState?: NarratingState | null,
+) {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const loaded = useRef(false);
@@ -164,45 +169,49 @@ export function useSettingsPersistence() {
   }, [state.ui]);
 
   // Save document UI state (panel open/closed, editor mode, active tab)
-  const prevDoc = useRef(state.document);
+  const prevWorkspace = useRef(workspaceState);
+  const prevNarrating = useRef(narratingState);
 
   useEffect(() => {
     if (!loaded.current) return;
-    if (!state.document) return;
-    const doc = state.document;
+    if (!workspaceState || !narratingState) return;
 
-    const prev = prevDoc.current;
+    const ws = workspaceState;
+    const nr = narratingState;
+    const prevWs = prevWorkspace.current;
+    const prevNr = prevNarrating.current;
+
     if (
-      prev &&
-      prev.ontologyPanelOpen === doc.ontologyPanelOpen &&
-      prev.ontologyPanelTab === doc.ontologyPanelTab &&
-      prev.designPartnerPanelOpen === doc.designPartnerPanelOpen &&
-      prev.designPartnerPanelTab === doc.designPartnerPanelTab &&
-      prev.editorMode === doc.editorMode &&
-      prev.contentTab === doc.contentTab &&
-      prev.activeChatId === doc.activeChatId &&
-      prev.wordWrap === doc.wordWrap &&
-      JSON.stringify(prev.currentPath) === JSON.stringify(doc.currentPath) &&
-      JSON.stringify(prev.collapsedPaths) === JSON.stringify(doc.collapsedPaths) &&
-      prev.sigil.root_path === doc.sigil.root_path
+      prevWs && prevNr &&
+      prevNr.ontologyPanelOpen === nr.ontologyPanelOpen &&
+      prevNr.ontologyPanelTab === nr.ontologyPanelTab &&
+      prevNr.designPartnerPanelOpen === nr.designPartnerPanelOpen &&
+      prevNr.designPartnerPanelTab === nr.designPartnerPanelTab &&
+      prevNr.editorMode === nr.editorMode &&
+      prevNr.contentTab === nr.contentTab &&
+      prevNr.wordWrap === nr.wordWrap &&
+      JSON.stringify(prevWs.currentPath) === JSON.stringify(ws.currentPath) &&
+      JSON.stringify(prevWs.collapsedPaths) === JSON.stringify(ws.collapsedPaths) &&
+      prevWs.spec.rootPath === ws.spec.rootPath
     ) {
       return;
     }
-    prevDoc.current = doc;
+    prevWorkspace.current = ws;
+    prevNarrating.current = nr;
 
-    const rootPath = doc.sigil.root_path;
+    const rootPath = ws.spec.rootPath;
     const stateToSave: PersistedDocState = {
       rootPath,
-      currentPath: doc.currentPath,
-      ontologyPanelOpen: doc.ontologyPanelOpen,
-      ontologyPanelTab: doc.ontologyPanelTab,
-      designPartnerPanelOpen: doc.designPartnerPanelOpen,
-      designPartnerPanelTab: doc.designPartnerPanelTab,
-      editorMode: doc.editorMode,
-      contentTab: doc.contentTab,
-      activeChatId: doc.activeChatId,
-      wordWrap: doc.wordWrap,
-      collapsedPaths: doc.collapsedPaths,
+      currentPath: ws.currentPath,
+      ontologyPanelOpen: nr.ontologyPanelOpen,
+      ontologyPanelTab: nr.ontologyPanelTab,
+      designPartnerPanelOpen: nr.designPartnerPanelOpen,
+      designPartnerPanelTab: nr.designPartnerPanelTab,
+      editorMode: nr.editorMode,
+      contentTab: nr.contentTab,
+      activeChatId: "",
+      wordWrap: nr.wordWrap,
+      collapsedPaths: ws.collapsedPaths,
     };
     (async () => {
       try {
@@ -220,7 +229,7 @@ export function useSettingsPersistence() {
         console.error("Failed to save doc state:", err);
       }
     })();
-  }, [state.document]);
+  }, [workspaceState, narratingState]);
 }
 
 export async function getPersistedDocState(forRootPath?: string): Promise<PersistedDocState | null> {

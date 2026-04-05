@@ -22,7 +22,7 @@ interface Invariant {
 
 interface Context {
   name: string;
-  domain_language: string;
+  language: string;
   affordances: Affordance[];
   invariants: Invariant[];
   children: Context[];
@@ -52,7 +52,7 @@ function isContextDir(dir: string): boolean {
 function readContext(dir: string): Context {
   const name = path.basename(dir);
   const langPath = languageFile(dir);
-  const domain_language = fs.existsSync(langPath)
+  const language = fs.existsSync(langPath)
     ? fs.readFileSync(langPath, "utf-8")
     : "";
 
@@ -91,7 +91,7 @@ function readContext(dir: string): Context {
     return 0;
   });
 
-  return { name, domain_language, affordances, invariants, children };
+  return { name, language, affordances, invariants, children };
 }
 
 const scriptDir = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));

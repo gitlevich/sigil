@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppState, useAppDispatch } from "../../state/AppContext";
+import { useWorkspaceState } from "../../state/WorkspaceContext";
+import { useNarratingState } from "../../state/NarratingContext";
+import { useConversingState, useConversingDispatch } from "../../state/ConversingContext";
 import { useChatStream } from "../../hooks/useChatStream";
 import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -11,47 +14,48 @@ function draftKey(rootPath: string, chatId: string): string {
 }
 
 export function ChatPanel() {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
+  const appState = useAppState();
+  const appDispatch = useAppDispatch();
+  const ws = useWorkspaceState();
+  const narrating = useNarratingState();
+  const conversing = useConversingState();
+  const conversingDispatch = useConversingDispatch();
   const { sendMessage } = useChatStream();
   const [input, setInput] = useState(() => {
-    if (!doc) return "";
-    try { return localStorage.getItem(draftKey(doc.sigil.root_path, doc.activeChatId)) || ""; }
+    try { return localStorage.getItem(draftKey(ws.spec.rootPath, conversing.activeChatId)) || ""; }
     catch { return ""; }
   });
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const prevOpen = useRef(doc?.designPartnerPanelOpen ?? false);
+  const prevOpen = useRef(narrating.designPartnerPanelOpen);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [doc?.chatMessages]);
+  }, [conversing.chatMessages]);
 
   useEffect(() => {
-    if (doc?.designPartnerPanelOpen && !prevOpen.current) {
+    if (narrating.designPartnerPanelOpen && !prevOpen.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-    prevOpen.current = doc?.designPartnerPanelOpen ?? false;
-  }, [doc?.designPartnerPanelOpen]);
+    prevOpen.current = narrating.designPartnerPanelOpen;
+  }, [narrating.designPartnerPanelOpen]);
 
   // Save draft on every keystroke
   useEffect(() => {
-    if (!doc) return;
-    try { localStorage.setItem(draftKey(doc.sigil.root_path, doc.activeChatId), input); }
+    try { localStorage.setItem(draftKey(ws.spec.rootPath, conversing.activeChatId), input); }
     catch { /* ignore */ }
-  }, [input, doc?.sigil.root_path, doc?.activeChatId]);
+  }, [input, ws.spec.rootPath, conversing.activeChatId]);
 
   // Restore draft when switching chats
-  const prevChatId = useRef(doc?.activeChatId);
+  const prevChatId = useRef(conversing.activeChatId);
   useEffect(() => {
-    if (!doc || doc.activeChatId === prevChatId.current) return;
-    prevChatId.current = doc.activeChatId;
+    if (conversing.activeChatId === prevChatId.current) return;
+    prevChatId.current = conversing.activeChatId;
     try {
-      setInput(localStorage.getItem(draftKey(doc.sigil.root_path, doc.activeChatId)) || "");
+      setInput(localStorage.getItem(draftKey(ws.spec.rootPath, conversing.activeChatId)) || "");
     } catch { setInput(""); }
-  }, [doc?.activeChatId, doc?.sigil.root_path]);
+  }, [conversing.activeChatId, ws.spec.rootPath]);
 
   useEffect(() => {
     const handleClick = () => setChatMenu(null);
@@ -61,24 +65,19 @@ export function ChatPanel() {
     }
   }, [chatMenu]);
 
-  if (!doc) return null;
-
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed || doc.chatStreaming) return;
+    if (!trimmed || conversing.chatStreaming) return;
     sendMessage(trimmed);
     setInput("");
-    try { localStorage.removeItem(draftKey(doc.sigil.root_path, doc.activeChatId)); }
+    try { localStorage.removeItem(draftKey(ws.spec.rootPath, conversing.activeChatId)); }
     catch { /* ignore */ }
   };
 
   const switchChat = async (chatId: string) => {
     try {
-      const chat = await api.readChat(doc.sigil.root_path, chatId);
-      dispatch({
-        type: "UPDATE_DOCUMENT",
-        updates: { activeChatId: chatId, chatMessages: chat.messages },
-      });
+      const chat = await api.readChat(ws.spec.rootPath, chatId);
+      conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: chat.messages });
     } catch (err) {
       console.error("Failed to switch chat:", err);
     }
@@ -86,34 +85,28 @@ export function ChatPanel() {
 
   const createChat = () => {
     const chatId = `chat-${Date.now()}`;
-    const chatName = `Chat ${doc.chats.length + 1}`;
-    const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
-    dispatch({
-      type: "UPDATE_DOCUMENT",
-      updates: { chats: newChats, activeChatId: chatId, chatMessages: [] },
-    });
+    const chatName = `Chat ${conversing.chats.length + 1}`;
+    const newChats = [...conversing.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
+    conversingDispatch({ type: "SET_CHATS", chats: newChats });
+    conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: [] });
   };
 
   const deleteChat = async (chatId: string) => {
     try {
-      await api.deleteChat(doc.sigil.root_path, chatId);
-      const newChats = doc.chats.filter((c) => c.id !== chatId);
-      if (doc.activeChatId === chatId) {
+      await api.deleteChat(ws.spec.rootPath, chatId);
+      const newChats = conversing.chats.filter((c) => c.id !== chatId);
+      if (conversing.activeChatId === chatId) {
         if (newChats.length > 0) {
           const next = newChats[0];
-          const chat = await api.readChat(doc.sigil.root_path, next.id);
-          dispatch({
-            type: "UPDATE_DOCUMENT",
-            updates: { chats: newChats, activeChatId: next.id, chatMessages: chat.messages },
-          });
+          const chat = await api.readChat(ws.spec.rootPath, next.id);
+          conversingDispatch({ type: "SET_CHATS", chats: newChats });
+          conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId: next.id, messages: chat.messages });
         } else {
-          dispatch({
-            type: "UPDATE_DOCUMENT",
-            updates: { chats: newChats, activeChatId: "", chatMessages: [] },
-          });
+          conversingDispatch({ type: "SET_CHATS", chats: newChats });
+          conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId: "", messages: [] });
         }
       } else {
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats } });
+        conversingDispatch({ type: "SET_CHATS", chats: newChats });
       }
     } catch (err) {
       console.error("Failed to delete chat:", err);
@@ -121,41 +114,41 @@ export function ChatPanel() {
   };
 
   const renameChat = async (chatId: string) => {
-    const chat = doc.chats.find((c) => c.id === chatId);
+    const chat = conversing.chats.find((c) => c.id === chatId);
     if (!chat) return;
     const newName = prompt("Rename chat:", chat.name);
     if (!newName || !newName.trim()) return;
     try {
-      await api.renameChat(doc.sigil.root_path, chatId, newName.trim());
-      const newChats = doc.chats.map((c) =>
+      await api.renameChat(ws.spec.rootPath, chatId, newName.trim());
+      const newChats = conversing.chats.map((c) =>
         c.id === chatId ? { ...c, name: newName.trim() } : c
       );
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats } });
+      conversingDispatch({ type: "SET_CHATS", chats: newChats });
     } catch (err) {
       console.error("Failed to rename chat:", err);
     }
   };
 
-  const activeChatName = doc.chats.find((c) => c.id === doc.activeChatId)?.name;
+  const activeChatName = conversing.chats.find((c) => c.id === conversing.activeChatId)?.name;
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        {doc.chats.length > 1 ? (
+        {conversing.chats.length > 1 ? (
           <select
             className={styles.chatSwitch}
-            value={doc.activeChatId}
+            value={conversing.activeChatId}
             onChange={(e) => switchChat(e.target.value)}
             title="Switch between chat conversations"
           >
-            {doc.chats.map((c) => (
+            {conversing.chats.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         ) : (
           <span
             className={styles.title}
-            onDoubleClick={() => doc.activeChatId && renameChat(doc.activeChatId)}
+            onDoubleClick={() => conversing.activeChatId && renameChat(conversing.activeChatId)}
             title="Double-click to rename"
           >
             {activeChatName || "AI Review"}
@@ -168,12 +161,12 @@ export function ChatPanel() {
         >
           +
         </button>
-        {doc.activeChatId && doc.chats.length > 0 && (
+        {conversing.activeChatId && conversing.chats.length > 0 && (
           <button
             className={styles.chatMenuBtn}
             onClick={(e) => {
               e.stopPropagation();
-              setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: doc.activeChatId });
+              setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: conversing.activeChatId });
             }}
             title="Rename or delete this chat"
           >
@@ -181,16 +174,16 @@ export function ChatPanel() {
           </button>
         )}
         {(() => {
-          const enabled = (state.settings.ai_providers || []).filter((p) => p.enabled);
+          const enabled = (appState.settings.ai_providers || []).filter((p) => p.enabled);
           if (enabled.length > 1) {
             return (
               <select
                 className={styles.profileSwitch}
-                value={state.settings.selected_provider_id}
+                value={appState.settings.selected_provider_id}
                 onChange={(e) =>
-                  dispatch({
+                  appDispatch({
                     type: "SET_SETTINGS",
-                    settings: { ...state.settings, selected_provider_id: e.target.value },
+                    settings: { ...appState.settings, selected_provider_id: e.target.value },
                   })
                 }
                 title="Choose which AI attention provider responds next"
@@ -209,23 +202,23 @@ export function ChatPanel() {
         <div
           className={styles.styleSwitch}
           onClick={() =>
-            dispatch({
+            appDispatch({
               type: "SET_SETTINGS",
               settings: {
-                ...state.settings,
-                response_style: state.settings.response_style === "detailed" ? "laconic" : "detailed",
+                ...appState.settings,
+                response_style: appState.settings.response_style === "detailed" ? "laconic" : "detailed",
               },
             })
           }
-          title={state.settings.response_style === "detailed"
+          title={appState.settings.response_style === "detailed"
             ? "Detailed: thorough explanations with full reasoning"
             : "Laconic: a few short sentences, conversation not report"}
         >
-          <span className={state.settings.response_style !== "detailed" ? styles.styleLabelActive : styles.styleLabel}>laconic</span>
+          <span className={appState.settings.response_style !== "detailed" ? styles.styleLabelActive : styles.styleLabel}>laconic</span>
           <span className={styles.switchTrack}>
-            <span className={`${styles.switchThumb} ${state.settings.response_style === "detailed" ? styles.switchThumbRight : ""}`} />
+            <span className={`${styles.switchThumb} ${appState.settings.response_style === "detailed" ? styles.switchThumbRight : ""}`} />
           </span>
-          <span className={state.settings.response_style === "detailed" ? styles.styleLabelActive : styles.styleLabel}>detailed</span>
+          <span className={appState.settings.response_style === "detailed" ? styles.styleLabelActive : styles.styleLabel}>detailed</span>
         </div>
       </div>
 
@@ -250,7 +243,7 @@ export function ChatPanel() {
       )}
 
       <div className={styles.messages}>
-        {doc.chatMessages.map((msg, i) => (
+        {conversing.chatMessages.map((msg: { role: string; content: string }, i: number) => (
           <div
             key={i}
             className={`${styles.message} ${msg.role === "user" ? styles.userMsg : styles.assistantMsg}`}
@@ -277,8 +270,8 @@ export function ChatPanel() {
             )}
           </div>
         ))}
-        {doc.chatStreaming && doc.chatMessages.length > 0 &&
-         doc.chatMessages[doc.chatMessages.length - 1].role === "user" && (
+        {conversing.chatStreaming && conversing.chatMessages.length > 0 &&
+         conversing.chatMessages[conversing.chatMessages.length - 1].role === "user" && (
           <div className={`${styles.message} ${styles.assistantMsg}`}>
             <div className={styles.messageRole}>AI</div>
             <div className={styles.typing}>Thinking...</div>
@@ -305,7 +298,7 @@ export function ChatPanel() {
         <button
           className={styles.sendBtn}
           onClick={handleSend}
-          disabled={doc.chatStreaming || !input.trim()}
+          disabled={conversing.chatStreaming || !input.trim()}
           aria-label="Send"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

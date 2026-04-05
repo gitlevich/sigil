@@ -10,6 +10,8 @@ import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
 import { Context, api, events } from "../../tauri";
+import { RenamePopup } from "../shared/RenamePopup";
+import { RefsDropdown } from "../shared/RefsDropdown";
 import { fromDashForm } from "sigil-core";
 import {
   SiblingInfo,
@@ -278,9 +280,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
   const onNavigateAbsPathRef = useRef(onNavigateToAbsPath);
   onNavigateAbsPathRef.current = onNavigateToAbsPath;
   const [renameState, setRenameState] = useState<RenameTarget | null>(null);
-  const [refsState, setRefsStateRaw] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
-  const [refsIndex, setRefsIndex] = useState(0);
-  const setRefsState: SetRefsState = (s) => { setRefsStateRaw(s); setRefsIndex(0); };
+  const [refsState, setRefsState] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
   const onRenameStatusRef = useRef(onRenameStatus);
   onRenameStatusRef.current = onRenameStatus;
   const sigilDirRef = useRef(sigilDir);
@@ -637,92 +637,31 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         </div>
       )}
       {renameState && (
-        <div
-          style={{
-            position: "absolute",
-            left: renameState.x,
-            top: renameState.y,
-            zIndex: 100,
-          }}
-        >
-          <input
-            autoFocus
-            defaultValue={renameState.oldName}
-            style={{
-              padding: "2px 6px",
-              fontSize: "13px",
-              border: "1px solid var(--accent)",
-              borderRadius: "3px",
-              background: "var(--bg-primary)",
-              color: "var(--text-primary)",
-              outline: "none",
-              minWidth: "120px",
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const newName = e.currentTarget.value.trim();
-                if (newName && newName !== renameState.oldName) {
-                  if (renameState.kind === "sigil" && onRenameSigilRef.current) {
-                    onRenameSigilRef.current(renameState.oldName, newName);
-                  } else if ((renameState.kind === "affordance" || renameState.kind === "invariant") && onRenamePropertyRef.current) {
-                    onRenamePropertyRef.current(renameState.kind, renameState.oldName, newName);
-                  }
-                }
-                setRenameState(null);
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                e.stopPropagation();
-                setRenameState(null);
-              }
-            }}
-            onBlur={() => setRenameState(null)}
-          />
-        </div>
-      )}
-      {refsState && (
-        <div
-          className={styles.refsDropdown}
-          style={{ left: refsState.x, top: refsState.y }}
-          tabIndex={-1}
-          ref={(el) => el?.focus()}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setRefsIndex((i) => Math.min(i + 1, refsState.hits.length - 1));
-            } else if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setRefsIndex((i) => Math.max(i - 1, 0));
-            } else if (e.key === "Enter") {
-              e.preventDefault();
-              const hit = refsState.hits[refsIndex];
-              if (hit && onNavigateAbsPathRef.current) onNavigateAbsPathRef.current(hit.contextPath);
-              setRefsState(null);
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              e.stopPropagation();
-              setRefsState(null);
+        <RenamePopup
+          oldName={renameState.oldName}
+          kind={renameState.kind}
+          x={renameState.x}
+          y={renameState.y}
+          onRename={(kind, oldName, newName) => {
+            if (kind === "sigil" && onRenameSigilRef.current) {
+              onRenameSigilRef.current(oldName, newName);
+            } else if ((kind === "affordance" || kind === "invariant") && onRenamePropertyRef.current) {
+              onRenamePropertyRef.current(kind, oldName, newName);
             }
           }}
-          onBlur={() => setRefsState(null)}
-        >
-          {refsState.hits.map((hit, i) => (
-            <div
-              key={`${hit.contextPath.join("/")}:${i}`}
-              className={`${styles.refsItem} ${i === refsIndex ? styles.refsItemActive : ""}`}
-              onMouseEnter={() => setRefsIndex(i)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (onNavigateAbsPathRef.current) onNavigateAbsPathRef.current(hit.contextPath);
-                setRefsState(null);
-                setRefsIndex(0);
-              }}
-            >
-              <span className={styles.refsContext}>{hit.contextPath.length ? hit.contextPath.join(" > ") : hit.contextName}</span>
-              <span className={styles.refsLine}>{hit.line}</span>
-            </div>
-          ))}
-        </div>
+          onClose={() => setRenameState(null)}
+        />
+      )}
+      {refsState && (
+        <RefsDropdown
+          hits={refsState.hits}
+          x={refsState.x}
+          y={refsState.y}
+          onNavigate={(path) => {
+            if (onNavigateAbsPathRef.current) onNavigateAbsPathRef.current(path);
+          }}
+          onClose={() => setRefsState(null)}
+        />
       )}
     </div>
   );

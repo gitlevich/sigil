@@ -1,4 +1,4 @@
-import type { Affordance, Context } from "./types";
+import type { Affordance, Sigil } from "./types";
 import { findContext, makeSummary } from "./tree";
 
 export interface Ref {
@@ -6,7 +6,7 @@ export interface Ref {
   prefix: "@" | "#" | "!";
   summary: string;
   navigable: boolean;
-  /** For affordances/invariants inherited from an ancestor, the owning context name to navigate to. */
+  /** For affordances/invariants inherited from an ancestor, the owning sigil name to navigate to. */
   navigateTo?: string;
 }
 
@@ -76,41 +76,41 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
 }
 
 /** Find an affordance by its dash-form name, with fuzzy matching. */
-export function findAffordance(ctx: Context | undefined, dashedName: string): Affordance | undefined {
-  if (!ctx?.affordances) return undefined;
+export function findAffordance(sigil: Sigil | undefined, dashedName: string): Affordance | undefined {
+  if (!sigil?.affordances) return undefined;
   const spacedName = fromDashForm(dashedName);
-  const exact = ctx.affordances.find((a) => a.name === spacedName || a.name === dashedName);
+  const exact = sigil.affordances.find((a) => a.name === spacedName || a.name === dashedName);
   if (exact) return exact;
-  const names = ctx.affordances.map((a) => a.name);
+  const names = sigil.affordances.map((a) => a.name);
   const resolved = resolveRefName(dashedName, names);
-  return resolved ? ctx.affordances.find((a) => a.name === resolved) : undefined;
+  return resolved ? sigil.affordances.find((a) => a.name === resolved) : undefined;
 }
 
 /** Find an invariant by name, returning its content and owning path. */
-function findInvariantOn(ctx: Context, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+function findInvariantOn(sigil: Sigil, path: string[], name: string): { content: string; ownerPath: string[] } | null {
   const dashed = fromDashForm(name);
-  let inv = ctx.invariants.find((s) => s.name === name || s.name === dashed);
+  let inv = sigil.invariants.find((s) => s.name === name || s.name === dashed);
   if (!inv) {
-    const resolved = resolveRefName(name, ctx.invariants.map((s) => s.name));
-    if (resolved) inv = ctx.invariants.find((s) => s.name === resolved);
+    const resolved = resolveRefName(name, sigil.invariants.map((s) => s.name));
+    if (resolved) inv = sigil.invariants.find((s) => s.name === resolved);
   }
   return inv ? { content: inv.content, ownerPath: path } : null;
 }
 
 /** Find an invariant in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
 export function findInvariantInScope(
-  root: Context,
+  root: Sigil,
   currentPath: string[],
   name: string
 ): { content: string; ownerPath: string[] } | null {
-  const currentCtx = findContext(root, currentPath);
+  const currentSigil = findContext(root, currentPath);
 
-  // Current context
-  const own = findInvariantOn(currentCtx, currentPath, name);
+  // Current sigil
+  const own = findInvariantOn(currentSigil, currentPath, name);
   if (own) return own;
 
   // Children
-  for (const child of currentCtx.children) {
+  for (const child of currentSigil.children) {
     const result = findInvariantOn(child, [...currentPath, child.name], name);
     if (result) return result;
   }
@@ -118,10 +118,10 @@ export function findInvariantInScope(
   // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
-    const result = findInvariantOn(levelCtx, levelPath, name);
+    const levelSigil = findContext(root, levelPath);
+    const result = findInvariantOn(levelSigil, levelPath, name);
     if (result) return result;
-    for (const child of levelCtx.children) {
+    for (const child of levelSigil.children) {
       const childPath = [...levelPath, child.name];
       const childResult = findInvariantOn(child, childPath, name);
       if (childResult) return childResult;
@@ -133,18 +133,18 @@ export function findInvariantInScope(
 
 /** Find an affordance in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
 export function findAffordanceInScope(
-  root: Context,
+  root: Sigil,
   currentPath: string[],
   name: string
 ): { content: string; ownerPath: string[] } | null {
-  const currentCtx = findContext(root, currentPath);
+  const currentSigil = findContext(root, currentPath);
 
-  // Current context
-  const own = findAffordance(currentCtx, name);
+  // Current sigil
+  const own = findAffordance(currentSigil, name);
   if (own) return { content: own.content, ownerPath: currentPath };
 
   // Children
-  for (const child of currentCtx.children) {
+  for (const child of currentSigil.children) {
     const aff = findAffordance(child, name);
     if (aff) return { content: aff.content, ownerPath: [...currentPath, child.name] };
   }
@@ -152,10 +152,10 @@ export function findAffordanceInScope(
   // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
-    const aff = findAffordance(levelCtx, name);
+    const levelSigil = findContext(root, levelPath);
+    const aff = findAffordance(levelSigil, name);
     if (aff) return { content: aff.content, ownerPath: levelPath };
-    for (const child of levelCtx.children) {
+    for (const child of levelSigil.children) {
       const childAff = findAffordance(child, name);
       if (childAff) return { content: childAff.content, ownerPath: [...levelPath, child.name] };
     }
@@ -166,66 +166,66 @@ export function findAffordanceInScope(
 
 const ONTOLOGIES_NAME = "Libs";
 
-/** Build the full lexical scope for the current path: contexts (@), affordances (#), invariants (!). */
+/** Build the full lexical scope for the current path: sigils (@), affordances (#), invariants (!). */
 export function buildLexicalScope(
-  root: Context,
+  root: Sigil,
   currentPath: string[]
 ): Ref[] {
   const refs: Ref[] = [];
   const seen = new Set<string>();
-  const currentCtx = findContext(root, currentPath);
+  const currentSigil = findContext(root, currentPath);
 
-  const addContext = (name: string, ctx: Context, navigable: boolean) => {
+  const addSigil = (name: string, sigil: Sigil, navigable: boolean) => {
     const key = `@${name}`;
     if (!seen.has(key)) {
       seen.add(key);
-      refs.push({ name, prefix: "@", summary: makeSummary(ctx), navigable });
+      refs.push({ name, prefix: "@", summary: makeSummary(sigil), navigable });
     }
   };
 
-  // Children of current context
-  for (const c of currentCtx.children) {
-    addContext(c.name, c, true);
+  // Children of current sigil
+  for (const c of currentSigil.children) {
+    addSigil(c.name, c, true);
   }
 
   // Walk up ancestry
   for (let depth = currentPath.length; depth > 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
+    const levelSigil = findContext(root, levelPath);
     const parentPath = levelPath.slice(0, -1);
-    const parentCtx = findContext(root, parentPath);
+    const parentSigil = findContext(root, parentPath);
 
-    addContext(levelCtx.name, levelCtx, true);
+    addSigil(levelSigil.name, levelSigil, true);
 
-    for (const c of parentCtx.children) {
-      if (c.name !== levelCtx.name) {
-        addContext(c.name, c, true);
+    for (const c of parentSigil.children) {
+      if (c.name !== levelSigil.name) {
+        addSigil(c.name, c, true);
       }
     }
   }
 
-  addContext(root.name, root, true);
+  addSigil(root.name, root, true);
 
   // Flatten ontology refs
   const ontologiesSigil = root.children.find((c) => c.name === ONTOLOGIES_NAME);
   if (ontologiesSigil) {
     for (const ontology of ontologiesSigil.children) {
-      addContext(ontology.name, ontology, true);
+      addSigil(ontology.name, ontology, true);
       flattenOntologyRefs(ontology, seen, refs);
     }
   }
 
-  // Affordances and invariants — current context, ancestors, children, and siblings at each level
-  const addProperties = (ctx: Context, navigable: boolean) => {
-    const ownerName = ctx.name;
-    for (const a of ctx.affordances) {
+  // Affordances and invariants — current sigil, ancestors, children, and siblings at each level
+  const addProperties = (sigil: Sigil, navigable: boolean) => {
+    const ownerName = sigil.name;
+    for (const a of sigil.affordances) {
       const key = `#${a.name}`;
       if (!seen.has(key)) {
         seen.add(key);
         refs.push({ name: a.name, prefix: "#", summary: a.content, navigable, navigateTo: ownerName });
       }
     }
-    for (const inv of ctx.invariants) {
+    for (const inv of sigil.invariants) {
       const key = `!${inv.name}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -234,20 +234,20 @@ export function buildLexicalScope(
     }
   };
 
-  // Current context's own affordances/invariants
-  addProperties(currentCtx, false);
+  // Current sigil's own affordances/invariants
+  addProperties(currentSigil, false);
 
   // Children's affordances/invariants
-  for (const child of currentCtx.children) {
+  for (const child of currentSigil.children) {
     addProperties(child, true);
   }
 
   // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
-    const levelCtx = findContext(root, levelPath);
-    addProperties(levelCtx, true);
-    for (const child of levelCtx.children) {
+    const levelSigil = findContext(root, levelPath);
+    addProperties(levelSigil, true);
+    for (const child of levelSigil.children) {
       addProperties(child, true);
     }
   }
@@ -256,11 +256,11 @@ export function buildLexicalScope(
 }
 
 function flattenOntologyRefs(
-  ctx: Context,
+  sigil: Sigil,
   seen: Set<string>,
   refs: Ref[]
 ): void {
-  for (const child of ctx.children) {
+  for (const child of sigil.children) {
     const key = `@${child.name}`;
     if (!seen.has(key)) {
       seen.add(key);

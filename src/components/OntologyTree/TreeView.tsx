@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { Context, api } from "../../tauri";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
-import { useSigil } from "../../hooks/useSigil";
+import { SigilFolder, api } from "../../tauri";
+import {
+  useWorkspaceState, useWorkspaceActions,
+} from "../../state/WorkspaceContext";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
@@ -14,17 +15,17 @@ let dragSourcePath: string | null = null;
 interface ContextMenuState {
   x: number;
   y: number;
-  context: Context;
+  context: SigilFolder;
   path: string[];
 }
 
 interface TreeNodeProps {
-  context: Context;
+  context: SigilFolder;
   path: string[];
   currentPath: string[];
   highlightedChild: string | null;
   onNavigate: (path: string[]) => void;
-  onContextMenu: (e: React.MouseEvent, context: Context, path: string[]) => void;
+  onContextMenu: (e: React.MouseEvent, context: SigilFolder, path: string[]) => void;
   onAdd: (parentPath: string) => Promise<void>;
   onDrop: (sourcePath: string, targetPath: string) => void;
   actionDeps: ActionDeps;
@@ -34,7 +35,6 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   const [expanded, setExpanded] = useState(true);
   const [dropTarget, setDropTarget] = useState(false);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
-  // Highlighted if this node is the highlightedChild of the active node's parent
   const isHighlighted = !isActive && highlightedChild === context.name
     && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
@@ -54,7 +54,6 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
         }
       }}
       onDragLeave={(e) => {
-        // Only clear when leaving the entire node subtree
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setDropTarget(false);
         }
@@ -137,7 +136,6 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
 
 function GhostInput({ onSubmit, parentPath, actionDeps }: { onSubmit: (name: string) => Promise<void>; parentPath: string; actionDeps: ActionDeps }) {
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async () => {
     const trimmed = value.trim();
@@ -151,7 +149,6 @@ function GhostInput({ onSubmit, parentPath, actionDeps }: { onSubmit: (name: str
     <div className={styles.ghostRow}>
       <span className={styles.expandPlaceholder} />
       <input
-        ref={inputRef}
         className={styles.ghostInput}
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -166,9 +163,8 @@ function GhostInput({ onSubmit, parentPath, actionDeps }: { onSubmit: (name: str
 }
 
 export function TreeView() {
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
-  const { reload } = useSigil();
+  const ws = useWorkspaceState();
+  const { navigate, reload } = useWorkspaceActions();
   const { addToast } = useToast();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<{ path: string[]; name: string } | null>(null);
@@ -176,10 +172,10 @@ export function TreeView() {
   const treeRef = useRef<HTMLDivElement>(null);
 
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -196,23 +192,11 @@ export function TreeView() {
     }
   }, [renaming]);
 
-  // React to menu/shortcut rename request
-  useEffect(() => {
-    if (!doc?.renamingRequest) return;
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: false } });
-    const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
-    if (ctx) {
-      setRenaming({ path: doc.currentPath, name: ctx.name });
-    }
-  }, [doc?.renamingRequest, doc?.currentPath, doc?.sigil.root, dispatch]);
-
-  if (!doc) return null;
-
   const handleNavigate = (path: string[]) => {
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } });
+    navigate(path);
   };
 
-  const handleContextMenu = (e: React.MouseEvent, context: Context, path: string[]) => {
+  const handleContextMenu = (e: React.MouseEvent, context: SigilFolder, path: string[]) => {
     setContextMenu({ x: e.clientX, y: e.clientY, context, path });
   };
 
@@ -230,7 +214,7 @@ export function TreeView() {
     await actions.moveSigil(sourcePath, targetPath, actionDeps);
   };
 
-  const handleDelete = async (context: Context) => {
+  const handleDelete = async (context: SigilFolder) => {
     if (!await confirm(`Delete "${context.name}" and all its contents? This cannot be undone.`)) {
       return;
     }
@@ -238,7 +222,7 @@ export function TreeView() {
   };
 
   const handleAdd = async () => {
-    await reload(doc.sigil.root_path);
+    await reload();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -246,8 +230,8 @@ export function TreeView() {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter") return;
     e.preventDefault();
 
-    const allPaths = flattenPaths(doc.sigil.root, []);
-    const currentKey = JSON.stringify(doc.currentPath);
+    const allPaths = flattenPaths(ws.spec.root, []);
+    const currentKey = JSON.stringify(ws.currentPath);
     const currentIndex = allPaths.findIndex((p) => JSON.stringify(p) === currentKey);
 
     if (e.key === "ArrowUp" && currentIndex > 0) {
@@ -255,9 +239,8 @@ export function TreeView() {
     } else if (e.key === "ArrowDown" && currentIndex < allPaths.length - 1) {
       handleNavigate(allPaths[currentIndex + 1]);
     } else if (e.key === "Enter") {
-      const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
+      const ctx = findContextByPath(ws.spec.root, ws.currentPath);
       if (ctx && ctx.children.length < 5) {
-        // Focus the ghost input if it exists
         const ghost = treeRef.current?.querySelector(`.${styles.ghostInput}`) as HTMLInputElement | null;
         if (ghost) ghost.focus();
       }
@@ -267,10 +250,10 @@ export function TreeView() {
   return (
     <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown} onDragOver={(e) => e.preventDefault()}>
       <TreeNode
-        context={doc.sigil.root}
+        context={ws.spec.root}
         path={[]}
-        currentPath={doc.currentPath}
-        highlightedChild={doc.highlightedChild ?? null}
+        currentPath={ws.currentPath}
+        highlightedChild={null}
         onNavigate={handleNavigate}
         onContextMenu={handleContextMenu}
         onAdd={handleAdd}
@@ -328,13 +311,13 @@ export function TreeView() {
               defaultValue={renaming.name}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  const ctx = findContextByPath(doc.sigil.root, renaming.path);
+                  const ctx = findContextByPath(ws.spec.root, renaming.path);
                   if (ctx) handleRename(ctx.path, renaming.name, e.currentTarget.value);
                 }
                 if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenaming(null); }
               }}
               onBlur={(e) => {
-                const ctx = findContextByPath(doc.sigil.root, renaming.path);
+                const ctx = findContextByPath(ws.spec.root, renaming.path);
                 if (ctx) handleRename(ctx.path, renaming.name, e.currentTarget.value);
               }}
             />
@@ -345,8 +328,8 @@ export function TreeView() {
   );
 }
 
-function findContextByPath(root: Context, path: string[]): Context | null {
-  let current = root;
+function findContextByPath(root: SigilFolder, path: string[]): SigilFolder | null {
+  let current: SigilFolder = root;
   for (const seg of path) {
     const child = current.children.find((c) => c.name === seg);
     if (!child) return null;
@@ -355,8 +338,7 @@ function findContextByPath(root: Context, path: string[]): Context | null {
   return current;
 }
 
-/** Flatten the tree into a list of paths in visible (depth-first) order. */
-function flattenPaths(context: Context, path: string[]): string[][] {
+function flattenPaths(context: SigilFolder, path: string[]): string[][] {
   const result: string[][] = [path];
   for (const child of context.children) {
     result.push(...flattenPaths(child, [...path, child.name]));

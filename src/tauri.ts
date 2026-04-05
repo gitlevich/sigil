@@ -1,21 +1,36 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { Affordance, Invariant, Context as CoreContext, Sigil as CoreSigil } from "sigil-core";
+import type { Affordance, Invariant, Sigil } from "sigil-core";
 
-export type { Affordance, Invariant };
+export type { Affordance, Invariant, Sigil };
 
-export interface Context extends CoreContext {
+/**
+ * SigilFolder — the filesystem projection of a Sigil.
+ * Contains language file, affordance files, invariant files, and child SigilFolders.
+ */
+export interface SigilFolder extends Sigil {
   path: string;
-  children: Context[];
+  children: SigilFolder[];
   images: string[];
 }
 
-export interface Sigil extends CoreSigil {
-  root_path: string;
-  root: Context;
-  imported_ontologies?: Context;
+/**
+ * ApplicationSpec — the open specification being worked on.
+ * Contains the root SigilFolder hierarchy and imported ontologies.
+ */
+export interface ApplicationSpec {
+  name: string;
+  rootPath: string;
+  vision: string;
+  root: SigilFolder;
+  importedOntologies?: SigilFolder;
 }
+
+// ── Backward compatibility (used during migration, remove after) ──
+
+/** @deprecated Use SigilFolder */
+export type Context = SigilFolder;
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -146,7 +161,7 @@ export function enabledProviders(settings: Settings): AiProvider[] {
 
 export const api = {
   readSigil: (rootPath: string) =>
-    invoke<Sigil>("read_sigil", { rootPath }),
+    invoke<ApplicationSpec>("read_sigil", { rootPath }),
 
   closeWorkspace: (rootPath: string) =>
     invoke<void>("close_workspace", { rootPath }),
@@ -185,7 +200,7 @@ export const api = {
     invoke<string>("read_image_base64", { path }),
 
   createContext: (parentPath: string, name: string) =>
-    invoke<Context>("create_context", { parentPath, name }),
+    invoke<SigilFolder>("create_context", { parentPath, name }),
 
   renameContext: (rootPath: string, path: string, newName: string) =>
     invoke<string>("rename_context", { rootPath, path, newName }),

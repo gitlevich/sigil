@@ -1,0 +1,1 @@
+when no previous state exists, open vision tab on the left and language on the right. Enable wrapping in editor and use full editor. this is so that the user gets into the right mental space. the opened file always contains what's in 

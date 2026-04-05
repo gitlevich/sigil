@@ -3,6 +3,8 @@ import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, tooltips } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { api, Context } from "../../tauri";
+import { RenamePopup } from "../shared/RenamePopup";
+import { RefsDropdown } from "../shared/RefsDropdown";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import {
@@ -480,9 +482,9 @@ export function SigilPropertyEditor({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" } | null>(null);
   const [refsState, setRefsState] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
-  const [refsIndex, setRefsIndex] = useState(0);
   const dragSourceIndex = useRef<number | null>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingWrites = useRef<Record<string, string>>({});
   const listRef = useRef<HTMLDivElement>(null);
 
   const editorCallbacks: PropertyEditorCallbacks = {
@@ -494,7 +496,7 @@ export function SigilPropertyEditor({
     onNavigateToAbsPath,
     keybindings,
     onRenameStart: (target) => setRenameState(target),
-    onFindReferences: (hits, x, y) => { setRefsState({ hits, x, y }); setRefsIndex(0); },
+    onFindReferences: (hits, x, y) => { setRefsState({ hits, x, y }); },
   };
 
   const orderPath = `${sigilPath}/${filePrefix}.order`;
@@ -568,10 +570,25 @@ export function SigilPropertyEditor({
   const scheduleSave = useCallback((name: string, content: string) => {
     if (!actionDeps) return;
     clearTimeout(saveTimers.current[name]);
+    pendingWrites.current[name] = content;
     saveTimers.current[name] = setTimeout(() => {
+      delete pendingWrites.current[name];
       actions.savePropertyContent(sigilPath, filePrefix, name, content, actionDeps);
     }, 400);
   }, [sigilPath, filePrefix, actionDeps]);
+
+  // Flush all pending property saves on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimers.current).forEach(clearTimeout);
+      const pending = pendingWrites.current;
+      for (const [name, content] of Object.entries(pending)) {
+        actions.savePropertyContent(sigilPath, filePrefix, name, content, actionDeps!);
+      }
+      pendingWrites.current = {};
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sigilPath, filePrefix]);
 
   const handleContentChange = useCallback((savedName: string, content: string) => {
     setItems((prev) => prev.map((a) => a.savedName === savedName ? { ...a, content } : a));
@@ -703,52 +720,26 @@ export function SigilPropertyEditor({
         </div>
       )}
       {renameState && (
-        <div style={{ position: "absolute", left: renameState.x, top: renameState.y, zIndex: 100 }}>
-          <input
-            autoFocus
-            defaultValue={renameState.oldName}
-            className={styles.renameInput}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const newName = e.currentTarget.value.trim();
-                if (newName && newName !== renameState.oldName) {
-                  if (renameState.kind === "sigil" && onRenameSigil) onRenameSigil(renameState.oldName, newName);
-                  else if ((renameState.kind === "affordance" || renameState.kind === "invariant") && onRenameProperty) onRenameProperty(renameState.kind, renameState.oldName, newName);
-                }
-                setRenameState(null);
-              }
-              if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRenameState(null); }
-            }}
-            onBlur={() => setRenameState(null)}
-          />
-        </div>
+        <RenamePopup
+          oldName={renameState.oldName}
+          kind={renameState.kind}
+          x={renameState.x}
+          y={renameState.y}
+          onRename={(kind, oldName, newName) => {
+            if (kind === "sigil" && onRenameSigil) onRenameSigil(oldName, newName);
+            else if ((kind === "affordance" || kind === "invariant") && onRenameProperty) onRenameProperty(kind, oldName, newName);
+          }}
+          onClose={() => setRenameState(null)}
+        />
       )}
       {refsState && (
-        <div
-          className={styles.refsDropdown}
-          style={{ left: refsState.x, top: refsState.y }}
-          tabIndex={-1}
-          ref={(el) => el?.focus()}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") { e.preventDefault(); setRefsIndex((i) => Math.min(i + 1, refsState.hits.length - 1)); }
-            else if (e.key === "ArrowUp") { e.preventDefault(); setRefsIndex((i) => Math.max(i - 1, 0)); }
-            else if (e.key === "Enter") { e.preventDefault(); const hit = refsState.hits[refsIndex]; if (hit && onNavigateToAbsPath) onNavigateToAbsPath(hit.contextPath); setRefsState(null); }
-            else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setRefsState(null); }
-          }}
-          onBlur={() => setRefsState(null)}
-        >
-          {refsState.hits.map((hit, i) => (
-            <div
-              key={`${hit.contextPath.join("/")}:${i}`}
-              className={`${styles.refsItem} ${i === refsIndex ? styles.refsItemActive : ""}`}
-              onMouseEnter={() => setRefsIndex(i)}
-              onMouseDown={(e) => { e.preventDefault(); if (onNavigateToAbsPath) onNavigateToAbsPath(hit.contextPath); setRefsState(null); setRefsIndex(0); }}
-            >
-              <span className={styles.refsContext}>{hit.contextPath.length ? hit.contextPath.join(" > ") : hit.contextName}</span>
-              <span className={styles.refsLine}>{hit.line}</span>
-            </div>
-          ))}
-        </div>
+        <RefsDropdown
+          hits={refsState.hits}
+          x={refsState.x}
+          y={refsState.y}
+          onNavigate={(path) => { if (onNavigateToAbsPath) onNavigateToAbsPath(path); }}
+          onClose={() => setRefsState(null)}
+        />
       )}
     </div>
   );

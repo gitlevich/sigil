@@ -201,7 +201,7 @@ function ViewerContent() {
               <Atlas />
             ) : (
               <MarkdownPreview
-                content={currentCtx.domain_language}
+                content={currentCtx.language}
                 refs={refs}
                 onNavigate={handleRefNavigate}
               />

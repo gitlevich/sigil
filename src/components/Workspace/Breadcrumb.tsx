@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useSigil } from "../../hooks/useSigil";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useWorkspaceState, useWorkspaceActions } from "../../state/WorkspaceContext";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
@@ -15,16 +14,15 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const [renaming, setRenaming] = useState(false);
   const [renameName, setRenameName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { reload } = useSigil();
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
+  const ws = useWorkspaceState();
+  const { navigate, reload } = useWorkspaceActions();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
   useEffect(() => {
     if (renaming && inputRef.current) {
@@ -36,21 +34,20 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const lastCrumb = crumbs[crumbs.length - 1];
 
   const handleRename = async () => {
-    if (!doc) return;
     const trimmed = renameName.trim();
     if (!trimmed || trimmed === lastCrumb.name) {
       setRenaming(false);
       return;
     }
-    const target = findChild(doc.sigil.root, lastCrumb.path);
-    const contextPath = target ? target.path : doc.sigil.root.path;
+    const target = findChild(ws.spec.root, lastCrumb.path);
+    const contextPath = target ? target.path : ws.spec.root.path;
     await actions.renameContext(contextPath, lastCrumb.name, trimmed, actionDeps);
 
     const newPath = [...lastCrumb.path];
     if (newPath.length > 0) {
       newPath[newPath.length - 1] = trimmed;
     }
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: newPath } });
+    navigate(newPath);
     setRenaming(false);
   };
 

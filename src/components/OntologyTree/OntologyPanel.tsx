@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppState, useAppDispatch } from "../../state/AppContext";
+import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
 import { VisionEditor } from "./VisionEditor";
 import { OntologyTree } from "./OntologyTree";
 import { ResizeHandle } from "../shared/ResizeHandle";
@@ -9,12 +10,13 @@ const MIN_WIDTH = 180;
 const MAX_WIDTH = 500;
 
 export function OntologyPanel() {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
+  const appState = useAppState();
+  const appDispatch = useAppDispatch();
+  const narrating = useNarratingState();
+  const narratingDispatch = useNarratingDispatch();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
 
-  const committedWidth = state.ui.ontologyPanelWidth;
+  const committedWidth = appState.ui.ontologyPanelWidth;
   const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
@@ -27,21 +29,17 @@ export function OntologyPanel() {
   const handleResizeEnd = useCallback(() => {
     setDragWidth((prev) => {
       if (prev !== null) {
-        dispatch({ type: "SET_UI", ui: { ontologyPanelWidth: prev } });
+        appDispatch({ type: "SET_UI", ui: { ontologyPanelWidth: prev } });
       }
       return null;
     });
-  }, [dispatch]);
+  }, [appDispatch]);
 
-  if (!doc) return null;
-
-  if (!doc.ontologyPanelOpen) {
+  if (!narrating.ontologyPanelOpen) {
     return (
       <div
         className={styles.collapsed}
-        onClick={() =>
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelOpen: true } })
-        }
+        onClick={() => narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true })}
       >
         <span className={styles.collapseIcon}>&rsaquo;</span>
       </div>
@@ -54,35 +52,29 @@ export function OntologyPanel() {
         <div className={styles.header}>
           <div className={styles.tabs}>
             <button
-              className={`${styles.tab} ${doc.ontologyPanelTab === "vision" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "vision" } })
-              }
+              className={`${styles.tab} ${narrating.ontologyPanelTab === "vision" ? styles.active : ""}`}
+              onClick={() => narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "vision" })}
             >
               Vision
             </button>
             <button
-              className={`${styles.tab} ${doc.ontologyPanelTab === "ontology" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "ontology" } })
-              }
+              className={`${styles.tab} ${narrating.ontologyPanelTab === "ontology" ? styles.active : ""}`}
+              onClick={() => narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" })}
             >
               Ontology
             </button>
           </div>
           <button
             className={styles.collapseBtn}
-            onClick={() =>
-              dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelOpen: false } })
-            }
+            onClick={() => narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: false })}
           >
             &lsaquo;
           </button>
         </div>
 
         <div className={styles.content}>
-          {doc.ontologyPanelTab === "vision" && <VisionEditor />}
-          {doc.ontologyPanelTab === "ontology" && <OntologyTree />}
+          {narrating.ontologyPanelTab === "vision" && <VisionEditor />}
+          {narrating.ontologyPanelTab === "ontology" && <OntologyTree />}
         </div>
       </div>
       <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />
