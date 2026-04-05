@@ -97,7 +97,7 @@ function findInvariantOn(ctx: Context, path: string[], name: string): { content:
   return inv ? { content: inv.content, ownerPath: path } : null;
 }
 
-/** Find an invariant in lexical scope: self, children, ancestors. */
+/** Find an invariant in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
 export function findInvariantInScope(
   root: Context,
   currentPath: string[],
@@ -115,18 +115,23 @@ export function findInvariantInScope(
     if (result) return result;
   }
 
-  // Ancestors
+  // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelCtx = findContext(root, levelPath);
     const result = findInvariantOn(levelCtx, levelPath, name);
     if (result) return result;
+    for (const child of levelCtx.children) {
+      const childPath = [...levelPath, child.name];
+      const childResult = findInvariantOn(child, childPath, name);
+      if (childResult) return childResult;
+    }
   }
 
   return null;
 }
 
-/** Find an affordance in lexical scope: self, children, ancestors. */
+/** Find an affordance in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
 export function findAffordanceInScope(
   root: Context,
   currentPath: string[],
@@ -144,12 +149,16 @@ export function findAffordanceInScope(
     if (aff) return { content: aff.content, ownerPath: [...currentPath, child.name] };
   }
 
-  // Ancestors
+  // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelCtx = findContext(root, levelPath);
     const aff = findAffordance(levelCtx, name);
     if (aff) return { content: aff.content, ownerPath: levelPath };
+    for (const child of levelCtx.children) {
+      const childAff = findAffordance(child, name);
+      if (childAff) return { content: childAff.content, ownerPath: [...levelPath, child.name] };
+    }
   }
 
   return null;
@@ -228,16 +237,19 @@ export function buildLexicalScope(
   // Current context's own affordances/invariants
   addProperties(currentCtx, false);
 
-  // Children's affordances/invariants — these are your modeling tools
+  // Children's affordances/invariants
   for (const child of currentCtx.children) {
     addProperties(child, true);
   }
 
-  // Ancestors' affordances/invariants — you can invoke things above you
+  // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelCtx = findContext(root, levelPath);
     addProperties(levelCtx, true);
+    for (const child of levelCtx.children) {
+      addProperties(child, true);
+    }
   }
 
   return refs;

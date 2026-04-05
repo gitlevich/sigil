@@ -211,15 +211,37 @@ export function collectAncestorProperties(root: Context | null, path: string[]) 
   if (!root) return { affordances: [] as { name: string; content: string; source: string }[], invariants: [] as { name: string; content: string; source: string }[] };
   const affordances: { name: string; content: string; source: string }[] = [];
   const invariants: { name: string; content: string; source: string }[] = [];
+  const seenAffs = new Set<string>();
+  const seenInvs = new Set<string>();
+
+  const addFrom = (ctx: Context) => {
+    for (const a of ctx.affordances) {
+      if (!seenAffs.has(a.name)) {
+        seenAffs.add(a.name);
+        affordances.push({ name: a.name, content: a.content, source: ctx.name });
+      }
+    }
+    for (const d of ctx.invariants) {
+      if (!seenInvs.has(d.name)) {
+        seenInvs.add(d.name);
+        invariants.push({ name: d.name, content: d.content, source: ctx.name });
+      }
+    }
+  };
+
+  // Walk from root down to current context, at each level also including siblings (one level deep)
   let ctx = root;
-  for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
-  for (const d of ctx.invariants) invariants.push({ name: d.name, content: d.content, source: ctx.name });
+  addFrom(ctx);
+  // Root's children (siblings of the top-level path segment)
+  for (const child of ctx.children) addFrom(child);
+
   for (const seg of path) {
-    const child = ctx.children.find((c) => c.name === seg);
-    if (!child) break;
-    ctx = child;
-    for (const a of ctx.affordances) affordances.push({ name: a.name, content: a.content, source: ctx.name });
-    for (const d of ctx.invariants) invariants.push({ name: d.name, content: d.content, source: ctx.name });
+    const next = ctx.children.find((c) => c.name === seg);
+    if (!next) break;
+    ctx = next;
+    addFrom(ctx);
+    // This level's children (includes siblings of next path segment, and children of current)
+    for (const child of ctx.children) addFrom(child);
   }
   return { affordances, invariants };
 }

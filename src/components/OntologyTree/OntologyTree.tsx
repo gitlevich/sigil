@@ -159,7 +159,7 @@ function OntologyItem({
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
-  const atLimit = !node.is_imported && node.children.length >= 5;
+  const atLimit = node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {
@@ -479,13 +479,11 @@ export function OntologyTree() {
 
       {contextMenu && (
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
-          {!contextMenu.node.is_imported && (
-            <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
-          )}
+          <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
           <button className={styles.menuItem} onClick={() => { dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: contextMenu.node.name } }); setContextMenu(null); }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { writeText(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Copy Path</button>
-          {contextMenu.node.path.length > 0 && !contextMenu.node.is_imported && (
+          {contextMenu.node.path.length > 0 && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
         </div>

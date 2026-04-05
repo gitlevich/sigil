@@ -97,10 +97,16 @@ describe("buildLexicalScope", () => {
     expect(invariants).toContain("child1-inv");
   });
 
-  it("from Alpha, does NOT include sibling's affordances", () => {
+  it("from Alpha, includes sibling Beta's affordances (one level deep)", () => {
     const refs = buildLexicalScope(root, ["Alpha"]);
     const affordances = refNames(refs, "#");
-    expect(affordances).not.toContain("beta-aff");
+    expect(affordances).toContain("beta-aff");
+  });
+
+  it("from Alpha, does NOT include sibling's child's affordances (two levels deep)", () => {
+    const refs = buildLexicalScope(root, ["Alpha"]);
+    const affordances = refNames(refs, "#");
+    expect(affordances).not.toContain("betachild-aff");
   });
 
   it("from Child1, includes parent Alpha's affordances via ancestry", () => {
@@ -109,10 +115,10 @@ describe("buildLexicalScope", () => {
     expect(affordances).toContain("alpha-aff");
   });
 
-  it("from Child1, does NOT include sibling Child2's affordances", () => {
+  it("from Child1, includes sibling Child2's affordances (one level deep into parent's children)", () => {
     const refs = buildLexicalScope(root, ["Alpha", "Child1"]);
     const affordances = refNames(refs, "#");
-    expect(affordances).not.toContain("child2-aff");
+    expect(affordances).toContain("child2-aff");
   });
 });
 
@@ -129,8 +135,14 @@ describe("findAffordanceInScope", () => {
     expect(result!.content).toBe("child1 affordance");
   });
 
-  it("does NOT find sibling's affordance", () => {
+  it("finds sibling's affordance (one level deep into parent's children)", () => {
     const result = findAffordanceInScope(root, ["Alpha"], "beta-aff");
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("beta affordance");
+  });
+
+  it("does NOT find sibling's child's affordance (two levels deep)", () => {
+    const result = findAffordanceInScope(root, ["Alpha"], "betachild-aff");
     expect(result).toBeNull();
   });
 
@@ -139,9 +151,10 @@ describe("findAffordanceInScope", () => {
     expect(result).not.toBeNull();
   });
 
-  it("does NOT find sibling's affordance from deep path", () => {
+  it("finds sibling's affordance from deep path (parent's children are in scope)", () => {
     const result = findAffordanceInScope(root, ["Alpha", "Child1"], "child2-aff");
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.content).toBe("child2 affordance");
   });
 
   it("returns null for nonexistent affordance", () => {

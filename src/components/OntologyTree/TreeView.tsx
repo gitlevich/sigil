@@ -38,7 +38,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   const isHighlighted = !isActive && highlightedChild === context.name
     && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
-  const atLimit = !context.is_imported && context.children.length >= 5;
+  const atLimit = context.children.length >= 5;
 
   return (
     <div
@@ -256,7 +256,7 @@ export function TreeView() {
       handleNavigate(allPaths[currentIndex + 1]);
     } else if (e.key === "Enter") {
       const ctx = findContextByPath(doc.sigil.root, doc.currentPath);
-      if (ctx && (ctx.is_imported || ctx.children.length < 5)) {
+      if (ctx && ctx.children.length < 5) {
         // Focus the ghost input if it exists
         const ghost = treeRef.current?.querySelector(`.${styles.ghostInput}`) as HTMLInputElement | null;
         if (ghost) ghost.focus();

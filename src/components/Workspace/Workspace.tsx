@@ -327,13 +327,29 @@ export function Workspace() {
     function walk(ctx: Context): string {
       return ctx.name + "(" + ctx.children.map(walk).join(",") + ")";
     }
-    return doc ? walk(doc.sigil.root) : "";
-  }, [doc?.sigil.root]);
+    if (!doc) return "";
+    let fp = walk(doc.sigil.root);
+    if (doc.sigil.imported_ontologies) fp += "|" + walk(doc.sigil.imported_ontologies);
+    return fp;
+  }, [doc?.sigil.root, doc?.sigil.imported_ontologies]);
+
+  // Resolve scope root and path for imported ontology paths
+  const scopeRoot = useMemo(() => {
+    if (!doc) return null;
+    return doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies
+      ? doc.sigil.imported_ontologies : doc.sigil.root;
+  }, [doc?.sigil.root, doc?.sigil.imported_ontologies, doc?.currentPath]);
+
+  const scopePath = useMemo(() => {
+    if (!doc) return [];
+    return doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies
+      ? doc.currentPath.slice(1) : doc.currentPath;
+  }, [doc?.currentPath, doc?.sigil.imported_ontologies]);
 
   // Memoize lexical scope — only recomputes when tree structure or current path changes
   const { allRefs, allRefNames } = useMemo(() => {
-    if (!doc) return { allRefs: [] as SiblingInfo[], allRefNames: [] as string[] };
-    const refs: SiblingInfo[] = buildLexicalScope(doc.sigil.root, doc.currentPath);
+    if (!doc || !scopeRoot) return { allRefs: [] as SiblingInfo[], allRefNames: [] as string[] };
+    const refs: SiblingInfo[] = buildLexicalScope(scopeRoot, scopePath);
     const seenNames = new Set(refs.map((r) => r.name));
     const importedSigil = doc.sigil.imported_ontologies ?? null;
     setGlobalImportedOntologies(importedSigil);
@@ -348,17 +364,14 @@ export function Workspace() {
     }
     return { allRefs: refs, allRefNames: refs.map((r) => r.name) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeFingerprint, doc?.currentPath]);
+  }, [treeFingerprint, scopePath]);
 
   // Core refs (with affordances/invariants) for preview highlighting
   const coreRefs = useMemo(() => {
-    if (!doc) return [];
-    const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
-    const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
-    const path = isImported ? doc.currentPath.slice(1) : doc.currentPath;
-    return coreBuildLexicalScope(root, path);
+    if (!scopeRoot) return [];
+    return coreBuildLexicalScope(scopeRoot, scopePath);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeFingerprint, doc?.currentPath]);
+  }, [treeFingerprint, scopePath]);
 
   if (!doc) return null;
 
@@ -403,9 +416,9 @@ export function Workspace() {
 
             siblings={allRefs}
             siblingNames={allRefNames}
-            sigilRoot={doc.sigil.root}
+            sigilRoot={scopeRoot!}
             currentContext={currentCtx}
-            currentPath={doc.currentPath}
+            currentPath={scopePath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
             onRenameSigil={handleRenameSigil}
@@ -428,9 +441,9 @@ export function Workspace() {
                     onChange={handleContentChange}
                     siblingNames={allRefNames}
                     siblings={allRefs}
-                    sigilRoot={doc.sigil.root}
+                    sigilRoot={scopeRoot!}
                     currentContext={currentCtx}
-                    currentPath={doc.currentPath}
+                    currentPath={scopePath}
                     sigilDir={currentCtx.path}
                     wordWrap={doc.wordWrap}
                     onCreateSigil={handleCreateSigil}
@@ -468,9 +481,9 @@ export function Workspace() {
 
             siblings={allRefs}
             siblingNames={allRefNames}
-            sigilRoot={doc.sigil.root}
+            sigilRoot={scopeRoot!}
             currentContext={currentCtx}
-            currentPath={doc.currentPath}
+            currentPath={scopePath}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
             onRenameSigil={handleRenameSigil}
