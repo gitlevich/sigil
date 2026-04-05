@@ -1,0 +1,1 @@
+@workspace guarantees integrity of user documents: workspace olny allows #well-specified-actions

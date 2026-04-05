@@ -172,37 +172,34 @@ function OntologyItem({
     : node.children;
 
   return (
-    <div
-      className={styles.item}
-      onDragOver={(e) => {
-        e.preventDefault(); e.stopPropagation();
-        const isPropertyDrag = getDragPropertySource() !== null;
-        if (isPropertyDrag || !atLimit) { e.dataTransfer.dropEffect = "move"; setDropTarget(true); }
-        else e.dataTransfer.dropEffect = "none";
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(false);
-      }}
-      onDrop={(e) => {
-        e.preventDefault(); e.stopPropagation();
-        setDropTarget(false);
-        // Property drop from SigilPropertyEditor
-        const propSrc = getDragPropertySource();
-        if (propSrc) {
-          clearDragPropertySource();
-          onPropertyDrop(node.fsPath, propSrc);
-          return;
-        }
-        // Sigil hierarchy drop
-        const src = dragSourcePath; dragSourcePath = null;
-        if (!src || src === node.fsPath || node.fsPath.startsWith(src + "/")) return;
-        onDrop(src, node.fsPath);
-      }}
-    >
+    <div className={styles.item}>
       <div
         className={`${styles.row} ${isActive ? styles.active : ""} ${dropTarget ? styles.dropTarget : ""}`}
         draggable={node.path.length > 0}
         onDragStart={(e) => { e.stopPropagation(); dragSourcePath = node.fsPath; e.dataTransfer.effectAllowed = "move"; }}
+        onDragOver={(e) => {
+          e.stopPropagation();
+          const isPropertyDrag = getDragPropertySource() !== null;
+          if (isPropertyDrag || !atLimit) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setDropTarget(true);
+          }
+        }}
+        onDragLeave={() => setDropTarget(false)}
+        onDrop={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          setDropTarget(false);
+          const propSrc = getDragPropertySource();
+          if (propSrc) {
+            clearDragPropertySource();
+            onPropertyDrop(node.fsPath, propSrc);
+            return;
+          }
+          const src = dragSourcePath; dragSourcePath = null;
+          if (!src || src === node.fsPath || node.fsPath.startsWith(src + "/")) return;
+          onDrop(src, node.fsPath);
+        }}
         onClick={() => onNavigate(node.path)}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, node); }}
       >

@@ -1,0 +1,1 @@
+persistence operations must be specified in terms of pre- and post- conditions, invariants and errors

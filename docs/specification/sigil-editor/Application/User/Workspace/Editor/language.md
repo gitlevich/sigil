@@ -49,6 +49,8 @@ I want a user other than me that is not me opens this app and has an example in 
 - #Recognize-when-projectable: to know when to hand it to an implementing agent
 - #state-my-vision: to align design with a clear goal
 - #toggle-dark-light-theme: because I want to switch.
+
+
   
 ## VG Notes - WIP
 
