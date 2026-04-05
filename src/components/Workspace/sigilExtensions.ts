@@ -9,7 +9,7 @@ import {
 } from "@codemirror/view";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { Context } from "../../tauri";
+import { SigilFolder } from "../../tauri";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
@@ -28,14 +28,14 @@ export interface SiblingInfo {
 let globalSiblings: SiblingInfo[] = [];
 let globalSiblingNames: string[] = [];
 let globalNameIndex: Map<string, string> = new Map();
-let globalSigilRoot: Context | null = null;
-let globalImportedOntologies: Context | null = null;
-let globalCurrentContext: Context | null = null;
+let globalSigilRoot: SigilFolder | null = null;
+let globalImportedOntologies: SigilFolder | null = null;
+let globalCurrentContext: SigilFolder | null = null;
 let globalCurrentPath: string[] = [];
 
 export function getGlobalSiblings() { return globalSiblings; }
 export function getGlobalSigilRoot() { return globalSigilRoot; }
-export function setGlobalImportedOntologies(ctx: Context | null) { globalImportedOntologies = ctx; }
+export function setGlobalImportedOntologies(ctx: SigilFolder | null) { globalImportedOntologies = ctx; }
 export function getGlobalCurrentContext() { return globalCurrentContext; }
 export function getGlobalCurrentPath() { return globalCurrentPath; }
 
@@ -100,7 +100,7 @@ export function findSibling(name: string): SiblingInfo | undefined {
   return canonical ? globalSiblings.find((s) => s.name === canonical) : undefined;
 }
 
-export function walkTree(segments: string[], ctx: Context): string[] | null {
+export function walkTree(segments: string[], ctx: SigilFolder): string[] | null {
   if (segments.length === 0) return [];
   const canonical = resolveRefName(segments[0], ctx.children.map((c) => c.name));
   if (!canonical) return null;
@@ -110,8 +110,8 @@ export function walkTree(segments: string[], ctx: Context): string[] | null {
   return [canonical, ...rest];
 }
 
-export function findContextByPath(path: string[], root: Context): Context | null {
-  let ctx: Context = root;
+export function findContextByPath(path: string[], root: SigilFolder): SigilFolder | null {
+  let ctx: SigilFolder = root;
   for (const seg of path) {
     const child = ctx.children.find((c) => c.name === seg);
     if (!child) return null;
@@ -144,7 +144,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
 
   if (segments.length === 1) {
     if (globalSigilRoot && resolveRefName(segments[0], [globalSigilRoot.name])) {
-      const summary = extractSummary(globalSigilRoot.domain_language || "");
+      const summary = extractSummary(globalSigilRoot.language || "");
       return { kind: "absolute", path: [], summary };
     }
     const info = findSibling(segments[0]);
@@ -164,7 +164,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
     const resolved = walkTree(segments.slice(1), globalSigilRoot);
     if (resolved !== null) {
       const ctx = findContextByPath(resolved, globalSigilRoot);
-      const summary = ctx ? extractSummary(ctx.domain_language || "") : undefined;
+      const summary = ctx ? extractSummary(ctx.language || "") : undefined;
       return { kind: "absolute", path: resolved, absolutePath: resolved, summary };
     }
   }
@@ -176,7 +176,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
       const resolved = walkTree(segments.slice(1), ontologyCtx);
       if (resolved !== null) {
         const fullPath = [globalImportedOntologies.name, ontologyCanonical, ...resolved];
-        const summary = extractSummary(ontologyCtx.domain_language || "");
+        const summary = extractSummary(ontologyCtx.language || "");
         return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
       }
       return { kind: "unresolved", path: segments };
@@ -188,7 +188,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
   return { kind: "external", path: segments, summary: boundaryName ? `sigil boundary — cannot reach into @${boundaryName}` : undefined };
 }
 
-function findContextByName(name: string, root: Context): Context | null {
+function findContextByName(name: string, root: SigilFolder): SigilFolder | null {
   if (resolveRefName(name, [root.name])) return root;
   for (const child of root.children) {
     const found = findContextByName(name, child);
@@ -197,7 +197,7 @@ function findContextByName(name: string, root: Context): Context | null {
   return null;
 }
 
-export function resolveRefToContext(sigilRef: string): Context | null {
+export function resolveRefToContext(sigilRef: string): SigilFolder | null {
   if (!globalSigilRoot) return null;
   const resolution = resolveChainedRef(sigilRef);
   if (resolution.kind === "absolute") return findContextByPath(resolution.path, globalSigilRoot);
@@ -207,14 +207,14 @@ export function resolveRefToContext(sigilRef: string): Context | null {
   return null;
 }
 
-export function collectAncestorProperties(root: Context | null, path: string[]) {
+export function collectAncestorProperties(root: SigilFolder | null, path: string[]) {
   if (!root) return { affordances: [] as { name: string; content: string; source: string }[], invariants: [] as { name: string; content: string; source: string }[] };
   const affordances: { name: string; content: string; source: string }[] = [];
   const invariants: { name: string; content: string; source: string }[] = [];
   const seenAffs = new Set<string>();
   const seenInvs = new Set<string>();
 
-  const addFrom = (ctx: Context) => {
+  const addFrom = (ctx: SigilFolder) => {
     for (const a of ctx.affordances) {
       if (!seenAffs.has(a.name)) {
         seenAffs.add(a.name);
@@ -408,7 +408,7 @@ function siblingCompletionBody(context: CompletionContext) {
   const rootCanonical = resolveRefName(prefix[0], [globalSigilRoot.name]);
   if (!rootCanonical) return null;
 
-  let ctx: Context = globalSigilRoot;
+  let ctx: SigilFolder = globalSigilRoot;
   const resolvedParts: string[] = [rootCanonical];
   for (const seg of prefix.slice(1)) {
     const canonical = resolveRefName(seg, ctx.children.map((c) => c.name));
@@ -424,7 +424,7 @@ function siblingCompletionBody(context: CompletionContext) {
   for (const child of ctx.children) {
     options.push({
       label: `${prefixStr}${child.name}`,
-      detail: (child.domain_language || "").split("\n").filter((l) => l.trim())[0]?.slice(0, 50) || "",
+      detail: (child.language || "").split("\n").filter((l) => l.trim())[0]?.slice(0, 50) || "",
       type: "variable",
     });
   }
@@ -461,9 +461,9 @@ function extractStatus(domainLanguage: string): string | null {
   return match ? match[1] : null;
 }
 
-function collectStatusesExcluding(ctx: Context, excludePath: string): string[] {
+function collectStatusesExcluding(ctx: SigilFolder, excludePath: string): string[] {
   if (ctx.path === excludePath) return ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath));
-  const status = extractStatus(ctx.domain_language || "");
+  const status = extractStatus(ctx.language || "");
   return [
     ...(status ? [status] : []),
     ...ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath)),
@@ -603,7 +603,7 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
   return null;
 }
 
-export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "invariant"; name: string; exists: boolean; targetContext?: Context } | null {
+export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" | "invariant"; name: string; exists: boolean; targetContext?: SigilFolder } | null {
   const pos = view.state.selection.main.head;
   const line = view.state.doc.lineAt(pos);
 
@@ -662,8 +662,8 @@ export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" 
 export function buildSiblingHighlighter(
   _names: string[],
   siblings: SiblingInfo[],
-  sigilRoot: Context | null,
-  currentCtx: Context | null,
+  sigilRoot: SigilFolder | null,
+  currentCtx: SigilFolder | null,
   path: string[] = [],
 ) {
   globalSiblings = siblings;
@@ -1182,9 +1182,9 @@ export function buildPropertyExtensions(
 }
 
 /** Find all references to a symbol across the entire sigil tree. */
-export function findAllReferencesInTree(ctx: Context, symbolName: string, path: string[]): { contextName: string; contextPath: string[]; line: string }[] {
+export function findAllReferencesInTree(ctx: SigilFolder, symbolName: string, path: string[]): { contextName: string; contextPath: string[]; line: string }[] {
   const results: { contextName: string; contextPath: string[]; line: string }[] = [];
-  const lines = ctx.domain_language.split("\n");
+  const lines = ctx.language.split("\n");
   for (const line of lines) {
     let match;
     allRefsPattern.lastIndex = 0;

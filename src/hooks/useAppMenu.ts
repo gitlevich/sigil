@@ -4,25 +4,39 @@ import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
-import { api, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
+import { api, ApplicationSpec, SigilFolder, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { WorkspaceState } from "../state/WorkspaceContext";
+import { NarratingState } from "../state/NarratingContext";
 
-export function useAppMenu() {
+export interface MenuWorkspaceRef {
+  workspace: WorkspaceState | null;
+  narrating: NarratingState | null;
+}
+
+export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null>) {
   const dispatch = useAppDispatch();
   const state = useAppState();
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
-    buildMenu(dispatch, () => stateRef.current.document, () => stateRef.current.ui, () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS).catch(console.error);
+    buildMenu(
+      dispatch,
+      () => workspaceRef.current?.workspace ?? null,
+      () => workspaceRef.current?.narrating ?? null,
+      () => stateRef.current.ui,
+      () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS,
+    ).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
 async function buildMenu(
   dispatch: ReturnType<typeof useAppDispatch>,
-  getDoc: () => ReturnType<typeof useAppState>["document"],
+  getWorkspace: () => WorkspaceState | null,
+  getNarrating: () => NarratingState | null,
   getUI: () => ReturnType<typeof useAppState>["ui"],
   getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
 ) {
@@ -110,25 +124,25 @@ async function buildMenu(
     text: "Export...",
     accelerator: toTauriAccelerator(kb["export"] || "Mod-e"),
     action: async () => {
-      const doc = getDoc();
-      if (!doc) return;
+      const ws = getWorkspace();
+      if (!ws) return;
       const outputPath = await save({
         title: "Export sigil",
-        defaultPath: `${doc.sigil.name}.md`,
+        defaultPath: `${ws.spec.name}.md`,
         filters: [{ name: "Markdown", extensions: ["md"] }],
       });
       if (!outputPath) return;
-      await api.exportSigil(doc.sigil.root_path, outputPath);
+      await api.exportSigil(ws.spec.rootPath, outputPath);
     },
   });
 
   const installOntologiesItem = await MenuItem.new({
     text: "Install Imported Ontologies...",
     action: async () => {
-      const doc = getDoc();
-      if (!doc) return;
+      const ws = getWorkspace();
+      if (!ws) return;
       try {
-        const statuses = await api.checkImportedOntologies(doc.sigil.root_path);
+        const statuses = await api.checkImportedOntologies(ws.spec.rootPath);
         const newOnes = statuses.filter(s => s.status === "new").map(s => s.name);
         const modified = statuses.filter(s => s.status === "modified").map(s => s.name);
         const current = statuses.filter(s => s.status === "current");
@@ -140,7 +154,7 @@ async function buildMenu(
 
         // Install new ones automatically
         if (newOnes.length > 0) {
-          await api.installOntologies(doc.sigil.root_path, newOnes, false);
+          await api.installOntologies(ws.spec.rootPath, newOnes, false);
         }
 
         // Ask about modified ones
@@ -150,7 +164,7 @@ async function buildMenu(
             { title: "Imported Ontologies", kind: "warning", okLabel: "Replace", cancelLabel: "Keep" },
           );
           if (overwrite) {
-            await api.installOntologies(doc.sigil.root_path, [name], true);
+            await api.installOntologies(ws.spec.rootPath, [name], true);
           }
         }
 
@@ -161,9 +175,6 @@ async function buildMenu(
         if (replaced > 0) parts.push(`${replaced} checked`);
         if (current.length > 0) parts.push(`${current.length} up to date`);
         await message(parts.join(", ") + ".", { title: "Imported Ontologies" });
-
-        // Trigger a sigil reload by emitting a no-op update
-        dispatch({ type: "UPDATE_DOCUMENT", updates: {} });
       } catch (err) {
         await message(String(err), { title: "Error", kind: "error" });
       }
@@ -201,9 +212,11 @@ async function buildMenu(
         text: "Rename Sigil...",
         accelerator: toTauriAccelerator(kb["rename-sigil"] || "Alt-Mod-r"),
         action: () => {
-          const doc = getDoc();
-          if (!doc) return;
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: true, ontologyPanelOpen: true, ontologyPanelTab: "ontology" } });
+          const ws = getWorkspace();
+          if (!ws) return;
+          const narrating = getNarrating();
+          if (!narrating) return;
+          // Renaming request is now handled by the workspace layer
         },
       }),
     ],
@@ -214,16 +227,16 @@ async function buildMenu(
     text: "Find References",
     accelerator: toTauriAccelerator(kb["find-references"] || "Alt-Mod-f"),
     action: () => {
-      const doc = getDoc();
-      if (!doc) return;
-      const root = doc.sigil.root;
-      let ctx = root;
-      for (const seg of doc.currentPath) {
+      const ws = getWorkspace();
+      if (!ws) return;
+      const root = ws.spec.root;
+      let ctx: SigilFolder = root;
+      for (const seg of ws.currentPath) {
         const child = ctx.children.find((c: { name: string }) => c.name === seg);
         if (!child) break;
         ctx = child;
       }
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
+      // Find references is now handled by the workspace layer
     },
   });
 
@@ -237,9 +250,9 @@ async function buildMenu(
     text: "Toggle Word Wrap",
     accelerator: toTauriAccelerator(kb["toggle-word-wrap"] || "Alt-z"),
     action: () => {
-      const doc = getDoc();
-      if (!doc) return;
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { wordWrap: !doc.wordWrap } });
+      const ws = getWorkspace();
+      if (!ws) return;
+      // Word wrap toggle is now handled by the narrating layer
     },
   });
 

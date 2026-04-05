@@ -1,4 +1,4 @@
-import type { Context } from "./types";
+import type { Sigil } from "./types";
 
 export interface Rect {
   x: number;
@@ -8,23 +8,23 @@ export interface Rect {
 }
 
 export interface WeightedItem {
-  ctx: Context;
+  ctx: Sigil;
   weight: number;
 }
 
 export interface LayoutRect extends Rect {
-  ctx: Context;
+  ctx: Sigil;
 }
 
 /** Recursive weight: 1 (self) + descendant count. A leaf weighs 1. */
-export function computeWeight(ctx: Context): number {
-  return 1 + ctx.children.reduce((s, c) => s + computeWeight(c), 0);
+export function computeWeight(sigil: Sigil): number {
+  return 1 + sigil.children.reduce((s, c) => s + computeWeight(c), 0);
 }
 
-/** Compute the maximum nesting depth of a context tree. */
-export function maxDepth(ctx: Context): number {
-  if (ctx.children.length === 0) return 0;
-  return 1 + Math.max(...ctx.children.map(maxDepth));
+/** Compute the maximum nesting depth of a sigil tree. */
+export function maxDepth(sigil: Sigil): number {
+  if (sigil.children.length === 0) return 0;
+  return 1 + Math.max(...sigil.children.map(maxDepth));
 }
 
 /**

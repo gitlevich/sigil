@@ -8,17 +8,20 @@ export interface Invariant {
   content: string;
 }
 
-export interface Context {
-  name: string;
-  domain_language: string;
-  affordances: Affordance[];
-  invariants: Invariant[];
-  children: Context[];
-  is_imported?: boolean;
-}
-
+/**
+ * A Sigil — the recursive unit of specification.
+ * Has a name, narrative language, affordances, invariants, and child sigils.
+ */
 export interface Sigil {
   name: string;
-  vision: string;
-  root: Context;
+  language: string;
+  affordances: Affordance[];
+  invariants: Invariant[];
+  children: Sigil[];
+  isImported?: boolean;
 }
+
+// ── Backward compatibility aliases (deprecated, remove after migration) ──
+
+/** @deprecated Use Sigil instead */
+export type Context = Sigil;

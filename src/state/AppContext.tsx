@@ -1,37 +1,25 @@
+/**
+ * AppContext — top-level application state.
+ *
+ * Composes the workspace-independent concerns: screen (picker vs workspace),
+ * settings, dialogs, theme, and UI layout (panel widths, font size).
+ *
+ * Workspace-specific state lives in WorkspaceContext, NarratingContext,
+ * and ConversingContext — provided when a workspace is open.
+ */
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
-import { Sigil, Settings, ChatMessage, ChatInfo, DEFAULT_KEYBINDINGS } from "../tauri";
-
-export interface OpenDocument {
-  sigil: Sigil;
-  currentPath: string[];
-  editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "atlas";
-  ontologyPanelOpen: boolean;
-  ontologyPanelTab: "vision" | "ontology";
-  designPartnerPanelOpen: boolean;
-  designPartnerPanelTab: "chat" | "memories";
-  chats: ChatInfo[];
-  activeChatId: string;
-  chatMessages: ChatMessage[];
-  chatStreaming: boolean;
-  highlightedChild: string | null;
-  wordWrap: boolean;
-  renamingRequest: boolean;
-  findReferencesName: string | null;
-  collapsedPaths: string[];
-}
+import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";
 
 export interface UIState {
   ontologyPanelWidth: number;
   designPartnerPanelWidth: number;
-  fontSize: number; // base font size in px
+  fontSize: number;
 }
 
 export type ThemePreference = "light" | "dark" | "system";
 
 interface AppState {
   screen: "picker" | "workspace";
-  document: OpenDocument | null;
   settings: Settings;
   settingsOpen: boolean;
   aboutOpen: boolean;
@@ -42,10 +30,6 @@ interface AppState {
 
 type Action =
   | { type: "SET_SCREEN"; screen: "picker" | "workspace" }
-  | { type: "SET_DOCUMENT"; doc: OpenDocument }
-  | { type: "CLEAR_DOCUMENT" }
-  | { type: "UPDATE_DOCUMENT"; updates: Partial<OpenDocument> }
-  | { type: "UPDATE_SIGIL"; sigil: Sigil }
   | { type: "SET_SETTINGS"; settings: Settings }
   | { type: "SET_SETTINGS_OPEN"; open: boolean }
   | { type: "SET_ABOUT_OPEN"; open: boolean }
@@ -61,7 +45,6 @@ export const DEFAULT_UI: UIState = {
 
 const initialState: AppState = {
   screen: "picker",
-  document: null,
   settings: {
     ai_providers: [],
     selected_provider_id: "",
@@ -80,39 +63,18 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SET_SCREEN":
       return { ...state, screen: action.screen };
-
-    case "SET_DOCUMENT":
-      return { ...state, document: action.doc, screen: "workspace" };
-
-    case "CLEAR_DOCUMENT":
-      return { ...state, document: null, screen: "picker" };
-
-    case "UPDATE_DOCUMENT":
-      if (!state.document) return state;
-      return { ...state, document: { ...state.document, ...action.updates } };
-
-    case "UPDATE_SIGIL":
-      if (!state.document) return state;
-      return { ...state, document: { ...state.document, sigil: action.sigil } };
-
     case "SET_SETTINGS":
       return { ...state, settings: action.settings };
-
     case "SET_SETTINGS_OPEN":
       return { ...state, settingsOpen: action.open };
-
     case "SET_ABOUT_OPEN":
       return { ...state, aboutOpen: action.open };
-
     case "SET_HELP_OPEN":
       return { ...state, helpOpen: action.open };
-
     case "SET_THEME":
       return { ...state, themePreference: action.theme };
-
     case "SET_UI":
       return { ...state, ui: { ...state.ui, ...action.ui } };
-
     default:
       return state;
   }
@@ -138,8 +100,4 @@ export function useAppState() {
 
 export function useAppDispatch() {
   return useContext(AppDispatchContext);
-}
-
-export function useDocument(): OpenDocument | null {
-  return useAppState().document;
 }

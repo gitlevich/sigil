@@ -1,26 +1,19 @@
 import { useEffect, useRef, useCallback } from "react";
 import { events } from "../tauri";
-import { useAppState, useAppDispatch } from "../state/AppContext";
-import { useSigil } from "./useSigil";
 import { isAutoSaveDirty } from "./useAutoSave";
 
-export function useFileWatcher() {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const { reload } = useSigil();
+export function useFileWatcher(rootPath: string, reload: (rootPath: string) => Promise<unknown>, onError?: () => void) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFsChange = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (isAutoSaveDirty()) return;
-      if (!state.document) return;
-      reload(state.document.sigil.root_path).catch(() => {
-        // Sigil root moved or deleted — go back to picker
-        dispatch({ type: "CLEAR_DOCUMENT" });
+      reload(rootPath).catch(() => {
+        onError?.();
       });
     }, 1000);
-  }, [state.document, reload, dispatch]);
+  }, [rootPath, reload, onError]);
 
   useEffect(() => {
     const unlisten = events.onFsChange(handleFsChange);

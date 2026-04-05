@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { buildLexicalScope, findAffordanceInScope, findInvariantInScope } from "./refs";
-import type { Context } from "./types";
+import type { Sigil } from "./types";
 
 function ctx(name: string, opts?: {
   affordances?: { name: string; content: string }[];
   invariants?: { name: string; content: string }[];
-  children?: Context[];
-}): Context {
+  children?: Sigil[];
+}): Sigil {
   return {
     name,
-    domain_language: "",
+    language: "",
     affordances: opts?.affordances ?? [],
     invariants: opts?.invariants ?? [],
     children: opts?.children ?? [],
@@ -38,7 +38,7 @@ function refNames(refs: { name: string; prefix: string }[], prefix: string): str
           └── #betachild-aff
 */
 
-const root: Context = ctx("root", {
+const root: Sigil = ctx("root", {
   children: [
     ctx("Alpha", {
       affordances: [{ name: "alpha-aff", content: "alpha affordance" }],

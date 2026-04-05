@@ -1,8 +1,8 @@
 use std::fs;
 use crate::commands::sigil::read_sigil_with_libs;
-use crate::models::sigil::Context;
+use crate::models::sigil::SigilFolder;
 
-fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool) {
+fn render_export(ctx: &SigilFolder, depth: usize, output: &mut String, is_root: bool) {
     let heading = "#".repeat(depth + 1);
 
     if is_root {
@@ -18,7 +18,7 @@ fn render_export(ctx: &Context, depth: usize, output: &mut String, is_root: bool
         output.push_str(&format!("{} Domain Language\n\n", sub_heading));
     }
 
-    output.push_str(&ctx.domain_language);
+    output.push_str(&ctx.language);
     output.push_str("\n\n");
 
     for (i, child) in ctx.children.iter().enumerate() {

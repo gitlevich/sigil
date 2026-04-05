@@ -1,1 +1,1 @@
-export type { Affordance, Invariant, Context, Sigil } from "sigil-core";
+export type { Affordance, Invariant, Sigil, Context } from "sigil-core";

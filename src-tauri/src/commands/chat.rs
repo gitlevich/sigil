@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
-use crate::models::sigil::Context;
+use crate::models::sigil::SigilFolder;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::tools;
@@ -63,7 +63,7 @@ pub(crate) fn render_named_entry(output: &mut String, token_prefix: &str, name: 
     output.push_str(&format!("- {}{}: {}\n", token_prefix, name, trimmed));
 }
 
-pub(crate) fn render_context(ctx: &Context, depth: usize, output: &mut String) {
+pub(crate) fn render_context(ctx: &SigilFolder, depth: usize, output: &mut String) {
     let prefix = "#".repeat(depth + 2);
     let detail_prefix = "#".repeat(depth + 3);
 
@@ -76,10 +76,10 @@ pub(crate) fn render_context(ctx: &Context, depth: usize, output: &mut String) {
     }
 
     output.push_str(&format!("{} Domain Language\n\n", detail_prefix));
-    if ctx.domain_language.trim().is_empty() {
+    if ctx.language.trim().is_empty() {
         output.push_str("_empty_\n\n");
     } else {
-        output.push_str(&ctx.domain_language);
+        output.push_str(&ctx.language);
         output.push_str("\n\n");
     }
 
@@ -132,7 +132,7 @@ pub(crate) fn render_context(ctx: &Context, depth: usize, output: &mut String) {
     }
 }
 
-fn find_context_by_path<'a>(root: &'a Context, path: &[String]) -> Option<&'a Context> {
+fn find_context_by_path<'a>(root: &'a SigilFolder, path: &[String]) -> Option<&'a SigilFolder> {
     let mut ctx = root;
     for segment in path {
         ctx = ctx.children.iter().find(|c| c.name == *segment)?;

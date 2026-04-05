@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { Context } from "../types";
+import type { Sigil } from "../types";
 import {
   computeWeight, maxDepth, squarify, depthStyle,
   HEADER_HEIGHT, ICON_ROW_HEIGHT, FRAME_PAD,
@@ -25,8 +25,8 @@ function TreemapRect({
   selectedName: string | null;
   dark: boolean;
   onSelect: (name: string) => void;
-  onNavigate: (ctx: Context) => void;
-  onContextMenu?: (e: React.MouseEvent, ctx: Context) => void;
+  onNavigate: (sigil: Sigil) => void;
+  onContextMenu?: (e: React.MouseEvent, sigil: Sigil) => void;
 }) {
   const { ctx, x, y, w, h } = layout;
   const isSelected = selectedName === ctx.name;
@@ -136,16 +136,16 @@ function TreemapRect({
 }
 
 export interface AtlasProps {
-  /** The children of the current context to display in the treemap. */
-  children: Context[];
+  /** The children of the current sigil to display in the treemap. */
+  children: Sigil[];
   /** Whether the theme is dark. */
   dark: boolean;
   /** Called when a context is double-clicked to navigate into it. */
-  onNavigate: (ctx: Context) => void;
+  onNavigate: (sigil: Sigil) => void;
   /** Called when Escape is pressed to go up one level. */
   onEscape?: () => void;
   /** Called when a context is right-clicked. If not provided, no context menu behavior. */
-  onContextMenu?: (e: React.MouseEvent, ctx: Context) => void;
+  onContextMenu?: (e: React.MouseEvent, sigil: Sigil) => void;
   /** Instructions text shown at the bottom. */
   instructions?: string;
   /** localStorage key for persisting revealed/focused mode. Defaults to "sigil-atlas-revealed". */
