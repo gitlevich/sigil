@@ -207,17 +207,29 @@ export function Workspace() {
     if (!doc) return;
     // Capture path at call time so the timeout uses the correct sigil.
     const pathSnapshot = [...doc.currentPath];
-    const ctx = findContext(doc.sigil.root, pathSnapshot);
+    const isImported = pathSnapshot[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+    const searchRoot = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
+    const searchPath = isImported ? pathSnapshot.slice(1) : pathSnapshot;
+    const ctx = findContext(searchRoot, searchPath);
+    if (!ctx) return;
     save(`${ctx.path}/language.md`, content);
     // Debounce the React state update — CodeMirror holds its own state,
     // so other components only need periodic sync.
     if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
     dispatchTimerRef.current = setTimeout(() => {
-      const updatedRoot = updateContextInTree(doc.sigil.root, pathSnapshot, (c) => ({
-        ...c,
-        domain_language: content,
-      }));
-      dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+      if (isImported && doc.sigil.imported_ontologies) {
+        const updatedImported = updateContextInTree(doc.sigil.imported_ontologies, searchPath, (c) => ({
+          ...c,
+          domain_language: content,
+        }));
+        dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, imported_ontologies: updatedImported } });
+      } else {
+        const updatedRoot = updateContextInTree(doc.sigil.root, pathSnapshot, (c) => ({
+          ...c,
+          domain_language: content,
+        }));
+        dispatch({ type: "UPDATE_SIGIL", sigil: { ...doc.sigil, root: updatedRoot } });
+      }
     }, 300);
   }, [doc, save, dispatch]);
 
