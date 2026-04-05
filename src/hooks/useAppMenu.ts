@@ -150,7 +150,7 @@ async function buildMenu(
         action: () => {
           const doc = getDoc();
           if (!doc) return;
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: true, leftPanelOpen: true, leftPanelTab: "ontology" } });
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { renamingRequest: true, ontologyPanelOpen: true, ontologyPanelTab: "ontology" } });
         },
       }),
     ],

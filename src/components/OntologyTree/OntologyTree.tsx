@@ -5,7 +5,10 @@ import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { api, Context } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
+import { useToast } from "../../hooks/useToast";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
+import * as actions from "../../actions/workspace";
+import type { ActionDeps } from "../../actions/workspace";
 import styles from "./OntologyTree.module.css";
 
 let dragSourcePath: string | null = null;
@@ -74,10 +77,12 @@ function InlinePeerInput({
   parentFsPath,
   onSubmit,
   onAbort,
+  actionDeps,
 }: {
   parentFsPath: string;
   onSubmit: () => void;
   onAbort: () => void;
+  actionDeps: ActionDeps;
 }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +92,7 @@ function InlinePeerInput({
   const commit = async () => {
     const name = value.trim();
     if (!name) { onAbort(); return; }
-    await api.createContext(parentFsPath, name).catch(console.error);
+    await actions.createContext(parentFsPath, name, actionDeps);
     onSubmit();
   };
 
@@ -129,6 +134,7 @@ function OntologyItem({
   onPeerSubmit,
   onPeerAbort,
   onToggleCollapse,
+  actionDeps,
 }: {
   node: OntologyNode;
   currentPath: string[];
@@ -144,6 +150,7 @@ function OntologyItem({
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
   onToggleCollapse: (path: string[]) => void;
+  actionDeps: ActionDeps;
 }) {
   const hasChildren = node.children.length > 0;
   const isActive = pathsEqual(currentPath, node.path);
@@ -276,12 +283,14 @@ function OntologyItem({
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
                 onToggleCollapse={onToggleCollapse}
+                actionDeps={actionDeps}
               />
               {addingPeerAfterPath && pathsEqual(child.path, addingPeerAfterPath) && (
                 <InlinePeerInput
                   parentFsPath={node.fsPath}
                   onSubmit={onPeerSubmit}
                   onAbort={onPeerAbort}
+                  actionDeps={actionDeps}
                 />
               )}
             </div>
@@ -297,6 +306,14 @@ export function OntologyTree() {
   const dispatch = useAppDispatch();
   const { reload } = useSigil();
   const { save } = useAutoSave();
+  const { addToast } = useToast();
+
+  const actionDeps: ActionDeps = useMemo(() => ({
+    rootPath: doc?.sigil.root_path ?? "",
+    reload,
+    addToast,
+  }), [doc?.sigil.root_path, reload, addToast]);
+
   const [search, setSearch] = useState("");
   const [definitions, setDefinitions] = useState<Record<string, string>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -341,39 +358,31 @@ export function OntologyTree() {
 
   const handleMove = async (sourceFsPath: string, targetFsPath: string) => {
     if (!doc) return;
-    try {
-      await api.moveSigil(doc.sigil.root_path, sourceFsPath, targetFsPath);
-      const sigil = await reload(doc.sigil.root_path);
-      if (sigil) await reloadDefinitions(sigil.root);
-    } catch (err) { console.error("Move failed:", err); }
+    await actions.moveSigil(sourceFsPath, targetFsPath, actionDeps);
+    const sigil = await reload(doc.sigil.root_path);
+    if (sigil) await reloadDefinitions(sigil.root);
   };
 
   const handlePropertyDrop = async (targetFsPath: string, src: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => {
     if (!doc) return;
-    if (src.sourcePath === targetFsPath) return;
-    try {
-      await api.writeFile(`${targetFsPath}/${src.kind}-${src.name}.md`, src.content);
-      await api.deleteFile(`${src.sourcePath}/${src.kind}-${src.name}.md`);
-      await reload(doc.sigil.root_path);
-    } catch (err) { console.error("Property move failed:", err); }
+    await actions.moveProperty(targetFsPath, src, actionDeps);
+    const sigil = await reload(doc.sigil.root_path);
+    if (sigil) await reloadDefinitions(sigil.root);
   };
 
   const handleRename = async (fsPath: string, oldName: string, newName: string) => {
     if (!doc) return;
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) { setRenaming(null); return; }
-    try {
-      await api.renameSigil(doc.sigil.root_path, fsPath, trimmed);
-      const sigil = await reload(doc.sigil.root_path);
-      if (sigil) await reloadDefinitions(sigil.root);
-    } catch (err) { console.error("Rename failed:", err); }
+    await actions.renameSigil(fsPath, trimmed, actionDeps);
+    const sigil = await reload(doc.sigil.root_path);
+    if (sigil) await reloadDefinitions(sigil.root);
     setRenaming(null);
   };
 
   const handleDelete = async (node: OntologyNode) => {
     if (!await confirm(`Delete "${node.name}" and all its contents? This cannot be undone.`)) return;
-    try { await api.deleteContext(node.fsPath); await reload(doc!.sigil.root_path); }
-    catch (err) { console.error("Delete failed:", err); }
+    await actions.deleteSigil(node.fsPath, actionDeps);
   };
 
   const handlePeerSubmit = async () => {
@@ -442,6 +451,7 @@ export function OntologyTree() {
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),
     onToggleCollapse: handleToggleCollapse,
+    actionDeps,
   };
 
   return (

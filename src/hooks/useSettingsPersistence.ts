@@ -8,10 +8,10 @@ const STORE_FILE = "settings.json";
 interface PersistedDocState {
   rootPath: string;
   currentPath: string[];
-  leftPanelOpen: boolean;
-  leftPanelTab: "vision" | "ontology";
-  rightPanelOpen: boolean;
-  rightPanelTab: "chat" | "memories";
+  ontologyPanelOpen: boolean;
+  ontologyPanelTab: "vision" | "ontology";
+  designPartnerPanelOpen: boolean;
+  designPartnerPanelTab: "chat" | "memories";
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "atlas";
   activeChatId: string;
@@ -99,8 +99,13 @@ export function useSettingsPersistence() {
         if (theme) {
           dispatch({ type: "SET_THEME", theme });
         }
-        const ui = await store.get<UIState>("ui");
-        if (ui) {
+        const uiRaw = await store.get<Record<string, unknown>>("ui");
+        if (uiRaw) {
+          const ui: Partial<UIState> = {
+            ontologyPanelWidth: (uiRaw.ontologyPanelWidth ?? uiRaw.leftPanelWidth ?? 260) as number,
+            designPartnerPanelWidth: (uiRaw.designPartnerPanelWidth ?? uiRaw.rightPanelWidth ?? 400) as number,
+            fontSize: (uiRaw.fontSize ?? 16) as number,
+          };
           dispatch({ type: "SET_UI", ui });
         }
         // Doc state is loaded by App.tsx via getPersistedDocState()
@@ -169,10 +174,10 @@ export function useSettingsPersistence() {
     const prev = prevDoc.current;
     if (
       prev &&
-      prev.leftPanelOpen === doc.leftPanelOpen &&
-      prev.leftPanelTab === doc.leftPanelTab &&
-      prev.rightPanelOpen === doc.rightPanelOpen &&
-      prev.rightPanelTab === doc.rightPanelTab &&
+      prev.ontologyPanelOpen === doc.ontologyPanelOpen &&
+      prev.ontologyPanelTab === doc.ontologyPanelTab &&
+      prev.designPartnerPanelOpen === doc.designPartnerPanelOpen &&
+      prev.designPartnerPanelTab === doc.designPartnerPanelTab &&
       prev.editorMode === doc.editorMode &&
       prev.contentTab === doc.contentTab &&
       prev.activeChatId === doc.activeChatId &&
@@ -191,10 +196,10 @@ export function useSettingsPersistence() {
         await store.set("doc_state", {
           rootPath: doc.sigil.root_path,
           currentPath: doc.currentPath,
-          leftPanelOpen: doc.leftPanelOpen,
-          leftPanelTab: doc.leftPanelTab,
-          rightPanelOpen: doc.rightPanelOpen,
-          rightPanelTab: doc.rightPanelTab,
+          ontologyPanelOpen: doc.ontologyPanelOpen,
+          ontologyPanelTab: doc.ontologyPanelTab,
+          designPartnerPanelOpen: doc.designPartnerPanelOpen,
+          designPartnerPanelTab: doc.designPartnerPanelTab,
           editorMode: doc.editorMode,
           contentTab: doc.contentTab,
           activeChatId: doc.activeChatId,
@@ -212,7 +217,22 @@ export function useSettingsPersistence() {
 export async function getPersistedDocState(): Promise<PersistedDocState | null> {
   try {
     const store = await load(STORE_FILE);
-    return await store.get<PersistedDocState>("doc_state") || null;
+    const raw = await store.get<Record<string, unknown>>("doc_state");
+    if (!raw) return null;
+    // Migrate old field names from pre-rename persistence
+    return {
+      rootPath: (raw.rootPath as string) ?? "",
+      currentPath: (raw.currentPath as string[]) ?? [],
+      ontologyPanelOpen: (raw.ontologyPanelOpen ?? raw.leftPanelOpen ?? true) as boolean,
+      ontologyPanelTab: ((raw.ontologyPanelTab ?? raw.leftPanelTab ?? "ontology") as PersistedDocState["ontologyPanelTab"]),
+      designPartnerPanelOpen: (raw.designPartnerPanelOpen ?? raw.rightPanelOpen ?? false) as boolean,
+      designPartnerPanelTab: ((raw.designPartnerPanelTab ?? raw.rightPanelTab ?? "chat") as PersistedDocState["designPartnerPanelTab"]),
+      editorMode: (raw.editorMode as PersistedDocState["editorMode"]) ?? "edit",
+      contentTab: (raw.contentTab as PersistedDocState["contentTab"]) ?? "language",
+      activeChatId: (raw.activeChatId as string) ?? "",
+      wordWrap: (raw.wordWrap as boolean) ?? false,
+      collapsedPaths: (raw.collapsedPaths as string[]) ?? [],
+    };
   } catch {
     return null;
   }

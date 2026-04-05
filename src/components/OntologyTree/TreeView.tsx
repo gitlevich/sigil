@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { Context, api } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
+import { useToast } from "../../hooks/useToast";
+import * as actions from "../../actions/workspace";
+import type { ActionDeps } from "../../actions/workspace";
 import styles from "./TreeView.module.css";
 
 /** Workaround: Tauri webview blocks dataTransfer.getData() for custom MIME types in onDrop. */
@@ -24,9 +27,10 @@ interface TreeNodeProps {
   onContextMenu: (e: React.MouseEvent, context: Context, path: string[]) => void;
   onAdd: (parentPath: string) => Promise<void>;
   onDrop: (sourcePath: string, targetPath: string) => void;
+  actionDeps: ActionDeps;
 }
 
-function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd, onDrop }: TreeNodeProps) {
+function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd, onDrop, actionDeps }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const [dropTarget, setDropTarget] = useState(false);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
@@ -110,12 +114,14 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
               onContextMenu={onContextMenu}
               onAdd={onAdd}
               onDrop={onDrop}
+              actionDeps={actionDeps}
             />
           ))}
           {isActive && !atLimit && (
             <GhostInput
               onSubmit={() => onAdd(context.path)}
               parentPath={context.path}
+              actionDeps={actionDeps}
             />
           )}
           {isActive && atLimit && (
@@ -129,14 +135,14 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
   );
 }
 
-function GhostInput({ onSubmit, parentPath }: { onSubmit: (name: string) => Promise<void>; parentPath: string }) {
+function GhostInput({ onSubmit, parentPath, actionDeps }: { onSubmit: (name: string) => Promise<void>; parentPath: string; actionDeps: ActionDeps }) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async () => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    await api.createContext(parentPath, trimmed).catch(console.error);
+    await actions.createContext(parentPath, trimmed, actionDeps);
     setValue("");
     await onSubmit(trimmed);
   };
@@ -163,10 +169,17 @@ export function TreeView() {
   const dispatch = useAppDispatch();
   const doc = useDocument();
   const { reload } = useSigil();
+  const { addToast } = useToast();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<{ path: string[]; name: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+
+  const actionDeps: ActionDeps = useMemo(() => ({
+    rootPath: doc?.sigil.root_path ?? "",
+    reload,
+    addToast,
+  }), [doc?.sigil.root_path, reload, addToast]);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -209,35 +222,19 @@ export function TreeView() {
       setRenaming(null);
       return;
     }
-    try {
-      await api.renameSigil(doc.sigil.root_path, oldPath, trimmed);
-      await reload(doc.sigil.root_path);
-      setRenaming(null);
-    } catch (err) {
-      console.error("Rename failed:", err);
-      setRenaming(null);
-    }
+    await actions.renameSigil(oldPath, trimmed, actionDeps);
+    setRenaming(null);
   };
 
   const handleMove = async (sourcePath: string, targetPath: string) => {
-    try {
-      await api.moveSigil(doc.sigil.root_path, sourcePath, targetPath);
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      console.error("Move failed:", err);
-    }
+    await actions.moveSigil(sourcePath, targetPath, actionDeps);
   };
 
   const handleDelete = async (context: Context) => {
     if (!await confirm(`Delete "${context.name}" and all its contents? This cannot be undone.`)) {
       return;
     }
-    try {
-      await api.deleteContext(context.path);
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
+    await actions.deleteSigil(context.path, actionDeps);
   };
 
   const handleAdd = async () => {
@@ -278,6 +275,7 @@ export function TreeView() {
         onContextMenu={handleContextMenu}
         onAdd={handleAdd}
         onDrop={handleMove}
+        actionDeps={actionDeps}
       />
 
       {contextMenu && (

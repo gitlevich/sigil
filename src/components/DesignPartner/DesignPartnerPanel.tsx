@@ -14,7 +14,7 @@ export function DesignPartnerPanel() {
   const doc = useDocument();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
 
-  const committedWidth = state.ui.rightPanelWidth;
+  const committedWidth = state.ui.designPartnerPanelWidth;
   const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
@@ -27,7 +27,7 @@ export function DesignPartnerPanel() {
   const handleResizeEnd = useCallback(() => {
     setDragWidth((prev) => {
       if (prev !== null) {
-        dispatch({ type: "SET_UI", ui: { rightPanelWidth: prev } });
+        dispatch({ type: "SET_UI", ui: { designPartnerPanelWidth: prev } });
       }
       return null;
     });
@@ -35,12 +35,12 @@ export function DesignPartnerPanel() {
 
   if (!doc) return null;
 
-  if (!doc.rightPanelOpen) {
+  if (!doc.designPartnerPanelOpen) {
     return (
       <div
         className={styles.collapsed}
         onClick={() =>
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelOpen: true } })
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelOpen: true } })
         }
       >
         <span className={styles.collapseIcon}>&lsaquo;</span>
@@ -48,7 +48,7 @@ export function DesignPartnerPanel() {
     );
   }
 
-  const tab = doc.rightPanelTab ?? "chat";
+  const tab = doc.designPartnerPanelTab ?? "chat";
 
   return (
     <>
@@ -59,7 +59,7 @@ export function DesignPartnerPanel() {
             <button
               className={`${styles.tab} ${tab === "chat" ? styles.active : ""}`}
               onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelTab: "chat" } })
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelTab: "chat" } })
               }
             >
               Chat
@@ -67,7 +67,7 @@ export function DesignPartnerPanel() {
             <button
               className={`${styles.tab} ${tab === "memories" ? styles.active : ""}`}
               onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelTab: "memories" } })
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelTab: "memories" } })
               }
             >
               Memories
@@ -76,7 +76,7 @@ export function DesignPartnerPanel() {
           <button
             className={styles.collapseBtn}
             onClick={() =>
-              dispatch({ type: "UPDATE_DOCUMENT", updates: { rightPanelOpen: false } })
+              dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelOpen: false } })
             }
           >
             &rsaquo;

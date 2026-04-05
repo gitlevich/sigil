@@ -7,11 +7,13 @@ import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
-import { Context, api, DEFAULT_KEYBINDINGS } from "../../tauri";
+import { Context, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useSigil } from "../../hooks/useSigil";
 import { useToast } from "../../hooks/useToast";
+import * as actions from "../../actions/workspace";
+import type { ActionDeps } from "../../actions/workspace";
 import { Atlas } from "./Atlas";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import { buildBreadcrumb as coreBuildBreadcrumb, buildLexicalScope as coreBuildLexicalScope, makeSummary, resolveRefName } from "sigil-core";
@@ -141,6 +143,12 @@ export function Workspace() {
   const { reload } = useSigil();
   const { addToast } = useToast();
 
+  const actionDeps: ActionDeps = useMemo(() => ({
+    rootPath: doc?.sigil.root_path ?? "",
+    reload,
+    addToast,
+  }), [doc?.sigil.root_path, reload, addToast]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     if (!doc) return;
@@ -154,12 +162,12 @@ export function Workspace() {
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "vision", leftPanelOpen: true } });
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "vision", ontologyPanelOpen: true } });
         return;
       }
       if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology", leftPanelOpen: true } });
+        dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "ontology", ontologyPanelOpen: true } });
         return;
       }
       // Find References — only handle when focus is outside the CodeMirror editor
@@ -216,119 +224,46 @@ export function Workspace() {
   const handleCreateSigil = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const humanName = name
-      .replace(/([a-z])([A-Z])/g, "$1 $2")
-      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
-    const dirName = humanName.replace(/\s+/g, "");
-    try {
-      const newCtx = await api.createContext(ctx.path, dirName);
-      const parentStatusMatch = ctx.domain_language?.match(/^---[\s\S]*?^status:\s*(\S+)/m);
-      const parentStatus = parentStatusMatch?.[1] ?? "idea";
-      await api.writeFile(`${newCtx.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      addToast(msg, "error");
-    }
-  }, [doc, reload, addToast]);
+    await actions.createSigil(ctx, name, actionDeps);
+  }, [doc, actionDeps]);
 
   const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim()) return;
-    const statusPattern = /^(status:\s*)\S+$/m;
-    const forceStatus = async (ctx: Context) => {
-      const lang = ctx.domain_language || "";
-      if (statusPattern.test(lang)) {
-        await api.writeFile(`${ctx.path}/language.md`, lang.replace(statusPattern, `$1${newValue}`)).catch(console.error);
-      } else if (lang.startsWith("---")) {
-        const updated = lang.replace(/^---/, `---\nstatus: ${newValue}`);
-        await api.writeFile(`${ctx.path}/language.md`, updated).catch(console.error);
-      } else {
-        const updated = `---\nstatus: ${newValue}\n---\n${lang}`;
-        await api.writeFile(`${ctx.path}/language.md`, updated).catch(console.error);
-      }
-      for (const child of ctx.children) await forceStatus(child);
-    };
-    // Force status on the current sigil and all its descendants
     const currentCtx = findContext(doc.sigil.root, doc.currentPath);
-    await forceStatus(currentCtx);
-    await reload(doc.sigil.root_path);
-  }, [doc, reload]);
+    await actions.updateStatus(currentCtx, newValue, actionDeps);
+  }, [doc, actionDeps]);
 
   const handleCreateAffordance = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    try {
-      await api.writeFile(`${ctx.path}/affordance-${name}.md`, "");
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      addToast(msg, "error");
-    }
-  }, [doc, reload, addToast]);
+    await actions.createAffordance(ctx, name, actionDeps);
+  }, [doc, actionDeps]);
 
   const handleCreateInvariant = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    try {
-      await api.writeFile(`${ctx.path}/invariant-${name}.md`, "");
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      addToast(msg, "error");
-    }
-  }, [doc, reload, addToast]);
+    await actions.createInvariant(ctx, name, actionDeps);
+  }, [doc, actionDeps]);
 
   const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    const prefix = kind === "affordance" ? "affordance" : "invariant";
-    const oldPath = `${ctx.path}/${prefix}-${oldName}.md`;
-    const newPath = `${ctx.path}/${prefix}-${newName}.md`;
-    try {
-      // Read old content, write to new path, delete old
-      const oldContent = await api.readFile(oldPath).catch(() => "");
-      await api.writeFile(newPath, oldContent);
-      await api.deleteFile(oldPath);
-      // Update references in language.md: replace #old-name or !old-name with new name
-      const langPath = `${ctx.path}/language.md`;
-      const lang = ctx.domain_language;
-      const refChar = kind === "affordance" ? "#" : "!";
-      const updated = lang.replace(
-        new RegExp(`\\${refChar}${oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=[^a-zA-Z0-9_-]|$)`, "g"),
-        `${refChar}${newName}`
-      );
-      if (updated !== lang) {
-        await api.writeFile(langPath, updated);
-      }
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      console.error(`Rename ${kind} failed:`, err);
-    }
-  }, [doc, reload]);
+    await actions.renameProperty(ctx, kind, oldName, newName, actionDeps);
+  }, [doc, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
-    // Check contained sigils first
     let target = ctx.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
-    // Then check neighbors
     if (!target && doc.currentPath.length > 0) {
       const parentPath = doc.currentPath.slice(0, -1);
       const parent = findContext(doc.sigil.root, parentPath);
       target = parent.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     }
     if (target) {
-      try {
-        await api.renameSigil(doc.sigil.root_path, target.path, newName);
-        await reload(doc.sigil.root_path);
-      } catch (err) {
-        console.error("Rename sigil failed:", err);
-      }
+      await actions.renameSigil(target.path, newName, actionDeps);
     }
-  }, [doc, reload]);
+  }, [doc, actionDeps]);
 
   const handleNavigateToSigil = useCallback((name: string) => {
     if (!doc) return;
@@ -383,7 +318,10 @@ export function Workspace() {
   // Core refs (with affordances/invariants) for preview highlighting
   const coreRefs = useMemo(() => {
     if (!doc) return [];
-    return coreBuildLexicalScope(doc.sigil.root, doc.currentPath);
+    const isImported = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
+    const root = isImported ? doc.sigil.imported_ontologies! : doc.sigil.root;
+    const path = isImported ? doc.currentPath.slice(1) : doc.currentPath;
+    return coreBuildLexicalScope(root, path);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, doc?.currentPath]);
 
@@ -419,7 +357,7 @@ export function Workspace() {
             namePlaceholder="I need to..."
             contentPlaceholder="so that..."
             items={currentCtx.affordances}
-            onReload={() => reload(doc.sigil.root_path).then(() => {})}
+
             siblings={allRefs}
             siblingNames={allRefNames}
             sigilRoot={doc.sigil.root}
@@ -432,6 +370,7 @@ export function Workspace() {
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
             keybindings={state.settings.keybindings as unknown as Record<string, string>}
+            actionDeps={actionDeps}
           />
         )}
         <div className={styles.editorArea}>
@@ -482,7 +421,7 @@ export function Workspace() {
             namePlaceholder="what must hold..."
             contentPlaceholder="because..."
             items={currentCtx.invariants}
-            onReload={() => reload(doc.sigil.root_path).then(() => {})}
+
             siblings={allRefs}
             siblingNames={allRefNames}
             sigilRoot={doc.sigil.root}
@@ -495,6 +434,7 @@ export function Workspace() {
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } })}
             keybindings={state.settings.keybindings as unknown as Record<string, string>}
+            actionDeps={actionDeps}
           />
         )}
         <SubContextBar context={currentCtx} />

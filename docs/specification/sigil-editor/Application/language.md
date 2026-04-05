@@ -2,12 +2,16 @@
 status: external-ontology
 ---
 
-# Contrast
+# Attention Language
 
-A dimension along which @attention discriminates. A @preference selects a region along it. Contrasts are axes of @ContrastSpace.
+The mechanics of @attention as experienced from a first-person point of view at a given @scale. Both @timelike and @spacelike.
 
-Two primitive kinds: oppositional (two poles: good/bad, safe/dangerous) and relational (gradient with direction: more/less, near/far).
+Here the exact semantics are lexical: @sigils are nested scopes over domain language. Imported @DifferentialGeometry gives names to the shape of those scopes in experience — simultaneous structure, sequential articulation, reachability, and projection.
 
-Contrasts compose. A compound contrast weaves primitives into a higher-@scale discrimination — neither primitive alone carries the meaning, but together they define a single distinction.
+@Attention is the given. Its @fixedPoint is the origin — the "I am" that persists under all transformation of scope. I am an @observer: attention paid from a point of view, attending to the @frame (@DifferentialGeometry@spacelike). I am an @agent: an observer wearing a @sigil, attending to a @narrative (@DifferentialGeometry@timelike).
 
-A contrast by itself is just an axis of discrimination — not a contract. It becomes contractual only when a @sigil binds a @preference to it as an @invariant.
+I @collapse @observations one @frame at a time into a @narrative — compressing @DifferentialGeometry@spacelike experience into a @DifferentialGeometry@timelike trajectory. The @resolution of the collapse is bounded by finite @attention.
+
+I inhabit a @sigil that protects my attention by defining self as the region of @contrastSpace where my @preferences over the @invariants I care about hold.
+
+I can attend to what's inside my @sigil, outside it, or both. @SigilEngineering is the practice of converting lived experience to @sigils.

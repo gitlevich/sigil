@@ -3,7 +3,7 @@ import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext
 import { useChatStream } from "../../hooks/useChatStream";
 import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { MarkdownPreview } from "../Editor/MarkdownPreview";
+import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import styles from "./ChatPanel.module.css";
 
 function draftKey(rootPath: string, chatId: string): string {
@@ -23,18 +23,18 @@ export function ChatPanel() {
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const prevOpen = useRef(doc?.rightPanelOpen ?? false);
+  const prevOpen = useRef(doc?.designPartnerPanelOpen ?? false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [doc?.chatMessages]);
 
   useEffect(() => {
-    if (doc?.rightPanelOpen && !prevOpen.current) {
+    if (doc?.designPartnerPanelOpen && !prevOpen.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-    prevOpen.current = doc?.rightPanelOpen ?? false;
-  }, [doc?.rightPanelOpen]);
+    prevOpen.current = doc?.designPartnerPanelOpen ?? false;
+  }, [doc?.designPartnerPanelOpen]);
 
   // Save draft on every keystroke
   useEffect(() => {

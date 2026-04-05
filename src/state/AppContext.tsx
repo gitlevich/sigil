@@ -6,10 +6,10 @@ export interface OpenDocument {
   currentPath: string[];
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "atlas";
-  leftPanelOpen: boolean;
-  leftPanelTab: "vision" | "ontology";
-  rightPanelOpen: boolean;
-  rightPanelTab: "chat" | "memories";
+  ontologyPanelOpen: boolean;
+  ontologyPanelTab: "vision" | "ontology";
+  designPartnerPanelOpen: boolean;
+  designPartnerPanelTab: "chat" | "memories";
   chats: ChatInfo[];
   activeChatId: string;
   chatMessages: ChatMessage[];
@@ -22,15 +22,15 @@ export interface OpenDocument {
 }
 
 export interface UIState {
-  leftPanelWidth: number;
-  rightPanelWidth: number;
+  ontologyPanelWidth: number;
+  designPartnerPanelWidth: number;
   fontSize: number; // base font size in px
 }
 
 export type ThemePreference = "light" | "dark" | "system";
 
 interface AppState {
-  screen: "picker" | "editor";
+  screen: "picker" | "workspace";
   document: OpenDocument | null;
   settings: Settings;
   settingsOpen: boolean;
@@ -41,7 +41,7 @@ interface AppState {
 }
 
 type Action =
-  | { type: "SET_SCREEN"; screen: "picker" | "editor" }
+  | { type: "SET_SCREEN"; screen: "picker" | "workspace" }
   | { type: "SET_DOCUMENT"; doc: OpenDocument }
   | { type: "CLEAR_DOCUMENT" }
   | { type: "UPDATE_DOCUMENT"; updates: Partial<OpenDocument> }
@@ -54,8 +54,8 @@ type Action =
   | { type: "SET_UI"; ui: Partial<UIState> };
 
 export const DEFAULT_UI: UIState = {
-  leftPanelWidth: 260,
-  rightPanelWidth: 400,
+  ontologyPanelWidth: 260,
+  designPartnerPanelWidth: 400,
   fontSize: 16,
 };
 
@@ -82,7 +82,7 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, screen: action.screen };
 
     case "SET_DOCUMENT":
-      return { ...state, document: action.doc, screen: "editor" };
+      return { ...state, document: action.doc, screen: "workspace" };
 
     case "CLEAR_DOCUMENT":
       return { ...state, document: null, screen: "picker" };

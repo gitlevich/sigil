@@ -15,7 +15,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "genesis:export": "bash scripts/export_conversations.sh",
-    "test:genesis": "python3 scripts/test_export_conversations.py"
+    "test:genesis": "python3 scripts/test_export_conversations.py",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.1",
@@ -43,6 +45,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^4.1.2"
   }
 }

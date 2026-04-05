@@ -2,4 +2,4 @@
 status: idea
 ---
 
-# Session
+# Right Hemisphere

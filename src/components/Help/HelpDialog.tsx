@@ -1,5 +1,5 @@
 import { useAppState, useAppDispatch } from "../../state/AppContext";
-import { MarkdownPreview } from "../Editor/MarkdownPreview";
+import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import styles from "./HelpDialog.module.css";
 
 function SigilIcon({ size = 20 }: { size?: number }) {

@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { Context, api } from "../../tauri";
+import { Context } from "../../tauri";
 import { useAppDispatch, useDocument } from "../../state/AppContext";
 import { useSigil } from "../../hooks/useSigil";
+import { useToast } from "../../hooks/useToast";
+import * as actions from "../../actions/workspace";
+import type { ActionDeps } from "../../actions/workspace";
 import styles from "./SubContextBar.module.css";
 
 interface SubContextBarProps {
@@ -17,6 +20,13 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const dispatch = useAppDispatch();
   const { reload } = useSigil();
   const doc = useDocument();
+  const { addToast } = useToast();
+
+  const actionDeps: ActionDeps = useMemo(() => ({
+    rootPath: doc?.sigil.root_path ?? "",
+    reload,
+    addToast,
+  }), [doc?.sigil.root_path, reload, addToast]);
 
   useEffect(() => {
     if (renamingChild && renameInputRef.current) {
@@ -48,15 +58,9 @@ export function SubContextBar({ context }: SubContextBarProps) {
       setRenamingChild(null);
       return;
     }
-    try {
-      const childPath = `${context.path}/${oldName}`;
-      await api.renameContext(doc.sigil.root_path, childPath, trimmed);
-      await reload(doc.sigil.root_path);
-      setRenamingChild(null);
-    } catch (err) {
-      console.error("Rename failed:", err);
-      setRenamingChild(null);
-    }
+    const childPath = `${context.path}/${oldName}`;
+    await actions.renameContext(childPath, oldName, trimmed, actionDeps);
+    setRenamingChild(null);
   };
 
   const handleDelete = async (childName: string) => {
@@ -65,12 +69,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
     if (!await confirm(`Delete "${childName}" and all its contents? This cannot be undone.`)) {
       return;
     }
-    try {
-      await api.deleteContext(childPath);
-      await reload(doc.sigil.root_path);
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
+    await actions.deleteSigil(childPath, actionDeps);
   };
 
   return (

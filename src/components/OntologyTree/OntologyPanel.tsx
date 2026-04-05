@@ -14,7 +14,7 @@ export function OntologyPanel() {
   const doc = useDocument();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
 
-  const committedWidth = state.ui.leftPanelWidth;
+  const committedWidth = state.ui.ontologyPanelWidth;
   const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
@@ -27,7 +27,7 @@ export function OntologyPanel() {
   const handleResizeEnd = useCallback(() => {
     setDragWidth((prev) => {
       if (prev !== null) {
-        dispatch({ type: "SET_UI", ui: { leftPanelWidth: prev } });
+        dispatch({ type: "SET_UI", ui: { ontologyPanelWidth: prev } });
       }
       return null;
     });
@@ -35,12 +35,12 @@ export function OntologyPanel() {
 
   if (!doc) return null;
 
-  if (!doc.leftPanelOpen) {
+  if (!doc.ontologyPanelOpen) {
     return (
       <div
         className={styles.collapsed}
         onClick={() =>
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelOpen: true } })
+          dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelOpen: true } })
         }
       >
         <span className={styles.collapseIcon}>&rsaquo;</span>
@@ -54,17 +54,17 @@ export function OntologyPanel() {
         <div className={styles.header}>
           <div className={styles.tabs}>
             <button
-              className={`${styles.tab} ${doc.leftPanelTab === "vision" ? styles.active : ""}`}
+              className={`${styles.tab} ${doc.ontologyPanelTab === "vision" ? styles.active : ""}`}
               onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "vision" } })
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "vision" } })
               }
             >
               Vision
             </button>
             <button
-              className={`${styles.tab} ${doc.leftPanelTab === "ontology" ? styles.active : ""}`}
+              className={`${styles.tab} ${doc.ontologyPanelTab === "ontology" ? styles.active : ""}`}
               onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelTab: "ontology" } })
+                dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelTab: "ontology" } })
               }
             >
               Ontology
@@ -73,7 +73,7 @@ export function OntologyPanel() {
           <button
             className={styles.collapseBtn}
             onClick={() =>
-              dispatch({ type: "UPDATE_DOCUMENT", updates: { leftPanelOpen: false } })
+              dispatch({ type: "UPDATE_DOCUMENT", updates: { ontologyPanelOpen: false } })
             }
           >
             &lsaquo;
@@ -81,8 +81,8 @@ export function OntologyPanel() {
         </div>
 
         <div className={styles.content}>
-          {doc.leftPanelTab === "vision" && <VisionEditor />}
-          {doc.leftPanelTab === "ontology" && <OntologyTree />}
+          {doc.ontologyPanelTab === "vision" && <VisionEditor />}
+          {doc.ontologyPanelTab === "ontology" && <OntologyTree />}
         </div>
       </div>
       <ResizeHandle side="right" onResize={handleResize} onResizeEnd={handleResizeEnd} />

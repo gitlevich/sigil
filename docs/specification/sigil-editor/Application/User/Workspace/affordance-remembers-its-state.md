@@ -1,1 +1,1 @@
-across @sessions of this workspace
+across @functional@sessions of this workspace

@@ -3,6 +3,8 @@ import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, tooltips } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { api, Context } from "../../tauri";
+import * as actions from "../../actions/workspace";
+import type { ActionDeps } from "../../actions/workspace";
 import {
   SiblingInfo,
   buildSiblingHighlighter,
@@ -54,7 +56,6 @@ interface SigilPropertyEditorProps {
   namePlaceholder: string;
   contentPlaceholder: string;
   items: { name: string; content: string }[];
-  onReload: () => Promise<void>;
   // Context for autocomplete / highlighting
   siblings?: SiblingInfo[];
   siblingNames?: string[];
@@ -68,6 +69,7 @@ interface SigilPropertyEditorProps {
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   keybindings?: Record<string, string>;
+  actionDeps?: ActionDeps;
 }
 
 function CollapsedChips({ items, refPrefix, color }: { items: LocalItem[]; refPrefix: string; color: string }) {
@@ -457,7 +459,6 @@ export function SigilPropertyEditor({
   namePlaceholder,
   contentPlaceholder,
   items: externalItems,
-  onReload,
   siblings,
   siblingNames,
   sigilRoot,
@@ -470,6 +471,7 @@ export function SigilPropertyEditor({
   onNavigateToSigil,
   onNavigateToAbsPath,
   keybindings = {},
+  actionDeps,
 }: SigilPropertyEditorProps) {
   const [items, setItems] = useState<LocalItem[]>([]);
   const [collapsed, setCollapsed] = useState(true);
@@ -534,13 +536,15 @@ export function SigilPropertyEditor({
   }, [sigilPath, externalKey]);
 
   const saveOrder = useCallback((ordered: LocalItem[]) => {
+    if (!actionDeps) return;
     const names = ordered.map((i) => i.savedName).filter(Boolean);
-    api.writeFile(orderPath, JSON.stringify(names)).catch(console.error);
-  }, [orderPath]);
+    actions.savePropertyOrder(sigilPath, filePrefix, names, actionDeps);
+  }, [sigilPath, filePrefix, actionDeps]);
 
   const saveFold = useCallback((folded: Set<string>) => {
-    api.writeFile(foldPath, JSON.stringify([...folded])).catch(console.error);
-  }, [foldPath]);
+    if (!actionDeps) return;
+    actions.savePropertyFold(sigilPath, filePrefix, [...folded], actionDeps);
+  }, [sigilPath, filePrefix, actionDeps]);
 
   const toggleItemFold = useCallback((savedName: string) => {
     setFoldedItems((prev) => {
@@ -562,11 +566,12 @@ export function SigilPropertyEditor({
   }, [items, foldedItems, saveFold]);
 
   const scheduleSave = useCallback((name: string, content: string) => {
+    if (!actionDeps) return;
     clearTimeout(saveTimers.current[name]);
     saveTimers.current[name] = setTimeout(() => {
-      api.writeFile(`${sigilPath}/${filePrefix}-${name}.md`, content).catch(console.error);
+      actions.savePropertyContent(sigilPath, filePrefix, name, content, actionDeps);
     }, 400);
-  }, [sigilPath, filePrefix]);
+  }, [sigilPath, filePrefix, actionDeps]);
 
   const handleContentChange = useCallback((savedName: string, content: string) => {
     setItems((prev) => prev.map((a) => a.savedName === savedName ? { ...a, content } : a));
@@ -574,14 +579,12 @@ export function SigilPropertyEditor({
   }, [scheduleSave]);
 
   const handleNameCommit = useCallback(async (savedName: string, newName: string) => {
+    if (!actionDeps) return;
     const slugged = slugify(newName);
     if (!slugged) return;
     const item = items.find((a) => a.savedName === savedName);
     if (!item) return;
-    if (savedName) {
-      await api.deleteFile(`${sigilPath}/${filePrefix}-${savedName}.md`).catch(console.error);
-    }
-    await api.writeFile(`${sigilPath}/${filePrefix}-${slugged}.md`, item.content).catch(console.error);
+    await actions.commitPropertyName(sigilPath, filePrefix, savedName, slugged, item.content, actionDeps);
     setItems((prev) => {
       const updated = prev.map((a) => a.savedName === savedName ? { ...a, id: slugged, savedName: slugged, name: slugged } : a);
       saveOrder(updated);
@@ -595,12 +598,11 @@ export function SigilPropertyEditor({
       saveFold(next);
       return next;
     });
-    await onReload();
-  }, [items, sigilPath, filePrefix, onReload, saveOrder, saveFold]);
+  }, [items, sigilPath, filePrefix, actionDeps, saveOrder, saveFold]);
 
   const handleDelete = useCallback(async (savedName: string) => {
-    if (savedName) {
-      await api.deleteFile(`${sigilPath}/${filePrefix}-${savedName}.md`).catch(console.error);
+    if (savedName && actionDeps) {
+      await actions.deleteProperty(sigilPath, filePrefix, savedName, actionDeps);
     }
     setItems((prev) => {
       const updated = prev.filter((a) => a.savedName !== savedName);
@@ -615,9 +617,8 @@ export function SigilPropertyEditor({
         saveFold(next);
         return next;
       });
-      await onReload();
     }
-  }, [sigilPath, filePrefix, onReload, saveOrder, saveFold]);
+  }, [sigilPath, filePrefix, actionDeps, saveOrder, saveFold]);
 
   const handleAdd = useCallback(() => {
     setItems((prev) => [...prev, { id: `new-${Date.now()}`, savedName: "", name: "", content: "" }]);

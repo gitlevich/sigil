@@ -14,7 +14,7 @@ status: implemented
 
 This is where I live, narrating in comfort. This @sigil is mostly occupied by my attention. Sometimes @DesignPartner comes over to @DesignPartner#chat.
 
-As I type, @OntologyTree on the left shows me the emerging structure. 
+As I type, @OntologyTree on the left shows me the emerging structure. Underneath, I see @ImportedOntologies as the set of ontologies like @AttentionLanguage that we offer with the @application. It fulfills @workspace!imported-ontology-in-scope invariant.
 
 @Atlas is in another way to see the structure, from above. It's a tree map that flattens the @sigil tree into a 2D plane. 
 

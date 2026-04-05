@@ -61,10 +61,10 @@ export function App({ initialRootPath }: AppProps) {
 
           await openDocument(saved.rootPath, {
             currentPath: saved.currentPath || [],
-            leftPanelOpen: saved.leftPanelOpen,
-            leftPanelTab: saved.leftPanelTab === "ontology" ? "ontology" : "vision",
-            rightPanelOpen: saved.rightPanelOpen,
-            rightPanelTab: saved.rightPanelTab === "memories" ? "memories" : "chat",
+            ontologyPanelOpen: saved.ontologyPanelOpen,
+            ontologyPanelTab: saved.ontologyPanelTab === "ontology" ? "ontology" : "vision",
+            designPartnerPanelOpen: saved.designPartnerPanelOpen,
+            designPartnerPanelTab: saved.designPartnerPanelTab === "memories" ? "memories" : "chat",
             editorMode: saved.editorMode,
             contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
             activeChatId: saved.activeChatId ?? "",
