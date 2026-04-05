@@ -91,22 +91,22 @@ export function MarkdownPreview({
         components={{
           ...(pattern
             ? {
-                p: ({ children, ...props }: Record<string, unknown>) => (
-                  <p {...(props as React.HTMLAttributes<HTMLParagraphElement>)}>
+                p: ({ children, ...props }) => (
+                  <p {...props}>
                     {highlightChildStrings(children as React.ReactNode, pattern, lookup, onNavigate)}
                   </p>
                 ),
-                li: ({ children, ...props }: Record<string, unknown>) => (
-                  <li {...(props as React.HTMLAttributes<HTMLLIElement>)}>
+                li: ({ children, ...props }) => (
+                  <li {...props}>
                     {highlightChildStrings(children as React.ReactNode, pattern, lookup, onNavigate)}
                   </li>
                 ),
               }
             : {}),
-          img: ({ src, alt, width, ...props }: Record<string, unknown>) => {
+          img: ({ src, alt, width, ...props }) => {
             const style: React.CSSProperties = { maxWidth: "100%", height: "auto", borderRadius: 4 };
             if (width) style.width = typeof width === "number" ? `${width}px` : String(width);
-            return <img src={src as string} alt={(alt as string) ?? ""} style={style} {...(props as React.ImgHTMLAttributes<HTMLImageElement>)} />;
+            return <img src={src} alt={alt ?? ""} style={style} {...props} />;
           },
         }}
       >
