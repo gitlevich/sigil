@@ -42,11 +42,11 @@ function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
   return e.key.toLowerCase() === keyChar;
 }
 
-function findContext(root: Context, path: string[]): Context {
+function findContext(root: Context, path: string[]): Context | null {
   let current = root;
   for (const segment of path) {
     const child = current.children.find((c) => c.name === segment);
-    if (!child) return current;
+    if (!child) return null;
     current = child;
   }
   return current;
@@ -75,6 +75,7 @@ function buildLexicalScope(
   const refs: { name: string; summary: string; kind: "contained" | "sibling"; absolutePath: string[] }[] = [];
   const seen = new Set<string>();
   const currentCtx = findContext(root, currentPath);
+  if (!currentCtx) return refs;
 
   const add = (name: string, ctx: Context, kind: "contained" | "sibling", absolutePath: string[]) => {
     if (!seen.has(name)) {
@@ -94,6 +95,7 @@ function buildLexicalScope(
     const levelCtx = findContext(root, levelPath);
     const parentPath = levelPath.slice(0, -1);
     const parentCtx = findContext(root, parentPath);
+    if (!levelCtx || !parentCtx) break;
 
     // The ancestor at this level is reachable by name
     add(levelCtx.name, levelCtx, "sibling", levelPath);
@@ -177,7 +179,7 @@ export function Workspace() {
         if (!cm) {
           e.preventDefault();
           const ctx = findContext(doc.sigil.root, doc.currentPath);
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
+          if (ctx) dispatch({ type: "UPDATE_DOCUMENT", updates: { findReferencesName: ctx.name } });
         }
         return;
       }
@@ -236,41 +238,47 @@ export function Workspace() {
   const handleCreateSigil = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     await actions.createSigil(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameStatus = useCallback(async (_oldValue: string, newValue: string) => {
     if (!doc || !newValue.trim()) return;
     const currentCtx = findContext(doc.sigil.root, doc.currentPath);
+    if (!currentCtx) return;
     await actions.updateStatus(currentCtx, newValue, actionDeps);
   }, [doc, actionDeps]);
 
   const handleCreateAffordance = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     await actions.createAffordance(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleCreateInvariant = useCallback(async (name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     await actions.createInvariant(ctx, name, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameProperty = useCallback(async (kind: "affordance" | "invariant", oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     await actions.renameProperty(ctx, kind, oldName, newName, actionDeps);
   }, [doc, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     let target = ctx.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     if (!target && doc.currentPath.length > 0) {
       const parentPath = doc.currentPath.slice(0, -1);
       const parent = findContext(doc.sigil.root, parentPath);
-      target = parent.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
+      target = parent?.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
     }
     if (target) {
       await actions.renameSigil(target.path, newName, actionDeps);
@@ -280,6 +288,7 @@ export function Workspace() {
   const handleNavigateToSigil = useCallback((name: string) => {
     if (!doc) return;
     const ctx = findContext(doc.sigil.root, doc.currentPath);
+    if (!ctx) return;
     // Check if it's a contained sigil (resolving plurals)
     const containedNames = ctx.children.map((c) => c.name);
     const resolvedContained = resolveRefName(name, containedNames);
@@ -291,7 +300,7 @@ export function Workspace() {
     if (doc.currentPath.length > 0) {
       const parentPath = doc.currentPath.slice(0, -1);
       const parent = findContext(doc.sigil.root, parentPath);
-      const neighborNames = parent.children.filter((c) => c.name !== ctx.name).map((c) => c.name);
+      const neighborNames = parent ? parent.children.filter((c) => c.name !== ctx.name).map((c) => c.name) : [];
       const resolvedNeighbor = resolveRefName(name, neighborNames);
       if (resolvedNeighbor) {
         dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [...parentPath, resolvedNeighbor] } });
@@ -342,7 +351,15 @@ export function Workspace() {
   const isImportedPath = doc.currentPath[0] === "Imported Ontologies" && doc.sigil.imported_ontologies;
   const resolveRoot = isImportedPath ? doc.sigil.imported_ontologies! : doc.sigil.root;
   const resolvePath = isImportedPath ? doc.currentPath.slice(1) : doc.currentPath;
-  const currentCtx = findContext(resolveRoot, resolvePath);
+  const resolvedCtx = findContext(resolveRoot, resolvePath);
+
+  // Stale currentPath (e.g. from wrong workspace state) — reset to root
+  if (!resolvedCtx) {
+    dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: [] } });
+    return null;
+  }
+
+  const currentCtx = resolvedCtx;
   const breadcrumbs = isImportedPath
     ? [{ name: "Imported Ontologies", path: ["Imported Ontologies"] }, ...buildBreadcrumb(resolveRoot, resolvePath)]
     : buildBreadcrumb(doc.sigil.root, doc.currentPath);

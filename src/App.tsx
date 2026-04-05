@@ -45,11 +45,8 @@ export function App({ initialRootPath }: AppProps) {
       const pendingPath = await api.takePendingOpenPath().catch(() => null);
       const startPath = initialRootPath || pendingPath;
 
-      // Restore last session state (used for both explicit and implicit opens)
-      const saved = await getPersistedDocState();
-
-      const restoreOverrides = (rootPath: string) => {
-        if (!saved || saved.rootPath !== rootPath) return {};
+      const buildOverrides = (saved: Awaited<ReturnType<typeof getPersistedDocState>>) => {
+        if (!saved) return {};
         return {
           currentPath: saved.currentPath || [],
           ontologyPanelOpen: saved.ontologyPanelOpen,
@@ -65,13 +62,16 @@ export function App({ initialRootPath }: AppProps) {
 
       if (startPath) {
         try {
-          await openDocument(startPath, restoreOverrides(startPath));
+          const saved = await getPersistedDocState(startPath);
+          await openDocument(startPath, buildOverrides(saved));
         } catch {
           dispatch({ type: "CLEAR_DOCUMENT" });
         }
         return;
       }
 
+      // No explicit path — resume last active workspace
+      const saved = await getPersistedDocState();
       if (saved?.rootPath) {
         try {
           const chatMessages = saved.activeChatId
@@ -79,7 +79,7 @@ export function App({ initialRootPath }: AppProps) {
             : [];
 
           await openDocument(saved.rootPath, {
-            ...restoreOverrides(saved.rootPath),
+            ...buildOverrides(saved),
             activeChatId: saved.activeChatId ?? "",
             chatMessages,
           });

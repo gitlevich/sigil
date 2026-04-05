@@ -1,17 +1,24 @@
 ---
-status: external-ontology
+status: implemented
 ---
 
-# Attention Language
+# Application
 
-The mechanics of @attention as experienced from a first-person point of view at a given @scale. Both @timelike and @spacelike.
+**NOTE: this is still work in progress**
 
-Here the exact semantics are lexical: @sigils are nested scopes over domain language. Imported @DifferentialGeometry gives names to the shape of those scopes in experience — simultaneous structure, sequential articulation, reachability, and projection.
+**Sigil** is an tool to help me speak an application I am envisioning into a specification that a coding agent will project into beautifully written code.
 
-@Attention is the given. Its @fixedPoint is the origin — the "I am" that persists under all transformation of scope. I am an @observer: attention paid from a point of view, attending to the @frame (@DifferentialGeometry@spacelike). I am an @agent: an observer wearing a @sigil, attending to a @narrative (@DifferentialGeometry@timelike).
+I #state-my-vision in @Vision. I want it to be one click away as a counter-measure to shiny things that distract me. To refocus.
 
-I @collapse @observations one @frame at a time into a @narrative — compressing @DifferentialGeometry@spacelike experience into a @DifferentialGeometry@timelike trajectory. The @resolution of the collapse is bounded by finite @attention.
+I #name-affordances: what should the app do for me. I try to find words that communicate my intent. It's ok if I can't find a good name: it will emerge later. And, I can always ask my @DesignPartner for naming advice.
 
-I inhabit a @sigil that protects my attention by defining self as the region of @contrastSpace where my @preferences over the @invariants I care about hold.
+I #narrate how these @affordances work to let the right words emerge. As I type, I #notice-emergent-ontology — some words feel important. Using a word in a sentence makes it meaning clearer.
 
-I can attend to what's inside my @sigil, outside it, or both. @SigilEngineering is the practice of converting lived experience to @sigils.
+To fix the meaning, I define a word. To avoid overwhelm, I let myself enter the concept the word stands for, at the next level of abstraction down. I leet the word fill my @frame and describe what I see. If the words I use for description still feel imprecise, I repeat. Turtles all the way down, until at the last level of abstraction the words are unambiguous. Then I stop.
+
+I call this structure a @sigil: the boundary of a lexical scope, contained in a lexical scope, containing lexical scopes. Think of it as a tree in which each node contains its children, and no root.
+
+It allows me to do these things in the @Editor.
+
+I am the @User.
+

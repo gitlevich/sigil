@@ -190,22 +190,31 @@ export function useSettingsPersistence() {
     }
     prevDoc.current = doc;
 
+    const rootPath = doc.sigil.root_path;
+    const stateToSave: PersistedDocState = {
+      rootPath,
+      currentPath: doc.currentPath,
+      ontologyPanelOpen: doc.ontologyPanelOpen,
+      ontologyPanelTab: doc.ontologyPanelTab,
+      designPartnerPanelOpen: doc.designPartnerPanelOpen,
+      designPartnerPanelTab: doc.designPartnerPanelTab,
+      editorMode: doc.editorMode,
+      contentTab: doc.contentTab,
+      activeChatId: doc.activeChatId,
+      wordWrap: doc.wordWrap,
+      collapsedPaths: doc.collapsedPaths,
+    };
     (async () => {
       try {
         const store = await load(STORE_FILE);
-        await store.set("doc_state", {
-          rootPath: doc.sigil.root_path,
-          currentPath: doc.currentPath,
-          ontologyPanelOpen: doc.ontologyPanelOpen,
-          ontologyPanelTab: doc.ontologyPanelTab,
-          designPartnerPanelOpen: doc.designPartnerPanelOpen,
-          designPartnerPanelTab: doc.designPartnerPanelTab,
-          editorMode: doc.editorMode,
-          contentTab: doc.contentTab,
-          activeChatId: doc.activeChatId,
-          wordWrap: doc.wordWrap,
-          collapsedPaths: doc.collapsedPaths,
-        } as PersistedDocState);
+        // Persist per-workspace so multiple windows don't clobber each other
+        const allStates = await store.get<Record<string, PersistedDocState>>("doc_states") ?? {};
+        allStates[rootPath] = stateToSave;
+        await store.set("doc_states", allStates);
+        // Track the most recently active workspace for session resume
+        await store.set("last_active_root", rootPath);
+        // Migrate: remove old singleton key
+        await store.delete("doc_state");
         await store.save();
       } catch (err) {
         console.error("Failed to save doc state:", err);
@@ -214,12 +223,22 @@ export function useSettingsPersistence() {
   }, [state.document]);
 }
 
-export async function getPersistedDocState(): Promise<PersistedDocState | null> {
+export async function getPersistedDocState(forRootPath?: string): Promise<PersistedDocState | null> {
   try {
     const store = await load(STORE_FILE);
+
+    // Try new per-workspace store first
+    const allStates = await store.get<Record<string, PersistedDocState>>("doc_states");
+    if (allStates) {
+      const lookupPath = forRootPath || (await store.get<string>("last_active_root"));
+      if (lookupPath && allStates[lookupPath]) {
+        return allStates[lookupPath];
+      }
+    }
+
+    // Fall back to old singleton for migration
     const raw = await store.get<Record<string, unknown>>("doc_state");
     if (!raw) return null;
-    // Migrate old field names from pre-rename persistence
     return {
       rootPath: (raw.rootPath as string) ?? "",
       currentPath: (raw.currentPath as string[]) ?? [],
