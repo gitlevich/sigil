@@ -14,4 +14,3 @@ I #re-read it to make sure I do not get distracted by irrelevant shiny things. O
 
 I #update it as my @vision evolves.
 
-I access it in my @Workspace through the @VisionPanel.

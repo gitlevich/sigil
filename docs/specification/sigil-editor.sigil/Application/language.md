@@ -24,3 +24,5 @@ I call this structure a @sigil: the boundary of a lexical scope, contained in a 
 
 I am the @User.
 
+
+oh, and !vision-tab-opened-on-first-run, and !state-restored-to-saved on subsequent runs. On exit, we insist that !state-saved-on-exit
