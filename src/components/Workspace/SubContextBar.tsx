@@ -93,7 +93,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
           <div
             key={child.name}
             className={styles.box}
-            onDoubleClick={() => handleNavigate(child.name)}
+            onClick={() => handleNavigate(child.name)}
             onContextMenu={(e) => {
               e.preventDefault();
               setContextMenu({ x: e.clientX, y: e.clientY, childName: child.name });

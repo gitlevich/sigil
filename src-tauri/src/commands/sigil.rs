@@ -83,7 +83,8 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
                     }
                 }
             } else if path.is_dir() {
-                if path.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with('.')).unwrap_or(true) {
+                let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if dir_name.starts_with('.') || dir_name == "Libs" {
                     continue;
                 }
                 if is_context_dir(&path) {
