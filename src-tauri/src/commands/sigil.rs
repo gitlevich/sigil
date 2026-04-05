@@ -265,8 +265,9 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Sigil, String> {
 pub fn create_context(parent_path: String, name: String) -> Result<Context, String> {
     let parent = Path::new(&parent_path);
 
-    // 5-child limit applies to all user-created contexts.
-    {
+    // 5-child limit applies only outside imported ontologies (Libs).
+    let in_libs = parent.components().any(|c| c.as_os_str() == "Libs");
+    if !in_libs {
         let existing_dirs: Vec<_> = fs::read_dir(parent)
             .map_err(|e| e.to_string())?
             .filter_map(|e| e.ok())
@@ -550,9 +551,10 @@ pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> R
         return Err("Target parent does not exist".to_string());
     }
 
-    // Imported ontologies (outside root_path) are exempt from the 5-child limit.
+    // Imported ontologies are exempt from the 5-child limit.
     let root = Path::new(&root_path);
-    let under_imported = !new_parent.starts_with(root);
+    let under_imported = !new_parent.starts_with(root)
+        || new_parent.components().any(|c| c.as_os_str() == "Libs");
 
     // Check 5-sigil limit at destination
     if !under_imported {
