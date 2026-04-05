@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use regex::Regex;
 use tauri::{AppHandle, Manager};
+use crate::commands::workspace_lock::WorkspaceLock;
 use crate::models::sigil::{Context, Invariant, Sigil};
 
 /// Returns the path to the domain language file in a context directory.
@@ -98,6 +99,12 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
 
 #[tauri::command]
 pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
+    let lock_state = app.state::<WorkspaceLock>();
+    // Release any previous workspace lock before acquiring a new one
+    super::workspace_lock::release(&lock_state);
+    let lock_file = super::workspace_lock::acquire(&root_path)?;
+    lock_state.0.lock().expect("WorkspaceLock mutex poisoned").replace(lock_file);
+
     let libs_path = app.path().resource_dir()
         .ok()
         .map(|res| res.join("Libs"))

@@ -8,7 +8,7 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
-import { api } from "./tauri";
+import { api, events } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { Workspace } from "./components/Workspace/Workspace";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -32,6 +32,18 @@ export function App({ initialRootPath }: AppProps) {
   useUpdater();
   useFontZoom();
   useSelectAll();
+
+  // Listen for Finder double-click on .sigil folders (macOS RunEvent::Opened)
+  useEffect(() => {
+    const unlisten = events.onOpenSigil(async (path) => {
+      try {
+        await openDocument(path);
+      } catch (e) {
+        console.error("Failed to open sigil from Finder:", e);
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, [openDocument]);
 
   useEffect(() => {
     if (opened.current) return;

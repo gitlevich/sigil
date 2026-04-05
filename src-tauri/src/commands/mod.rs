@@ -5,3 +5,4 @@ pub mod documents;
 pub mod export;
 pub mod tools;
 pub mod watcher;
+pub mod workspace_lock;

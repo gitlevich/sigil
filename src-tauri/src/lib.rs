@@ -3,7 +3,9 @@ mod models;
 pub mod memory;
 
 use commands::watcher::WatcherState;
+use commands::workspace_lock::WorkspaceLock;
 use std::sync::{Arc, Mutex};
+use tauri::Emitter;
 
 /// Lazily-initialized memory state. Opened on first use when sigil root is known.
 pub struct MemoryHandle(pub Arc<tokio::sync::Mutex<Option<memory::MemoryState>>>);
@@ -25,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
+        .manage(WorkspaceLock(Mutex::new(None)))
         .manage(memory_handle)
         .manage(SleepSender(sleep_tx))
         .invoke_handler(tauri::generate_handler![
@@ -60,8 +63,20 @@ pub fn run() {
             commands::export::export_sigil,
             commands::watcher::watch_directory,
             commands::watcher::stop_watching,
+            commands::workspace_lock::close_workspace,
         ])
         .manage(SleepRx(Arc::new(tokio::sync::Mutex::new(Some(sleep_rx)))))
-        .run(tauri::generate_context!())
-        .expect("error while running Sigil");
+        .build(tauri::generate_context!())
+        .expect("error while building Sigil")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = event {
+                for url in urls {
+                    if let Ok(path) = url.to_file_path() {
+                        let path_str = path.to_string_lossy().to_string();
+                        let _ = app.emit("open-sigil", path_str);
+                    }
+                }
+            }
+        });
 }

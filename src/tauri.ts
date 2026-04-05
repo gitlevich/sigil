@@ -148,6 +148,9 @@ export const api = {
   readSigil: (rootPath: string) =>
     invoke<Sigil>("read_sigil", { rootPath }),
 
+  closeWorkspace: () =>
+    invoke<void>("close_workspace"),
+
   readFile: (path: string) =>
     invoke<string>("read_file", { path }),
 
@@ -257,6 +260,9 @@ export const events = {
 
   onSigilChanged: (handler: () => void): Promise<UnlistenFn> =>
     listen("sigil-changed", () => handler()),
+
+  onOpenSigil: (handler: (path: string) => void): Promise<UnlistenFn> =>
+    listen<string>("open-sigil", (event) => handler(event.payload)),
 
   onNavigateTo: (handler: (sigilPath: string) => void): Promise<UnlistenFn> =>
     listen<string>("navigate-to", (event) => handler(event.payload)),

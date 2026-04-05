@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, message } from "@tauri-apps/plugin-dialog";
 import { api, RecentDocument } from "../../tauri";
 import { useSigil } from "../../hooks/useSigil";
 import { useAppDispatch } from "../../state/AppContext";
@@ -25,22 +25,28 @@ export function DocumentPicker() {
     await api.writeFile(`${rootPath}/vision.md`, "");
     await api.writeFile(`${rootPath}/language.md`, "");
     // Open in the current window (this is the picker window)
-    await openDocument(rootPath);
+    try {
+      await openDocument(rootPath);
+    } catch (err) {
+      await message(String(err), { title: "Cannot open workspace", kind: "error" });
+    }
   };
 
   const handleOpen = async () => {
     const selected = await open({ directory: true, title: "Open sigil root directory" });
     if (!selected) return;
-    // Open in the current window
-    await openDocument(selected as string);
+    try {
+      await openDocument(selected as string);
+    } catch (err) {
+      await message(String(err), { title: "Cannot open workspace", kind: "error" });
+    }
   };
 
   const handleOpenRecent = async (path: string) => {
     try {
-      // Open in the current window
       await openDocument(path);
     } catch (err) {
-      console.error("Failed to open recent:", err);
+      await message(String(err), { title: "Cannot open workspace", kind: "error" });
     }
   };
 

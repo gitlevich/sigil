@@ -37,6 +37,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["sigil"],
+        "exportedType": {
+          "identifier": "com.sigilengineering.package",
+          "conformsTo": ["com.apple.package"]
+        },
+        "rank": "Owner"
+      }
+    ],
     "macOS": {
       "signingIdentity": null,
       "providerShortName": null
