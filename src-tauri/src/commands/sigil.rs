@@ -1,7 +1,8 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use regex::Regex;
 use tauri::{AppHandle, Manager};
+use tauri::path::BaseDirectory;
 use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
 use crate::models::sigil::{Context, Invariant, Sigil};
@@ -104,6 +105,10 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
     })
 }
 
+fn bundled_libs(app: &AppHandle) -> Option<PathBuf> {
+    app.path().resolve("Libs", BaseDirectory::Resource).ok().filter(|p| p.exists())
+}
+
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| format!("Failed to create {}: {e}", dst.display()))?;
     for entry in fs::read_dir(src).map_err(|e| format!("Failed to read {}: {e}", src.display()))? {
@@ -129,7 +134,7 @@ pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
     fs::write(root.join("language.md"), "").map_err(|e| e.to_string())?;
 
     // Copy bundled Libs as a template
-    if let Some(libs_src) = app.path().resource_dir().ok().map(|r| r.join("Libs")).filter(|p| p.exists()) {
+    if let Some(libs_src) = bundled_libs(&app) {
         let libs_dst = root.join("Libs");
         copy_dir_recursive(&libs_src, &libs_dst)?;
     }
@@ -142,10 +147,7 @@ pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
 pub fn check_imported_ontologies(app: AppHandle, root_path: String) -> Result<Vec<OntologyStatus>, String> {
     let root = Path::new(&root_path);
     let libs_dst = root.join("Libs");
-    let libs_src = app.path().resource_dir()
-        .ok()
-        .map(|r| r.join("Libs"))
-        .filter(|p| p.exists())
+    let libs_src = bundled_libs(&app)
         .ok_or("Bundled ontology library not found.")?;
 
     let mut statuses = Vec::new();
@@ -188,10 +190,7 @@ fn dir_contents_differ(a: &Path, b: &Path) -> bool {
 pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>, overwrite: bool) -> Result<(), String> {
     let root = Path::new(&root_path);
     let libs_dst = root.join("Libs");
-    let libs_src = app.path().resource_dir()
-        .ok()
-        .map(|r| r.join("Libs"))
-        .filter(|p| p.exists())
+    let libs_src = bundled_libs(&app)
         .ok_or("Bundled ontology library not found.")?;
 
     // Ensure Libs dir exists and has the scaffolding files
