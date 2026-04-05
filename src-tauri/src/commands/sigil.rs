@@ -3,7 +3,14 @@ use std::path::Path;
 use regex::Regex;
 use tauri::{AppHandle, Manager};
 use crate::commands::workspace_lock::WorkspaceLock;
+use serde::Serialize;
 use crate::models::sigil::{Context, Invariant, Sigil};
+
+#[derive(Serialize)]
+pub struct OntologyStatus {
+    pub name: String,
+    pub status: String, // "new", "modified", "current"
+}
 
 /// Returns the path to the domain language file in a context directory.
 /// Prefers language.md but falls back to spec.md for backward compatibility.
@@ -127,6 +134,89 @@ pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
         copy_dir_recursive(&libs_src, &libs_dst)?;
     }
 
+    Ok(())
+}
+
+/// Check which bundled ontologies need installing/updating.
+#[tauri::command]
+pub fn check_imported_ontologies(app: AppHandle, root_path: String) -> Result<Vec<OntologyStatus>, String> {
+    let root = Path::new(&root_path);
+    let libs_dst = root.join("Libs");
+    let libs_src = app.path().resource_dir()
+        .ok()
+        .map(|r| r.join("Libs"))
+        .filter(|p| p.exists())
+        .ok_or("Bundled ontology library not found.")?;
+
+    let mut statuses = Vec::new();
+    for entry in fs::read_dir(&libs_src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if !entry.path().is_dir() { continue; }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let local = libs_dst.join(&name);
+        let status = if !local.exists() {
+            "new"
+        } else if dir_contents_differ(&entry.path(), &local) {
+            "modified"
+        } else {
+            "current"
+        };
+        statuses.push(OntologyStatus { name, status: status.to_string() });
+    }
+    Ok(statuses)
+}
+
+fn dir_contents_differ(a: &Path, b: &Path) -> bool {
+    let read_files = |dir: &Path| -> Vec<(String, Vec<u8>)> {
+        let mut files = Vec::new();
+        for e in walkdir::WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
+            if e.file_type().is_file() {
+                let rel = e.path().strip_prefix(dir).unwrap_or(e.path()).to_string_lossy().to_string();
+                if let Ok(content) = fs::read(e.path()) {
+                    files.push((rel, content));
+                }
+            }
+        }
+        files.sort_by(|a, b| a.0.cmp(&b.0));
+        files
+    };
+    read_files(a) != read_files(b)
+}
+
+/// Install specific ontologies from the bundled Libs.
+#[tauri::command]
+pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>, overwrite: bool) -> Result<(), String> {
+    let root = Path::new(&root_path);
+    let libs_dst = root.join("Libs");
+    let libs_src = app.path().resource_dir()
+        .ok()
+        .map(|r| r.join("Libs"))
+        .filter(|p| p.exists())
+        .ok_or("Bundled ontology library not found.")?;
+
+    // Ensure Libs dir exists and has the scaffolding files
+    if !libs_dst.exists() {
+        fs::create_dir_all(&libs_dst).map_err(|e| e.to_string())?;
+        // Copy top-level files from bundled Libs (language.md, affordances, invariants)
+        for entry in fs::read_dir(&libs_src).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if entry.path().is_file() {
+                fs::copy(entry.path(), libs_dst.join(entry.file_name())).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    for name in &names {
+        let src = libs_src.join(name);
+        let dst = libs_dst.join(name);
+        if !src.exists() { continue; }
+        if dst.exists() && overwrite {
+            fs::remove_dir_all(&dst).map_err(|e| e.to_string())?;
+        }
+        if !dst.exists() {
+            copy_dir_recursive(&src, &dst)?;
+        }
+    }
     Ok(())
 }
 

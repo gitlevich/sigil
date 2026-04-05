@@ -3,7 +3,7 @@ import { Menu } from "@tauri-apps/api/menu/menu";
 import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
 import { api, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -118,6 +118,54 @@ async function buildMenu(
     },
   });
 
+  const installOntologiesItem = await MenuItem.new({
+    text: "Install Imported Ontologies...",
+    action: async () => {
+      const doc = getDoc();
+      if (!doc) return;
+      try {
+        const statuses = await api.checkImportedOntologies(doc.sigil.root_path);
+        const newOnes = statuses.filter(s => s.status === "new").map(s => s.name);
+        const modified = statuses.filter(s => s.status === "modified").map(s => s.name);
+        const current = statuses.filter(s => s.status === "current");
+
+        if (newOnes.length === 0 && modified.length === 0) {
+          await message("All imported ontologies are up to date.", { title: "Imported Ontologies" });
+          return;
+        }
+
+        // Install new ones automatically
+        if (newOnes.length > 0) {
+          await api.installOntologies(doc.sigil.root_path, newOnes, false);
+        }
+
+        // Ask about modified ones
+        for (const name of modified) {
+          const overwrite = await ask(
+            `"${name}" has been modified locally. Replace with the bundled version?`,
+            { title: "Imported Ontologies", kind: "warning", okLabel: "Replace", cancelLabel: "Keep" },
+          );
+          if (overwrite) {
+            await api.installOntologies(doc.sigil.root_path, [name], true);
+          }
+        }
+
+        const installed = newOnes.length;
+        const replaced = modified.length;
+        const parts = [];
+        if (installed > 0) parts.push(`${installed} installed`);
+        if (replaced > 0) parts.push(`${replaced} checked`);
+        if (current.length > 0) parts.push(`${current.length} up to date`);
+        await message(parts.join(", ") + ".", { title: "Imported Ontologies" });
+
+        // Trigger a sigil reload by emitting a no-op update
+        dispatch({ type: "UPDATE_DOCUMENT", updates: {} });
+      } catch (err) {
+        await message(String(err), { title: "Error", kind: "error" });
+      }
+    },
+  });
+
   const fileSubmenu = await Submenu.new({
     text: "File",
     items: [
@@ -126,6 +174,7 @@ async function buildMenu(
       await PredefinedMenuItem.new({ item: "Separator" }),
       recentSubmenu,
       await PredefinedMenuItem.new({ item: "Separator" }),
+      installOntologiesItem,
       exportItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       closeItem,

@@ -154,6 +154,12 @@ export const api = {
   scaffoldSigil: (rootPath: string) =>
     invoke<void>("scaffold_sigil", { rootPath }),
 
+  checkImportedOntologies: (rootPath: string) =>
+    invoke<{ name: string; status: string }[]>("check_imported_ontologies", { rootPath }),
+
+  installOntologies: (rootPath: string, names: string[], overwrite: boolean) =>
+    invoke<void>("install_ontologies", { rootPath, names, overwrite }),
+
   takePendingOpenPath: () =>
     invoke<string | null>("take_pending_open_path"),
 

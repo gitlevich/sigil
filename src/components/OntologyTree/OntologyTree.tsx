@@ -155,7 +155,6 @@ function OntologyItem({
   const hasChildren = node.children.length > 0;
   const isActive = pathsEqual(currentPath, node.path);
   const forceExpand = search.length > 0 && node.children.some((c) => nodeMatches(c, search));
-  const isRoot = node.path.length === 0;
   const expanded = !collapsedPaths.has(pathKey(node.path));
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
