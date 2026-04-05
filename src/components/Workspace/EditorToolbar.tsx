@@ -1,4 +1,5 @@
-import { useAppDispatch, useDocument, useAppState } from "../../state/AppContext";
+import { useAppState } from "../../state/AppContext";
+import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
 import { DEFAULT_KEYBINDINGS, toDisplayShortcut } from "../../tauri";
 import styles from "./EditorToolbar.module.css";
 
@@ -34,60 +35,58 @@ const WrapIcon = () => (
 );
 
 export function EditorToolbar() {
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
-  const state = useAppState();
-  if (!doc) return null;
+  const appState = useAppState();
+  const narrating = useNarratingState();
+  const narratingDispatch = useNarratingDispatch();
 
-  const contentTab = doc.contentTab || "language";
-  const kb = state.settings.keybindings || DEFAULT_KEYBINDINGS;
+  const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
   const ds = (key: keyof typeof kb) => toDisplayShortcut(kb[key]);
 
   const setMode = (mode: "edit" | "split" | "preview") => {
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { editorMode: mode } });
+    narratingDispatch({ type: "SET_EDITOR_MODE", mode });
   };
 
   const toggleWrap = () => {
-    dispatch({ type: "UPDATE_DOCUMENT", updates: { wordWrap: !doc.wordWrap } });
+    narratingDispatch({ type: "SET_WORD_WRAP", wrap: !narrating.wordWrap });
   };
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.contentTabs}>
         <button
-          className={`${styles.contentTab} ${contentTab === "language" ? styles.contentTabActive : ""}`}
-          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "language" } })}
+          className={`${styles.contentTab} ${narrating.contentTab === "language" ? styles.contentTabActive : ""}`}
+          onClick={() => narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" })}
           title="Language"
         >
           Language
         </button>
         <button
-          className={`${styles.contentTab} ${contentTab === "atlas" ? styles.contentTabActive : ""}`}
-          onClick={() => dispatch({ type: "UPDATE_DOCUMENT", updates: { contentTab: "atlas" } })}
+          className={`${styles.contentTab} ${narrating.contentTab === "atlas" ? styles.contentTabActive : ""}`}
+          onClick={() => narratingDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" })}
           title={`Atlas — treemap of context structure (${ds("facet-map")})`}
         >
           Atlas
         </button>
       </div>
 
-      {contentTab !== "atlas" && (
+      {narrating.contentTab !== "atlas" && (
         <div className={styles.viewModes}>
           <button
-            className={`${styles.modeBtn} ${doc.editorMode === "edit" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${narrating.editorMode === "edit" ? styles.active : ""}`}
             onClick={() => setMode("edit")}
             title="Markup source"
           >
             <MarkupIcon />
           </button>
           <button
-            className={`${styles.modeBtn} ${doc.editorMode === "split" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${narrating.editorMode === "split" ? styles.active : ""}`}
             onClick={() => setMode("split")}
             title="Side-by-side markup and preview"
           >
             <SplitIcon />
           </button>
           <button
-            className={`${styles.modeBtn} ${doc.editorMode === "preview" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${narrating.editorMode === "preview" ? styles.active : ""}`}
             onClick={() => setMode("preview")}
             title="Rendered preview"
           >
@@ -95,7 +94,7 @@ export function EditorToolbar() {
           </button>
           <span className={styles.separator} />
           <button
-            className={`${styles.modeBtn} ${doc.wordWrap ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${narrating.wordWrap ? styles.active : ""}`}
             onClick={toggleWrap}
             title={`Toggle word wrap (${ds("toggle-word-wrap")})`}
           >

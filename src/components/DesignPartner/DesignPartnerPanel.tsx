@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { useAppState, useAppDispatch, useDocument } from "../../state/AppContext";
+import { useAppState, useAppDispatch } from "../../state/AppContext";
+import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
 import { ChatPanel } from "./ChatPanel";
 import { MemoriesPanel } from "./MemoriesPanel";
 import { ResizeHandle } from "../shared/ResizeHandle";
@@ -9,12 +10,13 @@ const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
 
 export function DesignPartnerPanel() {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
+  const appState = useAppState();
+  const appDispatch = useAppDispatch();
+  const narrating = useNarratingState();
+  const narratingDispatch = useNarratingDispatch();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
 
-  const committedWidth = state.ui.designPartnerPanelWidth;
+  const committedWidth = appState.ui.designPartnerPanelWidth;
   const width = dragWidth ?? committedWidth;
 
   const handleResize = useCallback((delta: number) => {
@@ -27,28 +29,24 @@ export function DesignPartnerPanel() {
   const handleResizeEnd = useCallback(() => {
     setDragWidth((prev) => {
       if (prev !== null) {
-        dispatch({ type: "SET_UI", ui: { designPartnerPanelWidth: prev } });
+        appDispatch({ type: "SET_UI", ui: { designPartnerPanelWidth: prev } });
       }
       return null;
     });
-  }, [dispatch]);
+  }, [appDispatch]);
 
-  if (!doc) return null;
-
-  if (!doc.designPartnerPanelOpen) {
+  if (!narrating.designPartnerPanelOpen) {
     return (
       <div
         className={styles.collapsed}
-        onClick={() =>
-          dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelOpen: true } })
-        }
+        onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true })}
       >
         <span className={styles.collapseIcon}>&lsaquo;</span>
       </div>
     );
   }
 
-  const tab = doc.designPartnerPanelTab ?? "chat";
+  const tab = narrating.designPartnerPanelTab;
 
   return (
     <>
@@ -58,26 +56,20 @@ export function DesignPartnerPanel() {
           <div className={styles.tabs}>
             <button
               className={`${styles.tab} ${tab === "chat" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelTab: "chat" } })
-              }
+              onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "chat" })}
             >
               Chat
             </button>
             <button
               className={`${styles.tab} ${tab === "memories" ? styles.active : ""}`}
-              onClick={() =>
-                dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelTab: "memories" } })
-              }
+              onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "memories" })}
             >
               Memories
             </button>
           </div>
           <button
             className={styles.collapseBtn}
-            onClick={() =>
-              dispatch({ type: "UPDATE_DOCUMENT", updates: { designPartnerPanelOpen: false } })
-            }
+            onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: false })}
           >
             &rsaquo;
           </button>

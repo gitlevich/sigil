@@ -14,7 +14,7 @@ import { api, SigilFolder } from "../tauri";
 
 export interface ActionDeps {
   rootPath: string;
-  reload: (rootPath: string) => Promise<unknown>;
+  reload: (rootPath?: string) => Promise<unknown>;
   addToast: (message: string, type?: "error" | "info") => void;
 }
 

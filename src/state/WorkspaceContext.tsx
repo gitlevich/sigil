@@ -11,7 +11,6 @@ import { createContext, useContext, useReducer, useCallback, useMemo, ReactNode,
 import { ApplicationSpec, SigilFolder, api } from "../tauri";
 import { findContext } from "sigil-core";
 import type { Sigil } from "sigil-core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export interface WorkspaceState {
   spec: ApplicationSpec;

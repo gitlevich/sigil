@@ -1,34 +1,30 @@
 import { useState, useEffect, useMemo } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { useDocument, useAppDispatch } from "../../state/AppContext";
-import { api, Context } from "../../tauri";
-import { useSigil } from "../../hooks/useSigil";
+import {
+  useWorkspaceState, useWorkspaceActions, resolveCurrentFolder,
+} from "../../state/WorkspaceContext";
+import { api, SigilFolder } from "../../tauri";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
-import { findContext as coreFindContext, buildPath, type Context as CoreContext } from "sigil-core";
+import { buildPath, type Context as CoreContext } from "sigil-core";
 import { Atlas as AtlasView } from "sigil-core/react/Atlas";
 import styles from "./Atlas.module.css";
 
-function findContext(root: Context, path: string[]): Context {
-  return coreFindContext(root, path) as Context;
-}
-
 export function Atlas() {
-  const doc = useDocument();
-  const dispatch = useAppDispatch();
-  const { reload } = useSigil();
+  const ws = useWorkspaceState();
+  const { navigate, reload } = useWorkspaceActions();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
-  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; ctx: Context } | null>(null);
+  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; ctx: SigilFolder } | null>(null);
 
-  const currentCtx = doc ? findContext(doc.sigil.root, doc.currentPath) : null;
+  const currentFolder = resolveCurrentFolder(ws);
 
   useEffect(() => {
     if (!nodeMenu) return;
@@ -38,29 +34,28 @@ export function Atlas() {
   }, [nodeMenu]);
 
   const handleNavigate = (ctx: CoreContext) => {
-    if (!doc) return;
-    const path = buildPath(doc.sigil.root, ctx.name, []);
+    const path = buildPath(ws.spec.root, ctx.name, []);
     if (path) {
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: path } });
+      navigate(path);
     }
   };
 
-  const handleEscape = doc && doc.currentPath.length > 1
-    ? () => dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: doc.currentPath.slice(0, -1) } })
+  const handleEscape = ws.currentPath.length > 1
+    ? () => navigate(ws.currentPath.slice(0, -1))
     : undefined;
 
-  if (!doc || !currentCtx) return null;
+  if (!currentFolder) return null;
 
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
 
   return (
     <div className={styles.container}>
       <AtlasView
-        children={currentCtx.children}
+        children={currentFolder.children}
         dark={dark}
         onNavigate={handleNavigate}
         onEscape={handleEscape}
-        onContextMenu={(e, ctx) => setNodeMenu({ x: e.clientX, y: e.clientY, ctx: ctx as unknown as Context })}
+        onContextMenu={(e, ctx) => setNodeMenu({ x: e.clientX, y: e.clientY, ctx: ctx as unknown as SigilFolder })}
         instructions="Double-click to enter a sigil. Right-click for options."
         revealedStorageKey="sigil-map-revealed"
       />

@@ -149,10 +149,7 @@ export function Workspace() {
 
   const actionDeps: ActionDeps = useMemo(() => ({
     rootPath: ws.spec.rootPath,
-    reload: async (rootPath: string) => {
-      const spec = await reload();
-      return spec;
-    },
+    reload: async () => { await reload(); },
     addToast,
   }), [ws.spec.rootPath, reload, addToast]);
 

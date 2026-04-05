@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import { useDocument } from "../../state/AppContext";
+import { useWorkspaceState } from "../../state/WorkspaceContext";
 import { api, MemoryGraph } from "../../tauri";
 import styles from "./MemoriesPanel.module.css";
 
@@ -26,7 +26,7 @@ type DetailItem =
   | { kind: "edge"; link: GraphLink };
 
 export function MemoriesPanel() {
-  const doc = useDocument();
+  const ws = useWorkspaceState();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], links: [] });
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,9 +34,8 @@ export function MemoriesPanel() {
   const [dimensions, setDimensions] = useState({ width: 300, height: 400 });
 
   const loadGraph = useCallback(async () => {
-    if (!doc) return;
     try {
-      const data: MemoryGraph = await api.readMemories(doc.sigil.root_path);
+      const data: MemoryGraph = await api.readMemories(ws.spec.rootPath);
       setGraph({
         nodes: data.nodes.map((n) => ({ ...n })),
         links: data.edges.map((e) => ({ source: e.source, target: e.target, label: e.label })),
@@ -44,7 +43,7 @@ export function MemoriesPanel() {
     } catch (e) {
       console.error("Failed to load memories:", e);
     }
-  }, [doc?.sigil.root_path]);
+  }, [ws.spec.rootPath]);
 
   useEffect(() => {
     loadGraph();
@@ -77,8 +76,6 @@ export function MemoriesPanel() {
   const textColor = dark ? "#ffffff" : "#111111";
   const labelBg = dark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
 
-  if (!doc) return null;
-
   const detailHeight = detail ? 140 : 0;
 
   const lastClickTime = useRef(0);
@@ -94,11 +91,9 @@ export function MemoriesPanel() {
     lastClickNode.current = node.id;
 
     if (isDoubleClick && graphRef.current) {
-      // Double-click: zoom into node
       graphRef.current.centerAt(node.x, node.y, 400);
       graphRef.current.zoom(3, 400);
     } else {
-      // Single click: show detail
       setDetail({ kind: "node", node: node as GraphNode });
     }
   };

@@ -50,24 +50,9 @@ export function useChatStream() {
       conversingDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
-    const unlistenSigilChanged = events.onSigilChanged(() => {
-      const ws = workspaceRef.current;
-      api.readSigil(ws.spec.rootPath)
-        .then((spec) => {
-          // Workspace reload is handled by the workspace layer
-        })
-        .catch(console.error);
-    });
-
-    const unlistenNavigate = events.onNavigateTo((sigilPath: string) => {
-      const ws = workspaceRef.current;
-      const rootPath = ws.spec.rootPath;
-      if (sigilPath.startsWith(rootPath)) {
-        const relative = sigilPath.slice(rootPath.length).replace(/^\//, "");
-        const segments = relative ? relative.split("/") : [];
-        // Navigation is handled by the workspace layer
-      }
-    });
+    // Sigil changes and navigation are handled by the workspace layer
+    const unlistenSigilChanged = events.onSigilChanged(() => {});
+    const unlistenNavigate = events.onNavigateTo(() => {});
 
     const unlistenEnd = events.onChatStreamEnd(() => {
       const ws = workspaceRef.current;

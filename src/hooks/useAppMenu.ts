@@ -4,7 +4,7 @@ import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
-import { api, ApplicationSpec, SigilFolder, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
+import { api, SigilFolder, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WorkspaceState } from "../state/WorkspaceContext";

@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { Context } from "../../tauri";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
-import { useSigil } from "../../hooks/useSigil";
+import { SigilFolder } from "../../tauri";
+import {
+  useWorkspaceState, useWorkspaceActions,
+} from "../../state/WorkspaceContext";
+import { useNarratingDispatch } from "../../state/NarratingContext";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import styles from "./SubContextBar.module.css";
 
 interface SubContextBarProps {
-  context: Context;
+  context: SigilFolder;
 }
 
 export function SubContextBar({ context }: SubContextBarProps) {
@@ -17,16 +19,16 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const [renameValue, setRenameValue] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; childName: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const dispatch = useAppDispatch();
-  const { reload } = useSigil();
-  const doc = useDocument();
+  const ws = useWorkspaceState();
+  const { navigate, reload } = useWorkspaceActions();
+  const narratingDispatch = useNarratingDispatch();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: doc?.sigil.root_path ?? "",
-    reload,
+    rootPath: ws.spec.rootPath,
+    reload: async () => { await reload(); },
     addToast,
-  }), [doc?.sigil.root_path, reload, addToast]);
+  }), [ws.spec.rootPath, reload, addToast]);
 
   useEffect(() => {
     if (renamingChild && renameInputRef.current) {
@@ -44,15 +46,11 @@ export function SubContextBar({ context }: SubContextBarProps) {
   }, [contextMenu]);
 
   const handleNavigate = (childName: string) => {
-    if (!doc) return;
-    dispatch({
-      type: "UPDATE_DOCUMENT",
-      updates: { currentPath: [...doc.currentPath, childName], contentTab: "language" },
-    });
+    navigate([...ws.currentPath, childName]);
+    narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
   };
 
   const handleRename = async (oldName: string) => {
-    if (!doc) return;
     const trimmed = renameValue.trim();
     if (!trimmed || trimmed === oldName) {
       setRenamingChild(null);
@@ -64,7 +62,6 @@ export function SubContextBar({ context }: SubContextBarProps) {
   };
 
   const handleDelete = async (childName: string) => {
-    if (!doc) return;
     const childPath = `${context.path}/${childName}`;
     if (!await confirm(`Delete "${childName}" and all its contents? This cannot be undone.`)) {
       return;
@@ -103,7 +100,6 @@ export function SubContextBar({ context }: SubContextBarProps) {
           </div>
         )
       ))}
-
 
       {contextMenu && (
         <div

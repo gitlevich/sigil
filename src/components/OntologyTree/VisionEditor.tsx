@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
-import { useAppDispatch, useDocument } from "../../state/AppContext";
+import { useWorkspaceState, useWorkspaceDispatch } from "../../state/WorkspaceContext";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
@@ -31,8 +31,8 @@ function buildVisionHighlighter() {
 }
 
 export function VisionEditor() {
-  const dispatch = useAppDispatch();
-  const doc = useDocument();
+  const ws = useWorkspaceState();
+  const wsDispatch = useWorkspaceDispatch();
   const { save } = useAutoSave();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,12 +40,11 @@ export function VisionEditor() {
   const onChangeRef = useRef<(value: string) => void>(() => {});
 
   const handleChange = (value: string) => {
-    if (!doc) return;
-    const path = `${doc.sigil.root_path}/vision.md`;
+    const path = `${ws.spec.rootPath}/vision.md`;
     save(path, value);
-    dispatch({
-      type: "UPDATE_SIGIL",
-      sigil: { ...doc.sigil, vision: value },
+    wsDispatch({
+      type: "UPDATE_SPEC",
+      spec: { ...ws.spec, vision: value },
     });
   };
 
@@ -56,7 +55,7 @@ export function VisionEditor() {
     if (!containerRef.current) return;
 
     const state = EditorState.create({
-      doc: doc?.sigil.vision ?? "",
+      doc: ws.spec.vision ?? "",
       extensions: [
         highlightActiveLine(),
         history(),
@@ -110,25 +109,23 @@ export function VisionEditor() {
   // Sync external content (e.g. navigation to different sigil)
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || !doc) return;
+    if (!view) return;
     const current = view.state.doc.toString();
-    const incoming = doc.sigil.vision;
+    const incoming = ws.spec.vision;
     if (current !== incoming) {
       view.dispatch({
         changes: { from: 0, to: current.length, insert: incoming },
         annotations: [Transaction.addToHistory.of(false)],
       });
     }
-  }, [doc?.sigil.vision]);
+  }, [ws.spec.vision]);
 
   // Refresh sigil reference highlighting when context changes
   useEffect(() => {
     viewRef.current?.dispatch({
       effects: siblingCompartment.reconfigure(buildVisionHighlighter()),
     });
-  }, [doc?.sigil]);
-
-  if (!doc) return null;
+  }, [ws.spec]);
 
   return (
     <div className={styles.container}>
@@ -155,8 +152,8 @@ export function VisionEditor() {
         />
         {mode === "preview" && (
           <div className={styles.previewArea}>
-            {doc.sigil.vision ? (
-              <MarkdownPreview content={doc.sigil.vision} />
+            {ws.spec.vision ? (
+              <MarkdownPreview content={ws.spec.vision} />
             ) : (
               <p className={styles.placeholder}>
                 No vision statement yet. Switch to Edit to write one.

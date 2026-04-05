@@ -32,11 +32,11 @@ function makeContext(overrides?: Partial<Context>): Context {
   return {
     name: "TestSigil",
     path: "/mock/root/TestSigil",
-    domain_language: "# TestSigil\n\nSome content with #old-affordance reference.",
+    language: "# TestSigil\n\nSome content with #old-affordance reference.",
     children: [],
     affordances: [],
     invariants: [],
-    is_imported: false,
+    isImported: false,
     ...overrides,
   } as Context;
 }
@@ -57,7 +57,7 @@ describe("createSigil", () => {
 
   it("creates context and writes language.md on success", async () => {
     const deps = makeDeps();
-    const ctx = makeContext({ domain_language: "---\nstatus: implemented\n---\n# Test" });
+    const ctx = makeContext({ language: "---\nstatus: implemented\n---\n# Test" });
     await actions.createSigil(ctx, "NewChild", deps);
     expect(api.createContext).toHaveBeenCalledWith(ctx.path, "NewChild");
     expect(api.writeFile).toHaveBeenCalledWith(
@@ -69,7 +69,7 @@ describe("createSigil", () => {
 
   it("inherits idea status when parent has no status", async () => {
     const deps = makeDeps();
-    const ctx = makeContext({ domain_language: "# No frontmatter" });
+    const ctx = makeContext({ language: "# No frontmatter" });
     await actions.createSigil(ctx, "Child", deps);
     expect(api.writeFile).toHaveBeenCalledWith(
       "/mock/new-context/language.md",
@@ -199,7 +199,7 @@ describe("renameProperty", () => {
     vi.mocked(api.readFile).mockResolvedValueOnce("old content");
     const deps = makeDeps();
     const ctx = makeContext({
-      domain_language: "I need #old-affordance and #other.",
+      language: "I need #old-affordance and #other.",
     });
     await actions.renameProperty(ctx, "affordance", "old-affordance", "new-affordance", deps);
 
@@ -217,7 +217,7 @@ describe("renameProperty", () => {
   it("skips language.md write when no refs changed", async () => {
     vi.mocked(api.readFile).mockResolvedValueOnce("");
     const deps = makeDeps();
-    const ctx = makeContext({ domain_language: "No references here." });
+    const ctx = makeContext({ language: "No references here." });
     await actions.renameProperty(ctx, "invariant", "old", "new", deps);
 
     // writeFile called for the new invariant file, but NOT for language.md
@@ -266,7 +266,7 @@ describe("updateStatus", () => {
   it("updates status in frontmatter", async () => {
     const deps = makeDeps();
     const ctx = makeContext({
-      domain_language: "---\nstatus: idea\n---\n# Test",
+      language: "---\nstatus: idea\n---\n# Test",
       children: [],
     });
     await actions.updateStatus(ctx, "implemented", deps);
@@ -281,11 +281,11 @@ describe("updateStatus", () => {
     const child = makeContext({
       name: "Child",
       path: "/mock/root/TestSigil/Child",
-      domain_language: "---\nstatus: idea\n---\n# Child",
+      language: "---\nstatus: idea\n---\n# Child",
       children: [],
     });
     const ctx = makeContext({
-      domain_language: "---\nstatus: idea\n---\n# Parent",
+      language: "---\nstatus: idea\n---\n# Parent",
       children: [child],
     });
     await actions.updateStatus(ctx, "implemented", deps);
