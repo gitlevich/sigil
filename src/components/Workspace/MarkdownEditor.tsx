@@ -9,7 +9,6 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
-import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
 import { Context, api, events } from "../../tauri";
 import { fromDashForm } from "sigil-core";
 import {
@@ -38,23 +37,6 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp"]);
 function isImageFile(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_EXTENSIONS.has(ext);
-}
-
-async function insertImagesFromPaths(paths: string[], view: EditorView, sigilDir: string): Promise<void> {
-  const images = paths.filter((p) => isImageFile(p));
-  if (images.length === 0) return;
-  const assetsDir = `${sigilDir}/assets`;
-  const insertions: string[] = [];
-  for (const path of images) {
-    const filename = await api.copyImage(path, assetsDir);
-    insertions.push(`![](assets/${filename})`);
-  }
-  const text = insertions.join("\n") + "\n";
-  const pos = view.state.selection.main.head;
-  view.dispatch({
-    changes: { from: pos, insert: text },
-    selection: { anchor: pos + text.length },
-  });
 }
 
 async function insertImagesFromClipboard(files: FileList, view: EditorView, sigilDir: string): Promise<void> {
@@ -507,19 +489,28 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     return () => observer.disconnect();
   }, []);
 
-  // Listen for Tauri drag-drop events (OS file drops)
+  // Handle image drops (OS file drops via HTML5 drag-and-drop)
   useEffect(() => {
-    const unlisten = getCurrentWebview().onDragDropEvent((event: { payload: DragDropEvent }) => {
-      if (event.payload.type !== "drop") return;
+    const el = containerRef.current;
+    if (!el) return;
+    const handleDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+    };
+    const handleDrop = (e: DragEvent) => {
+      const files = e.dataTransfer?.files;
       const view = viewRef.current;
       const dir = sigilDirRef.current;
-      if (!view || !dir) return;
-      const paths = event.payload.paths;
-      if (paths.some((p) => isImageFile(p))) {
-        insertImagesFromPaths(paths, view, dir);
-      }
-    });
-    return () => { unlisten.then((fn: () => void) => fn()); };
+      if (!files || files.length === 0 || !view || !dir) return;
+      if (!Array.from(files).some((f) => isImageFile(f.name))) return;
+      e.preventDefault();
+      insertImagesFromClipboard(files, view, dir);
+    };
+    el.addEventListener("dragover", handleDragOver);
+    el.addEventListener("drop", handleDrop);
+    return () => {
+      el.removeEventListener("dragover", handleDragOver);
+      el.removeEventListener("drop", handleDrop);
+    };
   }, []);
 
   // Listen for select-text and replace-selected-text events from AI tools

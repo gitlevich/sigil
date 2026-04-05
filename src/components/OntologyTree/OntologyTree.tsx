@@ -159,7 +159,7 @@ function OntologyItem({
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
-  const atLimit = node.children.length >= 5;
+  const atLimit = !node.is_imported && node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {

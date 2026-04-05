@@ -2,8 +2,4 @@
 status: idea
 ---
 
-# Sigil Editor
-
-A tool for specifying an imagined application to the precision a coding agent needs to project it into working code.
-
-Contains one @Application and imported ontologies.
+This is the top of my sigil specification for the @application I want to write, a @sigil editor. 
