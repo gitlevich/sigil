@@ -159,7 +159,7 @@ function OntologyItem({
   const expanded = !collapsedPaths.has(pathKey(node.path));
   const [defOpen, setDefOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
-  const open = isRoot || forceExpand || expanded;
+  const open = forceExpand || expanded;
   const atLimit = !node.is_imported && node.children.length >= 5;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
