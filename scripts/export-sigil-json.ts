@@ -4,7 +4,7 @@
  * Usage: npx tsx scripts/export-sigil-json.ts [sigil-root] [output-path]
  *
  * Defaults:
- *   sigil-root:  docs/specification/sigil-editor
+ *   sigil-root:  docs/specification/sigil-editor.sigil
  *   output-path: site/src/data/sigil-spec.json
  */
 import * as fs from "fs";
@@ -22,7 +22,7 @@ interface Invariant {
 
 interface Context {
   name: string;
-  domain_language: string;
+  language: string;
   affordances: Affordance[];
   invariants: Invariant[];
   children: Context[];
@@ -52,7 +52,7 @@ function isContextDir(dir: string): boolean {
 function readContext(dir: string): Context {
   const name = path.basename(dir);
   const langPath = languageFile(dir);
-  const domain_language = fs.existsSync(langPath)
+  const language = fs.existsSync(langPath)
     ? fs.readFileSync(langPath, "utf-8")
     : "";
 
@@ -91,7 +91,7 @@ function readContext(dir: string): Context {
     return 0;
   });
 
-  return { name, domain_language, affordances, invariants, children };
+  return { name, language, affordances, invariants, children };
 }
 
 const scriptDir = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));
@@ -99,7 +99,7 @@ const repoRoot = path.resolve(scriptDir, "..");
 
 const sigilRoot = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(repoRoot, "docs/specification/sigil-editor");
+  : path.join(repoRoot, "docs/specification/sigil-editor.sigil");
 
 const outputPath = process.argv[3]
   ? path.resolve(process.argv[3])
