@@ -1,88 +1,89 @@
 import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider } from "../tauri";
-import { useAppDispatch, useAppState } from "../state/AppContext";
+import { useAppState } from "../state/AppContext";
+import { useWorkspaceState } from "../state/WorkspaceContext";
+import { useConversingState, useConversingDispatch } from "../state/ConversingContext";
 import { useToast } from "./useToast";
-import { useSigil } from "./useSigil";
 
 export function useChatStream() {
-  const dispatch = useAppDispatch();
-  const state = useAppState();
+  const appState = useAppState();
+  const workspace = useWorkspaceState();
+  const conversing = useConversingState();
+  const conversingDispatch = useConversingDispatch();
   const { addToast } = useToast();
-  const { reload } = useSigil();
   const accumulatorRef = useRef("");
-  const docRef = useRef(state.document);
-  docRef.current = state.document;
+  const workspaceRef = useRef(workspace);
+  const conversingRef = useRef(conversing);
+  workspaceRef.current = workspace;
+  conversingRef.current = conversing;
 
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
       accumulatorRef.current += token;
-      const currentDoc = docRef.current;
-      if (!currentDoc) return;
-      const msgs = [...currentDoc.chatMessages];
+      const conv = conversingRef.current;
+      const msgs = [...conv.chatMessages];
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
         msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
       } else {
         msgs.push({ role: "assistant", content: accumulatorRef.current });
       }
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatMessages: msgs } });
+      conversingDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
     const unlistenError = events.onChatError((error) => {
       addToast(error, "error");
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      conversingDispatch({ type: "SET_STREAMING", streaming: false });
       accumulatorRef.current = "";
     });
 
     const unlistenToolUse = events.onChatToolUse((tool) => {
-      // Show tool use as a system message in the chat
       accumulatorRef.current += `\n\n*Using tool: ${tool.name}*\n`;
-      const currentDoc = docRef.current;
-      if (!currentDoc) return;
-      const msgs = [...currentDoc.chatMessages];
+      const conv = conversingRef.current;
+      const msgs = [...conv.chatMessages];
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
         msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
       } else {
         msgs.push({ role: "assistant", content: accumulatorRef.current });
       }
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatMessages: msgs } });
+      conversingDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
     const unlistenSigilChanged = events.onSigilChanged(() => {
-      const currentDoc = docRef.current;
-      if (currentDoc) {
-        reload(currentDoc.sigil.root_path).catch(console.error);
-      }
+      const ws = workspaceRef.current;
+      api.readSigil(ws.spec.rootPath)
+        .then((spec) => {
+          // Workspace reload is handled by the workspace layer
+        })
+        .catch(console.error);
     });
 
     const unlistenNavigate = events.onNavigateTo((sigilPath: string) => {
-      const currentDoc = docRef.current;
-      if (!currentDoc) return;
-      // Convert absolute path to relative path segments from root
-      const rootPath = currentDoc.sigil.root_path;
+      const ws = workspaceRef.current;
+      const rootPath = ws.spec.rootPath;
       if (sigilPath.startsWith(rootPath)) {
         const relative = sigilPath.slice(rootPath.length).replace(/^\//, "");
         const segments = relative ? relative.split("/") : [];
-        dispatch({ type: "UPDATE_DOCUMENT", updates: { currentPath: segments } });
+        // Navigation is handled by the workspace layer
       }
     });
 
     const unlistenEnd = events.onChatStreamEnd(() => {
-      const finalDoc = docRef.current;
-      if (!finalDoc) return;
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
-      if (finalDoc.activeChatId && accumulatorRef.current) {
-        const msgs = [...finalDoc.chatMessages];
+      const ws = workspaceRef.current;
+      const conv = conversingRef.current;
+      conversingDispatch({ type: "SET_STREAMING", streaming: false });
+      if (conv.activeChatId && accumulatorRef.current) {
+        const msgs = [...conv.chatMessages];
         const lastMsg = msgs[msgs.length - 1];
         if (lastMsg && lastMsg.role === "assistant") {
           msgs[msgs.length - 1] = { ...lastMsg, content: accumulatorRef.current };
         } else {
           msgs.push({ role: "assistant", content: accumulatorRef.current });
         }
-        api.writeChat(finalDoc.sigil.root_path, {
-          id: finalDoc.activeChatId,
-          name: finalDoc.chats.find((c) => c.id === finalDoc.activeChatId)?.name || "Chat",
+        api.writeChat(ws.spec.rootPath, {
+          id: conv.activeChatId,
+          name: conv.chats.find((c) => c.id === conv.activeChatId)?.name || "Chat",
           messages: msgs,
         }).catch(console.error);
       }
@@ -97,67 +98,66 @@ export function useChatStream() {
       unlistenNavigate.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
-  }, [dispatch]);
+  }, [conversingDispatch]);
 
   const sendMessage = useCallback(async (message: string) => {
-    const doc = docRef.current;
-    if (!doc) return;
+    const ws = workspaceRef.current;
+    const conv = conversingRef.current;
 
     // If no active chat, create one
-    let chatId = doc.activeChatId;
+    let chatId = conv.activeChatId;
     if (!chatId) {
       chatId = `chat-${Date.now()}`;
-      const chatName = `Chat ${doc.chats.length + 1}`;
-      const newChats = [...doc.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chats: newChats, activeChatId: chatId } });
+      const chatName = `Chat ${conv.chats.length + 1}`;
+      const newChats = [...conv.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
+      conversingDispatch({ type: "SET_CHATS", chats: newChats });
+      conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: conv.chatMessages });
     }
 
     const newMessages: ChatMessage[] = [
-      ...doc.chatMessages,
+      ...conv.chatMessages,
       { role: "user", content: message },
     ];
 
-    dispatch({
-      type: "UPDATE_DOCUMENT",
-      updates: { chatMessages: newMessages, chatStreaming: true },
-    });
+    conversingDispatch({ type: "SET_MESSAGES", messages: newMessages });
+    conversingDispatch({ type: "SET_STREAMING", streaming: true });
 
-    const chatName = doc.chats.find((c) => c.id === chatId)?.name || `Chat ${doc.chats.length + 1}`;
-    await api.writeChat(doc.sigil.root_path, {
+    const chatName = conv.chats.find((c) => c.id === chatId)?.name || `Chat ${conv.chats.length + 1}`;
+    await api.writeChat(ws.spec.rootPath, {
       id: chatId,
       name: chatName,
       messages: newMessages,
     });
     accumulatorRef.current = "";
 
-    const provider = selectedProvider(state.settings);
+    const provider = selectedProvider(appState.settings);
     if (!provider) {
       addToast("No attention provider enabled. Open Settings to add one.", "error");
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      conversingDispatch({ type: "SET_STREAMING", streaming: false });
       return;
     }
 
-    const stylePrefix = state.settings.response_style === "detailed"
+    const stylePrefix = appState.settings.response_style === "detailed"
       ? ""
       : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
-    const systemPrompt = stylePrefix + state.settings.system_prompt;
+    const systemPrompt = stylePrefix + appState.settings.system_prompt;
 
     try {
       await api.sendChatMessage(
-        doc.sigil.root_path,
+        ws.spec.rootPath,
         chatId,
         message,
         provider,
         systemPrompt,
-        doc.currentPath
+        ws.currentPath
       );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error("Chat error:", errorMsg);
       addToast(errorMsg, "error");
-      dispatch({ type: "UPDATE_DOCUMENT", updates: { chatStreaming: false } });
+      conversingDispatch({ type: "SET_STREAMING", streaming: false });
     }
-  }, [state.settings, dispatch, addToast]);
+  }, [appState.settings, conversingDispatch, addToast]);
 
   return { sendMessage };
 }
