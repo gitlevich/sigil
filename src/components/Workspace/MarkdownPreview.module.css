@@ -112,6 +112,18 @@
   text-decoration: underline;
 }
 
+.sigilImages {
+  margin-bottom: 1rem;
+}
+
+.sigilImage {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
 .imageContainer {
   display: inline-block;
   position: relative;

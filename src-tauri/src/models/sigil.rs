@@ -31,6 +31,8 @@ pub struct Context {
     pub invariants: Vec<Invariant>,
     pub children: Vec<Context>,
     #[serde(default)]
+    pub images: Vec<String>,
+    #[serde(default)]
     pub is_imported: bool,
 }
 

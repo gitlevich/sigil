@@ -8,6 +8,7 @@ export type { Affordance, Invariant };
 export interface Context extends CoreContext {
   path: string;
   children: Context[];
+  images: string[];
 }
 
 export interface Sigil extends CoreSigil {

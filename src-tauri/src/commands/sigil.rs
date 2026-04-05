@@ -36,6 +36,23 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
     let domain_language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
 
+    // Detect image files: image.ext, image-1.ext, image-2.ext, ...
+    let image_extensions = ["jpg", "jpeg", "png", "gif", "svg", "webp"];
+    let mut images = Vec::new();
+    for ext in &image_extensions {
+        let base = dir.join(format!("image.{}", ext));
+        if base.is_file() {
+            images.push(base.to_string_lossy().to_string());
+        }
+        for n in 1..=20 {
+            let numbered = dir.join(format!("image-{}.{}", n, ext));
+            if numbered.is_file() {
+                images.push(numbered.to_string_lossy().to_string());
+            }
+        }
+    }
+    images.sort();
+
     let mut affordances = Vec::new();
     let mut invariants = Vec::new();
     let mut children = Vec::new();
@@ -74,6 +91,7 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<Context, String> {
         affordances,
         invariants,
         children,
+        images,
         is_imported,
     })
 }
@@ -153,6 +171,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<Context, Stri
         affordances: Vec::new(),
         invariants: Vec::new(),
         children: Vec::new(),
+        images: Vec::new(),
         is_imported: false,
     })
 }

@@ -24,6 +24,7 @@ interface MarkdownPreviewProps {
   content: string;
   refs?: Ref[];
   sigilDir?: string;
+  images?: string[];
   onContentChange?: (content: string) => void;
   /** @deprecated Use refs instead */
   siblingNames?: string[];
@@ -109,6 +110,15 @@ function ResizableImage({
   );
 }
 
+function SigilImage({ path }: { path: string }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    api.readImageBase64(path).then(setDataUrl).catch(() => {});
+  }, [path]);
+  if (!dataUrl) return null;
+  return <img src={dataUrl} alt="" className={styles.sigilImage} />;
+}
+
 /** Convert SiblingInfo[] to Ref[] so the shared highlighting can consume them. */
 function siblingsToRefs(siblings: SiblingInfo[]): Ref[] {
   return siblings.map((s) => ({
@@ -120,7 +130,7 @@ function siblingsToRefs(siblings: SiblingInfo[]): Ref[] {
   }));
 }
 
-export function MarkdownPreview({ content, refs: refsProp, sigilDir, onContentChange, siblings = [] }: MarkdownPreviewProps) {
+export function MarkdownPreview({ content, refs: refsProp, sigilDir, images = [], onContentChange, siblings = [] }: MarkdownPreviewProps) {
   const refs = useMemo(
     () => refsProp ?? siblingsToRefs(siblings),
     [refsProp, siblings],
@@ -186,6 +196,13 @@ export function MarkdownPreview({ content, refs: refsProp, sigilDir, onContentCh
 
   return (
     <div className={styles.preview}>
+      {images.length > 0 && (
+        <div className={styles.sigilImages}>
+          {images.map((imgPath) => (
+            <SigilImage key={imgPath} path={imgPath} />
+          ))}
+        </div>
+      )}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
