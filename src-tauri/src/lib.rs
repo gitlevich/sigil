@@ -3,7 +3,7 @@ mod models;
 pub mod memory;
 
 use commands::watcher::WatcherState;
-use commands::workspace_lock::WorkspaceLock;
+use commands::workspace_lock::WorkspaceLocks;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
@@ -52,7 +52,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(Mutex::new(None)))
-        .manage(WorkspaceLock(Mutex::new(None)))
+        .manage(WorkspaceLocks(Mutex::new(std::collections::HashMap::new())))
         .manage(PendingOpenPath(Mutex::new(None)))
         .manage(memory_handle)
         .manage(SleepSender(sleep_tx))
@@ -104,6 +104,13 @@ pub fn run() {
                 for url in urls {
                     if let Ok(path) = url.to_file_path() {
                         let path_str = path.to_string_lossy().to_string();
+                        // Check if this workspace is already open in this process
+                        if let Some(locks) = app.try_state::<WorkspaceLocks>() {
+                            if commands::workspace_lock::is_open(&locks, &path_str) {
+                                continue; // Already open, skip
+                            }
+                        }
+
                         let has_windows = app.webview_windows().len() > 0;
                         if has_windows {
                             // App already running — open a new window

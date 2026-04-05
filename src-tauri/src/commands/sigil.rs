@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use regex::Regex;
 use tauri::{AppHandle, Manager};
-use crate::commands::workspace_lock::WorkspaceLock;
+use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
 use crate::models::sigil::{Context, Invariant, Sigil};
 
@@ -222,11 +222,8 @@ pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>,
 
 #[tauri::command]
 pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Sigil, String> {
-    let lock_state = app.state::<WorkspaceLock>();
-    // Release any previous workspace lock before acquiring a new one
-    super::workspace_lock::release(&lock_state);
-    let lock_file = super::workspace_lock::acquire(&root_path)?;
-    lock_state.0.lock().expect("WorkspaceLock mutex poisoned").replace(lock_file);
+    let locks = app.state::<WorkspaceLocks>();
+    super::workspace_lock::acquire(&locks, &root_path)?;
 
     read_sigil_with_libs(root_path)
 }

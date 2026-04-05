@@ -148,8 +148,8 @@ export const api = {
   readSigil: (rootPath: string) =>
     invoke<Sigil>("read_sigil", { rootPath }),
 
-  closeWorkspace: () =>
-    invoke<void>("close_workspace"),
+  closeWorkspace: (rootPath: string) =>
+    invoke<void>("close_workspace", { rootPath }),
 
   scaffoldSigil: (rootPath: string) =>
     invoke<void>("scaffold_sigil", { rootPath }),
