@@ -19,7 +19,7 @@ When I feel common words can't say it precisely enough, I name a @sigil. A @sigi
 
 When I can't name something easily, I try to sense the shape of the absence. It is usually word-shaped. I can sense it in @contrastspace if I say it in a few different ways. Then I can show attempts to design partner, asking for look at what sits in the middle of centroid. It's usually the right name. 
 
-Once I named 5 @sigils, I ask myself the question
+Once I named 5 @sigils, I ask myself this question:
 
 __Have I described all @affordances with enough @resolution to enable a simple coding agent weave the app, top-down, into a coherent structure?__
 
