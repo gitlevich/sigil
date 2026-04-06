@@ -1447,31 +1447,31 @@ The renames went through correctly. Now update the docs content at the right pat
 
 ### Assistant (17:58 UTC)
 
-*Files: [docs/specification/Sigil/Shaping/Sigil/Signals/language.md](../../docs/specification/Sigil/Shaping/Sigil/Signals/language.md), [docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md](../../docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md)*
+*Files: [docs/specification/Sigil/Shaping/Sigil/Signals/language.md](../../specification.sigil/Sigil/Shaping/Sigil/Signals/language.md), [docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md](../../specification.sigil/Sigil/Distillation/SigilCoherence/Signals/language.md)*
 
 Shaping/Signals is already updated. SigilCoherence/Signals still has old content:
 
 ### Assistant (17:58 UTC)
 
-*Files: [docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md](../../docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md)*
+*Files: [docs/specification/Sigil/Distillation/SigilCoherence/Signals/language.md](../../specification.sigil/Sigil/Distillation/SigilCoherence/Signals/language.md)*
 
 Now the remaining prose files:
 
 ### Assistant (17:59 UTC)
 
-*Files: [docs/specification/Sigil/language.md](../../docs/specification/Sigil/language.md), [docs/specification/Sigil/Shaping/language.md](../../docs/specification/Sigil/Shaping/language.md), [docs/specification/Sigil/Distillation/DesignPartner/language.md](../../docs/specification/Sigil/Distillation/DesignPartner/language.md)*
+*Files: [docs/specification/Sigil/language.md](../../specification.sigil/Sigil/language.md), [docs/specification/Sigil/Shaping/language.md](../../specification.sigil/Sigil/Shaping/language.md), [docs/specification/Sigil/Distillation/DesignPartner/language.md](../../specification.sigil/Sigil/Distillation/DesignPartner/language.md)*
 
 Now update the flat reference file and check for any remaining "contrast" occurrences:
 
 ### Assistant (18:01 UTC)
 
-*Files: [docs/specification/Sigil/language-flat-reference.md](../../docs/specification/Sigil/language-flat-reference.md), [docs/specification/Sigil/glossary.md](../../docs/specification/Sigil/glossary.md), [docs/specification/Sigil/Distillation/SigilCoherence/language.md](../../docs/specification/Sigil/Distillation/SigilCoherence/language.md), [docs/specification/Sigil/Distillation/SigilCoherence/Metrics/SemanticCoherence/language.md](../../docs/specification/Sigil/Distillation/SigilCoherence/Metrics/SemanticCoherence/language.md), [docs/specification/Sigil/Shaping/SpaceLike/Frame/language.md](../../docs/specification/Sigil/Shaping/SpaceLike/Frame/language.md)*
+*Files: [docs/specification/Sigil/language-flat-reference.md](../../specification.sigil/Sigil/language-flat-reference.md), [docs/specification/Sigil/glossary.md](../../specification.sigil/Sigil/glossary.md), [docs/specification/Sigil/Distillation/SigilCoherence/language.md](../../specification.sigil/Sigil/Distillation/SigilCoherence/language.md), [docs/specification/Sigil/Distillation/SigilCoherence/Metrics/SemanticCoherence/language.md](../../specification.sigil/Sigil/Distillation/SigilCoherence/Metrics/SemanticCoherence/language.md), [docs/specification/Sigil/Shaping/SpaceLike/Frame/language.md](../../specification.sigil/Sigil/Shaping/SpaceLike/Frame/language.md)*
 
 Now check the ontology.md file and do a final sweep:
 
 ### Assistant (18:03 UTC)
 
-*Files: [docs/specification/Sigil/ontology.md](../../docs/specification/Sigil/ontology.md), [src/components/Editor/MarkdownEditor.tsx](../../src/components/Editor/MarkdownEditor.tsx)*
+*Files: [docs/specification/Sigil/ontology.md](../../specification.sigil/Sigil/ontology.md), [src/components/Editor/MarkdownEditor.tsx](../../src/components/Editor/MarkdownEditor.tsx)*
 
 Now the "contrast space" in ontology.md — this one is actually a meaningful phrase worth keeping since it's talking about signal/contrast space conceptually. Let me also check that Rust is clean:
 

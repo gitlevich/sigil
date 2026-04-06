@@ -28,7 +28,7 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../docs/specification/sigil-editor.sigil/Libs": "Libs"
+      "../specification.sigil/Libs": "Libs"
     },
     "icon": [
       "icons/32x32.png",

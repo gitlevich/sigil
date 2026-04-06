@@ -151,7 +151,7 @@ You're right. I'm working from a stale session state and an exploration summary 
 
 ### Assistant (00:31 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 Now I see. The language *is* the sigil. There's no "root language" — there's just the language of a sigil. The first paragraph is the vision, the rest is narrative using contained names (@Exploration, @Shaping, @Distillation) and neighbor affordances. "Root language" is a concept I invented that doesn't exist here.
 
@@ -159,7 +159,7 @@ Let me read a few more levels to internalize the pattern properly.
 
 ### Assistant (00:31 UTC)
 
-*Files: [docs/Sigil/Shaping/language.md](../specification/Sigil/Shaping/language.md), [docs/Sigil/Exploration/language.md](../specification/Sigil/Exploration/language.md), [docs/Sigil/Distillation/language.md](../specification/Sigil/Distillation/language.md), [docs/Sigil/Shaping/Containment/language.md](../specification/Sigil/Shaping/Containment/language.md), [docs/Sigil/Shaping/Affordance/language.md](../specification/Sigil/Shaping/Affordance/language.md), [docs/Sigil/Shaping/Neighbor/language.md](../specification/Sigil/Shaping/Neighbor/language.md)*
+*Files: [docs/Sigil/Shaping/language.md](../../specification.sigil/Sigil/Shaping/language.md), [docs/Sigil/Exploration/language.md](../../specification.sigil/Sigil/Exploration/language.md), [docs/Sigil/Distillation/language.md](../../specification.sigil/Sigil/Distillation/language.md), [docs/Sigil/Shaping/Containment/language.md](../../specification.sigil/Sigil/Shaping/Containment/language.md), [docs/Sigil/Shaping/Affordance/language.md](../../specification.sigil/Sigil/Shaping/Affordance/language.md), [docs/Sigil/Shaping/Neighbor/language.md](../../specification.sigil/Sigil/Shaping/Neighbor/language.md)*
 
 Now I have it. Let me revise.
 

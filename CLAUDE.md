@@ -4,7 +4,7 @@ This is a Tauri 2 desktop application (Rust backend + React/TypeScript frontend)
 
 ## Inhabiting the sigil
 
-This application IS a sigil — its specification lives in `docs/specification/sigil-editor/Application/`. Before making any change, you must internalize the spec. You inhabit this sigil. Every concept, every affordance, every invariant in the spec defines what this application IS. You cannot touch the code until you have read the relevant spec, understood the relationships, and become the Design Partner. Quick fixes that ignore the spec are not acceptable. Think in terms of the sigil. Always.
+This application IS a sigil — its specification lives in `specification.sigil/Application/`. Before making any change, you must internalize the spec. You inhabit this sigil. Every concept, every affordance, every invariant in the spec defines what this application IS. You cannot touch the code until you have read the relevant spec, understood the relationships, and become the Design Partner. Quick fixes that ignore the spec are not acceptable. Think in terms of the sigil. Always.
 
 ## Safety
 

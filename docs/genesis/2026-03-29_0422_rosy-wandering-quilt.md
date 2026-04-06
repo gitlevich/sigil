@@ -1977,13 +1977,13 @@ Now let me fix the actual language files. Starting with the root and Definition.
 
 ### Assistant (20:31 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 Now Definition — that one had "directory name on disk" and "stored as language.md".
 
 ### Assistant (20:31 UTC)
 
-*Files: [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md)*
+*Files: [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md)*
 
 Now let me scan all remaining language.md files for machinery leaks.
 
@@ -1993,7 +1993,7 @@ Four hits. Let me fix them.
 
 ### Assistant (20:32 UTC)
 
-*Files: [docs/Sigil/Definition/Affordance/language.md](../specification/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Lifecycle/language.md](../specification/Sigil/Definition/Lifecycle/language.md), [docs/Sigil/Exploration/Navigation/language.md](../specification/Sigil/Exploration/Navigation/language.md)*
+*Files: [docs/Sigil/Definition/Affordance/language.md](../../specification.sigil/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Lifecycle/language.md](../../specification.sigil/Sigil/Definition/Lifecycle/language.md), [docs/Sigil/Exploration/Navigation/language.md](../../specification.sigil/Sigil/Exploration/Navigation/language.md)*
 
 Now let me check Visualization and the Distillation subtree.
 
@@ -2003,13 +2003,13 @@ That one is fine — "implementation" is a lifecycle concept, not machinery. Let
 
 ### Assistant (20:32 UTC)
 
-*Files: [docs/Sigil/Distillation/Partner/language.md](../specification/Sigil/Distillation/Partner/language.md)*
+*Files: [docs/Sigil/Distillation/Partner/language.md](../../specification.sigil/Sigil/Distillation/Partner/language.md)*
 
 Lines 14-16 are straddling the line — "API backend", "API key", "enabled flag" are implementation-adjacent. But providers and chats are domain concepts of the partner relationship, not UI machinery. "API backend" could be cleaner though.
 
 ### Assistant (20:32 UTC)
 
-*Files: [docs/Sigil/Distillation/Partner/language.md](../specification/Sigil/Distillation/Partner/language.md)*
+*Files: [docs/Sigil/Distillation/Partner/language.md](../../specification.sigil/Sigil/Distillation/Partner/language.md)*
 
 Clean. All language files are now free of implementation machinery. The memory is updated so future sessions will catch this pattern before writing it.
 
@@ -2060,19 +2060,19 @@ That's a rough attempt. The point is these are sentences that describe what *unf
 
 ### Assistant (20:39 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 I see you've been editing — there's a gap on line 6 ("sharing that structure with a ."). I'll preserve your edits and just replace the last paragraph with the narrative.
 
 ### Assistant (20:39 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 Done. The last paragraph is now narrative — things that *happen* when you attend to a sigil, not just what exists.
 
 ### Assistant (20:40 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 Vision belongs to the sigil, not to the language. The sigil has a reason to exist; the language expresses what it is.
 
@@ -2082,7 +2082,7 @@ You're right. The vocabulary of a context includes both contained sigils *and* n
 
 ### Assistant (20:42 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 The vocabulary of a sigil's narrative: contained sigil names, their affordances, and neighbor affordances. Complete.
 
@@ -2094,19 +2094,19 @@ Let me fix all references to "sibling" across the spec and add Neighbor as a con
 
 ### Assistant (20:43 UTC)
 
-*Files: [docs/Sigil/Definition/Affordance/language.md](../specification/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Integration/language.md](../specification/Sigil/Definition/Integration/language.md), [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md), [docs/Sigil/Exploration/Navigation/language.md](../specification/Sigil/Exploration/Navigation/language.md), [docs/Sigil/Exploration/language.md](../specification/Sigil/Exploration/language.md), [docs/Sigil/Distillation/Coherence/SemanticCoherence/language.md](../specification/Sigil/Distillation/Coherence/SemanticCoherence/language.md), [docs/Sigil/Distillation/Coherence/StructuralComplexity/language.md](../specification/Sigil/Distillation/Coherence/StructuralComplexity/language.md)*
+*Files: [docs/Sigil/Definition/Affordance/language.md](../../specification.sigil/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Integration/language.md](../../specification.sigil/Sigil/Definition/Integration/language.md), [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md), [docs/Sigil/Exploration/Navigation/language.md](../../specification.sigil/Sigil/Exploration/Navigation/language.md), [docs/Sigil/Exploration/language.md](../../specification.sigil/Sigil/Exploration/language.md), [docs/Sigil/Distillation/Coherence/SemanticCoherence/language.md](../../specification.sigil/Sigil/Distillation/Coherence/SemanticCoherence/language.md), [docs/Sigil/Distillation/Coherence/StructuralComplexity/language.md](../../specification.sigil/Sigil/Distillation/Coherence/StructuralComplexity/language.md)*
 
 Also need to fix "child" in SemanticCoherence — same parent-child problem.
 
 ### Assistant (20:43 UTC)
 
-*Files: [docs/Sigil/Distillation/Coherence/SemanticCoherence/language.md](../specification/Sigil/Distillation/Coherence/SemanticCoherence/language.md)*
+*Files: [docs/Sigil/Distillation/Coherence/SemanticCoherence/language.md](../../specification.sigil/Sigil/Distillation/Coherence/SemanticCoherence/language.md)*
 
 Now Definition has four sub-sigils (Containment, Affordance, Integration, Lifecycle) and room for one more. Neighbor belongs here — it's a concept in the Definition of what a sigil is.
 
 ### Assistant (20:44 UTC)
 
-*Files: [docs/Sigil/Definition/Neighbor/language.md](../specification/Sigil/Definition/Neighbor/language.md)*
+*Files: [docs/Sigil/Definition/Neighbor/language.md](../../specification.sigil/Sigil/Definition/Neighbor/language.md)*
 
 All "sibling" references replaced with "neighbor" across every language file. Neighbor is now a first-class concept under Definition — five sub-sigils: Containment, Affordance, Integration, Lifecycle, Neighbor. At the limit.
 
@@ -2128,13 +2128,13 @@ Quite a few. Let me fix them all.
 
 ### Assistant (20:45 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md), [docs/Sigil/Definition/Affordance/language.md](../specification/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Containment/language.md](../specification/Sigil/Definition/Containment/language.md), [docs/Sigil/Definition/Neighbor/language.md](../specification/Sigil/Definition/Neighbor/language.md), [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md), [docs/Sigil/Exploration/language.md](../specification/Sigil/Exploration/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md), [docs/Sigil/Definition/Affordance/language.md](../../specification.sigil/Sigil/Definition/Affordance/language.md), [docs/Sigil/Definition/Containment/language.md](../../specification.sigil/Sigil/Definition/Containment/language.md), [docs/Sigil/Definition/Neighbor/language.md](../../specification.sigil/Sigil/Definition/Neighbor/language.md), [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md), [docs/Sigil/Exploration/language.md](../../specification.sigil/Sigil/Exploration/language.md)*
 
 Let me verify — any remaining "you" or "we" or "our"?
 
 ### Assistant (20:45 UTC)
 
-*Files: [docs/Sigil/Distillation/Coherence/StructuralComplexity/language.md](../specification/Sigil/Distillation/Coherence/StructuralComplexity/language.md)*
+*Files: [docs/Sigil/Distillation/Coherence/StructuralComplexity/language.md](../../specification.sigil/Sigil/Distillation/Coherence/StructuralComplexity/language.md)*
 
 Clean. All domain language is now first person. Updated the memory too.
 
@@ -2204,7 +2204,7 @@ Pushed. The fix intercepts Cmd+A in the capture phase — before the native menu
 
 ### Assistant (20:56 UTC)
 
-*Files: [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md)*
+*Files: [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md)*
 
 The current text:
 
@@ -2220,7 +2220,7 @@ Definition is the *act* of saying what a sigil is. Its narrative should use its 
 
 ### Assistant (20:56 UTC)
 
-*Files: [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md)*
+*Files: [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md)*
 
 No repetition. The narrative uses all five contained sigil names to describe what happens when I define. The writing method stays as first-person experience, not third-person author advice.
 
@@ -2230,7 +2230,7 @@ Good — Integration is a kind of relationship between neighbors, not a peer con
 
 ### Assistant (20:57 UTC)
 
-*Files: [docs/Sigil/Definition/language.md](../specification/Sigil/Definition/language.md)*
+*Files: [docs/Sigil/Definition/language.md](../../specification.sigil/Sigil/Definition/language.md)*
 
 Now Definition has four sub-sigils: Containment, Affordance, Neighbor (which contains Relationship/Integration), and Lifecycle. Integration is no longer a direct child of Definition — it lives under Neighbor where it belongs.
 
@@ -2392,13 +2392,13 @@ Let me update the spec.
 
 ### Assistant (21:27 UTC)
 
-*Files: [docs/Sigil/Shaping/language.md](../specification/Sigil/Shaping/language.md)*
+*Files: [docs/Sigil/Shaping/language.md](../../specification.sigil/Sigil/Shaping/language.md)*
 
 Now update the root to reference @Shaping instead of @Define.
 
 ### Assistant (21:27 UTC)
 
-*Files: [docs/Sigil/language.md](../specification/Sigil/language.md)*
+*Files: [docs/Sigil/language.md](../../specification.sigil/Sigil/language.md)*
 
 Done. Definition → Shaping everywhere. The narrative captures the generative loop: I speak affordances, I need subjects, I speak sigils into existence to be those subjects. The language creates the structure.
 

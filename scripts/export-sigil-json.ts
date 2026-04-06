@@ -4,7 +4,7 @@
  * Usage: npx tsx scripts/export-sigil-json.ts [sigil-root] [output-path]
  *
  * Defaults:
- *   sigil-root:  docs/specification/sigil-editor.sigil
+ *   sigil-root:  specification.sigil
  *   output-path: site/src/data/sigil-spec.json
  */
 import * as fs from "fs";
@@ -93,7 +93,7 @@ const repoRoot = path.resolve(scriptDir, "..");
 
 const sigilRoot = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(repoRoot, "docs/specification/sigil-editor.sigil");
+  : path.join(repoRoot, "specification.sigil");
 
 const outputPath = process.argv[3]
   ? path.resolve(process.argv[3])

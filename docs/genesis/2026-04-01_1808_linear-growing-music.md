@@ -11,7 +11,7 @@ Found it. Let me look at what's already defined.
 
 ### Assistant (18:09 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Environment/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Organism/language.md)*
 
 Now let me also quickly look at how the existing AttentionLanguage sigils are structured to understand the pattern.
 
@@ -86,13 +86,13 @@ Let me first re-read the existing files to make sure I have the latest content b
 
 ### Assistant (18:11 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Organism/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Environment/language.md)*
 
 Now I'll write all 8 sigils. Updating the 3 existing ones and creating 5 new ones.
 
 ### Assistant (18:12 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Perception/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Perception/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Information/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Information/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Surface/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Surface/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Invariant/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Invariant/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Exploration/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Exploration/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Organism/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Organism/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Environment/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Environment/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Perception/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Perception/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Information/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Information/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Surface/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Surface/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Invariant/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Invariant/language.md), [docs/specification/sigil-editor/Libs/EcologicalPsychology/Exploration/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Exploration/language.md)*
 
 Done. Eight sigils, all cross-referenced with `@` syntax:
 
@@ -111,7 +111,7 @@ Every definition references the other terms as `@Sigil`, and each is written as 
 
 ### Assistant (18:13 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/language.md)*
 
 Done.
 
@@ -200,13 +200,13 @@ Let me read the spec files that need content updates.
 
 ### Assistant (18:55 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Invariant/language.md)*
 
 Now I'll update all the spec files with disposition → invariant content changes.
 
 ### Assistant (18:56 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/InvariantPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md)*
 
 Now let me also check for any remaining "disposition" in the .order files and affordance files inside InvariantPanel.
 
@@ -414,7 +414,7 @@ Also need to fix the reference in the language.md that uses the old misspelled n
 
 ### Assistant (19:08 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/invariant.order](../../docs/specification/sigil-editor/SigilEditor/Editor/invariant.order)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/LanguagePanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/invariant.order](../../specification.sigil/sigil-editor/SigilEditor/Editor/invariant.order)*
 
 Fixed. The filename, the `@Editor!simplcity-of-ux` reference, and the order file all corrected to `simplicity`.
 
@@ -889,7 +889,7 @@ Let me re-read the updated files first.
 
 ### Assistant (20:14 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Observation/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Observation/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Preference/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Preference/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Collapse/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Collapse/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Observer/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Observer/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Observation/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Observation/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Preference/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Preference/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Invariant/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Collapse/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Collapse/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Observer/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Observer/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md)*
 
 OK. Here are my suggested fixes:
 
@@ -925,7 +925,7 @@ Want me to write these into the files?
 
 ### Assistant (20:15 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Invariant/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Invariant/language.md)*
 
 Done.
 
@@ -1009,7 +1009,7 @@ The spec is top-heavy: the root and Editor are well-narrated, but the four major
 
 ### Assistant (20:29 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/language.md](../../docs/specification/sigil-editor/SigilEditor/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/language.md](../../specification.sigil/sigil-editor/SigilEditor/language.md)*
 
 Good — I see the rename from declare-signals to declare-invariants. Let me also check what changed in the affordance file.
 
@@ -1019,7 +1019,7 @@ Now let me fill in the gaps. I'll write the empty/stub sigils that need at minim
 
 ### Assistant (20:30 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md](../../docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md), [docs/specification/sigil-editor/SigilEditor/Atlas/language.md](../../docs/specification/sigil-editor/SigilEditor/Atlas/language.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/ChatPanel/language.md](../../docs/specification/sigil-editor/SigilEditor/DesignPartner/ChatPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/PreviewPanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/PreviewPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/LanguageFile/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/LanguageFile/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/AffordanceFile/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/AffordanceFile/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md](../../specification.sigil/sigil-editor/SigilEditor/OntologyBrowser/language.md), [docs/specification/sigil-editor/SigilEditor/Atlas/language.md](../../specification.sigil/sigil-editor/SigilEditor/Atlas/language.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/ChatPanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/DesignPartner/ChatPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/LanguagePanel/PreviewPanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/LanguagePanel/PreviewPanel/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/LanguageFile/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/LanguageFile/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/AffordanceFile/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/AffordanceFile/language.md), [docs/specification/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/SigilFolder/InvariantFile/language.md)*
 
 Done. Here's what I filled in:
 
@@ -1063,13 +1063,13 @@ So: two new invariants. OntologyBrowser gets !structural-truth, DesignPartner ge
 
 ### Assistant (20:37 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md](../../docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/language.md](../../docs/specification/sigil-editor/SigilEditor/DesignPartner/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/language.md](../../specification.sigil/sigil-editor/SigilEditor/OntologyBrowser/language.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/language.md](../../specification.sigil/sigil-editor/SigilEditor/DesignPartner/language.md)*
 
 Now create the invariant files:
 
 ### Assistant (20:37 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/invariant-structural-truth.md](../../docs/specification/sigil-editor/SigilEditor/OntologyBrowser/invariant-structural-truth.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/invariant-full-context.md](../../docs/specification/sigil-editor/SigilEditor/DesignPartner/invariant-full-context.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/OntologyBrowser/invariant-structural-truth.md](../../specification.sigil/sigil-editor/SigilEditor/OntologyBrowser/invariant-structural-truth.md), [docs/specification/sigil-editor/SigilEditor/DesignPartner/invariant-full-context.md](../../specification.sigil/sigil-editor/SigilEditor/DesignPartner/invariant-full-context.md)*
 
 Done. The app auto-created the affordance files from the `#` references in the language — nice to see the test-first metaphor working in practice.
 
@@ -1247,7 +1247,7 @@ State saved. Start a fresh session — you're good to go.
 
 ### Assistant (00:06 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [src/components/Editor/SigilPropertyEditor.tsx](../../src/components/Editor/SigilPropertyEditor.tsx), [src/components/Editor/SigilPropertyEditor.module.css](../../src/components/Editor/SigilPropertyEditor.module.css)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md), [src/components/Editor/SigilPropertyEditor.tsx](../../src/components/Editor/SigilPropertyEditor.tsx), [src/components/Editor/SigilPropertyEditor.module.css](../../src/components/Editor/SigilPropertyEditor.module.css)*
 
 Good, I have the full picture. Now let me update the spec and implement.
 
@@ -1255,13 +1255,13 @@ First, add the affordances to the spec:
 
 ### Assistant (00:06 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/language.md)*
 
 Now create the affordance files:
 
 ### Assistant (00:07 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-scroll.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-scroll.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-fold-description.md](../../docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-fold-description.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-scroll.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-scroll.md), [docs/specification/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-fold-description.md](../../specification.sigil/sigil-editor/SigilEditor/Editor/AffordancePanel/affordance-fold-description.md)*
 
 Now implement. The SigilPropertyEditor is shared by both AffordancePanel and InvariantPanel, so both get these features. I need:
 

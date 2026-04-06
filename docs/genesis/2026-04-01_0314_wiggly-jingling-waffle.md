@@ -680,7 +680,7 @@ I think the actual issue might be different. Let me just look at what the user s
 
 ### Assistant (03:55 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md), [src/components/Editor/MarkdownEditor.tsx](../../src/components/Editor/MarkdownEditor.tsx)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Sigil/language.md), [src/components/Editor/MarkdownEditor.tsx](../../src/components/Editor/MarkdownEditor.tsx)*
 
 Now I see. The language.md for `Sigil` is:
 ```
@@ -963,7 +963,7 @@ The only `@Sigil` references are in the Libs directory — which we want to leav
 
 ### Assistant (04:26 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/language.md](../../docs/specification/sigil-editor/SigilEditor/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/language.md](../../specification.sigil/sigil-editor/SigilEditor/language.md)*
 
 The language.md doesn't reference `@Sigil` — it references `@Editor`, `@DesignPartner`, `@Ontology`, `@Atlas`. The rename is clean — just the directory needed renaming.
 

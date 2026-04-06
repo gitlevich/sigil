@@ -17,19 +17,19 @@ Good. I've read everything. Let me map and project. Discoveries 4 and 5 are alre
 
 ### Assistant (06:52 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/SigilEngineering/language.md)*
 
 **Discovery 2: Function approximation** — Sigil/language.md and SpatialResolution.
 
 ### Assistant (06:52 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Resolution/SpatialResolution/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Resolution/SpatialResolution/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Sigil/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Sigil/language.md), [docs/specification/sigil-editor/Libs/AttentionLanguage/Resolution/SpatialResolution/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Resolution/SpatialResolution/language.md)*
 
 **Discovery 3: Superposition and collapse at leaves** — Coverage/language.md.
 
 ### Assistant (06:52 UTC)
 
-*Files: [docs/specification/sigil-editor/SigilEditor/DesignPartner/Coverage/language.md](../../docs/specification/sigil-editor/SigilEditor/DesignPartner/Coverage/language.md)*
+*Files: [docs/specification/sigil-editor/SigilEditor/DesignPartner/Coverage/language.md](../../specification.sigil/sigil-editor/SigilEditor/DesignPartner/Coverage/language.md)*
 
 **Discoveries 4+5: Cross-projection + drift** — already projected into CoherenceMetric/language.md. Let me verify.
 
@@ -45,7 +45,7 @@ Now **Discovery 8: Lexical scoping** — already in DesignPartner/language.md ("
 
 ### Assistant (06:53 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md](../../specification.sigil/sigil-editor/Libs/EcologicalPsychology/Affordance/language.md)*
 
 This is the Gibson-style ecological psychology definition. Discovery 9 bridges to AttentionLanguage. The right place for the verb/noun line is Sigil (already done). Adding it here would mix ontology layers. I'll leave EcologicalPsychology/Affordance as-is.
 
@@ -53,7 +53,7 @@ Now let me also add the "contrasts are not contracts" clarification to Contrast/
 
 ### Assistant (06:53 UTC)
 
-*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Contrast/language.md](../../docs/specification/sigil-editor/Libs/AttentionLanguage/Contrast/language.md)*
+*Files: [docs/specification/sigil-editor/Libs/AttentionLanguage/Contrast/language.md](../../specification.sigil/sigil-editor/Libs/AttentionLanguage/Contrast/language.md)*
 
 Now update todos and the memory file.
 
