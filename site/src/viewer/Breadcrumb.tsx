@@ -5,7 +5,7 @@ import styles from "./Breadcrumb.module.css";
 export function Breadcrumb() {
   const { sigil, currentPath } = useViewerState();
   const dispatch = useViewerDispatch();
-  const crumbs = buildBreadcrumb(sigil.root, currentPath);
+  const crumbs = buildBreadcrumb(sigil, currentPath);
 
   return (
     <div className={styles.breadcrumb}>

@@ -59,11 +59,11 @@ export function MobileViewer() {
   const dispatch = useViewerDispatch();
   const [panel, setPanel] = useState<Panel>("none");
 
-  const currentCtx = findContext(sigil.root, currentPath);
+  const currentCtx = findContext(sigil, currentPath);
 
   const refs = useMemo(
-    () => buildLexicalScope(sigil.root, currentPath),
-    [sigil.root, currentPath],
+    () => buildLexicalScope(sigil, currentPath),
+    [sigil, currentPath],
   );
 
   const handleRefNavigate = useCallback(
@@ -75,10 +75,10 @@ export function MobileViewer() {
         dispatch({ type: "NAVIGATE", path: [...currentPath, contained.name] });
         return;
       }
-      const path = buildPath(sigil.root, name, []);
+      const path = buildPath(sigil, name, []);
       if (path) dispatch({ type: "NAVIGATE", path });
     },
-    [sigil.root, currentPath, currentCtx.children, dispatch],
+    [sigil, currentPath, currentCtx.children, dispatch],
   );
 
   const handleTreeNavigate = useCallback(() => {

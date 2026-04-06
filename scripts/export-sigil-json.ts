@@ -20,18 +20,12 @@ interface Invariant {
   content: string;
 }
 
-interface Context {
+interface Sigil {
   name: string;
   language: string;
   affordances: Affordance[];
   invariants: Invariant[];
-  children: Context[];
-}
-
-interface Sigil {
-  name: string;
-  vision: string;
-  root: Context;
+  children: Sigil[];
 }
 
 function languageFile(dir: string): string {
@@ -42,14 +36,14 @@ function languageFile(dir: string): string {
   return lang;
 }
 
-function isContextDir(dir: string): boolean {
+function isSigilDir(dir: string): boolean {
   return (
     fs.existsSync(path.join(dir, "language.md")) ||
     fs.existsSync(path.join(dir, "spec.md"))
   );
 }
 
-function readContext(dir: string): Context {
+function readSigil(dir: string): Sigil {
   const name = path.basename(dir);
   const langPath = languageFile(dir);
   const language = fs.existsSync(langPath)
@@ -58,7 +52,7 @@ function readContext(dir: string): Context {
 
   const affordances: Affordance[] = [];
   const invariants: Invariant[] = [];
-  const children: Context[] = [];
+  const children: Sigil[] = [];
 
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name)
@@ -78,8 +72,8 @@ function readContext(dir: string): Context {
       }
     } else if (entry.isDirectory()) {
       if (entry.name.startsWith(".") || entry.name === "chats") continue;
-      if (isContextDir(fullPath)) {
-        children.push(readContext(fullPath));
+      if (isSigilDir(fullPath)) {
+        children.push(readSigil(fullPath));
       }
     }
   }
@@ -110,26 +104,15 @@ if (!fs.existsSync(sigilRoot)) {
   process.exit(1);
 }
 
-const visionPath = path.join(sigilRoot, "vision.md");
-const vision = fs.existsSync(visionPath)
-  ? fs.readFileSync(visionPath, "utf-8")
-  : "";
-
-const root = readContext(sigilRoot);
-
-const sigil: Sigil = {
-  name: root.name,
-  vision,
-  root,
-};
+const sigil = readSigil(sigilRoot) as Sigil;
 
 // Ensure output directory exists
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify(sigil, null, 2));
 
-const contextCount = (function count(ctx: Context): number {
+const contextCount = (function count(ctx: Sigil): number {
   return 1 + ctx.children.reduce((s, c) => s + count(c), 0);
-})(root);
+})(sigil);
 
 console.log(
   `Exported ${contextCount} contexts to ${path.relative(process.cwd(), outputPath)}`

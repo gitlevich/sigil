@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
-import type { Context } from "./types";
+import type { Sigil } from "./types";
 import { useViewerState, useViewerDispatch } from "./ViewerState";
 import { flattenPaths } from "./utils";
 import styles from "./TreeView.module.css";
 
 interface TreeNodeProps {
-  context: Context;
+  context: Sigil;
   path: string[];
   currentPath: string[];
   onNavigate: (path: string[]) => void;
@@ -67,7 +67,7 @@ export function TreeView({ onNavigate: onNavigateCallback }: { onNavigate?: () =
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
 
-    const allPaths = flattenPaths(sigil.root, []);
+    const allPaths = flattenPaths(sigil, []);
     const currentKey = JSON.stringify(currentPath);
     const currentIndex = allPaths.findIndex(
       (p) => JSON.stringify(p) === currentKey
@@ -87,7 +87,7 @@ export function TreeView({ onNavigate: onNavigateCallback }: { onNavigate?: () =
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {sigil.root.children.map((child) => (
+      {sigil.children.map((child) => (
         <TreeNode
           key={child.name}
           context={child}

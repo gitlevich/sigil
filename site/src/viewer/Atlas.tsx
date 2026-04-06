@@ -1,4 +1,4 @@
-import type { Context } from "./types";
+import type { Sigil } from "./types";
 import { useViewerState, useViewerDispatch } from "./ViewerState";
 import { findContext, buildPath } from "./utils";
 import { Atlas as AtlasBase } from "sigil-core/react/Atlas";
@@ -7,10 +7,10 @@ export function Atlas() {
   const { sigil, currentPath, theme } = useViewerState();
   const dispatch = useViewerDispatch();
 
-  const currentCtx = findContext(sigil.root, currentPath);
+  const currentCtx = findContext(sigil, currentPath);
 
-  const handleNavigate = (ctx: Context) => {
-    const path = buildPath(sigil.root, ctx.name, []);
+  const handleNavigate = (ctx: Sigil) => {
+    const path = buildPath(sigil, ctx.name, []);
     if (path) {
       dispatch({ type: "NAVIGATE", path });
     }

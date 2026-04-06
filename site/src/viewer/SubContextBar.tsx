@@ -1,9 +1,9 @@
-import type { Context } from "./types";
+import type { Sigil } from "./types";
 import { useViewerState, useViewerDispatch } from "./ViewerState";
 import styles from "./SubContextBar.module.css";
 
 interface SubContextBarProps {
-  context: Context;
+  context: Sigil;
 }
 
 export function SubContextBar({ context }: SubContextBarProps) {

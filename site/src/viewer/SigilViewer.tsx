@@ -83,15 +83,15 @@ function ResizeHandle({ onResize, onResizeEnd }: { onResize: (delta: number) => 
 function ViewerContent() {
   const { sigil, currentPath, contentTab, sidebarTab, theme } = useViewerState();
   const dispatch = useViewerDispatch();
-  const currentCtx = findContext(sigil.root, currentPath);
+  const currentCtx = findContext(sigil, currentPath);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const displayWidth = dragWidth ?? sidebarWidth;
 
   const refs = useMemo(
-    () => buildLexicalScope(sigil.root, currentPath),
-    [sigil.root, currentPath]
+    () => buildLexicalScope(sigil, currentPath),
+    [sigil, currentPath]
   );
 
   const handleRefNavigate = useCallback((name: string) => {
@@ -102,11 +102,11 @@ function ViewerContent() {
       return;
     }
     // Search the whole tree
-    const path = buildPath(sigil.root, name, []);
+    const path = buildPath(sigil, name, []);
     if (path) {
       dispatch({ type: "NAVIGATE", path });
     }
-  }, [sigil.root, currentPath, currentCtx.children, dispatch]);
+  }, [sigil, currentPath, currentCtx.children, dispatch]);
 
   return (
     <div className={`sigil-viewer ${styles.layout}`} data-theme={theme}>
@@ -137,7 +137,7 @@ function ViewerContent() {
               </div>
               <div className={styles.sidebarContent}>
                 {sidebarTab === "vision" ? (
-                  <VisionPanel vision={sigil.vision} />
+                  <VisionPanel vision={sigil.children.find(c => c.name === "Vision")?.language ?? ""} />
                 ) : (
                   <TreeView />
                 )}
