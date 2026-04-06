@@ -122,17 +122,42 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
 
 /** Convert CodeMirror key format to Tauri menu accelerator format */
 export function toTauriAccelerator(cmKey: string): string {
-  return cmKey
-    .replace(/Mod-/g, "CmdOrCtrl+")
-    .replace(/Alt-/g, "Alt+")
-    .replace(/Shift-/g, "Shift+")
-    .replace(/-/g, "+")
-    .replace(/\+([a-z])$/i, (_, c) => "+" + c.toUpperCase());
+  // Parse CodeMirror key string into modifiers + key
+  const parts = cmKey.split("-");
+  const key = parts.pop()!;
+  const mods: string[] = [];
+  for (const p of parts) {
+    if (p === "Mod") mods.push("CmdOrCtrl");
+    else if (p === "Alt") mods.push("Alt");
+    else if (p === "Shift") mods.push("Shift");
+    else if (p === "Ctrl") mods.push("Ctrl");
+    else mods.push(p);
+  }
+  // Tauri expects CmdOrCtrl before Alt before Shift
+  const order = ["CmdOrCtrl", "Ctrl", "Alt", "Shift"];
+  mods.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const normalizedKey = key.length === 1 ? key.toUpperCase() : key;
+  return [...mods, normalizedKey].join("+");
+}
+
+const isMac = typeof navigator !== "undefined" && (/Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent));
+
+/**
+ * Build menu item props, working around macOS rendering Option+letter as the
+ * produced glyph (e.g. ® for Option+R). For those combos on Mac we drop the
+ * native accelerator (CodeMirror keymap still handles it) and show the
+ * shortcut hint in the label instead.
+ */
+export function menuAccelerator(label: string, cmKey: string): { text: string; accelerator?: string } {
+  const hasAlt = /Alt-/.test(cmKey);
+  if (isMac && hasAlt) {
+    return { text: `${label}    ${toDisplayShortcut(cmKey)}` };
+  }
+  return { text: label, accelerator: toTauriAccelerator(cmKey) };
 }
 
 /** Convert CodeMirror key format to human-readable display */
 export function toDisplayShortcut(cmKey: string): string {
-  const isMac = /Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent);
   return cmKey
     .replace(/Mod-/g, isMac ? "Cmd+" : "Ctrl+")
     .replace(/Alt-/g, isMac ? "Option+" : "Alt+")

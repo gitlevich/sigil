@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../../state/AppContext";
 import {
   useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
@@ -145,6 +145,8 @@ export function Workspace() {
   const { addToast } = useToast();
 
   // Ephemeral UI state
+  const [menuRenaming, setMenuRenaming] = useState<{ name: string } | null>(null);
+  const menuRenameRef = useRef<HTMLInputElement>(null);
   const findReferencesNameRef = useRef<string | null>(null);
 
   const actionDeps: ActionDeps = useMemo(() => ({
@@ -173,6 +175,14 @@ export function Workspace() {
         narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
         return;
       }
+      if (matchesBinding(e, kb["rename-sigil"] || "Alt-Mod-r")) {
+        const cm = (e.target as HTMLElement)?.closest(".cm-editor");
+        if (!cm) {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent("sigil-rename-current"));
+        }
+        return;
+      }
       if (matchesBinding(e, kb["find-references"] || "Alt-Mod-f")) {
         const cm = (e.target as HTMLElement)?.closest(".cm-editor");
         if (!cm) {
@@ -187,6 +197,23 @@ export function Workspace() {
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [ws, appState.settings.keybindings, narratingDispatch]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (ws.currentPath.length === 0) return;
+      const ctx = resolveCurrentFolder(ws);
+      if (ctx) setMenuRenaming({ name: ctx.name });
+    };
+    window.addEventListener("sigil-rename-current", handler);
+    return () => window.removeEventListener("sigil-rename-current", handler);
+  }, [ws]);
+
+  useEffect(() => {
+    if (menuRenaming && menuRenameRef.current) {
+      menuRenameRef.current.focus();
+      menuRenameRef.current.select();
+    }
+  }, [menuRenaming]);
 
   const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsRef = useRef(ws);
@@ -457,6 +484,30 @@ export function Workspace() {
         <SubContextBar context={currentFolder} />
       </div>
       <DesignPartnerPanel />
+
+      {menuRenaming && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "var(--bg-primary)", border: "1px solid var(--border)", borderRadius: 6, padding: "1rem", width: 280 }}>
+            <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "0.4rem" }}>Rename to:</label>
+            <input
+              ref={menuRenameRef}
+              style={{ width: "100%", padding: "0.4rem", fontSize: "0.9rem", border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-primary)", color: "var(--text-primary)" }}
+              defaultValue={menuRenaming.name}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleRenameSigil(menuRenaming.name, e.currentTarget.value);
+                  setMenuRenaming(null);
+                }
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenuRenaming(null); }
+              }}
+              onBlur={(e) => {
+                handleRenameSigil(menuRenaming.name, e.currentTarget.value);
+                setMenuRenaming(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

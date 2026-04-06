@@ -1144,15 +1144,13 @@ export function buildPropertyExtensions(
           if (prop?.exists) {
             const pos = view.state.selection.main.head;
             const coords = view.coordsAtPos(pos);
-            const rect = view.dom.getBoundingClientRect();
-            if (coords) onRenameStart({ oldName: prop.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: prop.kind });
+            if (coords) onRenameStart({ oldName: prop.name, x: coords.left, y: coords.bottom + 4, kind: prop.kind });
             return true;
           }
           const ref = findRefAtCursor(view);
           if (ref?.known) {
             const coords = view.coordsAtPos(ref.from);
-            const rect = view.dom.getBoundingClientRect();
-            if (coords) onRenameStart({ oldName: ref.name, x: coords.left - rect.left, y: coords.bottom - rect.top + 4, kind: "sigil" });
+            if (coords) onRenameStart({ oldName: ref.name, x: coords.left, y: coords.bottom + 4, kind: "sigil" });
             return true;
           }
           return false;

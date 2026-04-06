@@ -9,7 +9,7 @@ interface RenamePopupProps {
 
 export function RenamePopup({ oldName, kind, x, y, onRename, onClose }: RenamePopupProps) {
   return (
-    <div style={{ position: "absolute", left: x, top: y, zIndex: 100 }}>
+    <div style={{ position: "fixed", left: x, top: y, zIndex: 200 }}>
       <input
         autoFocus
         defaultValue={oldName}

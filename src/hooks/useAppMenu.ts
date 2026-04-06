@@ -4,7 +4,7 @@ import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
-import { api, SigilFolder, openInNewWindow, toTauriAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
+import { api, SigilFolder, openInNewWindow, toTauriAccelerator, menuAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WorkspaceState } from "../state/WorkspaceContext";
@@ -36,7 +36,7 @@ export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null
 async function buildMenu(
   dispatch: ReturnType<typeof useAppDispatch>,
   getWorkspace: () => WorkspaceState | null,
-  getNarrating: () => NarratingState | null,
+  _getNarrating: () => NarratingState | null,
   getUI: () => ReturnType<typeof useAppState>["ui"],
   getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
 ) {
@@ -209,14 +209,9 @@ async function buildMenu(
       await PredefinedMenuItem.new({ item: "SelectAll" }),
       await PredefinedMenuItem.new({ item: "Separator" }),
       await MenuItem.new({
-        text: "Rename Sigil...",
-        accelerator: toTauriAccelerator(kb["rename-sigil"] || "Alt-Mod-r"),
+        ...menuAccelerator("Rename Sigil...", kb["rename-sigil"] || "Alt-Mod-r"),
         action: () => {
-          const ws = getWorkspace();
-          if (!ws) return;
-          const narrating = getNarrating();
-          if (!narrating) return;
-          // Renaming request is now handled by the workspace layer
+          window.dispatchEvent(new CustomEvent("sigil-rename-current"));
         },
       }),
     ],
@@ -224,8 +219,7 @@ async function buildMenu(
 
   // ── Find menu ──
   const findReferencesItem = await MenuItem.new({
-    text: "Find References",
-    accelerator: toTauriAccelerator(kb["find-references"] || "Alt-Mod-f"),
+    ...menuAccelerator("Find References", kb["find-references"] || "Alt-Mod-f"),
     action: () => {
       const ws = getWorkspace();
       if (!ws) return;
@@ -247,8 +241,7 @@ async function buildMenu(
 
   // ── View menu ──
   const wordWrapItem = await MenuItem.new({
-    text: "Toggle Word Wrap",
-    accelerator: toTauriAccelerator(kb["toggle-word-wrap"] || "Alt-z"),
+    ...menuAccelerator("Toggle Word Wrap", kb["toggle-word-wrap"] || "Alt-z"),
     action: () => {
       const ws = getWorkspace();
       if (!ws) return;

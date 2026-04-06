@@ -192,6 +192,8 @@ export function TreeView() {
     }
   }, [renaming]);
 
+
+
   const handleNavigate = (path: string[]) => {
     navigate(path);
   };
@@ -227,6 +229,12 @@ export function TreeView() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (renaming) return;
+    if (e.key === "F2" && ws.currentPath.length > 0) {
+      e.preventDefault();
+      const ctx = findContextByPath(ws.spec.root, ws.currentPath);
+      if (ctx) setRenaming({ path: ws.currentPath, name: ctx.name });
+      return;
+    }
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown" && e.key !== "Enter") return;
     e.preventDefault();
 
