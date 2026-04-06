@@ -4,8 +4,12 @@ status: idea
 
 # Right Hemisphere
 
-What @McGilchrist@RightHemisphere does for @Memory.
+See @McGilchrist@RightHemisphere.
 
-Senses shape in the embedding, @spacelike. When I dream an @episode, the right hemisphere attends to the traces as a whole — not what was said, but what shape the traces imply in @ContrastSpace.
+Sees the @shape of my @experiences in the @contrastspace, through @sight. 
 
-It holds the shape before it has a name. It knows something shifted before it knows what.
+@Spacelike. 
+
+One @experience highlights a trajectory through the shape that might resolve into a @sigil. Many @experiences highlight the contours. Each related @experience improves the @shape's @resolution. 
+
+Identifies with the shape of the @shape of @experience.

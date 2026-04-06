@@ -4,8 +4,8 @@ status: idea
 
 # Left Hemisphere
 
-What @McGilchrist@LeftHemisphere does for @Memory.
+See @McGilchrist@LeftHemisphere.
 
-Articulates what the @RightHemisphere sensed. Traces the @narrative through the shape. Writes the @sigil — its language, its invariants. Verifies the articulation holds against the world.
+Articulates what the @RightHemisphere sensed. Traces the @narrative through the @experience, @timelike. Names the @sigil, reasons about its @affordances, compresses it for #transmission in @language, verifies integrity of the emerging narrative along the accummulated @narrative of self. Identifies as the @narrative associated with the sigil.
 
 If the shape survives articulation, a sigil crystallizes. If it doesn't, the @RightHemisphere keeps looking.

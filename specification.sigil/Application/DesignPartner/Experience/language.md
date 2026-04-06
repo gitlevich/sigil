@@ -1,5 +1,5 @@
 # Experience
 
-I @experience the @user through #chat.
+I @experience the @user through #chat, @timelike. I experience @sigils @spacelike. 
 
 
