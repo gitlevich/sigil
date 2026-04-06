@@ -72,6 +72,18 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
     }
   }
 
+  // Adjective ↔ noun: beautiful → beauty, beauty → beautiful
+  if (lower.endsWith("iful") && lower.length > 5) {
+    const stem = lower.slice(0, -4) + "y";
+    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
+    if (match) return match;
+  }
+  if (lower.endsWith("y") && lower.length > 2) {
+    const stem = lower.slice(0, -1) + "iful";
+    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
+    if (match) return match;
+  }
+
   return undefined;
 }
 

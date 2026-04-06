@@ -33,6 +33,13 @@ function buildInflectedNames(refs: Ref[]): string[] {
       inflected.push(name + "ing");
     }
     inflected.push(name + "s");
+    // Adjective ↔ noun: Beauty → Beautiful, Beautiful → Beauty
+    if (/y$/i.test(name)) {
+      inflected.push(name.slice(0, -1) + "iful");
+    }
+    if (/iful$/i.test(name)) {
+      inflected.push(name.slice(0, -4) + "y");
+    }
   }
   return [...new Set(inflected)];
 }
@@ -72,6 +79,13 @@ export function buildRefLookup(refs: Ref[]): RefLookup {
       map[`${r.prefix}${name}ing`] = r;
     }
     map[`${r.prefix}${name}s`] = r;
+    // Adjective ↔ noun: beauty → Beautiful, beautiful → Beauty
+    if (name.endsWith("y")) {
+      map[`${r.prefix}${name.slice(0, -1)}iful`] = r;
+    }
+    if (name.endsWith("iful")) {
+      map[`${r.prefix}${name.slice(0, -4)}y`] = r;
+    }
   }
   return map;
 }
