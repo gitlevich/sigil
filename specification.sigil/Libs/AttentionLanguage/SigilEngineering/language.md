@@ -4,8 +4,13 @@ status: external-ontology
 
 # Sigil Engineering
 
-The practice of converting lived experience to @sigils. Name the @contrasts you care about, state your @invariants, define the @affordances.
+The practice of extrapolating @narrative solutions a class of problems as a @sigil, containing the understanding of how to do solve that whole class of problems with specified @resolution.
 
-Fixed point: the spec for Sigil Engineering is written using Sigil Engineering. The method specifies itself — the spec, the method, and the language are the same shape.
+I name the @contrasts I care about, state my @invariants, define the @affordances.
 
-Domain-agnostic. Any domain. Write a vision, narrate affordances, decompose. The partner checks coherence and probes coverage. The tool doesn't need to know the domain — the domain language emerges from narration.
+
+## TLDR
+
+@FixedPoint: the spec for Sigil Engineering is written using Sigil Engineering. The method specifies itself — the spec, the method, and the language are the same shape.
+
+@Attention operates in two modes. In @spacelike mode, I attend to what is present around me as a field of possible distinctions. In @timelike mode, I follow a narrated sequence. Text, code, and other token streams are time-like: they unfold sequentially, but in doing so they trace a stable shape in contrast space. That traced shape is the sigil expressed by the stream.

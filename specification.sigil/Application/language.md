@@ -4,8 +4,6 @@ status: implemented
 
 # Application
 
-**NOTE: this is still work in progress**
-
 **Sigil Editor** is an tool I want, to help me speak any application I am envisioning into a specification that a coding agent will project into beautifully written code.
 
 This is the spec. 

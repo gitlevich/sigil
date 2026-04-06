@@ -7,8 +7,6 @@ Rules of @SigilEngineering:
 
 I have narrated my @vision. 
 
-TODO it points at vision sigil, not my vision. we need to release the app with a new sigil opened on vision tab that describes what this is (what's actually in @vision). the default text. 
-
 Now, I will narrate every @affordance separately.
 
 As I narrate, I pay attention to words I with which I describe the @affordance. 
@@ -25,5 +23,7 @@ __Have I described all @affordances with enough @resolution to enable a simple c
 
 The answer is no. So I descend into each @sigil I defined on this page and recurse.
 
-Until I can answer yes to the 
+Until I can answer yes to the question above. 
+
+Also: this is all very much a work in progress. 
 
