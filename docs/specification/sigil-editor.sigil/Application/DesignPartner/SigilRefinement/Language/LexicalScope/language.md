@@ -1,0 +1,5 @@
+---
+status: implemented
+---
+
+# Lexical Scope
