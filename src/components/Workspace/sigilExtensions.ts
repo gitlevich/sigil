@@ -142,12 +142,65 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  return findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  const result = findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (result) return result;
+  // Search imported ontologies (Libs are ambient root scope per spec)
+  if (editorCtx.importedOntologies) {
+    return findInvariantInOntologies(editorCtx.importedOntologies, name);
+  }
+  return null;
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  return findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  const result = findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (result) return result;
+  // Search imported ontologies (Libs are ambient root scope per spec)
+  if (editorCtx.importedOntologies) {
+    return findAffordanceInOntologies(editorCtx.importedOntologies, name);
+  }
+  return null;
+}
+
+/** Recursively search imported ontologies for an invariant by name. */
+function findInvariantInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
+  for (const ontology of ontologies.children) {
+    const result = searchInvariantRecursive(ontology, ["Libs", ontology.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+function searchInvariantRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+  for (const inv of ctx.invariants) {
+    if (inv.name === name || inv.name === fromDashForm(name)) {
+      return { content: inv.content, ownerPath: path };
+    }
+  }
+  for (const child of ctx.children) {
+    const result = searchInvariantRecursive(child, [...path, child.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+/** Recursively search imported ontologies for an affordance by name. */
+function findAffordanceInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
+  for (const ontology of ontologies.children) {
+    const result = searchAffordanceRecursive(ontology, ["Libs", ontology.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+function searchAffordanceRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+  const aff = findAffordance(ctx, name);
+  if (aff) return { content: aff.content, ownerPath: path };
+  for (const child of ctx.children) {
+    const result = searchAffordanceRecursive(child, [...path, child.name], name);
+    if (result) return result;
+  }
+  return null;
 }
 
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
@@ -223,6 +276,15 @@ export function resolveRefToContext(sigilRef: string): SigilFolder | null {
   if (resolution.kind === "absolute") return findContextByPath(resolution.path, editorCtx.sigilRoot);
   if (resolution.kind === "contained" || resolution.kind === "sibling") {
     return findContextByName(resolution.path[0], editorCtx.sigilRoot);
+  }
+  if (resolution.kind === "lib" && resolution.absolutePath) {
+    // Lib refs have absolutePath like ["Imported Ontologies", "OntologyName", ...rest].
+    // Walk the imported ontologies tree to find the target context.
+    if (editorCtx.importedOntologies) {
+      // Skip the "Imported Ontologies" prefix — walk from the ontologies root
+      const pathInLibs = resolution.absolutePath.slice(1);
+      return findContextByPath(pathInLibs, editorCtx.importedOntologies);
+    }
   }
   return null;
 }
@@ -743,9 +805,24 @@ export function buildSiblingHighlighter(
               } else if (matchText.startsWith("!")) {
                 const invariantName = matchText.slice(1);
                 const invariantExists = findInvariantInScopeLocal(invariantName) !== null;
+                if (!invariantExists) {
+                  console.warn("[sigil-debug] Unresolved invariant:", invariantName,
+                    "| root:", editorCtx.sigilRoot?.name,
+                    "| path:", editorCtx.currentPath,
+                    "| ctx invariants:", editorCtx.currentContext?.invariants?.map((i: {name: string}) => i.name),
+                  );
+                }
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
-                const affExists = findAffordanceInScopeLocal(matchText.slice(1)) !== null;
+                const affName = matchText.slice(1);
+                const affExists = findAffordanceInScopeLocal(affName) !== null;
+                if (!affExists) {
+                  console.warn("[sigil-debug] Unresolved affordance:", affName,
+                    "| root:", editorCtx.sigilRoot?.name,
+                    "| path:", editorCtx.currentPath,
+                    "| ctx affordances:", editorCtx.currentContext?.affordances?.map((a: {name: string}) => a.name),
+                  );
+                }
                 builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
               }
             }
