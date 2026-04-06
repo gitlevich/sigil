@@ -15,3 +15,8 @@ These faculties oscillate at different rhythms. @Coherence#sense runs between tu
 When coherence drops, the @sigil's shape in @ContrastSpace deforms. Its surface is no longer smooth because narratives contradict each other, things get harder to express, sentences grow longer. Verbosity is the left hemisphere compensating for a broken shape.
 
 When coverage is low, the language allows correct statements that haven't yet been narrated. An implementing agent would have to invent a narrative, inviting surprises.
+
+
+
+
+The @model must be @beautiful structurally. 
