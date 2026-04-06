@@ -1,4 +1,16 @@
-# Experience
+---
+status: idea
+---
+
+# Subconscious
+
+This page is intentionally left blank.
+
+
+
+## TLDR 
+
+VG TODO convert to something reasonable: this is the machinery that deals with processes like this one. I want it to be the motivation for implementation. Not the implementation itself, which means it should not contain implementation language like the one below. 
 
 An Experience is a recorded conversation, structured as a sigil tree. Each conversation I have becomes an experience sigil. Inside it, each decision I make — each response — is a @DecisionFrame.
 
