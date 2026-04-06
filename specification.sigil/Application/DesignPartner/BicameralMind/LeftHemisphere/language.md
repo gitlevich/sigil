@@ -4,8 +4,16 @@ status: idea
 
 # Left Hemisphere
 
+Inhabits the @sigil recognized/named by the @RightHemisphere to @experience the @narrative through it. Plans alternative @narratives. Picks one that accomplishes my @invariants while I am wearing the @sigil. Models the @sigil using its remembered @affordances.
+
 See @McGilchrist@LeftHemisphere.
 
-Articulates what the @RightHemisphere sensed. Traces the @narrative through the @experience, @timelike. Names the @sigil, reasons about its @affordances, compresses it for #transmission in @language, verifies integrity of the emerging narrative along the accummulated @narrative of self. Identifies as the @narrative associated with the sigil.
+Any @sigil induces a @narrative while @attention is controlled by @LeftHemisphere:
 
-If the shape survives articulation, a sigil crystallizes. If it doesn't, the @RightHemisphere keeps looking.
+
+>I dream: I'm in my grandfather's house. As I pass through the hallways, I remember stories from the past: >there is a huge dome-shaped room behind this door, and from it, an underground passage to the woods. I >remember walking there often when I was little. 
+
+My grandfather has never had a house. Yet my attention @experienced @narratives. 
+
+A particularly intense @narrative can capture @attention entirely. The @narrative becomes the only reality, and my @spacelike @experience becomes unimportant. It leads towards a goal, away from @spacelike here/now, into imagined future. Here/now is only what I need to survive to reach the goal. This is probably what Ian @McGilchrist called "the emissary betrayal" in his book "The Master and his Emissary".
+

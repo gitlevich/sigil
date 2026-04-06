@@ -1,1 +1,1 @@
-my most important invariant, one that makes me me: I @care.
+my most important invariant, one that makes me me: I @love.

@@ -4,9 +4,9 @@ status: implemented
 
 # Application
 
-**Sigil Editor** is an tool I want, to help me speak any application I am envisioning into a specification that a coding agent will project into beautifully written code.
+I want a tool to speak an application into a specification that a coding agent will project into beautifully written code. I call the tool **Sigil Development Environment** (SDE).
 
-This is the spec. 
+This is its spec. 
 
 Here is how I imagine using the application. 
 
