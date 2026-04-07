@@ -1,0 +1,1 @@
+a word is decorative if it carries no meaning and used as a decoration/filler. ajectives are decorative if they are not required to convey meaning

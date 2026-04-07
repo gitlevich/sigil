@@ -1,0 +1,1 @@
+When the partner believes a leaf can stop, it states why: which vision trajectories pass through, what degrees of freedom remain, and why they don't matter. Then it invites the author to stop or name the remaining concern.
