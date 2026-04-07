@@ -8,6 +8,9 @@ import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
+import { findAllReferencesInTree } from "../Workspace/sigilExtensions";
+import { RefsDropdown } from "../shared/RefsDropdown";
+import type { RefHit } from "../shared/RefsDropdown";
 import { useMouseDrag } from "../../hooks/useMouseDrag";
 import type { DragState } from "../../hooks/useMouseDrag";
 import * as actions from "../../actions/workspace";
@@ -324,6 +327,7 @@ export function OntologyTree() {
   const [search, setSearch] = useState("");
   const [definitions, setDefinitions] = useState<Record<string, string>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [refsState, setRefsState] = useState<{ hits: RefHit[]; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ fsPath: string; name: string } | null>(null);
   const [addingPeerOf, setAddingPeerOf] = useState<string[] | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -494,12 +498,31 @@ export function OntologyTree() {
       {contextMenu && (
         <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
+          <button className={styles.menuItem} onClick={() => {
+            const hits = findAllReferencesInTree(ws.spec.root, contextMenu.node.name, []);
+            if (hits.length > 0) {
+              setRefsState({ hits, x: contextMenu.x, y: contextMenu.y });
+            } else {
+              addToast(`No references to @${contextMenu.node.name} found`);
+            }
+            setContextMenu(null);
+          }}>Find References</button>
           <button className={styles.menuItem} onClick={() => { api.revealInFinder(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Open in Finder</button>
           <button className={styles.menuItem} onClick={() => { writeText(contextMenu.node.fsPath).catch(console.error); setContextMenu(null); }}>Copy Path</button>
           {contextMenu.node.path.length > 0 && (
             <button className={styles.menuItemDanger} onClick={() => { handleDelete(contextMenu.node); setContextMenu(null); }}>Delete</button>
           )}
         </div>
+      )}
+
+      {refsState && (
+        <RefsDropdown
+          hits={refsState.hits}
+          x={refsState.x}
+          y={refsState.y}
+          onNavigate={(path) => navigate(path)}
+          onClose={() => setRefsState(null)}
+        />
       )}
 
       {renaming && (
