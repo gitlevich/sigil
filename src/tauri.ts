@@ -13,6 +13,7 @@ export interface SigilFolder extends Sigil {
   path: string;
   children: SigilFolder[];
   images: string[];
+  sigilType?: string;
 }
 
 /**

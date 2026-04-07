@@ -7,6 +7,23 @@ use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
 use crate::models::sigil::{SigilFolder, Invariant, ApplicationSpec};
 
+/// Extract a value from YAML frontmatter (---...\n---) by key.
+fn extract_frontmatter_field(content: &str, key: &str) -> Option<String> {
+    if !content.starts_with("---") { return None; }
+    let end = content.find("\n---").filter(|&pos| pos > 0)?;
+    let fm = &content[3..end];
+    for line in fm.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix(key) {
+            if let Some(value) = rest.strip_prefix(':') {
+                let v = value.trim();
+                if !v.is_empty() { return Some(v.to_string()); }
+            }
+        }
+    }
+    None
+}
+
 #[derive(Serialize)]
 pub struct OntologyStatus {
     pub name: String,
@@ -44,6 +61,9 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<SigilFolder, String> {
 
     let language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
+
+    // Parse frontmatter `type:` field
+    let sigil_type = extract_frontmatter_field(&language, "type");
 
     // Detect image files: image.ext, image-1.ext, image-2.ext, ...
     let image_extensions = ["jpg", "jpeg", "png", "gif", "svg", "webp"];
@@ -103,6 +123,7 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<SigilFolder, String> {
         children,
         images,
         is_imported,
+        sigil_type,
     })
 }
 
@@ -283,6 +304,7 @@ pub fn create_context(parent_path: String, name: String) -> Result<SigilFolder, 
         children: Vec::new(),
         images: Vec::new(),
         is_imported: false,
+        sigil_type: None,
     })
 }
 
@@ -560,6 +582,47 @@ pub fn delete_context(path: String) -> Result<(), String> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn test_extract_frontmatter_field_status() {
+        let content = "---\nstatus: done\n---\nBody text";
+        assert_eq!(extract_frontmatter_field(content, "status"), Some("done".to_string()));
+    }
+
+    #[test]
+    fn test_extract_frontmatter_field_type() {
+        let content = "---\nstatus: idea\ntype: implementation\n---\nBody";
+        assert_eq!(extract_frontmatter_field(content, "type"), Some("implementation".to_string()));
+    }
+
+    #[test]
+    fn test_extract_frontmatter_field_missing() {
+        let content = "---\nstatus: idea\n---\nBody";
+        assert_eq!(extract_frontmatter_field(content, "type"), None);
+    }
+
+    #[test]
+    fn test_extract_frontmatter_field_no_frontmatter() {
+        let content = "Just plain text";
+        assert_eq!(extract_frontmatter_field(content, "status"), None);
+    }
+
+    #[test]
+    fn test_read_sigil_parses_type() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("TypeTest");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "---\ntype: implementation\n---\nImpl details").unwrap();
+
+        let child = root.join("Conceptual");
+        fs::create_dir(&child).unwrap();
+        fs::write(child.join("language.md"), "---\ntype: conceptual\n---\nDomain stuff").unwrap();
+
+        let sigil = read_sigil_with_libs(root.to_string_lossy().to_string()).unwrap();
+        assert_eq!(sigil.root.sigil_type, Some("implementation".to_string()));
+        assert_eq!(sigil.root.children[0].sigil_type, Some("conceptual".to_string()));
+    }
 
     fn setup_sigil(tmp: &TempDir) -> String {
         let root = tmp.path().join("MyApp");

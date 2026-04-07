@@ -39,6 +39,9 @@ pub struct SigilFolder {
     pub images: Vec<String>,
     #[serde(default)]
     pub is_imported: bool,
+    /// Parsed from frontmatter `type:` field. Controls export/context visibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sigil_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

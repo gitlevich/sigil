@@ -21,7 +21,10 @@ fn render_export(ctx: &SigilFolder, depth: usize, output: &mut String, is_root: 
     output.push_str(&ctx.language);
     output.push_str("\n\n");
 
-    for (i, child) in ctx.children.iter().enumerate() {
+    let visible_children: Vec<_> = ctx.children.iter()
+        .filter(|c| c.sigil_type.as_deref() != Some("implementation"))
+        .collect();
+    for (i, child) in visible_children.iter().enumerate() {
         if i > 0 {
             output.push_str("---\n\n");
         }
@@ -103,5 +106,24 @@ mod tests {
         let content = fs::read_to_string(&output_path).unwrap();
         assert!(content.contains("Auth"));
         assert!(content.contains("Auth language"));
+    }
+
+    #[test]
+    fn test_export_excludes_implementation_sigils() {
+        let tmp = TempDir::new().unwrap();
+        let root_path = setup_sigil(&tmp);
+
+        // Add an implementation child
+        let impl_dir = std::path::Path::new(&root_path).join("Embedder");
+        fs::create_dir(&impl_dir).unwrap();
+        fs::write(impl_dir.join("language.md"), "---\ntype: implementation\n---\nEmbedding provider details").unwrap();
+
+        let output_path = tmp.path().join("export.md").to_string_lossy().to_string();
+        export_sigil(root_path, output_path.clone()).unwrap();
+
+        let content = fs::read_to_string(&output_path).unwrap();
+        assert!(content.contains("Auth")); // conceptual child included
+        assert!(!content.contains("Embedder")); // implementation child excluded
+        assert!(!content.contains("Embedding provider"));
     }
 }

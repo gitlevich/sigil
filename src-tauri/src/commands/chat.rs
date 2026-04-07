@@ -103,11 +103,14 @@ pub(crate) fn render_context(ctx: &SigilFolder, depth: usize, output: &mut Strin
         output.push('\n');
     }
 
+    let visible_children: Vec<_> = ctx.children.iter()
+        .filter(|c| c.sigil_type.as_deref() != Some("implementation"))
+        .collect();
     output.push_str(&format!("{} Contained Sigils\n\n", detail_prefix));
-    if ctx.children.is_empty() {
+    if visible_children.is_empty() {
         output.push_str("- none\n\n");
     } else {
-        for child in &ctx.children {
+        for child in &visible_children {
             output.push_str(&format!("- {}\n", child.name));
         }
         output.push('\n');
@@ -128,6 +131,9 @@ pub(crate) fn render_context(ctx: &SigilFolder, depth: usize, output: &mut Strin
     }
 
     for child in &ctx.children {
+        if child.sigil_type.as_deref() == Some("implementation") {
+            continue;
+        }
         render_context(child, depth + 1, output);
     }
 }
@@ -1009,7 +1015,7 @@ mod tests {
     fn test_find_context_by_path_empty() {
         let root = SigilFolder {
             name: "Root".into(), path: "/root".into(), language: String::new(),
-            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false, sigil_type: None,
         };
         let result = find_context_by_path(&root, &[]);
         assert_eq!(result.unwrap().name, "Root");
@@ -1019,11 +1025,11 @@ mod tests {
     fn test_find_context_by_path_valid() {
         let child = SigilFolder {
             name: "Browse".into(), path: "/root/Browse".into(), language: "browse lang".into(),
-            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false, sigil_type: None,
         };
         let root = SigilFolder {
             name: "Root".into(), path: "/root".into(), language: String::new(),
-            affordances: vec![], invariants: vec![], children: vec![child], images: vec![], is_imported: false,
+            affordances: vec![], invariants: vec![], children: vec![child], images: vec![], is_imported: false, sigil_type: None,
         };
         let result = find_context_by_path(&root, &["Browse".to_string()]);
         assert_eq!(result.unwrap().name, "Browse");
@@ -1033,7 +1039,7 @@ mod tests {
     fn test_find_context_by_path_invalid_returns_none() {
         let root = SigilFolder {
             name: "Root".into(), path: "/root".into(), language: String::new(),
-            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false, sigil_type: None,
         };
         let result = find_context_by_path(&root, &["Nonexistent".to_string()]);
         assert!(result.is_none());
@@ -1054,6 +1060,7 @@ mod tests {
             children: vec![],
             images: vec![],
             is_imported: false,
+            sigil_type: None,
         };
         let mut output = String::new();
         render_context(&ctx, 0, &mut output);
@@ -1067,7 +1074,7 @@ mod tests {
     fn test_render_context_empty_sections() {
         let ctx = SigilFolder {
             name: "Empty".into(), path: "/root/Empty".into(), language: "  ".into(),
-            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false, sigil_type: None,
         };
         let mut output = String::new();
         render_context(&ctx, 0, &mut output);

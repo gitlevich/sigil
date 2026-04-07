@@ -331,27 +331,31 @@ export function collectAncestorProperties(root: SigilFolder | null, path: string
 // ── Autocomplete ──
 
 export function siblingCompletion(context: CompletionContext) {
-  // Front matter: offer status values when inside the --- block
+  // Front matter: offer key/value completions when inside the --- block
   const closeLineNum = getFrontMatterEnd(context.state.doc);
   if (closeLineNum !== -1) {
     const curLine = context.state.doc.lineAt(context.pos);
     if (curLine.number >= 1 && curLine.number <= closeLineNum) {
-      const statusMatch = context.matchBefore(/status:\s*\S*/);
-      if (statusMatch) {
+      // Value completion: cursor is after "key: " — offer known values for that key
+      const kvMatch = context.matchBefore(/(\w+):\s*\S*/);
+      if (kvMatch) {
+        const keyMatch = curLine.text.match(/^(\w+):/);
+        const key = keyMatch ? keyMatch[1] : "status";
         const colonOffset = curLine.text.indexOf(":");
         const afterColon = curLine.text.slice(colonOffset + 1).match(/^\s*/);
         const valueStart = curLine.from + colonOffset + 1 + (afterColon?.[0].length ?? 0);
         return {
           from: valueStart,
-          options: getKnownStatuses().map((s) => ({ label: s, type: "keyword" as const })),
+          options: getKnownValues(key).map((s) => ({ label: s, type: "keyword" as const })),
           filter: true,
         };
       }
+      // Key completion: offer known frontmatter keys
       const keyMatch = context.matchBefore(/\w*/);
       if (keyMatch && keyMatch.text.length > 0) {
         return {
           from: keyMatch.from,
-          options: [{ label: "status", type: "keyword" as const }],
+          options: getKnownKeys().map((s) => ({ label: s, type: "keyword" as const })),
           filter: true,
         };
       }
@@ -535,30 +539,58 @@ function siblingCompletionBody(context: CompletionContext) {
 
 const DEFAULT_STATUS = "idea";
 
-function extractStatus(domainLanguage: string): string | null {
+function extractFrontmatterField(domainLanguage: string, key: string): string | null {
   if (!domainLanguage.startsWith("---")) return null;
   const end = domainLanguage.indexOf("\n---", 3);
   if (end === -1) return null;
-  const match = domainLanguage.slice(3, end).match(/^status:\s*(\S+)/m);
+  const pattern = new RegExp(`^${key}:\\s*(\\S+)`, "m");
+  const match = domainLanguage.slice(3, end).match(pattern);
   return match ? match[1] : null;
 }
 
-function collectStatusesExcluding(ctx: SigilFolder, excludePath: string): string[] {
-  if (ctx.path === excludePath) return ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath));
-  const status = extractStatus(ctx.language || "");
+
+/** Collect all frontmatter keys used across the sigil tree. */
+function collectFrontmatterKeys(ctx: SigilFolder): string[] {
+  const keys: string[] = [];
+  const lang = ctx.language || "";
+  if (lang.startsWith("---")) {
+    const end = lang.indexOf("\n---", 3);
+    if (end !== -1) {
+      const fm = lang.slice(3, end);
+      for (const line of fm.split("\n")) {
+        const match = line.match(/^(\w+):/);
+        if (match) keys.push(match[1]);
+      }
+    }
+  }
+  for (const child of ctx.children) keys.push(...collectFrontmatterKeys(child));
+  return keys;
+}
+
+/** Collect distinct values for a given frontmatter key across the tree, excluding current context. */
+function collectFrontmatterValues(key: string, ctx: SigilFolder, excludePath: string): string[] {
+  if (ctx.path === excludePath) return ctx.children.flatMap((c) => collectFrontmatterValues(key, c, excludePath));
+  const value = extractFrontmatterField(ctx.language || "", key);
   return [
-    ...(status ? [status] : []),
-    ...ctx.children.flatMap((c) => collectStatusesExcluding(c, excludePath)),
+    ...(value ? [value] : []),
+    ...ctx.children.flatMap((c) => collectFrontmatterValues(key, c, excludePath)),
   ];
 }
 
-function getKnownStatuses(): string[] {
+function getKnownValues(key: string): string[] {
   const excludePath = editorCtx.currentContext?.path ?? "";
   const found = editorCtx.sigilRoot
-    ? collectStatusesExcluding(editorCtx.sigilRoot, excludePath)
+    ? collectFrontmatterValues(key, editorCtx.sigilRoot, excludePath)
     : [];
-  return [DEFAULT_STATUS, ...found].filter((s, i, arr) => arr.indexOf(s) === i);
+  const defaults = key === "status" ? [DEFAULT_STATUS] : [];
+  return [...defaults, ...found].filter((s, i, arr) => arr.indexOf(s) === i);
 }
+
+function getKnownKeys(): string[] {
+  const found = editorCtx.sigilRoot ? collectFrontmatterKeys(editorCtx.sigilRoot) : [];
+  return ["status", ...found].filter((s, i, arr) => arr.indexOf(s) === i);
+}
+
 
 export function getFrontMatterEnd(doc: { lines: number; line: (n: number) => { text: string; from: number; to: number } }): number {
   if (doc.lines < 2 || doc.line(1).text !== "---") return -1;
