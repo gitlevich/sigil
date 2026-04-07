@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { open, message } from "@tauri-apps/plugin-dialog";
 import { api, RecentDocument } from "../../tauri";
-import { useSigil } from "../../hooks/useSigil";
 import { useAppDispatch } from "../../state/AppContext";
 import styles from "./DocumentPicker.module.css";
 
-export function DocumentPicker() {
+interface DocumentPickerProps {
+  onOpen: (rootPath: string) => Promise<void>;
+}
+
+export function DocumentPicker({ onOpen }: DocumentPickerProps) {
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const { openDocument } = useSigil();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export function DocumentPicker() {
     await api.scaffoldSigil(rootPath);
     // Open in the current window (this is the picker window)
     try {
-      await openDocument(rootPath);
+      await onOpen(rootPath);
     } catch (err) {
       await message(String(err), { title: "Cannot open workspace", kind: "error" });
     }
@@ -39,7 +41,7 @@ export function DocumentPicker() {
     });
     if (!selected) return;
     try {
-      await openDocument(selected as string);
+      await onOpen(selected as string);
     } catch (err) {
       await message(String(err), { title: "Cannot open workspace", kind: "error" });
     }
@@ -47,7 +49,7 @@ export function DocumentPicker() {
 
   const handleOpenRecent = async (path: string) => {
     try {
-      await openDocument(path);
+      await onOpen(path);
     } catch (err) {
       await message(String(err), { title: "Cannot open workspace", kind: "error" });
     }

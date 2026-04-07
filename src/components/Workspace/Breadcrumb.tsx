@@ -15,7 +15,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const [renameName, setRenameName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const ws = useWorkspaceState();
-  const { navigate, reload } = useWorkspaceActions();
+  const { navigate, back, reload } = useWorkspaceActions();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({
@@ -53,6 +53,17 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
 
   return (
     <div className={styles.breadcrumb}>
+      {ws.history.length > 0 && (
+        <button
+          className={styles.backBtn}
+          onClick={back}
+          title="Back (Alt-[)"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14">
+            <path d="M9 3 L5 7 L9 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
       {crumbs.map((crumb, i) => {
         const isLast = i === crumbs.length - 1;
         return (

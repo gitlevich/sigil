@@ -14,6 +14,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { SubContextBar } from "./SubContextBar";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
+import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
@@ -66,70 +67,6 @@ function updateFolderInTree(
   };
 }
 
-/** Build the full lexical scope for the current path: children → ancestry levels → root. */
-function buildLexicalScope(
-  root: SigilFolder,
-  currentPath: string[],
-): SiblingInfo[] {
-  const refs: SiblingInfo[] = [];
-  const seen = new Set<string>();
-  const currentFolder = findContext(root as Sigil, currentPath) as SigilFolder;
-  if (!currentFolder) return refs;
-
-  const add = (name: string, sigil: Sigil, kind: "contained" | "sibling", absolutePath: string[]) => {
-    if (!seen.has(name)) {
-      seen.add(name);
-      refs.push({ name, summary: makeSummary(sigil), kind, absolutePath });
-    }
-  };
-
-  // Innermost: children of current sigil
-  for (const c of currentFolder.children) {
-    add(c.name, c, "contained", [...currentPath, c.name]);
-  }
-
-  // Walk up the ancestry chain
-  for (let depth = currentPath.length; depth > 0; depth--) {
-    const levelPath = currentPath.slice(0, depth);
-    const levelSigil = findContext(root as Sigil, levelPath);
-    const parentPath = levelPath.slice(0, -1);
-    const parentSigil = findContext(root as Sigil, parentPath);
-    if (!levelSigil || !parentSigil) break;
-
-    add(levelSigil.name, levelSigil, "sibling", levelPath);
-
-    for (const c of parentSigil.children) {
-      if (c.name !== levelSigil.name) {
-        add(c.name, c, "sibling", [...parentPath, c.name]);
-      }
-    }
-  }
-
-  // Root itself
-  add(root.name, root, "sibling", []);
-
-  return refs;
-}
-
-/** Flatten all descendants of the Ontologies sigil into the global scope. */
-function flattenOntologyRefs(
-  sigil: Sigil,
-  basePath: string[],
-  seen: Set<string>,
-  ontologyName: string,
-): SiblingInfo[] {
-  const refs: SiblingInfo[] = [];
-  for (const child of sigil.children) {
-    const childPath = [...basePath, child.name];
-    if (!seen.has(child.name)) {
-      seen.add(child.name);
-      refs.push({ name: child.name, summary: makeSummary(child), kind: "lib", absolutePath: childPath, libPrefix: ontologyName });
-    }
-    refs.push(...flattenOntologyRefs(child, childPath, seen, ontologyName));
-  }
-  return refs;
-}
-
 function buildBreadcrumb(root: Sigil, path: string[]): { name: string; path: string[] }[] {
   return [{ name: root.name, path: [] }, ...coreBuildBreadcrumb(root, path)];
 }
@@ -138,7 +75,7 @@ export function Workspace() {
   const appState = useAppState();
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
-  const { navigate, reload } = useWorkspaceActions();
+  const { navigate, back, reload } = useWorkspaceActions();
   const narrating = useNarratingState();
   const narratingDispatch = useNarratingDispatch();
   const { save } = useAutoSave();
@@ -160,6 +97,11 @@ export function Workspace() {
     const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (matchesBinding(e, kb["navigate-back"] || "Alt-[")) {
+        e.preventDefault();
+        back();
+        return;
+      }
       if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
         narratingDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" });
@@ -348,7 +290,9 @@ export function Workspace() {
 
   // Memoize lexical scope
   const { allRefs, allRefNames } = useMemo(() => {
-    const refs: SiblingInfo[] = buildLexicalScope(scopeRoot, scopePath);
+    const isImported = ws.currentPath[0] === "Imported Ontologies" && ws.spec.importedOntologies;
+    const scopePrefix = isImported ? ["Imported Ontologies"] : [];
+    const refs: SiblingInfo[] = buildLexicalScope(scopeRoot, scopePath, scopePrefix);
     const seenNames = new Set(refs.map((r) => r.name));
     const importedSigil = ws.spec.importedOntologies ?? null;
     setGlobalImportedOntologies(importedSigil);

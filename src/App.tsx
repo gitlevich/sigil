@@ -121,7 +121,7 @@ export function App({ initialRootPath }: AppProps) {
   return (
     <>
       {state.screen === "picker" || !workspace ? (
-        <DocumentPicker />
+        <DocumentPicker onOpen={handleOpen} />
       ) : (
         <WorkspaceProvider
           spec={workspace.spec}

@@ -9,6 +9,23 @@
   gap: 0.25rem;
 }
 
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.15rem;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  margin-right: 0.15rem;
+}
+
+.backBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .separator {
   color: var(--text-secondary);
   margin: 0 0.25rem;
