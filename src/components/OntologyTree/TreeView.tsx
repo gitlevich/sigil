@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { SigilFolder, api } from "../../tauri";
 import {
   useWorkspaceState, useWorkspaceActions,
 } from "../../state/WorkspaceContext";
 import { useToast } from "../../hooks/useToast";
+import { useMouseDrag } from "../../hooks/useMouseDrag";
+import type { DragState } from "../../hooks/useMouseDrag";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import styles from "./TreeView.module.css";
-
-/** Workaround: Tauri webview blocks dataTransfer.getData() for custom MIME types in onDrop. */
-let dragSourcePath: string | null = null;
 
 interface ContextMenuState {
   x: number;
@@ -24,66 +23,39 @@ interface TreeNodeProps {
   path: string[];
   currentPath: string[];
   highlightedChild: string | null;
+  dragState: DragState;
   onNavigate: (path: string[]) => void;
   onContextMenu: (e: React.MouseEvent, context: SigilFolder, path: string[]) => void;
   onAdd: (parentPath: string) => Promise<void>;
-  onDrop: (sourcePath: string, targetPath: string) => void;
+  onDragStart: (e: React.MouseEvent, fsPath: string) => void;
+  onTargetEnter: (fsPath: string) => void;
+  onTargetLeave: (fsPath: string) => void;
+  onTargetDrop: (fsPath: string) => void;
   actionDeps: ActionDeps;
 }
 
-function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, onContextMenu, onAdd, onDrop, actionDeps }: TreeNodeProps) {
+function TreeNode({ context, path, currentPath, highlightedChild, dragState, onNavigate, onContextMenu, onAdd, onDragStart, onTargetEnter, onTargetLeave, onTargetDrop, actionDeps }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
-  const [dropTarget, setDropTarget] = useState(false);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
   const isHighlighted = !isActive && highlightedChild === context.name
     && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
   const atLimit = context.children.length >= 5;
+  const isDropTarget = dragState.targetPath === context.path;
 
   return (
-    <div
-      className={styles.node}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!atLimit) {
-          e.dataTransfer.dropEffect = "move";
-          setDropTarget(true);
-        } else {
-          e.dataTransfer.dropEffect = "none";
-        }
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          setDropTarget(false);
-        }
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDropTarget(false);
-        const sourcePath = dragSourcePath;
-        dragSourcePath = null;
-        if (!sourcePath) return;
-        if (atLimit) return;
-        if (sourcePath === context.path) return;
-        if (context.path.startsWith(sourcePath + "/")) return;
-        onDrop(sourcePath, context.path);
-      }}
-    >
+    <div className={styles.node}>
       <div
-        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${dropTarget ? styles.dropTarget : ""}`}
-        onClick={() => onNavigate(path)}
+        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${isDropTarget ? styles.dropTarget : ""}`}
+        onMouseDown={(e) => { if (path.length > 0) onDragStart(e, context.path); }}
+        onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(context.path); }}
+        onMouseLeave={() => { if (dragState.sourcePath) onTargetLeave(context.path); }}
+        onMouseUp={() => { if (dragState.sourcePath) onTargetDrop(context.path); }}
+        onClick={() => { if (!dragState.sourcePath) onNavigate(path); }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onContextMenu(e, context, path);
-        }}
-        draggable={path.length > 0}
-        onDragStart={(e) => {
-          e.stopPropagation();
-          dragSourcePath = context.path;
-          e.dataTransfer.effectAllowed = "move";
         }}
       >
         {hasChildren && (
@@ -109,10 +81,14 @@ function TreeNode({ context, path, currentPath, highlightedChild, onNavigate, on
               path={[...path, child.name]}
               currentPath={currentPath}
               highlightedChild={highlightedChild}
+              dragState={dragState}
               onNavigate={onNavigate}
               onContextMenu={onContextMenu}
               onAdd={onAdd}
-              onDrop={onDrop}
+              onDragStart={onDragStart}
+              onTargetEnter={onTargetEnter}
+              onTargetLeave={onTargetLeave}
+              onTargetDrop={onTargetDrop}
               actionDeps={actionDeps}
             />
           ))}
@@ -212,9 +188,23 @@ export function TreeView() {
     setRenaming(null);
   };
 
-  const handleMove = async (sourcePath: string, targetPath: string) => {
+  const handleMove = useCallback(async (sourcePath: string, targetPath: string) => {
     await actions.moveSigil(sourcePath, targetPath, actionDeps);
-  };
+  }, [actionDeps]);
+
+  const canDrop = useCallback((src: string, target: string) => {
+    if (src === target) return false;
+    if (target.startsWith(src + "/")) return false;
+    const targetCtx = findContextByFsPath(ws.spec.root, target);
+    if (!targetCtx) return false;
+    if (targetCtx.children.length >= 5) return false;
+    return true;
+  }, [ws.spec.root]);
+
+  const { dragState, onDragStart, onTargetEnter, onTargetLeave, onTargetDrop } = useMouseDrag({
+    onDrop: handleMove,
+    canDrop,
+  });
 
   const handleDelete = async (context: SigilFolder) => {
     if (!await confirm(`Delete "${context.name}" and all its contents? This cannot be undone.`)) {
@@ -256,16 +246,20 @@ export function TreeView() {
   };
 
   return (
-    <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown} onDragOver={(e) => e.preventDefault()}>
+    <div className={styles.tree} ref={treeRef} tabIndex={0} onKeyDown={handleKeyDown}>
       <TreeNode
         context={ws.spec.root}
         path={[]}
         currentPath={ws.currentPath}
         highlightedChild={null}
+        dragState={dragState}
         onNavigate={handleNavigate}
         onContextMenu={handleContextMenu}
         onAdd={handleAdd}
-        onDrop={handleMove}
+        onDragStart={onDragStart}
+        onTargetEnter={onTargetEnter}
+        onTargetLeave={onTargetLeave}
+        onTargetDrop={onTargetDrop}
         actionDeps={actionDeps}
       />
 
@@ -334,6 +328,15 @@ export function TreeView() {
       )}
     </div>
   );
+}
+
+function findContextByFsPath(root: SigilFolder, fsPath: string): SigilFolder | null {
+  if (root.path === fsPath) return root;
+  for (const child of root.children) {
+    const found = findContextByFsPath(child, fsPath);
+    if (found) return found;
+  }
+  return null;
 }
 
 function findContextByPath(root: SigilFolder, path: string[]): SigilFolder | null {

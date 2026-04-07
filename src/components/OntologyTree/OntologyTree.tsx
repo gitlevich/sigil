@@ -8,11 +8,11 @@ import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
+import { useMouseDrag } from "../../hooks/useMouseDrag";
+import type { DragState } from "../../hooks/useMouseDrag";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import styles from "./OntologyTree.module.css";
-
-let dragSourcePath: string | null = null;
 
 interface OntologyNode {
   name: string;
@@ -127,10 +127,14 @@ function OntologyItem({
   definitions,
   addingPeerAfterPath,
   collapsedPaths,
+  dragState,
   onNavigate,
   onDefinitionChange,
   onContextMenu,
-  onDrop,
+  onDragStart,
+  onTargetEnter,
+  onTargetLeave,
+  onTargetDrop,
   onPropertyDrop,
   onPeerSubmit,
   onPeerAbort,
@@ -143,10 +147,14 @@ function OntologyItem({
   definitions: Record<string, string>;
   addingPeerAfterPath: string[] | null;
   collapsedPaths: Set<string>;
+  dragState: DragState;
   onNavigate: (path: string[]) => void;
   onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
-  onDrop: (sourceFsPath: string, targetFsPath: string) => void;
+  onDragStart: (e: React.MouseEvent, fsPath: string) => void;
+  onTargetEnter: (fsPath: string) => void;
+  onTargetLeave: (fsPath: string) => void;
+  onTargetDrop: (fsPath: string) => void;
   onPropertyDrop: (targetFsPath: string, source: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => void;
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
@@ -158,9 +166,8 @@ function OntologyItem({
   const forceExpand = search.length > 0 && node.children.some((c) => nodeMatches(c, search));
   const expanded = !collapsedPaths.has(pathKey(node.path));
   const [defOpen, setDefOpen] = useState(false);
-  const [dropTarget, setDropTarget] = useState(false);
   const open = forceExpand || expanded;
-  const atLimit = !node.isImported && node.children.length >= 5;
+  const isDropTarget = dragState.targetPath === node.fsPath;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const fitHeight = () => {
@@ -181,33 +188,29 @@ function OntologyItem({
   return (
     <div className={styles.item}>
       <div
-        className={`${styles.row} ${isActive ? styles.active : ""} ${dropTarget ? styles.dropTarget : ""}`}
-        draggable={node.path.length > 0}
-        onDragStart={(e) => { e.stopPropagation(); dragSourcePath = node.fsPath; e.dataTransfer.effectAllowed = "move"; }}
+        className={`${styles.row} ${isActive ? styles.active : ""} ${isDropTarget ? styles.dropTarget : ""}`}
+        onMouseDown={(e) => { if (node.path.length > 0) onDragStart(e, node.fsPath); }}
+        onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(node.fsPath); }}
+        onMouseLeave={() => { if (dragState.sourcePath) onTargetLeave(node.fsPath); }}
+        onMouseUp={() => { if (dragState.sourcePath) onTargetDrop(node.fsPath); }}
         onDragOver={(e) => {
+          // Still handle HTML5 property drags from SigilPropertyEditor
           e.stopPropagation();
           const isPropertyDrag = getDragPropertySource() !== null;
-          if (isPropertyDrag || !atLimit) {
+          if (isPropertyDrag) {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
-            setDropTarget(true);
           }
         }}
-        onDragLeave={() => setDropTarget(false)}
         onDrop={(e) => {
-          e.preventDefault(); e.stopPropagation();
-          setDropTarget(false);
           const propSrc = getDragPropertySource();
           if (propSrc) {
+            e.preventDefault(); e.stopPropagation();
             clearDragPropertySource();
             onPropertyDrop(node.fsPath, propSrc);
-            return;
           }
-          const src = dragSourcePath; dragSourcePath = null;
-          if (!src || src === node.fsPath || node.fsPath.startsWith(src + "/")) return;
-          onDrop(src, node.fsPath);
         }}
-        onClick={() => onNavigate(node.path)}
+        onClick={() => { if (!dragState.sourcePath) onNavigate(node.path); }}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, node); }}
       >
         {hasChildren ? (
@@ -275,10 +278,14 @@ function OntologyItem({
                 definitions={definitions}
                 addingPeerAfterPath={addingPeerAfterPath}
                 collapsedPaths={collapsedPaths}
+                dragState={dragState}
                 onNavigate={onNavigate}
                 onDefinitionChange={onDefinitionChange}
                 onContextMenu={onContextMenu}
-                onDrop={onDrop}
+                onDragStart={onDragStart}
+                onTargetEnter={onTargetEnter}
+                onTargetLeave={onTargetLeave}
+                onTargetDrop={onTargetDrop}
                 onPropertyDrop={onPropertyDrop}
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
@@ -348,11 +355,27 @@ export function OntologyTree() {
     save(`${fsPath}/definition.md`, value);
   }, [save]);
 
-  const handleMove = async (sourceFsPath: string, targetFsPath: string) => {
+  const handleMove = useCallback(async (sourceFsPath: string, targetFsPath: string) => {
     await actions.moveSigil(sourceFsPath, targetFsPath, actionDeps);
     const spec = await reload();
     if (spec) await reloadDefinitions(spec.root);
-  };
+  }, [actionDeps, reload, reloadDefinitions]);
+
+  const allNodesRef = useRef<OntologyNode[]>([]);
+
+  const canDrop = useCallback((src: string, target: string) => {
+    if (src === target) return false;
+    if (target.startsWith(src + "/")) return false;
+    const targetNode = allNodesRef.current.find(n => n.fsPath === target);
+    if (!targetNode) return false;
+    if (!targetNode.isImported && targetNode.children.length >= 5) return false;
+    return true;
+  }, []);
+
+  const { dragState, onDragStart, onTargetEnter, onTargetLeave, onTargetDrop } = useMouseDrag({
+    onDrop: handleMove,
+    canDrop,
+  });
 
   const handlePropertyDrop = async (targetFsPath: string, src: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => {
     await actions.moveProperty(targetFsPath, src, actionDeps);
@@ -403,6 +426,15 @@ export function OntologyTree() {
   const importedOntologies = ws.spec.importedOntologies
     ? buildOntology(ws.spec.importedOntologies, ["Imported Ontologies"], 0)
     : null;
+
+  // Keep flat node list for canDrop lookups
+  const allNodes = useMemo(() => {
+    const nodes = flattenNodes(root);
+    if (importedOntologies) nodes.push(...flattenNodes(importedOntologies));
+    return nodes;
+  }, [root, importedOntologies]);
+  allNodesRef.current = allNodes;
+
   const query = search.toLowerCase().trim();
   const rootVisible = !query || nodeMatches(root, query);
   const importedVisible = importedOntologies && (!query || nodeMatches(importedOntologies, query));
@@ -420,10 +452,14 @@ export function OntologyTree() {
     definitions,
     addingPeerAfterPath: addingPeerOf,
     collapsedPaths: collapsedSet,
+    dragState,
     onNavigate: (path: string[]) => navigate(path),
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
-    onDrop: handleMove,
+    onDragStart,
+    onTargetEnter,
+    onTargetLeave,
+    onTargetDrop,
     onPropertyDrop: handlePropertyDrop,
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),
@@ -434,7 +470,7 @@ export function OntologyTree() {
   return (
     <div
       ref={containerRef}
-      className={styles.container}
+      className={`${styles.container} ${dragState.sourcePath ? styles.dragging : ""}`}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >

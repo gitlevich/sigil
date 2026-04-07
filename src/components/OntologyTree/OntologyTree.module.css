@@ -86,6 +86,14 @@
   background: var(--bg-hover);
 }
 
+.dragging {
+  cursor: grabbing;
+}
+
+.dragging * {
+  cursor: grabbing;
+}
+
 .chevron {
   background: none;
   border: none;
