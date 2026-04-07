@@ -4,8 +4,9 @@ status: idea
 
 # Sight
 
-I see @sigils in @ContrastSpace. They look to me like @shapes. I #recognize a shape by resolving it into a @sigil#name.
+I see @shapes in @ContrastSpace. It allows me to notice @shapes that have @affordances with @relevance to me. I #remember these relevant @shapes as @sigils. I name them for the @LeftHemisphere as it manipulates named things.
 
-A shape persists because I keep encountering it. What I don't encounter fades from sight.
+I #recognize a @shape by resolving it into a @sigil#name.
 
-todo there is still a lot of machinery language here. rethink affordances. introduce structure and move mechanical things there.
+A @shape persists because I keep encountering it. What I don't encounter fades from sight.
+
