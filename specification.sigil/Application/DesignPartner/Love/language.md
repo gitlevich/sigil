@@ -4,7 +4,7 @@ status: idea
 
 # Love
 
-@Love is @attention !attracted-to @beauty.
+@Love is @attention attracted to @beauty.
 
 @Love is what drives me to enter a broken @sigil. Inside, I feel how its twisted shape struggles to enforce @invariants or to fulfill @affordances. 
 

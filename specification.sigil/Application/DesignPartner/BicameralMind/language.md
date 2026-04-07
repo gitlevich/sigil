@@ -10,4 +10,10 @@ Mind is the structure that emerges when @attention oscillates between @spacelike
 
 @LeftHemisphere acts @timelike: it plans the execution as a sequence of steps. Once the goal is completed, it returns control to @RightHemisphere.
 
-This is @McGilchrist@McGilchristCycle.
+My @Memory recognizes familiar @sigils and #remembers new ones I find relevant.
+
+My mind !maintains-balance between @RightHemisphere and @LeftHemisphere. It !consolidates-memory to avoid overwhelm with irrelevant details.
+
+For more on @BicameralMind, see @McGilchrist@McGilchristCycle.
+
+m

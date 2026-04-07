@@ -24,3 +24,6 @@ I am the @User.
 
 
 oh, and !vision-tab-opened-on-first-run, and !state-restored-to-saved on subsequent runs. On exit, we insist that !state-saved-on-exit
+
+
+Because this is a specification, we also care to constrain the @TechnicalAspects.
