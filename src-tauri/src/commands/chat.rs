@@ -141,7 +141,7 @@ fn find_context_by_path<'a>(root: &'a SigilFolder, path: &[String]) -> Option<&'
 }
 
 #[allow(dead_code)]
-fn assemble_sigil_context(_app: &tauri::AppHandle, root_path: &str, current_path: &[String]) -> Result<String, String> {
+fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<String, String> {
     let sigil = read_sigil_with_libs(root_path.to_string())?;
     let mut output = String::new();
 
@@ -982,6 +982,204 @@ mod tests {
         fs::write(edit.join("language.md"), "Edit the current sigil").unwrap();
 
         root
+    }
+
+    #[test]
+    fn test_render_named_entry_empty_content() {
+        let mut out = String::new();
+        render_named_entry(&mut out, "#", "navigate", "");
+        assert_eq!(out, "- #navigate\n");
+    }
+
+    #[test]
+    fn test_render_named_entry_single_line() {
+        let mut out = String::new();
+        render_named_entry(&mut out, "!", "latency", "must be under 100ms");
+        assert_eq!(out, "- !latency: must be under 100ms\n");
+    }
+
+    #[test]
+    fn test_render_named_entry_multiline() {
+        let mut out = String::new();
+        render_named_entry(&mut out, "#", "edit", "line one\nline two");
+        assert_eq!(out, "- #edit:\n  line one\n  line two\n");
+    }
+
+    #[test]
+    fn test_find_context_by_path_empty() {
+        let root = SigilFolder {
+            name: "Root".into(), path: "/root".into(), language: String::new(),
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+        };
+        let result = find_context_by_path(&root, &[]);
+        assert_eq!(result.unwrap().name, "Root");
+    }
+
+    #[test]
+    fn test_find_context_by_path_valid() {
+        let child = SigilFolder {
+            name: "Browse".into(), path: "/root/Browse".into(), language: "browse lang".into(),
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+        };
+        let root = SigilFolder {
+            name: "Root".into(), path: "/root".into(), language: String::new(),
+            affordances: vec![], invariants: vec![], children: vec![child], images: vec![], is_imported: false,
+        };
+        let result = find_context_by_path(&root, &["Browse".to_string()]);
+        assert_eq!(result.unwrap().name, "Browse");
+    }
+
+    #[test]
+    fn test_find_context_by_path_invalid_returns_none() {
+        let root = SigilFolder {
+            name: "Root".into(), path: "/root".into(), language: String::new(),
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+        };
+        let result = find_context_by_path(&root, &["Nonexistent".to_string()]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_render_context_with_affordances_and_invariants() {
+        let ctx = SigilFolder {
+            name: "Editor".into(),
+            path: "/root/Editor".into(),
+            language: "The editing surface.".into(),
+            affordances: vec![
+                crate::models::sigil::Affordance { name: "save".into(), content: "persist changes".into() },
+            ],
+            invariants: vec![
+                crate::models::sigil::Invariant { name: "autosave".into(), content: "never lose work".into() },
+            ],
+            children: vec![],
+            images: vec![],
+            is_imported: false,
+        };
+        let mut output = String::new();
+        render_context(&ctx, 0, &mut output);
+        assert!(output.contains("## Editor"));
+        assert!(output.contains("The editing surface."));
+        assert!(output.contains("- !autosave: never lose work"));
+        assert!(output.contains("- #save: persist changes"));
+    }
+
+    #[test]
+    fn test_render_context_empty_sections() {
+        let ctx = SigilFolder {
+            name: "Empty".into(), path: "/root/Empty".into(), language: "  ".into(),
+            affordances: vec![], invariants: vec![], children: vec![], images: vec![], is_imported: false,
+        };
+        let mut output = String::new();
+        render_context(&ctx, 0, &mut output);
+        assert!(output.contains("_empty_"));
+        assert!(output.contains("- none"));
+    }
+
+    #[test]
+    fn test_chat_crud() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().to_string_lossy().to_string();
+
+        // Read non-existent chat returns empty
+        let chat = read_chat(root.clone(), "chat-1".to_string()).unwrap();
+        assert_eq!(chat.id, "chat-1");
+        assert!(chat.messages.is_empty());
+
+        // Create .private dir for chats
+        fs::create_dir_all(Path::new(&root).join(".private")).unwrap();
+
+        // Write and read back
+        let chat = Chat {
+            id: "chat-1".to_string(),
+            name: "Test Chat".to_string(),
+            messages: vec![ChatMessage { role: ChatRole::User, content: "hello".to_string() }],
+        };
+        write_chat(root.clone(), chat).unwrap();
+        let loaded = read_chat(root.clone(), "chat-1".to_string()).unwrap();
+        assert_eq!(loaded.name, "Test Chat");
+        assert_eq!(loaded.messages.len(), 1);
+
+        // Rename
+        rename_chat(root.clone(), "chat-1".to_string(), "Renamed".to_string()).unwrap();
+        let renamed = read_chat(root.clone(), "chat-1".to_string()).unwrap();
+        assert_eq!(renamed.name, "Renamed");
+
+        // List
+        let chats = list_chats(root.clone()).unwrap();
+        assert_eq!(chats.len(), 1);
+        assert_eq!(chats[0].id, "chat-1");
+        assert_eq!(chats[0].message_count, 1);
+
+        // Delete
+        delete_chat(root.clone(), "chat-1".to_string()).unwrap();
+        let chats = list_chats(root).unwrap();
+        assert!(chats.is_empty());
+    }
+
+    #[test]
+    fn test_delete_chat_idempotent() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().to_string_lossy().to_string();
+        // Delete non-existent chat should not error
+        delete_chat(root, "nonexistent".to_string()).unwrap();
+    }
+
+    #[test]
+    fn test_rename_chat_missing_errors() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().to_string_lossy().to_string();
+        let result = rename_chat(root, "nonexistent".to_string(), "New Name".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_migrate_legacy_chat() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join(".private")).unwrap();
+        let legacy = root.join("chat.json");
+        let messages = vec![
+            ChatMessage { role: ChatRole::User, content: "hello".to_string() },
+        ];
+        let json = serde_json::to_string(&messages).unwrap();
+        fs::write(&legacy, json).unwrap();
+
+        migrate_legacy_chat(&root.to_string_lossy()).unwrap();
+
+        assert!(!legacy.exists());
+        let chats_dir = root.join(".private/chats");
+        assert!(chats_dir.join("default.json").exists());
+    }
+
+    #[test]
+    fn test_read_memories_empty() {
+        let tmp = TempDir::new().unwrap();
+        let graph = read_memories(tmp.path().to_string_lossy().to_string()).unwrap();
+        assert!(graph.nodes.is_empty());
+        assert!(graph.edges.is_empty());
+    }
+
+    #[test]
+    fn test_read_memories_extracts_nodes_and_edges() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let mem_dir = root.join(".private/DesignPartnerState/memories");
+
+        let concept_a = mem_dir.join("Alpha");
+        fs::create_dir_all(&concept_a).unwrap();
+        fs::write(concept_a.join("language.md"), "Alpha relates to @Beta in context.").unwrap();
+
+        let concept_b = mem_dir.join("Beta");
+        fs::create_dir_all(&concept_b).unwrap();
+        fs::write(concept_b.join("language.md"), "Beta stands alone.").unwrap();
+
+        let graph = read_memories(root.to_string_lossy().to_string()).unwrap();
+        assert_eq!(graph.nodes.len(), 2);
+        // Alpha -> Beta edge via @reference
+        let ref_edges: Vec<_> = graph.edges.iter()
+            .filter(|e| e.source == "Alpha" && e.target == "Beta" && e.label != "contains")
+            .collect();
+        assert!(!ref_edges.is_empty());
     }
 
     #[test]

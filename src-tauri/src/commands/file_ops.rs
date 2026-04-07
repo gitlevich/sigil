@@ -83,6 +83,157 @@ pub fn write_image_bytes(dest_path: String, data: Vec<u8>) -> Result<String, Str
 
 use base64::Engine as _;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn read_write_roundtrip() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.txt").to_string_lossy().to_string();
+        write_file(path.clone(), "hello world".to_string()).unwrap();
+        let content = read_file(path).unwrap();
+        assert_eq!(content, "hello world");
+    }
+
+    #[test]
+    fn write_file_creates_parent_dirs() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("deep/nested/dir/file.txt").to_string_lossy().to_string();
+        write_file(path.clone(), "content".to_string()).unwrap();
+        assert_eq!(read_file(path).unwrap(), "content");
+    }
+
+    #[test]
+    fn read_file_missing_returns_error() {
+        let result = read_file("/nonexistent/file.txt".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn delete_file_removes_existing() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("doomed.txt");
+        fs::write(&path, "bye").unwrap();
+        delete_file(path.to_string_lossy().to_string()).unwrap();
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn delete_file_idempotent_on_missing() {
+        let result = delete_file("/nonexistent/file.txt".to_string());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn copy_image_no_collision() {
+        let tmp = TempDir::new().unwrap();
+        let src = tmp.path().join("photo.png");
+        fs::write(&src, b"PNG data").unwrap();
+        let dest_dir = tmp.path().join("images");
+        let name = copy_image(
+            src.to_string_lossy().to_string(),
+            dest_dir.to_string_lossy().to_string(),
+        ).unwrap();
+        assert_eq!(name, "photo.png");
+        assert!(dest_dir.join("photo.png").exists());
+    }
+
+    #[test]
+    fn copy_image_collision_avoidance() {
+        let tmp = TempDir::new().unwrap();
+        let src = tmp.path().join("photo.png");
+        fs::write(&src, b"PNG data").unwrap();
+        let dest_dir = tmp.path().join("images");
+        fs::create_dir(&dest_dir).unwrap();
+        fs::write(dest_dir.join("photo.png"), b"existing").unwrap();
+
+        let name = copy_image(
+            src.to_string_lossy().to_string(),
+            dest_dir.to_string_lossy().to_string(),
+        ).unwrap();
+        assert_eq!(name, "photo-1.png");
+    }
+
+    #[test]
+    fn copy_image_multiple_collisions() {
+        let tmp = TempDir::new().unwrap();
+        let src = tmp.path().join("photo.png");
+        fs::write(&src, b"PNG data").unwrap();
+        let dest_dir = tmp.path().join("images");
+        fs::create_dir(&dest_dir).unwrap();
+        fs::write(dest_dir.join("photo.png"), b"1").unwrap();
+        fs::write(dest_dir.join("photo-1.png"), b"2").unwrap();
+
+        let name = copy_image(
+            src.to_string_lossy().to_string(),
+            dest_dir.to_string_lossy().to_string(),
+        ).unwrap();
+        assert_eq!(name, "photo-2.png");
+    }
+
+    #[test]
+    fn copy_image_source_not_file() {
+        let tmp = TempDir::new().unwrap();
+        let result = copy_image(
+            tmp.path().to_string_lossy().to_string(),
+            tmp.path().join("dest").to_string_lossy().to_string(),
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not a file"));
+    }
+
+    #[test]
+    fn write_image_bytes_collision_avoidance() {
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("img.png");
+        fs::write(&dest, b"existing").unwrap();
+
+        let name = write_image_bytes(
+            dest.to_string_lossy().to_string(),
+            vec![0x89, 0x50, 0x4E, 0x47],
+        ).unwrap();
+        assert_eq!(name, "img-1.png");
+    }
+
+    #[test]
+    fn read_image_base64_png() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.png");
+        fs::write(&path, b"\x89PNG\r\n\x1a\n").unwrap();
+        let result = read_image_base64(path.to_string_lossy().to_string()).unwrap();
+        assert!(result.starts_with("data:image/png;base64,"));
+    }
+
+    #[test]
+    fn read_image_base64_jpeg() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.jpg");
+        fs::write(&path, b"\xFF\xD8\xFF").unwrap();
+        let result = read_image_base64(path.to_string_lossy().to_string()).unwrap();
+        assert!(result.starts_with("data:image/jpeg;base64,"));
+    }
+
+    #[test]
+    fn read_image_base64_svg() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.svg");
+        fs::write(&path, "<svg></svg>").unwrap();
+        let result = read_image_base64(path.to_string_lossy().to_string()).unwrap();
+        assert!(result.starts_with("data:image/svg+xml;base64,"));
+    }
+
+    #[test]
+    fn read_image_base64_unknown_ext() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.bmp");
+        fs::write(&path, b"BM").unwrap();
+        let result = read_image_base64(path.to_string_lossy().to_string()).unwrap();
+        assert!(result.starts_with("data:application/octet-stream;base64,"));
+    }
+}
+
 #[tauri::command]
 pub fn read_image_base64(path: String) -> Result<String, String> {
     let data = fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;

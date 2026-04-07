@@ -77,6 +77,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_format_frame_root_context() {
+        let turn = CompletedTurn {
+            root_path: "/test".to_string(),
+            chat_id: "chat-1".to_string(),
+            user_message: "hello".to_string(),
+            assistant_message: "hi there".to_string(),
+            current_path: vec![],
+        };
+        let frame = format_frame(&turn);
+        assert!(frame.contains("Viewing: Root"));
+    }
+
+    #[test]
     fn test_format_frame() {
         let turn = CompletedTurn {
             root_path: "/test".to_string(),

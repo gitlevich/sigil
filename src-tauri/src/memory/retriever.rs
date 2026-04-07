@@ -94,6 +94,34 @@ mod tests {
     }
 
     #[test]
+    fn test_format_recall_block_with_chunks() {
+        use super::super::db::{Chunk, ScoredChunk};
+        let chunks = vec![ScoredChunk {
+            chunk: Chunk {
+                id: 1,
+                file_path: "/tmp/test/language.md".to_string(),
+                chunk_index: 0,
+                text: "Hello world".to_string(),
+                embedding: vec![],
+                file_hash: "abc".to_string(),
+                indexed_at: 0,
+            },
+            score: 0.85,
+        }];
+        let block = format_recall_block(&chunks);
+        assert!(block.contains("(relevance: 0.85)"));
+        assert!(block.contains("Hello world"));
+        assert!(block.contains("---"));
+    }
+
+    #[test]
+    fn test_abbreviate_path_docs_marker() {
+        let path = "/home/user/docs/specification/my-sigil/Application/Editor/language.md";
+        let short = abbreviate_path(path);
+        assert_eq!(short, "Application/Editor/language.md");
+    }
+
+    #[test]
     fn test_abbreviate_path_no_marker() {
         let path = "/tmp/test/language.md";
         let short = abbreviate_path(path);

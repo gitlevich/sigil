@@ -199,6 +199,7 @@ pub struct IndexStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::TempDir;
 
     #[test]
@@ -240,6 +241,81 @@ mod tests {
         assert!(paths.iter().any(|p| p.ends_with("language.md")), "Expected language.md in {:?}", paths);
         assert!(!paths.iter().any(|p| p.contains(".sigil")));
         assert!(!paths.iter().any(|p| p.contains("/chats/")));
+    }
+
+    #[test]
+    fn test_chunk_text_empty() {
+        let chunks = chunk_text("");
+        assert!(chunks.is_empty() || (chunks.len() == 1 && chunks[0].is_empty()));
+    }
+
+    #[test]
+    fn test_chunk_text_exactly_chunk_size() {
+        let text = "a".repeat(CHUNK_SIZE);
+        let chunks = chunk_text(&text);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].len(), CHUNK_SIZE);
+    }
+
+    #[test]
+    fn test_chunk_text_paragraph_break() {
+        // Build text with paragraph break in second half
+        let first = "a".repeat(1500);
+        let second = "b".repeat(400);
+        let third = "c".repeat(400);
+        let text = format!("{}\n\n{}\n\n{}", first, second, third);
+        let chunks = chunk_text(&text);
+        // Should break at paragraph boundary, not mid-word
+        assert!(chunks.len() >= 1);
+        for chunk in &chunks {
+            assert!(!chunk.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_find_break_point_paragraph() {
+        // The \n\n must be in the second half of the text for find_break_point to find it
+        let text = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n\nSecond half.";
+        let bp = find_break_point(text);
+        assert!(bp.is_some());
+        assert!(bp.unwrap() > text.len() / 2);
+    }
+
+    #[test]
+    fn test_find_break_point_none_in_first_half() {
+        let text = "\n\nAll the breaks are at the start, nothing in the second half";
+        let bp = find_break_point(text);
+        // Break is before halfway, so it should not be found
+        // (depends on text length, but the logic requires pos > len/2)
+        // This tests the fallback
+        assert!(bp.is_none() || bp.unwrap() > text.len() / 2);
+    }
+
+    #[test]
+    fn test_collect_md_files_includes_private_design_partner() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let dp = root.join(".private/DesignPartnerState/memories/Concept");
+        fs::create_dir_all(&dp).unwrap();
+        fs::write(dp.join("language.md"), "concept content").unwrap();
+
+        let files = collect_md_files(root);
+        let paths: Vec<String> = files.iter().map(|(p, _)| p.clone()).collect();
+        assert!(paths.iter().any(|p| p.contains("DesignPartnerState")),
+            "Expected DesignPartnerState in {:?}", paths);
+    }
+
+    #[test]
+    fn test_collect_md_files_skips_empty() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::write(root.join("empty.md"), "   \n  ").unwrap();
+        fs::write(root.join("content.md"), "real content").unwrap();
+
+        let files = collect_md_files(root);
+        assert_eq!(files.len(), 1);
+        assert!(files[0].0.contains("content.md"));
     }
 
     #[test]

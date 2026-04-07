@@ -597,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_read_sigil_nonexistent() {
-        let result = read_sigil("/nonexistent/path".to_string());
+        let result = read_sigil_with_libs("/nonexistent/path".to_string());
         assert!(result.is_err());
     }
 
@@ -748,7 +748,7 @@ mod tests {
         fs::create_dir(&child).unwrap();
         fs::write(child.join("spec.md"), "Old child content").unwrap();
 
-        let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
+        let sigil = read_sigil_with_libs(root.to_string_lossy().to_string()).unwrap();
         assert_eq!(sigil.root.language, "Legacy root content");
         assert_eq!(sigil.root.children.len(), 1);
         assert_eq!(sigil.root.children[0].language, "Old child content");
@@ -763,7 +763,7 @@ mod tests {
         fs::write(root.join("spec.md"), "old content").unwrap();
         fs::write(root.join("language.md"), "new content").unwrap();
 
-        let sigil = read_sigil(root.to_string_lossy().to_string()).unwrap();
+        let sigil = read_sigil_with_libs(root.to_string_lossy().to_string()).unwrap();
         assert_eq!(sigil.root.language, "new content");
     }
 

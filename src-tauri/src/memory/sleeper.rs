@@ -309,6 +309,112 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_find_merge_candidates_no_similar() {
+        let concepts = vec![
+            ConceptEntry {
+                dir_path: "A".to_string(),
+                text: "cats".to_string(),
+                embedding: vec![1.0, 0.0, 0.0],
+                indexed_at: 0,
+                weight: 1.0,
+            },
+            ConceptEntry {
+                dir_path: "B".to_string(),
+                text: "dogs".to_string(),
+                embedding: vec![0.0, 1.0, 0.0],
+                indexed_at: 0,
+                weight: 1.0,
+            },
+        ];
+        let pairs = find_merge_candidates(&concepts);
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn test_find_merge_candidates_keeps_longer() {
+        // When two concepts are similar, the longer text is kept
+        let concepts = vec![
+            ConceptEntry {
+                dir_path: "Short".to_string(),
+                text: "hi".to_string(),
+                embedding: vec![1.0, 0.0],
+                indexed_at: 0,
+                weight: 1.0,
+            },
+            ConceptEntry {
+                dir_path: "Long".to_string(),
+                text: "hello world description".to_string(),
+                embedding: vec![0.999, 0.001], // very similar
+                indexed_at: 0,
+                weight: 1.0,
+            },
+        ];
+        let pairs = find_merge_candidates(&concepts);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0, 1); // Long kept
+        assert_eq!(pairs[0].1, 0); // Short merged
+    }
+
+    #[test]
+    fn test_find_merge_candidates_empty() {
+        let pairs = find_merge_candidates(&[]);
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn test_find_merge_candidates_single() {
+        let concepts = vec![ConceptEntry {
+            dir_path: "A".to_string(), text: "only one".to_string(),
+            embedding: vec![1.0, 0.0], indexed_at: 0, weight: 1.0,
+        }];
+        let pairs = find_merge_candidates(&concepts);
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn test_structural_dirs_skipped() {
+        // Verify the STRUCTURAL_DIRS constant
+        assert!(STRUCTURAL_DIRS.contains(&"ContrastIndex"));
+        assert!(STRUCTURAL_DIRS.contains(&"Experience"));
+        assert!(STRUCTURAL_DIRS.contains(&"Sleep"));
+        assert!(STRUCTURAL_DIRS.contains(&"Entanglement"));
+    }
+
+    #[test]
+    fn test_count_recent_concepts() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path();
+
+        // Create concept dirs with language.md
+        let concept = root.join("Alpha");
+        fs::create_dir(&concept).unwrap();
+        fs::write(concept.join("language.md"), "alpha content").unwrap();
+
+        // Structural dir should be skipped
+        let structural = root.join("Experience");
+        fs::create_dir(&structural).unwrap();
+        fs::write(structural.join("language.md"), "should be skipped").unwrap();
+
+        let state = MemoryState {
+            db: Arc::new(super::super::MemoryDb::open(&tmp.path().join("test.db")).unwrap()),
+            embedder: Arc::new(MockEmbedder),
+            sigil_root: tokio::sync::RwLock::new(Some(root.to_path_buf())),
+        };
+
+        let mut count = 0;
+        count_recent_concepts(root, &state, 0, &mut count).unwrap();
+        assert_eq!(count, 1); // Only Alpha, not Experience
+    }
+
+    struct MockEmbedder;
+    impl super::super::embedder::EmbeddingProvider for MockEmbedder {
+        fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, super::super::MemoryError> {
+            Ok(texts.iter().map(|_| vec![0.0; 384]).collect())
+        }
+        fn dimensions(&self) -> usize { 384 }
+    }
+
+    #[test]
     fn test_find_merge_candidates() {
         let concepts = vec![
             ConceptEntry {

@@ -41,6 +41,39 @@ fn urlencoding(s: &str) -> String {
     out
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn urlencoding_preserves_unreserved() {
+        assert_eq!(urlencoding("hello-world_1.0/path"), "hello-world_1.0/path");
+    }
+
+    #[test]
+    fn urlencoding_encodes_spaces() {
+        assert_eq!(urlencoding("hello world"), "hello%20world");
+    }
+
+    #[test]
+    fn urlencoding_encodes_special_chars() {
+        let result = urlencoding("path with spaces & symbols=yes");
+        assert!(result.contains("%20"));
+        assert!(result.contains("%26")); // &
+        assert!(result.contains("%3D")); // =
+    }
+
+    #[test]
+    fn urlencoding_preserves_tilde() {
+        assert_eq!(urlencoding("~user"), "~user");
+    }
+
+    #[test]
+    fn urlencoding_empty_string() {
+        assert_eq!(urlencoding(""), "");
+    }
+}
+
 pub fn run() {
     let memory_handle = MemoryHandle(Arc::new(tokio::sync::Mutex::new(None)));
     let (sleep_tx, sleep_rx) = tokio::sync::mpsc::channel::<memory::sleeper::SleepTrigger>(4);
