@@ -1,1 +1,1 @@
-So he could use @Spellbook@Spells
+So he could use @Spellbook@Spell

@@ -1,1 +1,0 @@
-When multiple issues are detected: @Metric violations first, then @Sufficiency gaps, then naming and structural concerns. The right hemisphere is primary — its sensing gates the left hemisphere's tracing. Exception: a naming problem that blocks coherence or coverage assessment comes first.

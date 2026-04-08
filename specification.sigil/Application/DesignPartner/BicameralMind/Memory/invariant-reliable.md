@@ -1,0 +1,1 @@
+What I remembered, I can #recognize-familiar-sigil, as long as it retains @Relevance. Memory does not randomly drop what matters. It drops what stopped mattering.
