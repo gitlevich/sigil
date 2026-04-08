@@ -24,4 +24,10 @@ Three jobs:
 
 @Subconscious takes care of autonomic behavior.
 
-This implementation is done when all acceptance criteria of the @DefinitionOfDone are met.
+Acceptance criteria:
+
+!always-on — local models are loaded and responsive whenever the app is running
+
+!no-network — operates without API calls or internet
+
+!non-blocking — processing never blocks the @user's editing

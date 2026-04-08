@@ -20,4 +20,12 @@ Otherwise, it isn't: the number of generated sentences feels unbounded, or the n
 
 If the generations are coherent, we move on to @Sufficiency to see if all meaningful sentences we generated have been specified. If not, our @Sufficiency is insufficient: we need to speak these sentences into existence at lower and lower level of abstraction, until we have reached @primitives.
 
-@LeftHemisphere is implemented when @DefinitionOfDone is satisfied.
+The vocabulary for generation is the lexical scope of the recognized @sigil — the @sigil itself, its children, siblings, and ancestors. The scope is the context. The @sigil is the focus. Results are written into the world: changed @sigils, new @Memory entries, new spells in the @Spellbook. The @LeftHemisphere retains nothing between invocations.
+
+Acceptance criteria:
+
+!vocabulary-bounded — generation uses the lexical scope of the recognized @sigil as its vocabulary
+
+!stateless — the @LeftHemisphere retains nothing between invocations, each turn starts fresh
+
+!output-in-world — results are written into @sigils, @Memory, or the @Spellbook, never kept as private state

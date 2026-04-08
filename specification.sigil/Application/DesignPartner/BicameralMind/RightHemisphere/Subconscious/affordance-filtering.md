@@ -1,1 +1,3 @@
-After each conversation turn, the embedding model measures proximity between new experience frames and the @DesignPartner's @invariants in @ContrastSpace. Frames that resonate — high similarity to active invariants, recurring proximity to the current @shape — get passed to the local LLM for compression into memory traces. Frames that don't resonate are left in experience but not promoted to @Memory. During #sleep, the local LLM reviews what accumulated and produces compressed sigils: the minimum language needed for the @LeftHemisphere to reconstruct the full context on #recall.
+The @Subconscious filters @Experience by @Relevance. New experience that resonates with active @invariants and the current @shape passes through. The rest stays in @Experience but is not promoted to @Memory.
+
+This is the same filter that #consolidate applies in bulk. During waking, it runs continuously on each new piece of @Experience.
