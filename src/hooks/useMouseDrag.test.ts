@@ -1,9 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { canDropOnNode } from "../components/OntologyTree/OntologyTree";
-
-// canDropOnNode is the extracted pure logic from the drag-drop system.
-// useMouseDrag itself is a React hook with DOM event listeners —
-// its timing fix (setTimeout vs queueMicrotask) requires integration testing.
+import { createDragGhost } from "./useMouseDrag";
 
 interface TestNode {
   name: string;
@@ -81,5 +78,81 @@ describe("canDropOnNode", () => {
     const almostFull = node("Almost", "/root/Almost", { children: kids });
     const nodes = [root, almostFull, ...kids, child1];
     expect(canDropOnNode("/root/A", "/root/Almost", nodes)).toBe(true);
+  });
+});
+
+describe("createDragGhost", () => {
+  let ghost: ReturnType<typeof createDragGhost>;
+  let mockClone: Record<string, unknown>;
+  let appendSpy: ReturnType<typeof vi.fn>;
+  let removeSpy: ReturnType<typeof vi.fn>;
+
+  function mockSourceEl(rect: { left: number; top: number; width: number; height: number }) {
+    removeSpy = vi.fn();
+    mockClone = { style: {} as Record<string, string>, remove: removeSpy };
+    return {
+      getBoundingClientRect: () => rect,
+      cloneNode: vi.fn(() => mockClone),
+    } as unknown as HTMLElement;
+  }
+
+  beforeEach(() => {
+    appendSpy = vi.fn();
+    vi.stubGlobal("document", {
+      body: { appendChild: appendSpy },
+    });
+    ghost = createDragGhost();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("clones source element and appends to body", () => {
+    const source = mockSourceEl({ left: 10, top: 20, width: 200, height: 30 });
+    ghost.show(source, 50, 35);
+    expect(source.cloneNode).toHaveBeenCalledWith(true);
+    expect(appendSpy).toHaveBeenCalledWith(mockClone);
+  });
+
+  it("positions ghost at source element's original position", () => {
+    const source = mockSourceEl({ left: 10, top: 20, width: 200, height: 30 });
+    ghost.show(source, 50, 35);
+    const style = mockClone.style as Record<string, string>;
+    expect(style.left).toBe("10px");
+    expect(style.top).toBe("20px");
+    expect(style.width).toBe("200px");
+  });
+
+  it("makes ghost non-interactive and semi-transparent", () => {
+    const source = mockSourceEl({ left: 0, top: 0, width: 100, height: 30 });
+    ghost.show(source, 0, 0);
+    const style = mockClone.style as Record<string, string>;
+    expect(style.pointerEvents).toBe("none");
+    expect(style.opacity).toBe("0.7");
+    expect(style.position).toBe("fixed");
+  });
+
+  it("moves ghost preserving grab offset", () => {
+    // Grab at (50, 35), element starts at (10, 20) → offset is (40, 15)
+    const source = mockSourceEl({ left: 10, top: 20, width: 200, height: 30 });
+    ghost.show(source, 50, 35);
+    // Move cursor to (100, 80) → ghost should be at (60, 65)
+    ghost.move(100, 80);
+    const style = mockClone.style as Record<string, string>;
+    expect(style.left).toBe("60px");
+    expect(style.top).toBe("65px");
+  });
+
+  it("removes ghost element on hide", () => {
+    const source = mockSourceEl({ left: 0, top: 0, width: 100, height: 30 });
+    ghost.show(source, 0, 0);
+    ghost.hide();
+    expect(removeSpy).toHaveBeenCalled();
+  });
+
+  it("hide and move are safe without prior show", () => {
+    expect(() => ghost.hide()).not.toThrow();
+    expect(() => ghost.move(10, 10)).not.toThrow();
   });
 });

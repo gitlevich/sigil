@@ -79,6 +79,10 @@
   pointer-events: none;
 }
 
+.nodeRow.dragSource {
+  opacity: 0.3;
+}
+
 .expandBtn {
   background: none;
   border: none;

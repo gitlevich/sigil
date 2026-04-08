@@ -16,11 +16,6 @@ interface DragCallbacks {
   canDrop?: (sourcePath: string, targetPath: string) => boolean;
 }
 
-/**
- * Suppress text selection while a drag gesture is pending or active.
- * Applied to the entire document body so that hovering over any element
- * during the drag does not start selecting text.
- */
 function suppressTextSelection() {
   document.body.style.userSelect = "none";
   document.body.style.webkitUserSelect = "none";
@@ -32,28 +27,74 @@ function restoreTextSelection() {
 }
 
 /**
+ * Standard drag ghost: clones the grabbed element and floats it at the cursor.
+ * Direct DOM manipulation — no React re-renders during mousemove.
+ */
+export function createDragGhost() {
+  let ghost: HTMLElement | null = null;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  return {
+    /** Clone sourceEl and position the ghost where the user grabbed it. */
+    show(sourceEl: HTMLElement, grabX: number, grabY: number) {
+      const rect = sourceEl.getBoundingClientRect();
+      offsetX = grabX - rect.left;
+      offsetY = grabY - rect.top;
+
+      ghost = sourceEl.cloneNode(true) as HTMLElement;
+      ghost.style.position = "fixed";
+      ghost.style.pointerEvents = "none";
+      ghost.style.zIndex = "200";
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.opacity = "0.7";
+      ghost.style.left = `${rect.left}px`;
+      ghost.style.top = `${rect.top}px`;
+      ghost.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+      ghost.style.borderRadius = "3px";
+      document.body.appendChild(ghost);
+    },
+    /** Move ghost so cursor stays at the same relative grab offset. */
+    move(x: number, y: number) {
+      if (!ghost) return;
+      ghost.style.left = `${x - offsetX}px`;
+      ghost.style.top = `${y - offsetY}px`;
+    },
+    hide() {
+      if (!ghost) return;
+      ghost.remove();
+      ghost = null;
+    },
+  };
+}
+
+/**
  * Mouse-based drag-and-drop that bypasses native NSDragging.
  *
  * Tauri's WKWebView subclass (wry) overrides NSDraggingDestination,
  * which on macOS 26+ interferes with HTML5 drag events.
  * This hook uses mousedown/mousemove/mouseup instead.
+ *
+ * Visual feedback: the grabbed row is cloned as a semi-transparent ghost
+ * that follows the cursor. The original row dims via CSS (.dragSource).
+ * Valid drop targets highlight via CSS (.dropTarget).
  */
 export function useMouseDrag(callbacks: DragCallbacks) {
   const [dragState, setDragState] = useState<DragState>({ sourcePath: null, targetPath: null });
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const pendingSource = useRef<string | null>(null);
+  const sourceEl = useRef<HTMLElement | null>(null);
   const dragging = useRef(false);
   const callbacksRef = useRef(callbacks);
   callbacksRef.current = callbacks;
+  const ghost = useRef(createDragGhost());
 
   const onDragStart = useCallback((e: React.MouseEvent, fsPath: string) => {
-    // Only left button
     if (e.button !== 0) return;
     e.stopPropagation();
     startPos.current = { x: e.clientX, y: e.clientY };
     pendingSource.current = fsPath;
-    // Suppress text selection as soon as a drag gesture begins.
-    // Restored on mouseup whether or not the threshold was reached.
+    sourceEl.current = e.currentTarget as HTMLElement;
     suppressTextSelection();
   }, []);
 
@@ -65,25 +106,30 @@ export function useMouseDrag(callbacks: DragCallbacks) {
       if (!dragging.current && (dx * dx + dy * dy) >= DRAG_THRESHOLD * DRAG_THRESHOLD) {
         dragging.current = true;
         window.getSelection()?.removeAllRanges();
+        if (sourceEl.current) {
+          ghost.current.show(sourceEl.current, startPos.current.x, startPos.current.y);
+        }
         setDragState({ sourcePath: pendingSource.current, targetPath: null });
+      }
+      if (dragging.current) {
+        ghost.current.move(e.clientX, e.clientY);
       }
     };
 
     const handleMouseUp = () => {
       restoreTextSelection();
+      ghost.current.hide();
       if (dragging.current) {
-        // Drop is handled by the target's onMouseUp — we just clean up here.
-        // setTimeout(0) defers cleanup until after React's synthetic event
-        // processing, guaranteeing the target's onMouseUp fires first.
-        // (queueMicrotask fires before React processes the event queue.)
         setTimeout(() => {
           dragging.current = false;
           pendingSource.current = null;
+          sourceEl.current = null;
           startPos.current = null;
           setDragState({ sourcePath: null, targetPath: null });
         }, 0);
       } else {
         pendingSource.current = null;
+        sourceEl.current = null;
         startPos.current = null;
       }
     };

@@ -42,11 +42,12 @@ function TreeNode({ context, path, currentPath, highlightedChild, dragState, onN
   const hasChildren = context.children.length > 0;
   const atLimit = context.children.length >= 5;
   const isDropTarget = dragState.targetPath === context.path;
+  const isDragSource = dragState.sourcePath === context.path;
 
   return (
     <div className={styles.node}>
       <div
-        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${isDropTarget ? styles.dropTarget : ""}`}
+        className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${isDropTarget ? styles.dropTarget : ""} ${isDragSource ? styles.dragSource : ""}`}
         onMouseDown={(e) => { if (path.length > 0) onDragStart(e, context.path); }}
         onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(context.path); }}
         onMouseLeave={() => { if (dragState.sourcePath) onTargetLeave(context.path); }}
