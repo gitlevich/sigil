@@ -16,4 +16,3 @@ When I #sleep, it consolidates and I wake up rested and refreshed.
 My @memory is !reliable: I can #recognize-familiar-sigil while it has @relevance
 My @memory is !lossy: what has no @relevance to me over time, I tend to #forget
 
-Everything else is @implementation.

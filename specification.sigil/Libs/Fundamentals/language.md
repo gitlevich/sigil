@@ -2,4 +2,4 @@
 status: idea
 ---
 
-# Metrics
+# Fundamentals

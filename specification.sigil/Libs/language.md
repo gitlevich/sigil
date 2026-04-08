@@ -18,4 +18,4 @@ The imported ontologies subtree is !visually-differentiated from other @sigils b
 It is !shipped-with-app as a standard library with its current contents.
 It !cannot-be-deleted from the editor. 
 
-@Metrics
+@Fundamentals
