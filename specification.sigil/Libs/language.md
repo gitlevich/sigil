@@ -14,6 +14,8 @@ Ecological Psychology is the study of perception as direct engagement with the e
 
 This Ontology Browser is built into the application so that I can #access-ontology-lib from any spec, not just this one. 
 
-The @Libs subtree is !visually-differentiated from other @sigils because it is a separate thing. 
+The imported ontologies subtree is !visually-differentiated from other @sigils because it is a separate thing. 
 It is !shipped-with-app as a standard library with its current contents.
 It !cannot-be-deleted from the editor. 
+
+@Metrics

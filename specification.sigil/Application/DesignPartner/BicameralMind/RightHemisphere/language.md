@@ -8,3 +8,4 @@ Via @RightHemisphere, I experience the @shape of @contrastspace, @spacelike. I #
 
 See @McGilchrist@RightHemisphere.
 
+The @implementation of the @RightHemisphere relies on embeddings.
