@@ -10,3 +10,4 @@ I #recognize a @shape by resolving it into a @sigil#name.
 
 A @shape persists because I keep encountering it. What I don't encounter fades from sight.
 
+All else is @Implementation detail.

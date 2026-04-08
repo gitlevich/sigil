@@ -10,6 +10,8 @@ Note change of perspective: "I" describing @DesignPartner changes to "we", so it
 
 This @sigil is below the level of abstraction relevant to @DesignPartner when designing other applications. It IS relevant when building this one.
 
+This branch is done when @DefinitionOfDone says the mechanism is trustworthy enough to wear.
+
 Two models run locally via ONNX inside the Tauri process. No network dependency, no API key needed.
 
 ## Embedding model
@@ -26,11 +28,11 @@ This is the @RightHemisphere's voice. Not high resolution — it cannot do what 
 
 Three jobs:
 
-**Continuous attention.** Watches the @EmbeddingSpace for changes — re-embeds what the @user modified, compares geometry to what it was. When a stable pattern breaks, the distance tells it something moved. It doesn't need to understand why. It senses the disturbance. If the signal crosses the @CorpusCallosum threshold, it escalates to the @LeftHemisphere.
+@ContinuousAttention watches the @EmbeddingSpace for changes. 
 
-**@Subconscious filtering.** After each conversation turn, the embedding model measures proximity between new experience frames and the @DesignPartner's @invariants in @ContrastSpace. Frames that resonate — high similarity to active invariants, recurring proximity to the current @shape — get passed to the local LLM for compression into memory traces. Frames that don't resonate are left in experience but not promoted to @Memory. During #sleep, the local LLM reviews what accumulated and produces compressed sigils: the minimum language needed for the @LeftHemisphere to reconstruct the full context on #recall.
+@SubconsciousFiltering selects what get remembered.
 
-**@Spell execution.** Deterministic algorithms don't need intelligence — just pattern matching and invocation. The local LLM handles this without escalation.
+@SpellExecution takes care of autonomic behavior.
 
 ## What the local LLM does NOT do
 

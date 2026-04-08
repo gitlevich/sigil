@@ -8,7 +8,7 @@ This is a Markdown editor.
 
 Here I #type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Workspace#shortcuts.
 
-I am used to IDE-style #syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @invariants. When I work on defining an API, I write exploratory tests, test-first style: I write non-existing methods on instances of not-yet-created types. It doesn't compile. I fix compile errors by having the IDE create them.
+I am used to IDE-style #reference-syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @invariants. When I work on defining an API, I write exploratory tests, test-first style: I write non-existing methods on instances of not-yet-created types. It doesn't compile. I fix compile errors by having the IDE create them.
 
 I want this experience here, too: language-first, syntax highlighting, then #auto-fix to create the missing symbol:
 

@@ -14,4 +14,4 @@ When nothing needs escalation, I keep watching. This is not idle. Repetition wit
 
 See @McGilchrist@RightHemisphere.
 
-The @implementation relies on embeddings and a local LLM (ONNX runtime).
+The @Implementation relies on embeddings and a local LLM (ONNX runtime).

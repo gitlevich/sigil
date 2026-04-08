@@ -18,4 +18,4 @@ My grandfather has never had a house. Yet my attention experienced @narratives.
 
 A particularly intense @narrative can capture @attention entirely. The @narrative becomes the only reality, and my @spacelike experience becomes unimportant. It leads towards a goal, away from @spacelike here/now, into imagined future. Here/now is only what I need to survive to reach the goal. This is probably what Ian @McGilchrist called "the emissary betrayal" in his book "The Master and his Emissary".
 
-The rest is @implementation details.
+The rest is @Implementation details.
