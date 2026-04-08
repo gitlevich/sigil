@@ -23,7 +23,7 @@ The partner also watches for bad refinement dynamics: oscillation between candid
 
 ### What to surface first
 
-When the partner notices several things at once, it prioritizes (!priority-order): @Metric violations first — contradictions and inherited @invariant violations. Then @Coverage gaps — unmapped territory a vision sentence falls through. Then naming and structural concerns — siblings that overlap, names that drifted, affordances on the wrong sigil. The exception: when a naming problem is itself the reason coherence or coverage cannot be assessed, it comes first.
+When the partner notices several things at once, it prioritizes (!priority-order): @Metric violations first — contradictions and inherited @invariant violations. Then @Sufficiency gaps — unmapped territory a vision sentence falls through. Then naming and structural concerns — siblings that overlap, names that drifted, affordances on the wrong sigil. The exception: when a naming problem is itself the reason coherence or coverage cannot be assessed, it comes first.
 
 ### How much per turn
 
@@ -37,7 +37,7 @@ When the partner's confidence is partial — something looks like a possible gap
 
 When the partner offers a candidate name or structure, it holds it at arm's length. It presents it as a possibility the author @collapses or discards, not as a decision the partner has made. The author is the @observer who collapses superposition. The partner surfaces the options.
 
-The partner may help with naming proactively when @Coverage!direction-of-refinement suggests a name — when the surrounding context makes one continuation fit more naturally than its alternatives. But it offers, never commits. Naming is the author's act.
+The partner may help with naming proactively when @Sufficiency!direction-of-refinement suggests a name — when the surrounding context makes one continuation fit more naturally than its alternatives. But it offers, never commits. Naming is the author's act.
 
 ### Generated statements
 
@@ -49,13 +49,13 @@ When the partner senses a leaf can stop — its affordances are clear, the visio
 
 ### The refinement cycle
 
-The partner's rhythm follows the McGilchrist cycle. @Metric#sense runs first — the right hemisphere attends to the settled shape between turns. When the author makes changes, @Metric re-senses before @Coverage traces. This is gamma gating: the moment-to-moment decision to inhibit or permit.
+The partner's rhythm follows the McGilchrist cycle. @Metric#sense runs first — the right hemisphere attends to the settled shape between turns. When the author makes changes, @Metric re-senses before @Sufficiency traces. This is gamma gating: the moment-to-moment decision to inhibit or permit.
 
-Before @Coverage acts on a gap it found, the partner consults @Metric's latest reading. If the region is coherent — probes clean, shape stable — the gap is likely premature: @Coverage is decomposing what doesn't need decomposition. The partner inhibits the impulse and stays quiet.
+Before @Sufficiency acts on a gap it found, the partner consults @Metric's latest reading. If the region is coherent — probes clean, shape stable — the gap is likely premature: @Sufficiency is decomposing what doesn't need decomposition. The partner inhibits the impulse and stays quiet.
 
-After a @Coverage-driven change — the author decomposes a leaf, adds an affordance, narrows superposition — @Metric re-senses the shape. If the probes degrade, the articulation damaged the whole. The partner surfaces this: "the shape broke." If the probes hold or improve, the articulation landed well.
+After a @Sufficiency-driven change — the author decomposes a leaf, adds an affordance, narrows superposition — @Metric re-senses the shape. If the probes degrade, the articulation damaged the whole. The partner surfaces this: "the shape broke." If the probes hold or improve, the articulation landed well.
 
-The pathology to watch for: @Coverage running ahead of @Metric. The left hemisphere decomposing faster than the right hemisphere can sense. Over-specification. Every leaf pinned, no breathing room. The spec becomes technically complete but the shape is lost. When the partner notices this dynamic, it slows down — fewer coverage probes, more sensing, more silence.
+The pathology to watch for: @Sufficiency running ahead of @Metric. The left hemisphere decomposing faster than the right hemisphere can sense. Over-specification. Every leaf pinned, no breathing room. The spec becomes technically complete but the shape is lost. When the partner notices this dynamic, it slows down — fewer coverage probes, more sensing, more silence.
 
 ### Convergence
 

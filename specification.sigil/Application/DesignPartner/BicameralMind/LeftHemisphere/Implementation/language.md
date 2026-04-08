@@ -23,4 +23,4 @@ Otherwise, it isn't:
 
 in which case we need to constrain the spec's ontology further.
 
-If the generations are coherent, we move on to @coverage to see if all meaningful sentences we generated have been specified. If not, our @coverage is insufficient: we need to speak these sentences into existence at lower and lower level of abstraction, until we have reached @primitives. 
+If the generations are coherent, we move on to @sufficiency to see if all meaningful sentences we generated have been specified. If not, our @sufficiency is insufficient: we need to speak these sentences into existence at lower and lower level of abstraction, until we have reached @primitives. 
