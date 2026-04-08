@@ -1,0 +1,106 @@
+.container {
+  flex-shrink: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  user-select: none;
+  cursor: default;
+}
+
+.barError {
+  cursor: pointer;
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-secondary));
+}
+
+.barError:hover {
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-secondary));
+}
+
+.barClean {
+  background: var(--bg-secondary);
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotError {
+  background: var(--danger);
+}
+
+.dotClean {
+  background: #4caf50;
+}
+
+.panel {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  padding: 0.4rem 0;
+  font-size: 0.78rem;
+  font-family: var(--font-mono, monospace);
+}
+
+.fileGroup {
+  padding: 0.2rem 0;
+}
+
+.filePath {
+  padding: 0.15rem 1rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.filePath:hover {
+  color: var(--accent);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.errorLine {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.1rem 1rem 0.1rem 1.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.errorLine:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.errorLine:hover .refToken {
+  text-decoration: underline;
+}
+
+.lineNum {
+  color: var(--text-secondary);
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.refToken {
+  color: var(--danger);
+}
+
+.reason {
+  color: var(--text-secondary);
+}

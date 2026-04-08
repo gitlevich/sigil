@@ -182,6 +182,13 @@ function OntologyItem({
   const open = forceExpand || expanded;
   const isDropTarget = dragState.targetPath === node.fsPath;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isActive && rowRef.current) {
+      rowRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [isActive]);
 
   const fitHeight = () => {
     const el = textareaRef.current;
@@ -201,6 +208,7 @@ function OntologyItem({
   return (
     <div className={styles.item}>
       <div
+        ref={rowRef}
         className={`${styles.row} ${isActive ? styles.active : ""} ${isDropTarget ? styles.dropTarget : ""}`}
         onMouseDown={(e) => { if (node.path.length > 0) onDragStart(e, node.fsPath); }}
         onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(node.fsPath); }}

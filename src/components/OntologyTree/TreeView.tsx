@@ -35,8 +35,26 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ context, path, currentPath, highlightedChild, dragState, onNavigate, onContextMenu, onAdd, onDragStart, onTargetEnter, onTargetLeave, onTargetDrop, actionDeps }: TreeNodeProps) {
+  // Auto-expand if currentPath passes through this node
+  const isAncestorOfActive = currentPath.length > path.length
+    && currentPath.slice(0, path.length).every((seg, i) => seg === path[i]);
   const [expanded, setExpanded] = useState(true);
   const isActive = JSON.stringify(path) === JSON.stringify(currentPath);
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Re-expand when navigation enters a descendant
+  useEffect(() => {
+    if (isAncestorOfActive && !expanded) {
+      setExpanded(true);
+    }
+  }, [isAncestorOfActive]);
+
+  // Scroll active node into view
+  useEffect(() => {
+    if (isActive && nodeRef.current) {
+      nodeRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [isActive]);
   const isHighlighted = !isActive && highlightedChild === context.name
     && JSON.stringify(path.slice(0, -1)) === JSON.stringify(currentPath);
   const hasChildren = context.children.length > 0;
@@ -47,6 +65,7 @@ function TreeNode({ context, path, currentPath, highlightedChild, dragState, onN
   return (
     <div className={styles.node}>
       <div
+        ref={nodeRef}
         className={`${styles.nodeRow} ${isActive ? styles.active : ""} ${isHighlighted ? styles.highlighted : ""} ${isDropTarget ? styles.dropTarget : ""} ${isDragSource ? styles.dragSource : ""}`}
         onMouseDown={(e) => { if (path.length > 0) onDragStart(e, context.path); }}
         onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(context.path); }}

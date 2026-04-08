@@ -11,7 +11,8 @@ import { Breadcrumb } from "./Breadcrumb";
 import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
-import { SubContextBar } from "./SubContextBar";
+import { CompileStatusBar } from "./CompileStatusBar";
+import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
@@ -91,6 +92,30 @@ export function Workspace() {
     reload: async () => { await reload(); },
     addToast,
   }), [ws.spec.rootPath, reload, addToast]);
+
+  // Invariant: open sigil is always visible and selected in ontology tree.
+  // Ensures panel is open, on ontology tab, and all ancestor nodes are expanded.
+  useEffect(() => {
+    if (!narrating.ontologyPanelOpen || narrating.ontologyPanelTab !== "ontology") {
+      narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
+    }
+    // Expand all ancestors of currentPath in the tree.
+    // The root node has pathKey "" (from [].join("/")), imported paths start with "Imported Ontologies".
+    const ancestorKeys: string[] = [];
+    const isImported = ws.currentPath[0] === "Imported Ontologies";
+    // The root "" must always be expanded
+    ancestorKeys.push("");
+    if (isImported) {
+      ancestorKeys.push("Imported Ontologies");
+    }
+    for (let i = 1; i <= ws.currentPath.length; i++) {
+      ancestorKeys.push(ws.currentPath.slice(0, i).join("/"));
+    }
+    const blocked = ancestorKeys.filter((k) => ws.collapsedPaths.includes(k));
+    if (blocked.length > 0) {
+      wsDispatch({ type: "SET_COLLAPSED_PATHS", paths: ws.collapsedPaths.filter((p) => !blocked.includes(p)) });
+    }
+  }, [ws.currentPath]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -288,6 +313,8 @@ export function Workspace() {
 
   const { scopeRoot, scopePath } = scopeInfo(ws);
 
+  const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null);
+
   // Memoize lexical scope
   const { allRefs, allRefNames } = useMemo(() => {
     const isImported = ws.currentPath[0] === "Imported Ontologies" && ws.spec.importedOntologies;
@@ -389,6 +416,8 @@ export function Workspace() {
                     keybindings={appState.settings.keybindings as unknown as Record<string, string>}
                     findReferencesName={findReferencesNameRef.current}
                     onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
+                    goToLine={ws.targetLine}
+                    onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
                   />
                 </div>
               )}
@@ -425,7 +454,10 @@ export function Workspace() {
             actionDeps={actionDeps}
           />
         )}
-        <SubContextBar context={currentFolder} />
+        <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
+          narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
+          navigate(err.path, err.file === "language.md" ? err.line : undefined);
+        }} />
       </div>
       <DesignPartnerPanel />
 

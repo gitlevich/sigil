@@ -7,3 +7,5 @@ status: idea
 I narrate what my application does. @Language is foreground — I type, define words, let affordances and invariants emerge. @OntologyTree is peripheral context, showing me the structure as it grows.
 
 As I type, I notice emergent ontology — some words feel important. I define them. Each definition is a new @sigil, a new lexical scope. I descend until naming suffices.
+
+The currently opened @sigil in @Language shows in the @OntologyTree as selected node: !open-sigil-visible-and-selected-in-ontology-tree

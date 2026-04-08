@@ -83,6 +83,8 @@ interface MarkdownEditorProps {
   keybindings?: Record<string, string>;
   findReferencesName?: string | null;
   onFindReferencesClear?: () => void;
+  goToLine?: number | null;
+  onGoToLineDone?: () => void;
 }
 
 const themeCompartment = new Compartment();
@@ -258,7 +260,7 @@ function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -295,6 +297,26 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     // Position at top-left of editor since there's no cursor context
     setRefsState({ hits, x: 32, y: 32 });
   }, [findReferencesName]);
+
+  // Scroll to a specific line when requested (e.g. from compile error navigation).
+  // Uses requestAnimationFrame to ensure the EditorView is mounted after navigation.
+  useEffect(() => {
+    if (goToLine == null) return;
+    const tryScroll = () => {
+      const view = viewRef.current;
+      if (!view) return;
+      const line = Math.min(goToLine, view.state.doc.lines);
+      const lineInfo = view.state.doc.line(line);
+      view.dispatch({
+        selection: { anchor: lineInfo.from },
+        scrollIntoView: true,
+      });
+      view.focus();
+      onGoToLineDone?.();
+    };
+    // Defer to let the editor mount if we just navigated
+    requestAnimationFrame(() => requestAnimationFrame(tryScroll));
+  }, [goToLine]);
 
   useEffect(() => {
     if (!containerRef.current) return;

@@ -17,10 +17,13 @@ export interface WorkspaceState {
   currentPath: string[];
   history: string[][];
   collapsedPaths: string[];
+  /** When set, the editor should scroll to this line after navigation. Consumed once. */
+  targetLine: number | null;
 }
 
 type WorkspaceAction =
-  | { type: "NAVIGATE"; path: string[] }
+  | { type: "NAVIGATE"; path: string[]; targetLine?: number }
+  | { type: "CLEAR_TARGET_LINE" }
   | { type: "BACK" }
   | { type: "UPDATE_SPEC"; spec: ApplicationSpec }
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
@@ -30,8 +33,10 @@ function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState
   switch (action.type) {
     case "NAVIGATE": {
       const history = [...state.history, state.currentPath];
-      return { ...state, currentPath: action.path, history };
+      return { ...state, currentPath: action.path, history, targetLine: action.targetLine ?? null };
     }
+    case "CLEAR_TARGET_LINE":
+      return { ...state, targetLine: null };
     case "BACK": {
       if (state.history.length === 0) return state;
       const history = state.history.slice(0, -1);
@@ -98,6 +103,7 @@ export function WorkspaceProvider({ spec, initialPath = [], initialCollapsed = [
     currentPath: initialPath,
     history: [],
     collapsedPaths: initialCollapsed,
+    targetLine: null,
   });
 
   return (
@@ -124,8 +130,8 @@ export function useWorkspaceActions() {
   const dispatch = useWorkspaceDispatch();
   const state = useWorkspaceState();
 
-  const navigate = useCallback((path: string[]) => {
-    dispatch({ type: "NAVIGATE", path });
+  const navigate = useCallback((path: string[], targetLine?: number) => {
+    dispatch({ type: "NAVIGATE", path, targetLine });
   }, [dispatch]);
 
   const back = useCallback(() => {

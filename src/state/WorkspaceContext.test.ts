@@ -31,7 +31,7 @@ function makeState(
   currentPath: string[] = [],
   history: string[][] = [],
 ): WorkspaceState {
-  return { spec, currentPath, history, collapsedPaths: [] };
+  return { spec, currentPath, history, collapsedPaths: [], targetLine: null };
 }
 
 // ── Test fixtures ──
@@ -128,12 +128,17 @@ describe("back navigation (reducer logic)", () => {
   // Since the reducer is not exported, we simulate its behavior to verify the contract.
   // The reducer pushes currentPath to history on NAVIGATE, pops on BACK.
 
-  function navigate(state: WorkspaceState, path: string[]): WorkspaceState {
+  function navigate(state: WorkspaceState, path: string[], targetLine?: number): WorkspaceState {
     return {
       ...state,
       currentPath: path,
       history: [...state.history, state.currentPath],
+      targetLine: targetLine ?? null,
     };
+  }
+
+  function clearTargetLine(state: WorkspaceState): WorkspaceState {
+    return { ...state, targetLine: null };
   }
 
   function back(state: WorkspaceState): WorkspaceState {
@@ -190,5 +195,34 @@ describe("back navigation (reducer logic)", () => {
     expect(state.history[0]).toEqual([]);
     expect(state.history[1]).toEqual(["Parent"]);
     expect(state.history[2]).toEqual(["Parent", "ChildA"]);
+  });
+
+  it("navigate with targetLine sets targetLine", () => {
+    let state = makeState(spec, []);
+    state = navigate(state, ["Parent"], 5);
+    expect(state.targetLine).toBe(5);
+  });
+
+  it("navigate without targetLine clears targetLine", () => {
+    let state = makeState(spec, []);
+    state = navigate(state, ["Parent"], 5);
+    state = navigate(state, ["Parent", "ChildA"]);
+    expect(state.targetLine).toBeNull();
+  });
+
+  it("clearTargetLine resets targetLine to null", () => {
+    let state = makeState(spec, []);
+    state = navigate(state, ["Parent"], 5);
+    state = clearTargetLine(state);
+    expect(state.targetLine).toBeNull();
+  });
+
+  it("repeated navigate to same path with different targetLine updates targetLine", () => {
+    let state = makeState(spec, []);
+    state = navigate(state, ["Parent"], 5);
+    state = clearTargetLine(state);
+    state = navigate(state, ["Parent"], 10);
+    expect(state.targetLine).toBe(10);
+    expect(state.currentPath).toEqual(["Parent"]);
   });
 });
