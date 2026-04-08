@@ -52,14 +52,16 @@ export function useMouseDrag(callbacks: DragCallbacks) {
 
     const handleMouseUp = () => {
       if (dragging.current) {
-        // Drop is handled by the target's onMouseUp — we just clean up here
-        // Use a microtask so the target's onMouseUp fires first
-        queueMicrotask(() => {
+        // Drop is handled by the target's onMouseUp — we just clean up here.
+        // setTimeout(0) defers cleanup until after React's synthetic event
+        // processing, guaranteeing the target's onMouseUp fires first.
+        // (queueMicrotask fires before React processes the event queue.)
+        setTimeout(() => {
           dragging.current = false;
           pendingSource.current = null;
           startPos.current = null;
           setDragState({ sourcePath: null, targetPath: null });
-        });
+        }, 0);
       } else {
         pendingSource.current = null;
         startPos.current = null;

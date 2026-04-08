@@ -130,8 +130,6 @@ function findStatusAtCursor(view: EditorView): { value: string; from: number } |
 }
 
 let globalPendingStatusRename: string | null = null;
-/** Track the last value propagated by Enter — skip re-propagation on repeated Enter. */
-let lastPropagatedValue: string | null = null;
 
 type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" };
 type SetRenameState = (s: RenameTarget | null) => void;
@@ -189,17 +187,8 @@ function buildCustomKeymap(
           }
           return true;
         }
-        // Direct edit: cursor is on status line — propagate to children
-        // But if the value was already propagated (repeated Enter), fall through to insert newline
-        if (status && onRenameStatusRef.current) {
-          if (lastPropagatedValue === status.value) {
-            lastPropagatedValue = null;
-            return false; // fall through — insert newline
-          }
-          lastPropagatedValue = status.value;
-          onRenameStatusRef.current("", status.value);
-          return true;
-        }
+        // Enter inside frontmatter always inserts a newline.
+        // Status propagation happens via Alt+Cmd+R rename flow.
         return false;
       },
     },

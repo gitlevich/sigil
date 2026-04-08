@@ -66,6 +66,16 @@ function flattenNodes(node: OntologyNode): OntologyNode[] {
   return [node, ...node.children.flatMap(flattenNodes)];
 }
 
+/** Check if a drag source can be dropped onto a target. Exported for testing. */
+export function canDropOnNode(src: string, target: string, allNodes: OntologyNode[]): boolean {
+  if (src === target) return false;
+  if (target.startsWith(src + "/")) return false;
+  const targetNode = allNodes.find(n => n.fsPath === target);
+  if (!targetNode) return false;
+  if (!targetNode.isImported && targetNode.children.length >= 5) return false;
+  return true;
+}
+
 async function loadDefinitions(root: OntologyNode): Promise<Record<string, string>> {
   const nodes = flattenNodes(root);
   const entries = await Promise.all(
@@ -368,12 +378,7 @@ export function OntologyTree() {
   const allNodesRef = useRef<OntologyNode[]>([]);
 
   const canDrop = useCallback((src: string, target: string) => {
-    if (src === target) return false;
-    if (target.startsWith(src + "/")) return false;
-    const targetNode = allNodesRef.current.find(n => n.fsPath === target);
-    if (!targetNode) return false;
-    if (!targetNode.isImported && targetNode.children.length >= 5) return false;
-    return true;
+    return canDropOnNode(src, target, allNodesRef.current);
   }, []);
 
   const { dragState, onDragStart, onTargetEnter, onTargetLeave, onTargetDrop } = useMouseDrag({

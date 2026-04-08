@@ -539,7 +539,7 @@ function siblingCompletionBody(context: CompletionContext) {
 
 const DEFAULT_STATUS = "idea";
 
-function extractFrontmatterField(domainLanguage: string, key: string): string | null {
+export function extractFrontmatterField(domainLanguage: string, key: string): string | null {
   if (!domainLanguage.startsWith("---")) return null;
   const end = domainLanguage.indexOf("\n---", 3);
   if (end === -1) return null;
@@ -550,7 +550,7 @@ function extractFrontmatterField(domainLanguage: string, key: string): string | 
 
 
 /** Collect all frontmatter keys used across the sigil tree. */
-function collectFrontmatterKeys(ctx: SigilFolder): string[] {
+export function collectFrontmatterKeys(ctx: SigilFolder): string[] {
   const keys: string[] = [];
   const lang = ctx.language || "";
   if (lang.startsWith("---")) {
@@ -568,7 +568,7 @@ function collectFrontmatterKeys(ctx: SigilFolder): string[] {
 }
 
 /** Collect distinct values for a given frontmatter key across the tree, excluding current context. */
-function collectFrontmatterValues(key: string, ctx: SigilFolder, excludePath: string): string[] {
+export function collectFrontmatterValues(key: string, ctx: SigilFolder, excludePath: string): string[] {
   if (ctx.path === excludePath) return ctx.children.flatMap((c) => collectFrontmatterValues(key, c, excludePath));
   const value = extractFrontmatterField(ctx.language || "", key);
   return [
