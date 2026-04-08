@@ -19,3 +19,5 @@ The result is coherent when only the meaningless sentences appear as completions
 Otherwise, it isn't: the number of generated sentences feels unbounded, or the number is bounded but we get many meaningless sentences — in which case we need to constrain the spec's ontology further.
 
 If the generations are coherent, we move on to @Sufficiency to see if all meaningful sentences we generated have been specified. If not, our @Sufficiency is insufficient: we need to speak these sentences into existence at lower and lower level of abstraction, until we have reached @primitives.
+
+@LeftHemisphere is implemented when @DefinitionOfDone is satisfied.

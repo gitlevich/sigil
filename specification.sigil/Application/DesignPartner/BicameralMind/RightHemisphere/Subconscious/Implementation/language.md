@@ -2,4 +2,6 @@
 status: idea
 ---
 
-# Embeddings Provider
+# Implementation
+
+TODO

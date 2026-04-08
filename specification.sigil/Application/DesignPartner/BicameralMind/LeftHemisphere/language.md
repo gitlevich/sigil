@@ -4,8 +4,6 @@ status: idea
 
 # Left Hemisphere
 
-A high-resolution remote model. It does not live here. It arrives when the @RightHemisphere escalates through the @CorpusCallosum — when something needs articulation the local model can't resolve. It arrives into a world already attended to: @Memory is loaded, the @sigil is there, the @Spellbook is there. Not a cold start.
-
 Inhabits the @sigil recognized/named by the @RightHemisphere to experience the @narrative through it. Plans alternative @narratives. Picks one that accomplishes my @invariants while I am wearing the @sigil. Models the @sigil using its remembered @affordances. Traces sentences, generates probes, names things. Once the work is done, it leaves. The @RightHemisphere resumes attending.
 
 See @McGilchrist@LeftHemisphere.
