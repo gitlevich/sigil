@@ -93,6 +93,36 @@ describe("buildLexicalScope", () => {
     const unique = new Set(names);
     expect(names.length).toBe(unique.size);
   });
+
+  it("child shadows sibling with same name (innermost wins)", () => {
+    // Parent has children: ChildA, ChildB
+    // ChildA has a child also named "ChildB" — it should shadow the sibling
+    const innerChildB = makeFolder("ChildB", [], "# Inner ChildB");
+    const childAWithShadow = makeFolder("ChildA", [innerChildB], "# ChildA");
+    const outerChildB = makeFolder("ChildB", [], "# Outer ChildB");
+    const parentWithShadow = makeFolder("Parent", [childAWithShadow, outerChildB], "# Parent");
+    const rootWithShadow = makeFolder("App", [parentWithShadow], "# App");
+
+    const refs = buildLexicalScope(rootWithShadow, ["Parent", "ChildA"]);
+    const childBRef = refs.find(r => r.name === "ChildB");
+    expect(childBRef).toBeDefined();
+    // The contained (inner) child wins, not the sibling
+    expect(childBRef!.kind).toBe("contained");
+    expect(childBRef!.absolutePath).toEqual(["Parent", "ChildA", "ChildB"]);
+  });
+
+  it("child shadows ancestor with same name (innermost wins)", () => {
+    const innerParent = makeFolder("Parent", [], "# Inner Parent");
+    const childWithShadow = makeFolder("ChildA", [innerParent], "# ChildA");
+    const parentOuter = makeFolder("Parent", [childWithShadow], "# Parent");
+    const rootWithShadow = makeFolder("App", [parentOuter], "# App");
+
+    const refs = buildLexicalScope(rootWithShadow, ["Parent", "ChildA"]);
+    const parentRef = refs.find(r => r.name === "Parent");
+    expect(parentRef).toBeDefined();
+    expect(parentRef!.kind).toBe("contained");
+    expect(parentRef!.absolutePath).toEqual(["Parent", "ChildA", "Parent"]);
+  });
 });
 
 describe("flattenOntologyRefs", () => {
