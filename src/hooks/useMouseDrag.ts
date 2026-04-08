@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 
 /** Threshold in pixels before a mousedown becomes a drag. */
-const DRAG_THRESHOLD = 5;
+export const DRAG_THRESHOLD = 5;
 
 export interface DragState {
   /** The fsPath being dragged, or null if idle. */
@@ -14,6 +14,21 @@ interface DragCallbacks {
   onDrop: (sourcePath: string, targetPath: string) => void;
   /** Return false to reject the drop target. */
   canDrop?: (sourcePath: string, targetPath: string) => boolean;
+}
+
+/**
+ * Suppress text selection while a drag gesture is pending or active.
+ * Applied to the entire document body so that hovering over any element
+ * during the drag does not start selecting text.
+ */
+function suppressTextSelection() {
+  document.body.style.userSelect = "none";
+  document.body.style.webkitUserSelect = "none";
+}
+
+function restoreTextSelection() {
+  document.body.style.userSelect = "";
+  document.body.style.webkitUserSelect = "";
 }
 
 /**
@@ -37,6 +52,9 @@ export function useMouseDrag(callbacks: DragCallbacks) {
     e.stopPropagation();
     startPos.current = { x: e.clientX, y: e.clientY };
     pendingSource.current = fsPath;
+    // Suppress text selection as soon as a drag gesture begins.
+    // Restored on mouseup whether or not the threshold was reached.
+    suppressTextSelection();
   }, []);
 
   useEffect(() => {
@@ -46,11 +64,13 @@ export function useMouseDrag(callbacks: DragCallbacks) {
       const dy = e.clientY - startPos.current.y;
       if (!dragging.current && (dx * dx + dy * dy) >= DRAG_THRESHOLD * DRAG_THRESHOLD) {
         dragging.current = true;
+        window.getSelection()?.removeAllRanges();
         setDragState({ sourcePath: pendingSource.current, targetPath: null });
       }
     };
 
     const handleMouseUp = () => {
+      restoreTextSelection();
       if (dragging.current) {
         // Drop is handled by the target's onMouseUp — we just clean up here.
         // setTimeout(0) defers cleanup until after React's synthetic event
