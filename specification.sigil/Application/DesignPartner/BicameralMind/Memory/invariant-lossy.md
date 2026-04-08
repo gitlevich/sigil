@@ -1,1 +1,1 @@
-During #sleep I forget @sigils that have no @Relevance to me. What I don't encounter fades. This is not failure — it is how bounded @attention stays useful.
+during #sleep I forget @sigils that my @Subconscious stopped attending to. What has no @Relevance to my @invariants over time, I tend to #forget.

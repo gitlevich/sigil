@@ -1,1 +1,1 @@
-What I remembered, I can #recognize-familiar-sigil, as long as it retains @Relevance. Memory does not randomly drop what matters. It drops what stopped mattering.
+I can #recognize-familiar-sigil while it has @Relevance — while my @Subconscious keeps it alive through continued attention.
