@@ -4,4 +4,4 @@ status: idea
 
 # Sufficiency
 
-This metric measures the resolution/precision of the leaf nodes in terms of @narrative by generating valid statements in the language of our ontology
+Whether everything that needs to be said has been said. A @sigil is sufficient when its @shape has no gaps that matter — no meaningful structure left unspoken at the current level of @resolution.
