@@ -14,9 +14,9 @@ Storage is geometric. #remember-a-sigil names a @sigil in @ContrastSpace, which 
 
 Acceptance criteria:
 
-!geometric-storage — a remembered @sigil is a position in @ContrastSpace with a @name, @affordances, and @invariants attached
+!geometric-storage — a remembered @sigil is a position in @ContrastSpace with a @Sigil#name, @affordances, and @invariants attached
 
-!vocabulary-retrieval — #recognize-familiar-sigil delivers a @name, @affordances, and @invariants to the @LeftHemisphere
+!vocabulary-retrieval — #recognize-familiar-sigil delivers a @Sigil#name, @affordances, and @invariants to the @LeftHemisphere
 
 !co-occurrence-merge — #merge-sigils wraps @sigils that always appear together into one @sigil
 

@@ -1,1 +1,1 @@
-I can #recognize-familiar-sigil while it has @Relevance — while my @Subconscious keeps it alive through continued attention.
+I can #recognize-familiar-sigil while it has @Relevance — while it is reinforced through continued use.
