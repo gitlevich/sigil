@@ -2,7 +2,7 @@ import type { Sigil } from "./types";
 import { findContext } from "./tree";
 import { resolveRefName } from "./refs";
 
-export type ScopeKind = "contained" | "sibling" | "ancestor" | "lib" | "unresolved";
+export type ScopeKind = "contained" | "sibling" | "ancestor" | "lib" | "global-unique" | "unresolved";
 
 export interface ScopeResolution {
   kind: ScopeKind;
@@ -80,6 +80,12 @@ function classifyName(
     if (result) return { kind: "lib", target: result.target, path: result.path };
   }
 
+  // Rule 5: unique name within the entire tree resolves globally
+  const globalMatches = findAllInTree(root, name, []);
+  if (globalMatches.length === 1) {
+    return { kind: "global-unique", target: globalMatches[0].target, path: globalMatches[0].path };
+  }
+
   return null;
 }
 
@@ -125,6 +131,58 @@ export function resolveRefFull(
   }
 
   return { kind: first.kind, target, path };
+}
+
+export interface RefDiagnosis {
+  resolved: ScopeResolution | null;
+  /** When unresolved, explains why. */
+  error?: "not-found" | "ambiguous";
+  /** For ambiguous: the paths where the name was found. */
+  candidates?: string[][];
+}
+
+/**
+ * Like resolveRefFull but when resolution fails, explains why.
+ */
+export function diagnoseRef(
+  root: Sigil,
+  currentPath: string[],
+  refText: string,
+  importedOntologies?: Sigil | null,
+): RefDiagnosis {
+  const result = resolveRefFull(root, currentPath, refText, importedOntologies);
+  if (result) return { resolved: result };
+
+  // First segment failed — figure out why
+  const segments = refText.slice(1).split("@");
+  if (segments.length === 0 || segments[0] === "") return { resolved: null, error: "not-found" };
+
+  const name = segments[0];
+  const globalMatches = findAllInTree(root, name, []);
+  if (globalMatches.length > 1) {
+    return {
+      resolved: null,
+      error: "ambiguous",
+      candidates: globalMatches.map(m => m.path),
+    };
+  }
+
+  return { resolved: null, error: "not-found" };
+}
+
+/** Collect all nodes matching a name in the tree (for uniqueness check). */
+function findAllInTree(
+  node: Sigil,
+  name: string,
+  currentPath: string[],
+): { target: Sigil; path: string[] }[] {
+  const results: { target: Sigil; path: string[] }[] = [];
+  for (const child of node.children) {
+    const childPath = [...currentPath, child.name];
+    if (nameMatches(name, child.name)) results.push({ target: child, path: childPath });
+    results.push(...findAllInTree(child, name, childPath));
+  }
+  return results;
 }
 
 /** Recursively search a tree for a sigil by fuzzy name, tracking path. */

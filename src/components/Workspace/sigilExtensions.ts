@@ -13,7 +13,7 @@ import { SigilFolder } from "../../tauri";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
-  resolveRefFull,
+  resolveRefFull, diagnoseRef,
 } from "sigil-core";
 import type { ScopeKind } from "sigil-core";
 
@@ -230,6 +230,7 @@ const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
   sibling: "sibling",
   ancestor: "absolute",
   lib: "lib",
+  "global-unique": "sibling",
   unresolved: "unresolved",
 };
 
@@ -889,7 +890,22 @@ export function buildSiblingHighlighter(
           if (sigilPart) {
             const resolution = resolveChainedRef(sigilPart);
             if (resolution.kind === "unresolved") {
-              summary = `unresolved: ${sigilPart}`;
+              // Distinguish ambiguous from truly missing
+              if (editorCtx.sigilRoot) {
+                const diag = diagnoseRef(
+                  editorCtx.sigilRoot,
+                  editorCtx.currentPath,
+                  sigilPart,
+                  editorCtx.importedOntologies,
+                );
+                if (diag.error === "ambiguous" && diag.candidates) {
+                  summary = `ambiguous: ${sigilPart}\nfound in: ${diag.candidates.map(p => p.join("/")).join(", ")}`;
+                } else {
+                  summary = `unresolved: ${sigilPart}`;
+                }
+              } else {
+                summary = `unresolved: ${sigilPart}`;
+              }
             } else if (resolution.kind === "external") {
               summary = resolution.summary ?? "outside scope";
             } else {

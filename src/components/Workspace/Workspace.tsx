@@ -15,7 +15,7 @@ import { CompileStatusBar } from "./CompileStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
-import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
+import { buildLexicalScope, flattenOntologyRefs, collectGloballyUniqueRefs } from "./lexicalScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
@@ -332,6 +332,11 @@ export function Workspace() {
         refs.push(...flattenOntologyRefs(ontology, ["Imported Ontologies", ontology.name], seenNames, ontology.name));
       }
     }
+    // Add globally-unique names from the entire tree (including imported ontologies as mounted)
+    const fullRoot = importedSigil
+      ? { ...scopeRoot, children: [...scopeRoot.children, { ...importedSigil, name: "Libs", isImported: true } as SigilFolder] } as SigilFolder
+      : scopeRoot;
+    refs.push(...collectGloballyUniqueRefs(fullRoot, seenNames));
     return { allRefs: refs, allRefNames: refs.map((r) => r.name) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
@@ -454,7 +459,7 @@ export function Workspace() {
             actionDeps={actionDeps}
           />
         )}
-        <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
+        <CompileStatusBar result={compileResult} currentPath={ws.currentPath} onNavigateToError={(err: RefError) => {
           narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
         }} />

@@ -7,6 +7,8 @@ import {
   findContextByPath,
   collectAncestorProperties,
   findAllReferencesInTree,
+  resolveChainedRef,
+  setEditorContextForTest,
 } from "./sigilExtensions";
 import type { SigilFolder } from "../../tauri";
 
@@ -257,5 +259,54 @@ describe("findAllReferencesInTree", () => {
     const tree = folder("Root", { children: [child] });
     const hits = findAllReferencesInTree(tree, "Alpha", []);
     expect(hits[0].contextPath).toEqual(["Inner"]);
+  });
+});
+
+// ── resolveChainedRef: global-unique scope kind maps to a valid RefKind ──
+
+describe("resolveChainedRef with global-unique names", () => {
+  // Tree:
+  //   Root
+  //   ├── A        ← we resolve from here
+  //   │   └── AChild
+  //   └── B
+  //       └── BChild
+  const tree = folder("Root", {
+    children: [
+      folder("A", { children: [folder("AChild")] }),
+      folder("B", { children: [folder("BChild")] }),
+    ],
+  });
+
+  it("resolves a globally unique sibling subtree name", () => {
+    setEditorContextForTest({
+      sigilRoot: tree,
+      currentPath: ["A"],
+      importedOntologies: null,
+      siblings: [],
+      siblingNames: [],
+    });
+    const result = resolveChainedRef("@BChild");
+    expect(result.kind).not.toBe("unresolved");
+    expect(result.path).toContain("BChild");
+  });
+
+  it("does not resolve an ambiguous name globally", () => {
+    // Add a second "Dup" under both branches
+    const ambTree = folder("Root", {
+      children: [
+        folder("X", { children: [folder("Dup")] }),
+        folder("Y", { children: [folder("Dup")] }),
+      ],
+    });
+    setEditorContextForTest({
+      sigilRoot: ambTree,
+      currentPath: [],
+      importedOntologies: null,
+      siblings: [],
+      siblingNames: [],
+    });
+    const result = resolveChainedRef("@Dup");
+    expect(result.kind).toBe("unresolved");
   });
 });

@@ -54,12 +54,16 @@ describe("menuAccelerator", () => {
 });
 
 describe("toDisplayShortcut", () => {
-  it("converts Alt-Mod-r for display (non-Mac in Node)", () => {
-    // In Node (no navigator), isMac is false → Ctrl/Alt labels
-    expect(toDisplayShortcut("Alt-Mod-r")).toBe("Alt+Ctrl+R");
+  // Node 21+ exposes navigator.platform, so on macOS isMac is true
+  const onMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+
+  it("converts Alt-Mod-r for display", () => {
+    const expected = onMac ? "Option+Cmd+R" : "Alt+Ctrl+R";
+    expect(toDisplayShortcut("Alt-Mod-r")).toBe(expected);
   });
 
   it("converts simple shortcut", () => {
-    expect(toDisplayShortcut("Mod-e")).toBe("Ctrl+E");
+    const expected = onMac ? "Cmd+E" : "Ctrl+E";
+    expect(toDisplayShortcut("Mod-e")).toBe(expected);
   });
 });

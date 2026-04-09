@@ -1,11 +1,9 @@
 import { useMemo } from "react";
 import type { Sigil } from "sigil-core";
 import {
-  buildLexicalScope,
   findAffordanceInScope,
   findInvariantInScope,
-  resolveRefName,
-  findContext,
+  diagnoseRef,
 } from "sigil-core";
 
 export interface RefError {
@@ -59,48 +57,29 @@ function parseRef(token: string): ParsedRef | null {
   return { segments, property };
 }
 
-function findSigilPathDFS(sigil: Sigil, name: string, prefix: string[]): string[] | null {
-  for (const child of sigil.children) {
-    const childPath = [...prefix, child.name];
-    if (child.name === name) return childPath;
-    const found = findSigilPathDFS(child, name, childPath);
-    if (found) return found;
-  }
-  return null;
+interface SegmentResult {
+  path: string[] | null;
+  reason?: string;
 }
 
-function findSigilPath(root: Sigil, name: string): string[] | null {
-  if (root.name === name) return [];
-  return findSigilPathDFS(root, name, []);
-}
+function resolveSegments(root: Sigil, currentPath: string[], segments: string[], importedOntologies?: Sigil | null): SegmentResult {
+  if (segments.length === 0) return { path: currentPath };
 
-function resolveSegments(root: Sigil, currentPath: string[], segments: string[]): string[] | null {
-  if (segments.length === 0) return currentPath;
-
-  const scope = buildLexicalScope(root, currentPath);
-  const sigilNames = scope.filter((r) => r.prefix === "@").map((r) => r.name);
-  const firstName = segments[0];
-  const resolved = resolveRefName(firstName, sigilNames);
-  if (!resolved) return null;
-
-  const targetPath = findSigilPath(root, resolved);
-  if (!targetPath) return null;
-
-  if (segments.length === 1) return targetPath;
-
-  let ctx = findContext(root, targetPath);
-  if (!ctx) return null;
-  const resultPath = [...targetPath];
-  for (let i = 1; i < segments.length; i++) {
-    const childNames = ctx.children.map((c) => c.name);
-    const childResolved = resolveRefName(segments[i], childNames);
-    if (!childResolved) return null;
-    resultPath.push(childResolved);
-    const next = ctx.children.find((c) => c.name === childResolved);
-    if (!next) return null;
-    ctx = next;
+  const refText = "@" + segments.join("@");
+  const diagnosis = diagnoseRef(root, currentPath, refText, importedOntologies);
+  if (diagnosis.resolved) {
+    const result = diagnosis.resolved;
+    if (result.kind === "lib" && importedOntologies) {
+      return { path: [importedOntologies.name, ...result.path] };
+    }
+    return { path: result.path };
   }
-  return resultPath;
+
+  if (diagnosis.error === "ambiguous" && diagnosis.candidates) {
+    const locations = diagnosis.candidates.map(p => p.join("/")).join(", ");
+    return { path: null, reason: `ambiguous — found in: ${locations}` };
+  }
+  return { path: null, reason: "unresolved sigil" };
 }
 
 function checkContent(
@@ -108,6 +87,7 @@ function checkContent(
   currentPath: string[],
   content: string,
   file: string,
+  importedOntologies?: Sigil | null,
 ): { errors: RefError[]; refCount: number } {
   const lines = content.split("\n");
   const errors: RefError[] = [];
@@ -126,9 +106,9 @@ function checkContent(
 
       let targetPath = currentPath;
       if (parsed.segments.length > 0) {
-        const resolved = resolveSegments(root, currentPath, parsed.segments);
+        const { path: resolved, reason } = resolveSegments(root, currentPath, parsed.segments, importedOntologies);
         if (!resolved) {
-          errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved sigil" });
+          errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: reason ?? "unresolved sigil" });
           continue;
         }
         targetPath = resolved;
@@ -152,7 +132,7 @@ function checkContent(
 }
 
 /** Walk the entire sigil tree and check all references. */
-export function compileCheck(root: Sigil): CompileResult {
+export function compileCheck(root: Sigil, importedOntologies?: Sigil | null): CompileResult {
   const allErrors: RefError[] = [];
   let totalRefs = 0;
   const filesWithErrorPaths = new Set<string>();
@@ -160,7 +140,7 @@ export function compileCheck(root: Sigil): CompileResult {
   function walk(sigil: Sigil, path: string[]) {
     // Check language.md
     if (sigil.language) {
-      const { errors, refCount } = checkContent(root, path, sigil.language, "language.md");
+      const { errors, refCount } = checkContent(root, path, sigil.language, "language.md", importedOntologies);
       totalRefs += refCount;
       if (errors.length > 0) {
         allErrors.push(...errors);
@@ -171,7 +151,7 @@ export function compileCheck(root: Sigil): CompileResult {
     // Check affordances
     for (const aff of sigil.affordances) {
       const file = `affordance-${aff.name}.md`;
-      const { errors, refCount } = checkContent(root, path, aff.content, file);
+      const { errors, refCount } = checkContent(root, path, aff.content, file, importedOntologies);
       totalRefs += refCount;
       if (errors.length > 0) {
         allErrors.push(...errors);
@@ -182,7 +162,7 @@ export function compileCheck(root: Sigil): CompileResult {
     // Check invariants
     for (const inv of sigil.invariants) {
       const file = `invariant-${inv.name}.md`;
-      const { errors, refCount } = checkContent(root, path, inv.content, file);
+      const { errors, refCount } = checkContent(root, path, inv.content, file, importedOntologies);
       totalRefs += refCount;
       if (errors.length > 0) {
         allErrors.push(...errors);
@@ -225,6 +205,6 @@ export function useCompileCheck(root: Sigil | null, importedOntologies?: Sigil |
       };
       checkRoot = { ...root, children: [...root.children, libs] };
     }
-    return compileCheck(checkRoot);
+    return compileCheck(checkRoot, importedOntologies);
   }, [root, importedOntologies]);
 }
