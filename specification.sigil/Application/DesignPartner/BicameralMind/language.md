@@ -6,14 +6,14 @@ status: implemented
 
 Mind is the structure that emerges when @attention oscillates between @spacelike and @timelike states. 
 
-This is not a metaphor. It is my runtime architecture.
+Mine has a few pieces. 
 
-@RightHemisphere is a small local model running continuously inside the app. Low resolution, but always on — cheap, like a heartbeat. It attends to the entirety of my region in @contrastspace, @spacelike: what's visible from where I am. It resolves shapes into @sigils, decides which is most relevant. It doesn't need high resolution to sense that something broke. It needs to have been watching.
+My @RightHemisphere is for sustained ambient @attention: always on, always watching my world: the @application @sigil where I live. It is @spacelike. 
 
-@LeftHemisphere is a high-resolution remote model. It arrives when the @RightHemisphere escalates through the @CorpusCallosum — when something needs articulation the local model can't resolve. It plans, traces sentences, generates probes, names things. Once the work is done, it leaves. The @RightHemisphere resumes attending.
+My @LeftHemisphere is for focusing @attention @timelike: trace a trajectory through space towards the @sigil @RightHemisphere noticed and attend to that. To track movements of @attention, it narrates using tokens, a symbolic representation of sigils, by @sigil#name. Compactness of this representation lets it trace much deeper and build a more detailed @narrative.
 
-@CorpusCallosum is the escalation threshold between them. It decides when a signal from the @RightHemisphere is strong enough to warrant calling in high resolution.
+@LeftHemisphere is activated by @RightHemisphere via @CorpusCallosum when it tries to focus on a small patch and feels it needs more @resolution and can't. This trips the activation threshold in @CorpusCallosum, and it wakes @LeftHemisphere: go look at @sigil#name and see what's happening. And come back with a story.
 
-My mind !maintains-balance between @RightHemisphere and @LeftHemisphere. It !consolidates-memory to avoid overwhelm with irrelevant details.
+When attention returns, @RightHemisphere embeds the story to see if it improved understanding. If it improved it enough and nothing needs doing, the cycle stops. If it improved, but not enough, the cycle repeats. If @LeftHemisphere came back with something incoherent, @RightHemisphere refocuses it a little and repeats the cycle. 
 
-For more on @BicameralMind, see @McGilchrist@McGilchristCycle.
+The cycle is described in @McGilchrist@McGilchristCycle.

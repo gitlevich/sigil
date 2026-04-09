@@ -18,3 +18,5 @@ What I see must match what exists: !structural-truth is non-negotiable.
 Each @sigil with @affordances has a graphical #affordance-indicator next to the its name label to indicate presence of @affordances, so that i can #navigate directly to an @affordance.
 
 Each @sigil with @invariants #invariant-indicator so that i could click it and see a navigable dropdown of affordances.
+
+I can #zoom-into a @sigil, so that I am not distracted by the surroundings not relevant to what I am observing.

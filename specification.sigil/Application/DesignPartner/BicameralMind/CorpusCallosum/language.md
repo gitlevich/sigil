@@ -4,7 +4,7 @@ status: idea
 
 # Corpus Callosum
 
-The escalation threshold. The boundary between continuous low-resolution attention and high-resolution articulation.
+The @EscalationThreshold. The boundary between continuous low-resolution attention and high-resolution articulation.
 
 In this runtime: the decision to call the @LeftHemisphere. The @RightHemisphere — the small local model — senses something. A shape changed. A symmetry broke. The signal is strong but the resolution is too low to articulate what happened. The @CorpusCallosum decides: is this worth escalating?
 
