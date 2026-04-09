@@ -291,6 +291,43 @@ describe("compileCheck", () => {
     expect(result.errors[0].reason).toContain("Y/Dup");
   });
 
+  it("resolves @Sigil#name when Sigil is in imported lib (app setup)", () => {
+    // Mimics useCompileCheck: libs mounted as child AND passed as importedOntologies
+    const ontologies = sigil("Libs", {
+      children: [
+        sigil("AttentionLanguage", {
+          children: [
+            sigil("Sigil", {
+              affordances: [{ name: "name", content: "the sigil's name" }],
+            }),
+          ],
+        }),
+      ],
+    });
+    const root = sigil("Root", {
+      children: [
+        sigil("DesignPartner", {
+          children: [
+            sigil("Memory", {
+              children: [
+                sigil("Impl", {
+                  language: "Each @sigil#name is stored. Also @sigil#affordances.",
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+    // Mount libs as child (like useCompileCheck does)
+    const libs: Sigil = { ...ontologies, name: "Libs", isImported: true };
+    const checkRoot = { ...root, children: [...root.children, libs] };
+    const result = compileCheck(checkRoot, ontologies);
+    // @sigil resolves via lib, #name should find the affordance on Sigil
+    const nameErrors = result.errors.filter(e => e.ref === "@sigil#name");
+    expect(nameErrors).toHaveLength(0);
+  });
+
   it("error path excludes root name, suitable for workspace navigate", () => {
     const root = sigil("specification.sigil", {
       children: [

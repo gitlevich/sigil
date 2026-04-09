@@ -15,9 +15,11 @@ interface PendingWrite {
   content: string;
 }
 
-export function useAutoSave(delayMs = 500) {
+export function useAutoSave(delayMs = 500, onSaved?: () => void) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<PendingWrite | null>(null);
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
 
   const writeToDisk = useCallback((path: string, content: string) => {
     pendingRef.current = null;
@@ -28,6 +30,7 @@ export function useAutoSave(delayMs = 500) {
       .finally(() => {
         setTimeout(() => {
           globalDirty = false;
+          onSavedRef.current?.();
         }, 500);
       });
   }, []);

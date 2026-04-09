@@ -79,7 +79,7 @@ export function Workspace() {
   const { navigate, back, reload } = useWorkspaceActions();
   const narrating = useNarratingState();
   const narratingDispatch = useNarratingDispatch();
-  const { save } = useAutoSave();
+  const { save } = useAutoSave(500, reload);
   const { addToast } = useToast();
 
   // Ephemeral UI state

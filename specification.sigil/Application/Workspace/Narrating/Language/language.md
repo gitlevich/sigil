@@ -6,7 +6,7 @@ status: implemented
 
 This is a Markdown editor.
 
-Here I #type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Workspace#shortcuts.
+Here I type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Workspace#shortcuts.
 
 I am used to IDE-style #reference-syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @invariants. When I work on defining an API, I write exploratory tests, test-first style: I write non-existing methods on instances of not-yet-created types. It doesn't compile. I fix compile errors by having the IDE create them.
 
@@ -16,7 +16,7 @@ I want this experience here, too: language-first, syntax highlighting, then #aut
 - an @invariant for a word that starts with `!`. It gets added to @Invariants.
 - a @sigil for a word that starts with `@`. It gets created in this @sigil's @SigilFolder.
 
-I would also like #todo_highlighting
+I would also like #todo_highlighting.
 
 I very much care that my !work-is-never-lost. For that, I need the editor to have #continuous-saving, so as I type, I am never worried that the text disappears. 
 
