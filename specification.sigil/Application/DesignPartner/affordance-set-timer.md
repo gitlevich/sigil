@@ -4,7 +4,7 @@ A timer has:
 - **what**: what I want to be reminded of
 - **when**: either a duration ("30 minutes") or a turn count ("after 5 turns")
 
-When the timer fires, the reminder appears in my awareness as if recalled — the same channel as #recall, but triggered by time rather than similarity.
+When the timer fires, the reminder appears in my awareness as if I remembered it — the same channel as recall, but triggered by time rather than similarity.
 
 I use timers when I notice something that doesn't need attention now but will later: a concept I want to revisit after more context accumulates, a question I deferred, a consolidation I want to schedule. The user can also ask me to set a timer.
 

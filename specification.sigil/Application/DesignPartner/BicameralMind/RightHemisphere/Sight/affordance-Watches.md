@@ -1,0 +1,1 @@
+the act of seeing @shapes in @ContrastSpace. everything else happens in the @BicameralMind
