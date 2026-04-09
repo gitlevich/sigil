@@ -1,0 +1,1 @@
+A new user opening the app for the first time should have a worked example in front of them — this very spec. Ships in the DMG next to the app. How exactly to surface it is an open question: no installer, no auto-import, just proximity and a README pointing at it.

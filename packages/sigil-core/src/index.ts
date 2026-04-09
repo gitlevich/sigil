@@ -14,6 +14,8 @@ export {
 } from "./refs";
 export type { Segment } from "./highlight";
 export { styleForPrefix, buildRefPattern, buildRefLookup, highlightText } from "./highlight";
+export type { ScopeKind, ScopeResolution } from "./scope";
+export { isInScope, resolveRef, resolveRefFull } from "./scope";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,

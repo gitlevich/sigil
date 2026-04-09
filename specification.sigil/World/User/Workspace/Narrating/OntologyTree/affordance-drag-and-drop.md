@@ -1,0 +1,1 @@
+drag and drop to #move the @sigil; a convenience affordance

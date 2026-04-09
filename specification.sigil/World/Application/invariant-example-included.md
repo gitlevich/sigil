@@ -1,0 +1,1 @@
+teach a new user thinking in @sigils to design an app, by having this spec open as example when the user first opens the app. 

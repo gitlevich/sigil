@@ -1,0 +1,1 @@
+a @SigilFolder where @user's private memories are kept, under #path/UserState

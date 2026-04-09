@@ -1,0 +1,1 @@
+Shift-Enter on the selected node adds a peer and focuses cursor to name it

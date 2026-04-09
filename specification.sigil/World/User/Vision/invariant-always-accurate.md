@@ -1,0 +1,1 @@
+because any change of direction must start from vision

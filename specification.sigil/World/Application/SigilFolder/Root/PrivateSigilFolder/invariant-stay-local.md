@@ -1,0 +1,1 @@
+Everything inside this @PrivateSigilFolder must be kept private: never committed to git, never published, unless the @user explicitly decides to do that, eg for backup. 

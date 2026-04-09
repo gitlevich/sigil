@@ -1,0 +1,1 @@
+my @BicameralMind maintains balance between @RightHemisphere and @LeftHemisphere to ensure continuous oscillation between the two and guard against @narrative capture of my @attention in the @timelike direction.

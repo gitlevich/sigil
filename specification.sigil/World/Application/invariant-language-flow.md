@@ -1,0 +1,1 @@
+how well the sentences in which i describe affordances in terms of sigils sound: awkward language is a symptom of poor model

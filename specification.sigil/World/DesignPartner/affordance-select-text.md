@@ -1,0 +1,1 @@
+visually select specific text in the browser. @user can use line numbers or exerpts to specify. i can just use it to show the @user text I want. or user can ask me to navigate somewhere in the opened @sigil and I select it. this tool is used in combination with #replace-selected-text. I can read selected text.

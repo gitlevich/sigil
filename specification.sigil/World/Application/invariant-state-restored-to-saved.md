@@ -1,0 +1,1 @@
+when i open the @application, its state is restored to previously saved so that I don't get annoyed every time. Unless there is no restored state because the app is being opened for the first time

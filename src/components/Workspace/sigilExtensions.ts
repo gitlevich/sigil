@@ -13,7 +13,9 @@ import { SigilFolder } from "../../tauri";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
+  resolveRefFull,
 } from "sigil-core";
+import type { ScopeKind } from "sigil-core";
 
 export interface SiblingInfo {
   name: string;
@@ -39,7 +41,10 @@ export interface SigilEditorContext {
   currentPath: string[];
 }
 
-const editorCtx: SigilEditorContext = {
+// Preserve editor context across Vite HMR reloads — without this,
+// module reinitialization clears the context and all refs show unresolved
+// until the user navigates away and back.
+const editorCtx: SigilEditorContext = (import.meta as any).hot?.data?.editorCtx ?? {
   siblings: [],
   siblingNames: [],
   nameIndex: new Map(),
@@ -48,9 +53,17 @@ const editorCtx: SigilEditorContext = {
   currentContext: null,
   currentPath: [],
 };
+if ((import.meta as any).hot) {
+  (import.meta as any).hot.dispose((data: any) => { data.editorCtx = editorCtx; });
+}
 
 /** Read the current editor context. Do not mutate — use buildSiblingHighlighter. */
 export function getEditorContext(): Readonly<SigilEditorContext> { return editorCtx; }
+
+/** Test-only: set editorCtx fields without CodeMirror dependencies. */
+export function setEditorContextForTest(patch: Partial<SigilEditorContext>) {
+  Object.assign(editorCtx, patch);
+}
 
 // Convenience accessors (match existing call sites, thin wrappers)
 export function getGlobalSiblings() { return editorCtx.siblings; }
@@ -212,81 +225,45 @@ interface RefResolution {
   summary?: string;
 }
 
+const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
+  contained: "contained",
+  sibling: "sibling",
+  ancestor: "absolute",
+  lib: "lib",
+  unresolved: "unresolved",
+};
+
 export function resolveChainedRef(matchText: string): RefResolution {
   const segments = matchText.slice(1).split("@");
+  if (!editorCtx.sigilRoot) return { kind: "unresolved", path: segments };
 
-  if (segments.length === 1) {
-    if (editorCtx.sigilRoot && resolveRefName(segments[0], [editorCtx.sigilRoot.name])) {
-      const summary = extractSummary(editorCtx.sigilRoot.language || "");
-      return { kind: "absolute", path: [], summary };
-    }
-    const info = findSibling(segments[0]);
-    if (info) return {
-      kind: info.kind === "lib" ? "lib" : info.kind === "sibling" ? "sibling" : "contained",
-      path: [info.name],
-      absolutePath: info.absolutePath,
-      summary: info.summary,
-    };
-    return { kind: "unresolved", path: segments };
-  }
+  const result = resolveRefFull(
+    editorCtx.sigilRoot,
+    editorCtx.currentPath,
+    matchText,
+    editorCtx.importedOntologies,
+  );
 
-  if (!editorCtx.sigilRoot) return { kind: "external", path: segments };
+  if (!result) return { kind: "unresolved", path: segments };
 
-  const rootCanonical = resolveRefName(segments[0], [editorCtx.sigilRoot.name]);
-  if (rootCanonical) {
-    const resolved = walkTree(segments.slice(1), editorCtx.sigilRoot);
-    if (resolved !== null) {
-      const ctx = findContextByPath(resolved, editorCtx.sigilRoot);
-      const summary = ctx ? extractSummary(ctx.language || "") : undefined;
-      return { kind: "absolute", path: resolved, absolutePath: resolved, summary };
-    }
-  }
-
-  if (editorCtx.importedOntologies) {
-    const ontologyCanonical = resolveRefName(segments[0], editorCtx.importedOntologies.children.map((c) => c.name));
-    if (ontologyCanonical) {
-      const ontologyCtx = editorCtx.importedOntologies.children.find((c) => c.name === ontologyCanonical)!;
-      const resolved = walkTree(segments.slice(1), ontologyCtx);
-      if (resolved !== null) {
-        const fullPath = [editorCtx.importedOntologies.name, ontologyCanonical, ...resolved];
-        const summary = extractSummary(ontologyCtx.language || "");
-        return { kind: "lib", path: fullPath, absolutePath: fullPath, summary };
-      }
-      return { kind: "unresolved", path: segments };
-    }
-  }
-
-  const firstInfo = findSibling(segments[0]);
-  const boundaryName = firstInfo ? segments[0] : null;
-  return { kind: "external", path: segments, summary: boundaryName ? `sigil boundary — cannot reach into @${boundaryName}` : undefined };
-}
-
-function findContextByName(name: string, root: SigilFolder): SigilFolder | null {
-  if (resolveRefName(name, [root.name])) return root;
-  for (const child of root.children) {
-    const found = findContextByName(name, child);
-    if (found) return found;
-  }
-  return null;
+  const summary = extractSummary(result.target.language || "");
+  return {
+    kind: scopeKindToRefKind[result.kind],
+    path: result.path,
+    absolutePath: result.path,
+    summary,
+  };
 }
 
 export function resolveRefToContext(sigilRef: string): SigilFolder | null {
   if (!editorCtx.sigilRoot) return null;
-  const resolution = resolveChainedRef(sigilRef);
-  if (resolution.kind === "absolute") return findContextByPath(resolution.path, editorCtx.sigilRoot);
-  if (resolution.kind === "contained" || resolution.kind === "sibling") {
-    return findContextByName(resolution.path[0], editorCtx.sigilRoot);
-  }
-  if (resolution.kind === "lib" && resolution.absolutePath) {
-    // Lib refs have absolutePath like ["Imported Ontologies", "OntologyName", ...rest].
-    // Walk the imported ontologies tree to find the target context.
-    if (editorCtx.importedOntologies) {
-      // Skip the "Imported Ontologies" prefix — walk from the ontologies root
-      const pathInLibs = resolution.absolutePath.slice(1);
-      return findContextByPath(pathInLibs, editorCtx.importedOntologies);
-    }
-  }
-  return null;
+  const result = resolveRefFull(
+    editorCtx.sigilRoot,
+    editorCtx.currentPath,
+    sigilRef,
+    editorCtx.importedOntologies,
+  );
+  return result ? result.target as SigilFolder : null;
 }
 
 export function collectAncestorProperties(root: SigilFolder | null, path: string[]) {
@@ -491,18 +468,18 @@ function siblingCompletionBody(context: CompletionContext) {
   if (!editorCtx.sigilRoot) return null;
   const prefix = segments.slice(0, -1);
 
-  const rootCanonical = resolveRefName(prefix[0], [editorCtx.sigilRoot.name]);
-  if (!rootCanonical) return null;
+  // Resolve the prefix path using tree-based scope resolution
+  const prefixRef = "@" + prefix.join("@");
+  const resolved = resolveRefFull(
+    editorCtx.sigilRoot,
+    editorCtx.currentPath,
+    prefixRef,
+    editorCtx.importedOntologies,
+  );
+  if (!resolved) return null;
 
-  let ctx: SigilFolder = editorCtx.sigilRoot;
-  const resolvedParts: string[] = [rootCanonical];
-  for (const seg of prefix.slice(1)) {
-    const canonical = resolveRefName(seg, ctx.children.map((c) => c.name));
-    if (!canonical) return null;
-    const child = ctx.children.find((c) => c.name === canonical)!;
-    resolvedParts.push(canonical);
-    ctx = child;
-  }
+  const ctx = resolved.target as SigilFolder;
+  const resolvedParts = resolved.path;
 
   const prefixStr = "@" + resolvedParts.join("@") + "@";
   const options: { label: string; detail: string; type: "variable" | "property" }[] = [];
@@ -510,7 +487,7 @@ function siblingCompletionBody(context: CompletionContext) {
   for (const child of ctx.children) {
     options.push({
       label: `${prefixStr}${child.name}`,
-      detail: (child.language || "").split("\n").filter((l) => l.trim())[0]?.slice(0, 50) || "",
+      detail: ((child as SigilFolder).language || "").split("\n").filter((l: string) => l.trim())[0]?.slice(0, 50) || "",
       type: "variable",
     });
   }

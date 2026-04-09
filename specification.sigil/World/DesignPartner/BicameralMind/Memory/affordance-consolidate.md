@@ -1,0 +1,1 @@
+During #consolidate, @Memory applies #remember-a-sigil to new traces, #recognize-familiar-sigil to refine existing ones, and #merge-sigils when distinctions collapse. @Sigils untouched by #consolidate or #recall #forget.
