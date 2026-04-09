@@ -53,21 +53,6 @@ function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
   return e.key.toLowerCase() === keyChar;
 }
 
-function updateFolderInTree(
-  root: SigilFolder,
-  path: string[],
-  updater: (folder: SigilFolder) => SigilFolder
-): SigilFolder {
-  if (path.length === 0) return updater(root);
-  const [head, ...rest] = path;
-  return {
-    ...root,
-    children: root.children.map((child) =>
-      child.name === head ? updateFolderInTree(child, rest, updater) : child
-    ),
-  };
-}
-
 function buildBreadcrumb(root: Sigil, path: string[]): { name: string; path: string[] }[] {
   return [{ name: root.name, path: [] }, ...coreBuildBreadcrumb(root, path)];
 }
@@ -79,7 +64,7 @@ export function Workspace() {
   const { navigate, back, reload } = useWorkspaceActions();
   const narrating = useNarratingState();
   const narratingDispatch = useNarratingDispatch();
-  const { save } = useAutoSave(500, reload);
+  const { save } = useAutoSave();
   const { addToast } = useToast();
 
   // Ephemeral UI state
@@ -182,52 +167,27 @@ export function Workspace() {
     }
   }, [menuRenaming]);
 
-  const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wsRef = useRef(ws);
-  wsRef.current = ws;
-
-  // Cancel any pending debounced state update when navigating away.
-  const prevPathKeyRef = useRef(ws.currentPath.join("/"));
-  useEffect(() => {
-    const pathKey = ws.currentPath.join("/");
-    if (pathKey !== prevPathKeyRef.current) {
-      if (dispatchTimerRef.current) {
-        clearTimeout(dispatchTimerRef.current);
-        dispatchTimerRef.current = null;
-      }
-      prevPathKeyRef.current = pathKey;
-    }
-  }, [ws.currentPath]);
-
   const handleContentChange = useCallback((content: string) => {
-    const pathSnapshot = [...ws.currentPath];
-    const pathKey = pathSnapshot.join("/");
     const { scopeRoot, scopePath } = scopeInfo(ws);
     const folder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
     if (!folder) return;
+    // Memory first — compiler sees it immediately
+    wsDispatch({ type: "PATCH_LANGUAGE", path: ws.currentPath, content });
+    // Disk as side effect
     save(`${folder.path}/language.md`, content);
-    // Debounce the React state update — read fresh ws from ref to avoid stale closures
-    if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
-    dispatchTimerRef.current = setTimeout(() => {
-      const current = wsRef.current;
-      // Guard: if the user navigated away, don't update the wrong node
-      if (current.currentPath.join("/") !== pathKey) return;
-      const imported = isImportedPath(current);
-      if (imported && current.spec.importedOntologies) {
-        const updatedImported = updateFolderInTree(current.spec.importedOntologies, scopePath, (f) => ({
-          ...f,
-          language: content,
-        }));
-        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, importedOntologies: updatedImported } });
-      } else {
-        const updatedRoot = updateFolderInTree(current.spec.root, pathSnapshot, (f) => ({
-          ...f,
-          language: content,
-        }));
-        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, root: updatedRoot } });
-      }
-    }, 300);
   }, [ws, save, wsDispatch]);
+
+  const handlePropertyContentChange = useCallback(
+    (kind: "affordance" | "invariant", name: string, content: string) => {
+      const folder = resolveCurrentFolder(ws);
+      if (!folder) return;
+      // Memory first
+      wsDispatch({ type: "PATCH_PROPERTY", path: ws.currentPath, kind, name, content });
+      // Disk as side effect
+      save(`${folder.path}/${kind}-${name}.md`, content);
+    },
+    [ws, save, wsDispatch],
+  );
 
   const currentFolder = resolveCurrentFolder(ws);
 
@@ -389,6 +349,7 @@ export function Workspace() {
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => navigate(path)}
+            onPropertyContentChange={handlePropertyContentChange}
             keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />
@@ -455,6 +416,7 @@ export function Workspace() {
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => navigate(path)}
+            onPropertyContentChange={handlePropertyContentChange}
             keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />

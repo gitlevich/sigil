@@ -333,7 +333,7 @@ export function OntologyTree() {
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
   const { navigate, reload } = useWorkspaceActions();
-  const { save } = useAutoSave(500, reload);
+  const { save } = useAutoSave();
   const { addToast } = useToast();
 
   const actionDeps: ActionDeps = useMemo(() => ({

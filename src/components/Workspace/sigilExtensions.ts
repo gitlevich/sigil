@@ -15,7 +15,7 @@ import {
   flattenName, fromDashForm, buildNameIndex,
   resolveRefFull, diagnoseRef,
 } from "sigil-core";
-import type { ScopeKind } from "sigil-core";
+import type { ScopeKind, Sigil } from "sigil-core";
 
 export interface SiblingInfo {
   name: string;
@@ -748,13 +748,18 @@ export function buildSiblingHighlighter(
                   const propChar = matchText[propIdx];
                   const propName = matchText.slice(propIdx + 1);
                   const sigilRef = matchText.slice(0, propIdx);
-                  const targetCtx = resolveRefToContext(sigilRef);
+                  const resolution = resolveChainedRef(sigilRef);
                   let propExists = false;
-                  if (targetCtx) {
+                  if (resolution.kind !== "unresolved" && editorCtx.sigilRoot) {
+                    const resolvedPath = resolution.absolutePath ?? resolution.path;
                     if (propChar === "#") {
-                      propExists = !!findAffordance(targetCtx, propName);
+                      propExists = !!findAffordanceInScope(
+                        editorCtx.sigilRoot as Sigil, resolvedPath, propName, editorCtx.importedOntologies as Sigil | null,
+                      );
                     } else {
-                      propExists = targetCtx.invariants.some((inv) => inv.name === propName || inv.name === fromDashForm(propName));
+                      propExists = !!findInvariantInScope(
+                        editorCtx.sigilRoot as Sigil, resolvedPath, propName, editorCtx.importedOntologies as Sigil | null,
+                      );
                     }
                   }
                   const mark = propExists ? (propChar === "!" ? invariantMark : affordanceMark) : unresolvedMark;
@@ -860,18 +865,18 @@ export function buildSiblingHighlighter(
               summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
                 ? (editorCtx.siblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
                 : "");
-              if (propertyPart) {
-                const ctx = editorCtx.sigilRoot
-                  ? findContextByPath(resolution.absolutePath ?? resolution.path, editorCtx.sigilRoot)
-                  : null;
-                if (propChar === "!" && ctx) {
-                  const disp = ctx.invariants.find(
-                    (d) => d.name === propertyPart || d.name === fromDashForm(propertyPart!)
+              if (propertyPart && editorCtx.sigilRoot) {
+                const resolvedPath = resolution.absolutePath ?? resolution.path;
+                if (propChar === "!") {
+                  const result = findInvariantInScope(
+                    editorCtx.sigilRoot as Sigil, resolvedPath, propertyPart, editorCtx.importedOntologies as Sigil | null,
                   );
-                  if (disp) summary = disp.content.split("\n").slice(0, 3).join("\n");
-                } else if (ctx) {
-                  const aff = findAffordance(ctx, propertyPart);
-                  if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
+                  if (result) summary = result.content.split("\n").slice(0, 3).join("\n");
+                } else {
+                  const result = findAffordanceInScope(
+                    editorCtx.sigilRoot as Sigil, resolvedPath, propertyPart, editorCtx.importedOntologies as Sigil | null,
+                  );
+                  if (result) summary = result.content.split("\n").slice(0, 3).join("\n");
                 }
               }
             }

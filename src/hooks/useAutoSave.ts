@@ -1,78 +1,67 @@
 import { useRef, useCallback, useEffect } from "react";
 import { api } from "../tauri";
 
-// Shared flag so the file watcher can check if we have pending writes.
-// This prevents the watcher from reloading the tree and overwriting
-// in-memory edits that haven't been flushed to disk yet.
-let globalDirty = false;
+// Per-path dirty tracking. A path is dirty from the moment save() is called
+// until 500ms after its disk write completes. The file watcher checks this
+// to avoid reloading paths that the user is actively editing.
+const dirtyPaths = new Set<string>();
 
 export function isAutoSaveDirty(): boolean {
-  return globalDirty;
+  return dirtyPaths.size > 0;
 }
 
-interface PendingWrite {
-  path: string;
-  content: string;
+export function isDirtyPath(path: string): boolean {
+  return dirtyPaths.has(path);
 }
 
-export function useAutoSave(delayMs = 500, onSaved?: () => void) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRef = useRef<PendingWrite | null>(null);
-  const onSavedRef = useRef(onSaved);
-  onSavedRef.current = onSaved;
+export function useAutoSave(delayMs = 500) {
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingRef = useRef<Map<string, string>>(new Map());
 
   const writeToDisk = useCallback((path: string, content: string) => {
-    pendingRef.current = null;
+    pendingRef.current.delete(path);
     api.writeFile(path, content)
       .catch((err) => {
-        console.error("Auto-save failed:", err);
+        console.error("Auto-save failed:", path, err);
       })
       .finally(() => {
         setTimeout(() => {
-          globalDirty = false;
-          onSavedRef.current?.();
+          dirtyPaths.delete(path);
         }, 500);
       });
   }, []);
 
   const save = useCallback((path: string, content: string) => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    globalDirty = true;
-    pendingRef.current = { path, content };
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
+    const existing = timersRef.current.get(path);
+    if (existing) clearTimeout(existing);
+    dirtyPaths.add(path);
+    pendingRef.current.set(path, content);
+    const timer = setTimeout(() => {
+      timersRef.current.delete(path);
       writeToDisk(path, content);
     }, delayMs);
+    timersRef.current.set(path, timer);
   }, [delayMs, writeToDisk]);
 
   const flush = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    const pending = pendingRef.current;
-    if (pending) {
-      writeToDisk(pending.path, pending.content);
+    for (const [, timer] of timersRef.current) clearTimeout(timer);
+    timersRef.current.clear();
+    for (const [path, content] of pendingRef.current) {
+      writeToDisk(path, content);
     }
   }, [writeToDisk]);
 
-  // Flush on unmount so no pending writes are ever lost
+  // Flush all pending writes on unmount — no work is ever lost
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      const pending = pendingRef.current;
-      if (pending) {
-        // Fire-and-forget: component is unmounting, just ensure the write starts
-        api.writeFile(pending.path, pending.content).catch((err) => {
-          console.error("Auto-save flush on unmount failed:", err);
+      for (const [, timer] of timersRef.current) clearTimeout(timer);
+      timersRef.current.clear();
+      for (const [path, content] of pendingRef.current) {
+        api.writeFile(path, content).catch((err) => {
+          console.error("Auto-save flush on unmount failed:", path, err);
         });
-        pendingRef.current = null;
       }
+      pendingRef.current.clear();
     };
   }, []);
 

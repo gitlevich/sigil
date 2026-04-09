@@ -8,6 +8,9 @@ import {
   collectAncestorProperties,
   findAllReferencesInTree,
   resolveChainedRef,
+  resolveRefToContext,
+  findAffordanceInScopeLocal,
+  findInvariantInScopeLocal,
   setEditorContextForTest,
 } from "./sigilExtensions";
 import type { SigilFolder } from "../../tauri";
@@ -292,7 +295,6 @@ describe("resolveChainedRef with global-unique names", () => {
   });
 
   it("does not resolve an ambiguous name globally", () => {
-    // Add a second "Dup" under both branches
     const ambTree = folder("Root", {
       children: [
         folder("X", { children: [folder("Dup")] }),
@@ -308,5 +310,195 @@ describe("resolveChainedRef with global-unique names", () => {
     });
     const result = resolveChainedRef("@Dup");
     expect(result.kind).toBe("unresolved");
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// Comprehensive scope resolution test suite
+//
+// Tree used throughout:
+//   App (root)
+//   ├── Workspace
+//   │   ├── Narrating
+//   │   │   └── Language
+//   │   │       ├── affordance: highlight
+//   │   │       └── invariant: clarity
+//   │   └── Atlas
+//   ├── affordance: navigate
+//   ├── affordance: open
+//   └── invariant: integrity
+//
+//   Libs (imported ontology):
+//   └── EcoPsych
+//       ├── Affordance
+//       │   └── affordance: sense
+//       └── Invariant
+// ══════════════════════════════════════════════════════════════
+
+const langNode = folder("Language", {
+  affordances: [{ name: "highlight", content: "highlight refs" }],
+  invariants: [{ name: "clarity", content: "must be clear" }],
+});
+const narratingNode = folder("Narrating", { children: [langNode] });
+const atlasNode = folder("Atlas");
+const workspaceNode = folder("Workspace", {
+  children: [narratingNode, atlasNode],
+  affordances: [{ name: "navigate", content: "move around" }, { name: "open", content: "open sigil" }],
+  invariants: [{ name: "integrity", content: "never lose work" }],
+});
+const appRoot = folder("App", { children: [workspaceNode] });
+
+const ecoAffordance = folder("Affordance", {
+  affordances: [{ name: "sense", content: "sense the environment" }],
+});
+const ecoInvariant = folder("Invariant");
+const ecoPsych = folder("EcoPsych", { children: [ecoAffordance, ecoInvariant] });
+const libs = folder("Libs", { children: [ecoPsych] });
+
+function setupCtx(currentPath: string[], withLibs = false) {
+  setEditorContextForTest({
+    sigilRoot: appRoot,
+    currentPath,
+    importedOntologies: withLibs ? libs : null,
+    siblings: [],
+    siblingNames: [],
+    currentContext: findContextByPath(currentPath, appRoot),
+  });
+}
+
+// ── resolveChainedRef ──
+
+describe("resolveChainedRef — lexical scope", () => {
+  it("resolves child by name", () => {
+    setupCtx(["Workspace"]);
+    expect(resolveChainedRef("@Narrating").kind).not.toBe("unresolved");
+  });
+
+  it("resolves neighbor by name", () => {
+    setupCtx(["Workspace", "Narrating"]);
+    expect(resolveChainedRef("@Atlas").kind).not.toBe("unresolved");
+  });
+
+  it("resolves ancestor by name", () => {
+    setupCtx(["Workspace", "Narrating", "Language"]);
+    expect(resolveChainedRef("@App").kind).not.toBe("unresolved");
+  });
+
+  it("resolves globally unique name via proximity", () => {
+    setupCtx(["Workspace"]);
+    expect(resolveChainedRef("@Language").kind).not.toBe("unresolved");
+  });
+
+  it("resolves multi-segment path", () => {
+    setupCtx(["Workspace"]);
+    expect(resolveChainedRef("@Narrating@Language").kind).not.toBe("unresolved");
+  });
+
+  it("resolves lib sigil when ontologies provided", () => {
+    setupCtx(["Workspace"], true);
+    expect(resolveChainedRef("@EcoPsych").kind).not.toBe("unresolved");
+  });
+});
+
+// ── resolveRefToContext ──
+
+describe("resolveRefToContext", () => {
+  it("returns the resolved SigilFolder", () => {
+    setupCtx(["Workspace"]);
+    const ctx = resolveRefToContext("@Narrating");
+    expect(ctx?.name).toBe("Narrating");
+  });
+
+  it("returns null for unresolved ref", () => {
+    setupCtx(["Workspace"]);
+    expect(resolveRefToContext("@Nonexistent")).toBeNull();
+  });
+
+  it("resolves multi-segment ref to context", () => {
+    setupCtx(["Workspace"]);
+    const ctx = resolveRefToContext("@Narrating@Language");
+    expect(ctx?.name).toBe("Language");
+  });
+});
+
+// ── findAffordanceInScopeLocal ──
+
+describe("findAffordanceInScopeLocal", () => {
+  it("finds affordance on current node", () => {
+    setupCtx(["Workspace"]);
+    expect(findAffordanceInScopeLocal("navigate")).not.toBeNull();
+  });
+
+  it("finds affordance on ancestor", () => {
+    setupCtx(["Workspace", "Narrating"]);
+    expect(findAffordanceInScopeLocal("navigate")).not.toBeNull();
+  });
+
+  it("finds affordance on child", () => {
+    setupCtx(["Workspace", "Narrating"]);
+    expect(findAffordanceInScopeLocal("highlight")).not.toBeNull();
+  });
+
+  it("returns null for nonexistent affordance", () => {
+    setupCtx(["Workspace"]);
+    expect(findAffordanceInScopeLocal("nonexistent")).toBeNull();
+  });
+
+  it("finds affordance in imported ontology", () => {
+    setupCtx(["Workspace"], true);
+    expect(findAffordanceInScopeLocal("sense")).not.toBeNull();
+  });
+
+  it("returns null for lib affordance without ontologies", () => {
+    setupCtx(["Workspace"], false);
+    expect(findAffordanceInScopeLocal("sense")).toBeNull();
+  });
+});
+
+// ── findInvariantInScopeLocal ──
+
+describe("findInvariantInScopeLocal", () => {
+  it("finds invariant on current node", () => {
+    setupCtx(["Workspace"]);
+    expect(findInvariantInScopeLocal("integrity")).not.toBeNull();
+  });
+
+  it("finds invariant on ancestor", () => {
+    setupCtx(["Workspace", "Narrating"]);
+    expect(findInvariantInScopeLocal("integrity")).not.toBeNull();
+  });
+
+  it("finds invariant on child", () => {
+    setupCtx(["Workspace", "Narrating"]);
+    expect(findInvariantInScopeLocal("clarity")).not.toBeNull();
+  });
+
+  it("returns null for nonexistent invariant", () => {
+    setupCtx(["Workspace"]);
+    expect(findInvariantInScopeLocal("nonexistent")).toBeNull();
+  });
+});
+
+// ── Qualified ref resolution: @Sigil#affordance ──
+
+describe("qualified ref resolution consistency", () => {
+  it("resolveChainedRef resolves @Language (globally unique from Workspace)", () => {
+    setupCtx(["Workspace"]);
+    const result = resolveChainedRef("@Language");
+    expect(result.kind).not.toBe("unresolved");
+  });
+
+  it("resolveRefToContext resolves @Language to the Language folder", () => {
+    setupCtx(["Workspace"]);
+    const ctx = resolveRefToContext("@Language");
+    expect(ctx?.name).toBe("Language");
+    expect(ctx?.affordances.some(a => a.name === "highlight")).toBe(true);
+  });
+
+  // This is the key test: the compiler and editor must agree on @Sigil#affordance
+  it("findAffordanceInScopeLocal finds affordance at resolved sigil position", () => {
+    // From Language's position, "highlight" is on self — must be findable
+    setupCtx(["Workspace", "Narrating", "Language"]);
+    expect(findAffordanceInScopeLocal("highlight")).not.toBeNull();
   });
 });

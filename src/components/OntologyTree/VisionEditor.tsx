@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
-import { useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions } from "../../state/WorkspaceContext";
+import { useWorkspaceState, useWorkspaceDispatch } from "../../state/WorkspaceContext";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
@@ -33,8 +33,7 @@ function buildVisionHighlighter() {
 export function VisionEditor() {
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
-  const { reload } = useWorkspaceActions();
-  const { save } = useAutoSave(500, reload);
+  const { save } = useAutoSave();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);

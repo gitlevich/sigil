@@ -122,6 +122,105 @@ describe("isImportedPath", () => {
   });
 });
 
+// ── PATCH_LANGUAGE / PATCH_PROPERTY reducer ──
+// We simulate the reducer inline since it's not exported.
+
+describe("PATCH_LANGUAGE", () => {
+  function patchLanguage(state: WorkspaceState, path: string[], content: string): WorkspaceState {
+    // Simulate patchNodeInTree + PATCH_LANGUAGE reducer case
+    function patchNode(root: SigilFolder, p: string[], updater: (f: SigilFolder) => SigilFolder): SigilFolder {
+      if (p.length === 0) return updater(root);
+      const [head, ...rest] = p;
+      return { ...root, children: root.children.map(c => c.name === head ? patchNode(c, rest, updater) : c) };
+    }
+    const updated = patchNode(state.spec.root, path, (f) => ({ ...f, language: content }));
+    return { ...state, spec: { ...state.spec, root: updated } };
+  }
+
+  it("patches language at root", () => {
+    const state = makeState(spec, []);
+    const result = patchLanguage(state, [], "new root content");
+    expect(result.spec.root.language).toBe("new root content");
+  });
+
+  it("patches language at nested path", () => {
+    const state = makeState(spec, ["Parent", "ChildA"]);
+    const result = patchLanguage(state, ["Parent", "ChildA"], "edited");
+    const child = result.spec.root.children[0].children[0];
+    expect(child.name).toBe("ChildA");
+    expect(child.language).toBe("edited");
+  });
+
+  it("produces a new root identity", () => {
+    const state = makeState(spec, ["Parent"]);
+    const result = patchLanguage(state, ["Parent"], "changed");
+    expect(result.spec.root).not.toBe(state.spec.root);
+  });
+
+  it("does not mutate siblings", () => {
+    const state = makeState(spec, ["Parent", "ChildA"]);
+    const result = patchLanguage(state, ["Parent", "ChildA"], "edited");
+    const childB = result.spec.root.children[0].children[1];
+    expect(childB).toBe(state.spec.root.children[0].children[1]);
+  });
+});
+
+describe("PATCH_PROPERTY", () => {
+  const affFolder = makeFolder("Target", [], "");
+  Object.assign(affFolder, {
+    affordances: [{ name: "spin", content: "original spin" }],
+    invariants: [{ name: "round", content: "original round" }],
+  });
+  const propRoot = makeFolder("Root", [affFolder]);
+  const propSpec = makeSpec(propRoot);
+
+  function patchProperty(
+    state: WorkspaceState,
+    path: string[],
+    kind: "affordance" | "invariant",
+    name: string,
+    content: string,
+  ): WorkspaceState {
+    const key = kind === "affordance" ? "affordances" : "invariants";
+    function patchNode(root: SigilFolder, p: string[], updater: (f: SigilFolder) => SigilFolder): SigilFolder {
+      if (p.length === 0) return updater(root);
+      const [head, ...rest] = p;
+      return { ...root, children: root.children.map(c => c.name === head ? patchNode(c, rest, updater) : c) };
+    }
+    const updated = patchNode(state.spec.root, path, (f) => ({
+      ...f,
+      [key]: f[key].map((p: { name: string; content: string }) =>
+        p.name === name ? { ...p, content } : p
+      ),
+    }));
+    return { ...state, spec: { ...state.spec, root: updated } };
+  }
+
+  it("patches affordance content", () => {
+    const state = makeState(propSpec, ["Target"]);
+    const result = patchProperty(state, ["Target"], "affordance", "spin", "updated spin");
+    expect(result.spec.root.children[0].affordances[0].content).toBe("updated spin");
+  });
+
+  it("patches invariant content", () => {
+    const state = makeState(propSpec, ["Target"]);
+    const result = patchProperty(state, ["Target"], "invariant", "round", "updated round");
+    expect(result.spec.root.children[0].invariants[0].content).toBe("updated round");
+  });
+
+  it("does not affect other properties", () => {
+    const state = makeState(propSpec, ["Target"]);
+    const result = patchProperty(state, ["Target"], "affordance", "spin", "changed");
+    expect(result.spec.root.children[0].invariants[0].content).toBe("original round");
+  });
+
+  it("produces new root identity", () => {
+    const state = makeState(propSpec, ["Target"]);
+    const result = patchProperty(state, ["Target"], "affordance", "spin", "changed");
+    expect(result.spec.root).not.toBe(state.spec.root);
+  });
+});
+
 // ── Back navigation ──
 
 describe("back navigation (reducer logic)", () => {
