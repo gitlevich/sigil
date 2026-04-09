@@ -465,3 +465,62 @@ describe("ambiguous global names", () => {
     expect(isInScope(ambRoot, ["A"], "Dup")).toBe(true);
   });
 });
+
+// ══════════════════════════════════════════════════════════════
+// Proximity: closest match in outward walk wins
+// ══════════════════════════════════════════════════════════════
+
+describe("proximity resolution", () => {
+  // Tree mimicking the Language ambiguity:
+  //   Root
+  //   ├── App
+  //   │   └── Workspace
+  //   │       └── Narrating
+  //   │           └── Lang     ← closest from Narrating
+  //   └── Partner
+  //       └── Mind
+  //           └── Lang         ← farther away
+  const proxRoot = sigil("Root", {
+    children: [
+      sigil("App", {
+        children: [
+          sigil("Workspace", {
+            children: [
+              sigil("Narrating", {
+                children: [sigil("Lang")],
+              }),
+            ],
+          }),
+        ],
+      }),
+      sigil("Partner", {
+        children: [
+          sigil("Mind", {
+            children: [sigil("Lang")],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  it("@Lang resolves to closest match from Narrating (child)", () => {
+    expect(resolveRef(proxRoot, ["App", "Workspace", "Narrating"], "@Lang")?.name).toBe("Lang");
+  });
+
+  it("@Lang resolves to closest match from Workspace (grandchild via outward walk)", () => {
+    // From Workspace, the nearest ancestor subtree containing Lang is Workspace itself
+    expect(resolveRef(proxRoot, ["App", "Workspace"], "@Lang")?.name).toBe("Lang");
+  });
+
+  it("@Lang is ambiguous from Root (both subtrees have it)", () => {
+    expect(resolveRef(proxRoot, [], "@Lang")).toBeNull();
+  });
+
+  it("@Lang resolves from App (only one Lang in App's subtree)", () => {
+    expect(resolveRef(proxRoot, ["App"], "@Lang")?.name).toBe("Lang");
+  });
+
+  it("@Lang resolves from Partner (only one Lang in Partner's subtree)", () => {
+    expect(resolveRef(proxRoot, ["Partner"], "@Lang")?.name).toBe("Lang");
+  });
+});

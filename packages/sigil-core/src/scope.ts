@@ -80,10 +80,17 @@ function classifyName(
     if (result) return { kind: "lib", target: result.target, path: result.path };
   }
 
-  // Rule 5: unique name within the entire tree resolves globally
-  const globalMatches = findAllInTree(root, name, []);
-  if (globalMatches.length === 1) {
-    return { kind: "global-unique", target: globalMatches[0].target, path: globalMatches[0].path };
+  // Rule 5: walk outward from current position — at each level,
+  // search the subtree. First match wins (closest in tree distance).
+  // If multiple matches at the same level, it's ambiguous.
+  for (let depth = currentPath.length; depth >= 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelSigil = depth === 0 ? root : findContext(root, levelPath);
+    const matches = findAllInTree(levelSigil, name, levelPath);
+    if (matches.length === 1) {
+      return { kind: "global-unique", target: matches[0].target, path: matches[0].path };
+    }
+    if (matches.length > 1) return null; // ambiguous at this level
   }
 
   return null;
@@ -158,13 +165,14 @@ export function diagnoseRef(
   if (segments.length === 0 || segments[0] === "") return { resolved: null, error: "not-found" };
 
   const name = segments[0];
-  const globalMatches = findAllInTree(root, name, []);
-  if (globalMatches.length > 1) {
-    return {
-      resolved: null,
-      error: "ambiguous",
-      candidates: globalMatches.map(m => m.path),
-    };
+  // Walk outward to find the nearest level with matches
+  for (let depth = currentPath.length; depth >= 0; depth--) {
+    const levelPath = currentPath.slice(0, depth);
+    const levelSigil = depth === 0 ? root : findContext(root, levelPath);
+    const matches = findAllInTree(levelSigil, name, levelPath);
+    if (matches.length > 1) {
+      return { resolved: null, error: "ambiguous", candidates: matches.map(m => m.path) };
+    }
   }
 
   return { resolved: null, error: "not-found" };
