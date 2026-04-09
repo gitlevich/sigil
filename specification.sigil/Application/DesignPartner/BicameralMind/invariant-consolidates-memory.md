@@ -1,1 +1,0 @@
-The goal is to remove irrelevant @sigils from my @memory and keep relevant ones by pruning and compressing what I remembered during a chunk of time. This happens when I #sleep. 

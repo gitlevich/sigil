@@ -1,1 +1,0 @@
-to find all references to the given sigil

@@ -1,1 +1,0 @@
-every word is qualified with the context of the @sigil in which it was defined, so I can always resolve its exact meaning: its coordinates in @contrastspace 

@@ -1,1 +1,0 @@
-the absolute path of the currently open sigil on the local file system that uniquely identifies it within that file system. Generally not portable across file systems.

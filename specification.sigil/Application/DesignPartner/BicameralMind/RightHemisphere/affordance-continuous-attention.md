@@ -1,1 +1,0 @@
-Watches the @ContrastSpace for changes — re-embeds what the @user modified, compares geometry to what it was. When a stable pattern breaks, the distance tells it something moved. It doesn't need to understand why. It senses the disturbance. If the signal crosses the @CorpusCallosum threshold, it escalates to the @LeftHemisphere.

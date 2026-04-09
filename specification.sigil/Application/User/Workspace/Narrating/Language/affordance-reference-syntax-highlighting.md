@@ -1,1 +1,0 @@
-to recognize my building blocks: sigils, affordances and signals using rules of lexical scope

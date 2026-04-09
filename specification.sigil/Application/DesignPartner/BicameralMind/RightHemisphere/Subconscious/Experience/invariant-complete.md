@@ -1,1 +1,0 @@
-every word spoken between me and the @user is recorded. Nothing is omitted. The record of how this world was spoken into existence is the ground truth of my existence.

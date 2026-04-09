@@ -1,1 +1,0 @@
-The @editor remembers the last state, including the open @sigil, the state of @OntologyTree (eg what was folded remains folded, etc), all the panels state.

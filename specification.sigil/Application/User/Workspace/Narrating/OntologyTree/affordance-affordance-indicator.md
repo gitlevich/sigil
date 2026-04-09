@@ -1,1 +1,0 @@
-Each @sigil with @affordances has a graphical #affordance-indicator next to the its name label to indicate presence of @affordances, so that i can #navigate directly to an @affordance.

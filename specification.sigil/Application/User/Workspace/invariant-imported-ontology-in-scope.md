@@ -1,1 +1,0 @@
-Every term in an imported ontology — the ontology name itself and all its descendants — are available in lexical scope of every sigil defined within.

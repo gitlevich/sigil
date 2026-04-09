@@ -1,1 +1,0 @@
-experience is never deleted or modified. New experience accumulates. The causal chain from empty @sigil to current state is always reconstructable.

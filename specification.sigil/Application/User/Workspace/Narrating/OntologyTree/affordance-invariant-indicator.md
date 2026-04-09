@@ -1,1 +1,0 @@
-Each @sigil with @invariants #invariant-indicator so that i could click it and see a navigable dropdown of affordances.

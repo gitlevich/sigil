@@ -1,1 +1,0 @@
-The currently opened @sigil in @Language shows in the @OntologyTree as selected node

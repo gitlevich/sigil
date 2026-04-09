@@ -1,1 +1,0 @@
-I consider the style beautiful if every sentence conveys its meaning in the most straightforward way. Think gradient decent with temperature 0 towards the intended meaning.

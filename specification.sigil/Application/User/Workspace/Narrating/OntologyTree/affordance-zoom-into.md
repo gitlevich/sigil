@@ -1,1 +1,0 @@
-so that I am not distracted by irrelevant stuff around it: noise. I right-click on a @SigilNode and choose "Focus" menu, and the @SigilNode becomes the root of the @OntologyTree, preceeded by a visual indicator indicating the opposite action: #zoom-out

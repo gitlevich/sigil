@@ -1,1 +1,0 @@
-maintiains bounded memory so I don't have to clutter my attention with irrelevant trivia

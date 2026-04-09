@@ -1,1 +1,0 @@
-named because a name gives me a handle on the sigil: that's what I will recognize next time I see it/hear its name

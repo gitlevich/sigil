@@ -1,1 +1,0 @@
-a @PrivateSigilFolder where @DesignPartner's private memories are kept, under #path/DesignPartnerState

@@ -1,1 +1,0 @@
-allows me to generalize: several @sigils might represent different aspects of the same thing. if this difference has no @relevance to me, i consolidate them into a single @sigil, possibly modeling the aspects as its @affordances.

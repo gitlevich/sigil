@@ -1,1 +1,0 @@
-a word is ambiguous if in the context of this @sigil it can mean more than one thing

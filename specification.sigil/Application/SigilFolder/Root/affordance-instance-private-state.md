@@ -1,1 +1,0 @@
-A @PrivateSigilFolder under #path where the private state of @DesignPartner and @user for this instance of the app live, separated from the spec being worked on, to avoid inadvertent exposure. Fixed at #path/.private
