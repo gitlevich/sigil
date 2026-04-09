@@ -109,11 +109,12 @@ function findInvariantOn(sigil: Sigil, path: string[], name: string): { content:
   return inv ? { content: inv.content, ownerPath: path } : null;
 }
 
-/** Find an invariant in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
+/** Find an invariant in lexical scope: self, children, siblings, ancestors (each with their children one level deep), then imported ontologies. */
 export function findInvariantInScope(
   root: Sigil,
   currentPath: string[],
-  name: string
+  name: string,
+  importedOntologies?: Sigil | null,
 ): { content: string; ownerPath: string[] } | null {
   const currentSigil = findContext(root, currentPath);
 
@@ -140,14 +141,21 @@ export function findInvariantInScope(
     }
   }
 
+  // Imported ontologies: search recursively at any depth
+  if (importedOntologies) {
+    const result = searchPropertyRecursive(importedOntologies, [], name, "invariant");
+    if (result) return result;
+  }
+
   return null;
 }
 
-/** Find an affordance in lexical scope: self, children, siblings, ancestors (each with their children one level deep). */
+/** Find an affordance in lexical scope: self, children, siblings, ancestors (each with their children one level deep), then imported ontologies. */
 export function findAffordanceInScope(
   root: Sigil,
   currentPath: string[],
-  name: string
+  name: string,
+  importedOntologies?: Sigil | null,
 ): { content: string; ownerPath: string[] } | null {
   const currentSigil = findContext(root, currentPath);
 
@@ -173,6 +181,33 @@ export function findAffordanceInScope(
     }
   }
 
+  // Imported ontologies: search recursively at any depth
+  if (importedOntologies) {
+    const result = searchPropertyRecursive(importedOntologies, [], name, "affordance");
+    if (result) return result;
+  }
+
+  return null;
+}
+
+/** Recursively search a tree for an affordance or invariant by name. */
+function searchPropertyRecursive(
+  node: Sigil,
+  path: string[],
+  name: string,
+  kind: "affordance" | "invariant",
+): { content: string; ownerPath: string[] } | null {
+  if (kind === "affordance") {
+    const aff = findAffordance(node, name);
+    if (aff) return { content: aff.content, ownerPath: path };
+  } else {
+    const result = findInvariantOn(node, path, name);
+    if (result) return result;
+  }
+  for (const child of node.children) {
+    const found = searchPropertyRecursive(child, [...path, child.name], name, kind);
+    if (found) return found;
+  }
   return null;
 }
 

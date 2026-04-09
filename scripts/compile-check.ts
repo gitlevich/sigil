@@ -293,7 +293,7 @@ function checkFile(
       // Resolve property
       if (parsed.property) {
         if (parsed.property.prefix === "#") {
-          const found = findAffordanceInScope(root, targetPath, parsed.property.name);
+          const found = findAffordanceInScope(root, targetPath, parsed.property.name, importedOntologies);
           if (!found) {
             errors.push({
               file: relPath,
@@ -304,7 +304,7 @@ function checkFile(
             });
           }
         } else {
-          const found = findInvariantInScope(root, targetPath, parsed.property.name);
+          const found = findInvariantInScope(root, targetPath, parsed.property.name, importedOntologies);
           if (!found) {
             errors.push({
               file: relPath,

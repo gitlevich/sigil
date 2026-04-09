@@ -155,67 +155,15 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  const result = findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
-  if (result) return result;
-  // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorCtx.importedOntologies) {
-    return findInvariantInOntologies(editorCtx.importedOntologies, name);
-  }
-  return null;
+  return findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name, editorCtx.importedOntologies);
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  const result = findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
-  if (result) return result;
-  // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorCtx.importedOntologies) {
-    return findAffordanceInOntologies(editorCtx.importedOntologies, name);
-  }
-  return null;
+  return findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name, editorCtx.importedOntologies);
 }
 
 /** Recursively search imported ontologies for an invariant by name. */
-function findInvariantInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
-  for (const ontology of ontologies.children) {
-    const result = searchInvariantRecursive(ontology, ["Libs", ontology.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-function searchInvariantRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  for (const inv of ctx.invariants) {
-    if (inv.name === name || inv.name === fromDashForm(name)) {
-      return { content: inv.content, ownerPath: path };
-    }
-  }
-  for (const child of ctx.children) {
-    const result = searchInvariantRecursive(child, [...path, child.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-/** Recursively search imported ontologies for an affordance by name. */
-function findAffordanceInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
-  for (const ontology of ontologies.children) {
-    const result = searchAffordanceRecursive(ontology, ["Libs", ontology.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-function searchAffordanceRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  const aff = findAffordance(ctx, name);
-  if (aff) return { content: aff.content, ownerPath: path };
-  for (const child of ctx.children) {
-    const result = searchAffordanceRecursive(child, [...path, child.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
 interface RefResolution {

@@ -116,11 +116,11 @@ function checkContent(
 
       if (parsed.property) {
         if (parsed.property.prefix === "#") {
-          if (!findAffordanceInScope(root, targetPath, parsed.property.name)) {
+          if (!findAffordanceInScope(root, targetPath, parsed.property.name, importedOntologies)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved affordance" });
           }
         } else {
-          if (!findInvariantInScope(root, targetPath, parsed.property.name)) {
+          if (!findInvariantInScope(root, targetPath, parsed.property.name, importedOntologies)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved invariant" });
           }
         }
