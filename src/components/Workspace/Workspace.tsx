@@ -309,7 +309,7 @@ export function Workspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
 
-  // Core refs for preview highlighting
+  // Preview highlighting needs Ref[] which includes affordances and invariants
   const coreRefs = useMemo(() => {
     return coreBuildLexicalScope(scopeRoot as Sigil, scopePath);
     // eslint-disable-next-line react-hooks/exhaustive-deps
