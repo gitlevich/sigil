@@ -87,6 +87,50 @@ export function resolveRefName(refName: string, knownNames: string[]): string | 
   return undefined;
 }
 
+/** Like resolveRefName but returns ALL matching names. Used for ambiguity detection. */
+export function resolveRefNameAll(refName: string, knownNames: string[]): string[] {
+  const matches = new Set<string>();
+  const lower = refName.toLowerCase();
+  const flat = flattenName(refName);
+
+  for (const n of knownNames) {
+    if (n.toLowerCase() === lower || flattenName(n) === flat) {
+      matches.add(n);
+      continue;
+    }
+    // Plurals
+    if (lower.endsWith("ies") && lower.length > 3 && n.toLowerCase() === lower.slice(0, -3) + "y") { matches.add(n); continue; }
+    if (lower.endsWith("s") && lower.length > 1) {
+      const stem = lower.slice(0, -1);
+      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
+    }
+    // Past tense
+    if (lower.endsWith("ed") && lower.length > 3) {
+      for (const stem of [lower.slice(0, -2), lower.slice(0, -1)]) {
+        if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); break; }
+      }
+      if (matches.has(n)) continue;
+    }
+    // Present continuous
+    if (lower.endsWith("ing") && lower.length > 4) {
+      for (const stem of [lower.slice(0, -3), lower.slice(0, -3) + "e"]) {
+        if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); break; }
+      }
+      if (matches.has(n)) continue;
+    }
+    // Adjective ↔ noun
+    if (lower.endsWith("iful") && lower.length > 5) {
+      const stem = lower.slice(0, -4) + "y";
+      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
+    }
+    if (lower.endsWith("y") && lower.length > 2) {
+      const stem = lower.slice(0, -1) + "iful";
+      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
+    }
+  }
+  return [...matches];
+}
+
 /** Find an affordance by its dash-form name, with fuzzy matching. */
 export function findAffordance(sigil: Sigil | undefined, dashedName: string): Affordance | undefined {
   if (!sigil?.affordances) return undefined;

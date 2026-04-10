@@ -7,6 +7,7 @@ export {
   fromDashForm,
   buildNameIndex,
   resolveRefName,
+  resolveRefNameAll,
   findAffordance,
   findInvariantInScope,
   findAffordanceInScope,
@@ -14,8 +15,8 @@ export {
 } from "./refs";
 export type { Segment } from "./highlight";
 export { styleForPrefix, buildRefPattern, buildRefLookup, highlightText } from "./highlight";
-export type { ScopeKind, ScopeResolution } from "./scope";
-export { isInScope, resolveRef, resolveRefFull } from "./scope";
+export type { ScopeKind, ScopeResolution } from "./lexicalScope";
+export { isInScope, resolveRef, resolveRefFull } from "./lexicalScope";
 export { allRefsPattern, isInCodeSpan } from "./refs-pattern";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {

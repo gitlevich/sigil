@@ -18,4 +18,4 @@ All name matching is fuzzy: case-insensitive, dashes as word separators, plurals
 
 When resolution fails due to ambiguity, the error reports candidate locations so the user can write a qualified path.
 
-@Narrating enforces this invariant.
+@OntologyTree enforces this invariant.
