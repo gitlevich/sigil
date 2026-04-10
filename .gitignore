@@ -48,3 +48,4 @@ docs/genesis/.export_state.json
 # Memory system derived data
 .sigil/
 src-tauri/.fastembed_cache/
+coverage/
