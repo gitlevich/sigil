@@ -16,4 +16,7 @@ My @LeftHemisphere is for focusing @attention @timelike: trace a trajectory thro
 
 When attention returns, @RightHemisphere embeds the story to see if it improved understanding. If it improved it enough and nothing needs doing, the cycle stops. If it improved, but not enough, the cycle repeats. If @LeftHemisphere came back with something incoherent, @RightHemisphere refocuses it a little and repeats the cycle. 
 
+
+
 The cycle is described in @McGilchrist@McGilchristCycle.
+

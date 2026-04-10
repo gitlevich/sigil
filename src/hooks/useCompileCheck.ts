@@ -79,22 +79,22 @@ function checkContent(
         }
         if (parsed.property) {
           if (parsed.property.prefix === "#") {
-            if (!findAffordanceInScope(root, resolved.path, parsed.property.name)) {
+            if (!findAffordanceInScope(root, resolved.path, parsed.property.name, importedOntologies)) {
               errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved affordance" });
             }
           } else {
-            if (!findInvariantInScope(root, resolved.path, parsed.property.name)) {
+            if (!findInvariantInScope(root, resolved.path, parsed.property.name, importedOntologies)) {
               errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved invariant" });
             }
           }
         }
       } else if (parsed.property) {
         if (parsed.property.prefix === "#") {
-          if (!findAffordanceInScope(root, currentPath, parsed.property.name)) {
+          if (!findAffordanceInScope(root, currentPath, parsed.property.name, importedOntologies)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved affordance" });
           }
         } else {
-          if (!findInvariantInScope(root, currentPath, parsed.property.name)) {
+          if (!findInvariantInScope(root, currentPath, parsed.property.name, importedOntologies)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved invariant" });
           }
         }
