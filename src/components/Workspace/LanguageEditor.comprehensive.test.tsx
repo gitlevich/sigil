@@ -712,7 +712,7 @@ describe("buildCustomKeymap", () => {
     const km = buildCustomKeymap(
       { "rename-sigil": "Alt-Mod-r" },
       setRenameState, setRefsState,
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     // Mount with frontmatter
     const parent = document.createElement("div");
@@ -738,7 +738,7 @@ describe("buildCustomKeymap", () => {
   it("rename-sigil keymap: returns false when cursor not on status or ref", () => {
     const setRenameState = vi.fn();
     const km = buildCustomKeymap(
-      {}, setRenameState, vi.fn(), makeRef(), makeRef(), makeRef(), makeRef(),
+      {}, setRenameState, vi.fn(), makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -755,7 +755,7 @@ describe("buildCustomKeymap", () => {
   it("Enter keymap: commits status rename when globalPendingStatusRename is set", () => {
     const onRenameStatus = vi.fn();
     const km = buildCustomKeymap(
-      {}, vi.fn(), vi.fn(), makeRef(), makeRef(), makeRef(), makeRef(onRenameStatus),
+      {}, vi.fn(), vi.fn(), makeRef(onRenameStatus),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -778,7 +778,7 @@ describe("buildCustomKeymap", () => {
 
   it("Escape keymap: clears pending status rename", () => {
     const km = buildCustomKeymap(
-      {}, vi.fn(), vi.fn(), makeRef(), makeRef(), makeRef(), makeRef(),
+      {}, vi.fn(), vi.fn(), makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -797,44 +797,18 @@ describe("buildCustomKeymap", () => {
     view.destroy();
   });
 
-  it("create-sigil keymap: calls onCreateSigil for unknown @ref", () => {
-    const onCreateSigil = vi.fn();
-    setEditorContextForTest({
-      scope: [], scopeNames: [], nameIndex: new Map(),
-      sigilRoot: folder("Root"), currentContext: folder("Root"),
-      currentPath: [], importedOntologies: null,
-    });
-    const km = buildCustomKeymap(
-      { "create-sigil": "Alt-Enter" }, vi.fn(), vi.fn(),
-      makeRef(onCreateSigil), makeRef(), makeRef(), makeRef(),
-    );
-    const parent = document.createElement("div");
-    const view = new EditorView({
-      state: EditorState.create({ doc: "@NewSigil here", extensions: [km] }),
-      parent,
-    });
-    // Place cursor on @NewSigil
-    view.dispatch({ selection: { anchor: 1 } });
-    const result = km.value![3].run!(view);
-    if (result) {
-      expect(onCreateSigil).toHaveBeenCalledWith("NewSigil");
-    }
-    view.destroy();
-  });
-
   it("delete-line keymap: deletes the current line", () => {
     const km = buildCustomKeymap(
       { "delete-line": "Mod-d" }, vi.fn(), vi.fn(),
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({ doc: "Line 1\nLine 2\nLine 3", extensions: [km] }),
       parent,
     });
-    // Place cursor on line 2
     view.dispatch({ selection: { anchor: 8 } });
-    const result = km.value![5].run!(view);
+    const result = km.value![4].run!(view);
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe("Line 1\nLine 3");
     view.destroy();
@@ -855,7 +829,7 @@ describe("buildCustomKeymap", () => {
     });
     const km = buildCustomKeymap(
       { "find-references": "Alt-Mod-f" }, vi.fn(), setRefsState,
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -863,9 +837,7 @@ describe("buildCustomKeymap", () => {
       parent,
     });
     view.dispatch({ selection: { anchor: 6 } });
-    // The find-references handler is at index 4
-    const result = km.value![4].run!(view);
-    // It should find references and call setRefsState
+    const result = km.value![3].run!(view);
     view.destroy();
   });
 
@@ -881,7 +853,7 @@ describe("buildCustomKeymap", () => {
     });
     const km = buildCustomKeymap(
       {}, setRenameState, vi.fn(),
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -907,7 +879,7 @@ describe("buildCustomKeymap", () => {
     });
     const km = buildCustomKeymap(
       {}, setRenameState, vi.fn(),
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -917,56 +889,6 @@ describe("buildCustomKeymap", () => {
     view.dispatch({ selection: { anchor: 3 } });
     const result = km.value![0].run!(view);
     expect(result).toBe(true);
-    view.destroy();
-  });
-
-  it("create-sigil keymap: calls onCreateAffordance for unresolved #affordance", () => {
-    const onCreateAffordance = vi.fn();
-    const ctx = folder("Root");
-    setEditorContextForTest({
-      scope: [], scopeNames: [], nameIndex: new Map(),
-      sigilRoot: ctx, currentContext: ctx,
-      currentPath: [], importedOntologies: null,
-    });
-    const km = buildCustomKeymap(
-      {}, vi.fn(), vi.fn(),
-      makeRef(), makeRef(onCreateAffordance), makeRef(), makeRef(),
-    );
-    const parent = document.createElement("div");
-    const view = new EditorView({
-      state: EditorState.create({ doc: "#new-thing here", extensions: [km] }),
-      parent,
-    });
-    view.dispatch({ selection: { anchor: 3 } });
-    const result = km.value![3].run!(view);
-    if (result) {
-      expect(onCreateAffordance).toHaveBeenCalledWith("new-thing", undefined);
-    }
-    view.destroy();
-  });
-
-  it("create-sigil keymap: calls onCreateInvariant for unresolved !invariant", () => {
-    const onCreateInvariant = vi.fn();
-    const ctx = folder("Root");
-    setEditorContextForTest({
-      scope: [], scopeNames: [], nameIndex: new Map(),
-      sigilRoot: ctx, currentContext: ctx,
-      currentPath: [], importedOntologies: null,
-    });
-    const km = buildCustomKeymap(
-      {}, vi.fn(), vi.fn(),
-      makeRef(), makeRef(), makeRef(onCreateInvariant), makeRef(),
-    );
-    const parent = document.createElement("div");
-    const view = new EditorView({
-      state: EditorState.create({ doc: "!new-rule here", extensions: [km] }),
-      parent,
-    });
-    view.dispatch({ selection: { anchor: 3 } });
-    const result = km.value![3].run!(view);
-    if (result) {
-      expect(onCreateInvariant).toHaveBeenCalledWith("new-rule", undefined);
-    }
     view.destroy();
   });
 
@@ -983,7 +905,7 @@ describe("buildCustomKeymap", () => {
     });
     const km = buildCustomKeymap(
       {}, vi.fn(), setRefsState,
-      makeRef(), makeRef(), makeRef(), makeRef(),
+      makeRef(),
     );
     const parent = document.createElement("div");
     const view = new EditorView({
@@ -991,14 +913,14 @@ describe("buildCustomKeymap", () => {
       parent,
     });
     view.dispatch({ selection: { anchor: 3 } });
-    km.value![4].run!(view);
+    km.value![3].run!(view);
     view.destroy();
   });
 
   it("Enter keymap: calls onRenameStatus when value changed during rename flow", () => {
     const onRenameStatus = vi.fn();
     const km = buildCustomKeymap(
-      {}, vi.fn(), vi.fn(), makeRef(), makeRef(), makeRef(), makeRef(onRenameStatus),
+      {}, vi.fn(), vi.fn(), makeRef(onRenameStatus),
     );
     const parent = document.createElement("div");
     const view = new EditorView({

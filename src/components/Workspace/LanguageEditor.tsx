@@ -140,9 +140,6 @@ export function buildCustomKeymap(
   kb: Record<string, string>,
   setRenameState: SetRenameState,
   setRefsState: SetRefsState,
-  onCreateSigilRef: React.MutableRefObject<((name: string) => void) | undefined>,
-  onCreateAffordanceRef: React.MutableRefObject<((name: string) => void) | undefined>,
-  onCreateInvariantRef: React.MutableRefObject<((name: string) => void) | undefined>,
   onRenameStatusRef: React.MutableRefObject<((oldValue: string, newValue: string) => void) | undefined>,
 ) {
   return keymap.of([
@@ -198,28 +195,6 @@ export function buildCustomKeymap(
       run: () => {
         if (globalPendingStatusRename === null) return false;
         globalPendingStatusRename = null;
-        return false;
-      },
-    },
-    {
-      key: kb["create-sigil"] || "Alt-Enter",
-      run: (view) => {
-        const prop = findPropertyRefAtCursor(view);
-        if (prop && !prop.exists) {
-          if (prop.kind === "affordance" && onCreateAffordanceRef.current) {
-            onCreateAffordanceRef.current(prop.name, prop.targetContext);
-            return true;
-          }
-          if (prop.kind === "invariant" && onCreateInvariantRef.current) {
-            onCreateInvariantRef.current(prop.name, prop.targetContext);
-            return true;
-          }
-        }
-        const ref = findRefAtCursor(view);
-        if (ref && !ref.known && onCreateSigilRef.current) {
-          onCreateSigilRef.current(ref.name);
-          return true;
-        }
         return false;
       },
     },
@@ -326,7 +301,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef)),
         search(),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
@@ -354,7 +329,6 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
               view.dom.classList.add("cm-cmd-held");
             }
             // Alt-Enter: create sigil/affordance/invariant from unresolved ref
-            // Handle at DOM level to prevent autocomplete from swallowing the event
             if (event.altKey && event.key === "Enter") {
               const prop = findPropertyRefAtCursor(view);
               if (prop && !prop.exists) {
@@ -574,7 +548,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onCreateSigilRef, onCreateAffordanceRef, onCreateInvariantRef, onRenameStatusRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef)),
     });
   }, [keybindings]);
 
