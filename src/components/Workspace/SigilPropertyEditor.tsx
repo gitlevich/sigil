@@ -70,7 +70,6 @@ interface SigilPropertyEditorProps {
   onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
-  onPropertyContentChange?: (kind: "affordance" | "invariant", name: string, content: string) => void;
   keybindings?: Record<string, string>;
   actionDeps?: ActionDeps;
 }
@@ -473,7 +472,6 @@ export function SigilPropertyEditor({
   onRenameProperty,
   onNavigateToSigil,
   onNavigateToAbsPath,
-  onPropertyContentChange,
   keybindings = {},
   actionDeps,
 }: SigilPropertyEditorProps) {
@@ -583,10 +581,9 @@ export function SigilPropertyEditor({
   useEffect(() => {
     return () => {
       Object.values(saveTimers.current).forEach(clearTimeout);
-      if (!actionDeps) return;
       const pending = pendingWrites.current;
       for (const [name, content] of Object.entries(pending)) {
-        actions.savePropertyContent(sigilPath, filePrefix, name, content, actionDeps);
+        actions.savePropertyContent(sigilPath, filePrefix, name, content, actionDeps!);
       }
       pendingWrites.current = {};
     };
@@ -595,12 +592,8 @@ export function SigilPropertyEditor({
 
   const handleContentChange = useCallback((savedName: string, content: string) => {
     setItems((prev) => prev.map((a) => a.savedName === savedName ? { ...a, content } : a));
-    if (savedName) {
-      // Notify workspace so the in-memory tree is patched immediately
-      onPropertyContentChange?.(filePrefix as "affordance" | "invariant", savedName, content);
-      scheduleSave(savedName, content);
-    }
-  }, [filePrefix, onPropertyContentChange, scheduleSave]);
+    if (savedName) scheduleSave(savedName, content);
+  }, [scheduleSave]);
 
   const handleNameCommit = useCallback(async (savedName: string, newName: string) => {
     if (!actionDeps) return;

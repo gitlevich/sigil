@@ -2,7 +2,7 @@ import type { Sigil } from "./types";
 import { findContext } from "./tree";
 import { resolveRefName } from "./refs";
 
-export type ScopeKind = "contained" | "sibling" | "ancestor" | "lib" | "global-unique" | "unresolved";
+export type ScopeKind = "contained" | "sibling" | "ancestor" | "lib" | "unresolved";
 
 export interface ScopeResolution {
   kind: ScopeKind;
@@ -80,19 +80,6 @@ function classifyName(
     if (result) return { kind: "lib", target: result.target, path: result.path };
   }
 
-  // Rule 5: walk outward from current position — at each level,
-  // search the subtree. First match wins (closest in tree distance).
-  // If multiple matches at the same level, it's ambiguous.
-  for (let depth = currentPath.length; depth >= 0; depth--) {
-    const levelPath = currentPath.slice(0, depth);
-    const levelSigil = depth === 0 ? root : findContext(root, levelPath);
-    const matches = findAllInTree(levelSigil, name, levelPath);
-    if (matches.length === 1) {
-      return { kind: "global-unique", target: matches[0].target, path: matches[0].path };
-    }
-    if (matches.length > 1) return null; // ambiguous at this level
-  }
-
   return null;
 }
 
@@ -138,59 +125,6 @@ export function resolveRefFull(
   }
 
   return { kind: first.kind, target, path };
-}
-
-export interface RefDiagnosis {
-  resolved: ScopeResolution | null;
-  /** When unresolved, explains why. */
-  error?: "not-found" | "ambiguous";
-  /** For ambiguous: the paths where the name was found. */
-  candidates?: string[][];
-}
-
-/**
- * Like resolveRefFull but when resolution fails, explains why.
- */
-export function diagnoseRef(
-  root: Sigil,
-  currentPath: string[],
-  refText: string,
-  importedOntologies?: Sigil | null,
-): RefDiagnosis {
-  const result = resolveRefFull(root, currentPath, refText, importedOntologies);
-  if (result) return { resolved: result };
-
-  // First segment failed — figure out why
-  const segments = refText.slice(1).split("@");
-  if (segments.length === 0 || segments[0] === "") return { resolved: null, error: "not-found" };
-
-  const name = segments[0];
-  // Walk outward to find the nearest level with matches
-  for (let depth = currentPath.length; depth >= 0; depth--) {
-    const levelPath = currentPath.slice(0, depth);
-    const levelSigil = depth === 0 ? root : findContext(root, levelPath);
-    const matches = findAllInTree(levelSigil, name, levelPath);
-    if (matches.length > 1) {
-      return { resolved: null, error: "ambiguous", candidates: matches.map(m => m.path) };
-    }
-  }
-
-  return { resolved: null, error: "not-found" };
-}
-
-/** Collect all nodes matching a name in the tree (for uniqueness check). */
-function findAllInTree(
-  node: Sigil,
-  name: string,
-  currentPath: string[],
-): { target: Sigil; path: string[] }[] {
-  const results: { target: Sigil; path: string[] }[] = [];
-  for (const child of node.children) {
-    const childPath = [...currentPath, child.name];
-    if (nameMatches(name, child.name)) results.push({ target: child, path: childPath });
-    results.push(...findAllInTree(child, name, childPath));
-  }
-  return results;
 }
 
 /** Recursively search a tree for a sigil by fuzzy name, tracking path. */

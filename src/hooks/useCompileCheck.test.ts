@@ -203,28 +203,6 @@ describe("compileCheck", () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it("resolves lib reference even when name is ambiguous in the full tree", () => {
-    // "Affordance" exists in both the lib and in the app tree.
-    // The imported ontology search (rule 4) should still resolve it.
-    const ontologies = sigil("Ontologies", {
-      children: [
-        sigil("EcoPsych", {
-          children: [sigil("Affordance")],
-        }),
-      ],
-    });
-    const root = sigil("Root", {
-      language: "Uses @Affordance concept.",
-      children: [
-        sigil("App", {
-          children: [sigil("AffordanceFile")],  // fuzzy-similar name in tree
-        }),
-      ],
-    });
-    const result = compileCheck(root, ontologies);
-    expect(result.errors).toHaveLength(0);
-  });
-
   it("path in error reflects sigil tree position", () => {
     const root = sigil("Root", {
       children: [
@@ -260,72 +238,6 @@ describe("compileCheck", () => {
     const result = compileCheck(root);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].line).toBe(3);
-  });
-
-  it("resolves a globally unique name from a distant position", () => {
-    // From within A, @BChild is not a child, neighbor, or ancestor —
-    // but it's unique in the tree, so it should resolve.
-    const root = sigil("Root", {
-      children: [
-        sigil("A", { language: "See @BChild for details." }),
-        sigil("B", { children: [sigil("BChild")] }),
-      ],
-    });
-    const result = compileCheck(root);
-    expect(result.errors).toHaveLength(0);
-    expect(result.totalRefs).toBe(1);
-  });
-
-  it("rejects an ambiguous name that appears in multiple places", () => {
-    const root = sigil("Root", {
-      language: "See @Dup.",
-      children: [
-        sigil("X", { children: [sigil("Dup")] }),
-        sigil("Y", { children: [sigil("Dup")] }),
-      ],
-    });
-    const result = compileCheck(root);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].reason).toContain("ambiguous");
-    expect(result.errors[0].reason).toContain("X/Dup");
-    expect(result.errors[0].reason).toContain("Y/Dup");
-  });
-
-  it("resolves @Sigil#name when Sigil is in imported lib (app setup)", () => {
-    // Mimics useCompileCheck: libs mounted as child AND passed as importedOntologies
-    const ontologies = sigil("Libs", {
-      children: [
-        sigil("AttentionLanguage", {
-          children: [
-            sigil("Sigil", {
-              affordances: [{ name: "name", content: "the sigil's name" }],
-            }),
-          ],
-        }),
-      ],
-    });
-    const root = sigil("Root", {
-      children: [
-        sigil("DesignPartner", {
-          children: [
-            sigil("Memory", {
-              children: [
-                sigil("Impl", {
-                  language: "Each @sigil#name is stored. Also @sigil#affordances.",
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    });
-    // Mount libs as child (like useCompileCheck does)
-    const libs: Sigil = { ...ontologies, name: "Libs", isImported: true };
-    const checkRoot = { ...root, children: [...root.children, libs] };
-    const result = compileCheck(checkRoot, ontologies);
-    // @sigil resolves via lib, #name should find the affordance on Sigil
-    const nameErrors = result.errors.filter(e => e.ref === "@sigil#name");
-    expect(nameErrors).toHaveLength(0);
   });
 
   it("error path excludes root name, suitable for workspace navigate", () => {

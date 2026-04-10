@@ -51,46 +51,6 @@ export function buildLexicalScope(
   return refs;
 }
 
-/** Collect all sigils in the tree whose name is globally unique — not already in `seen`. */
-export function collectGloballyUniqueRefs(
-  root: SigilFolder,
-  seen: Set<string>,
-): SiblingInfo[] {
-  // Count occurrences of each name
-  const counts = new Map<string, { sigil: SigilFolder; path: string[] }[]>();
-  function walk(node: SigilFolder, path: string[]) {
-    for (const child of node.children) {
-      const childPath = [...path, child.name];
-      const list = counts.get(child.name) ?? [];
-      list.push({ sigil: child, path: childPath });
-      counts.set(child.name, list);
-      walk(child, childPath);
-    }
-  }
-  walk(root, []);
-
-  const refs: SiblingInfo[] = [];
-  for (const [name, entries] of counts) {
-    if (seen.has(name)) continue;
-    if (entries.length === 1) {
-      seen.add(name);
-      const { sigil, path } = entries[0];
-      refs.push({ name, summary: makeSummary(sigil), kind: "sibling", absolutePath: path });
-    } else {
-      // Ambiguous: offer path-qualified completions using parent@name
-      for (const { sigil, path } of entries) {
-        const parent = path.length >= 2 ? path[path.length - 2] : root.name;
-        const qualifiedName = `${parent}@${name}`;
-        if (!seen.has(qualifiedName)) {
-          seen.add(qualifiedName);
-          refs.push({ name: qualifiedName, summary: makeSummary(sigil), kind: "sibling", absolutePath: path });
-        }
-      }
-    }
-  }
-  return refs;
-}
-
 /** Flatten all children of a lib ontology into refs with proper absolutePath. */
 export function flattenOntologyRefs(
   ontology: SigilFolder,

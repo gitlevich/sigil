@@ -13,7 +13,6 @@ import {
   findContext,
   buildLexicalScope,
   resolveRefName,
-  diagnoseRef,
   findAffordanceInScope,
   findInvariantInScope,
 } from "sigil-core";
@@ -183,29 +182,47 @@ function describeScope(root: Sigil, currentPath: string[]): string {
 
 // ── Resolve a multi-segment @ref against the tree ──
 
-interface SegmentResult {
-  path: string[] | null;
-  reason?: string;
+function resolveSegments(root: Sigil, currentPath: string[], segments: string[]): string[] | null {
+  if (segments.length === 0) return currentPath;
+
+  const scope = buildLexicalScope(root, currentPath);
+  const sigilNames = scope.filter((r) => r.prefix === "@").map((r) => r.name);
+  const firstName = segments[0];
+  const resolved = resolveRefName(firstName, sigilNames);
+  if (!resolved) return null;
+
+  const targetPath = findSigilPath(root, resolved);
+  if (!targetPath) return null;
+
+  if (segments.length === 1) return targetPath;
+
+  let ctx = findContext(root, targetPath);
+  const resultPath = [...targetPath];
+  for (let i = 1; i < segments.length; i++) {
+    const childNames = ctx.children.map((c) => c.name);
+    const childResolved = resolveRefName(segments[i], childNames);
+    if (!childResolved) return null;
+    resultPath.push(childResolved);
+    const next = ctx.children.find((c) => c.name === childResolved);
+    if (!next) return null;
+    ctx = next;
+  }
+  return resultPath;
 }
 
-function resolveSegments(root: Sigil, currentPath: string[], segments: string[], importedOntologies?: Sigil | null): SegmentResult {
-  if (segments.length === 0) return { path: currentPath };
+function findSigilPath(root: Sigil, name: string): string[] | null {
+  if (root.name === name) return [];
+  return findSigilPathDFS(root, name, []);
+}
 
-  const refText = "@" + segments.join("@");
-  const diagnosis = diagnoseRef(root, currentPath, refText, importedOntologies);
-  if (diagnosis.resolved) {
-    const result = diagnosis.resolved;
-    if (result.kind === "lib" && importedOntologies) {
-      return { path: [importedOntologies.name, ...result.path] };
-    }
-    return { path: result.path };
+function findSigilPathDFS(sigil: Sigil, name: string, prefix: string[]): string[] | null {
+  for (const child of sigil.children) {
+    const childPath = [...prefix, child.name];
+    if (child.name === name) return childPath;
+    const found = findSigilPathDFS(child, name, childPath);
+    if (found) return found;
   }
-
-  if (diagnosis.error === "ambiguous" && diagnosis.candidates) {
-    const locations = diagnosis.candidates.map(p => p.join("/")).join(", ");
-    return { path: null, reason: `ambiguous — found in: ${locations}` };
-  }
-  return { path: null, reason: "unresolved sigil" };
+  return null;
 }
 
 // ── Walk files and check ──
@@ -247,7 +264,6 @@ function checkFile(
   sigilRoot: string,
   filePath: string,
   relPath: string,
-  importedOntologies?: Sigil | null,
 ): { errors: RefError[]; refCount: number } {
   const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.split("\n");
@@ -276,13 +292,13 @@ function checkFile(
       // Resolve sigil segments
       let targetPath = currentPath;
       if (parsed.segments.length > 0) {
-        const { path: resolved, reason } = resolveSegments(root, currentPath, parsed.segments, importedOntologies);
+        const resolved = resolveSegments(root, currentPath, parsed.segments);
         if (!resolved) {
           errors.push({
             file: relPath,
             line: i + 1,
             ref: token,
-            reason: reason ?? "unresolved sigil",
+            reason: "unresolved sigil",
             scope: getScope(),
           });
           continue;
@@ -293,7 +309,7 @@ function checkFile(
       // Resolve property
       if (parsed.property) {
         if (parsed.property.prefix === "#") {
-          const found = findAffordanceInScope(root, targetPath, parsed.property.name, importedOntologies);
+          const found = findAffordanceInScope(root, targetPath, parsed.property.name);
           if (!found) {
             errors.push({
               file: relPath,
@@ -304,7 +320,7 @@ function checkFile(
             });
           }
         } else {
-          const found = findInvariantInScope(root, targetPath, parsed.property.name, importedOntologies);
+          const found = findInvariantInScope(root, targetPath, parsed.property.name);
           if (!found) {
             errors.push({
               file: relPath,
@@ -351,7 +367,7 @@ const allErrors: RefError[] = [];
 const filesWithErrors = new Set<string>();
 
 for (const { absPath, relPath } of files) {
-  const { errors, refCount } = checkFile(root, sigilRoot, absPath, relPath, libs);
+  const { errors, refCount } = checkFile(root, sigilRoot, absPath, relPath);
   totalRefs += refCount;
   if (errors.length > 0) {
     allErrors.push(...errors);

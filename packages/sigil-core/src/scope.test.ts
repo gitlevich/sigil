@@ -83,14 +83,14 @@ describe("isInScope from Q", () => {
     expect(isInScope(root, here, "C2")).toBe(true);
   });
 
-  // ── Descendants with unique names resolve globally ──
+  // ── Rule 2: descendants are NOT bare-name visible ──
 
-  it("grandchild G IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "G")).toBe(true);
+  it("grandchild G is NOT in scope as bare name", () => {
+    expect(isInScope(root, here, "G")).toBe(false);
   });
 
-  it("great-grandchild H IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "H")).toBe(true);
+  it("great-grandchild H is NOT in scope as bare name", () => {
+    expect(isInScope(root, here, "H")).toBe(false);
   });
 
   // ── Rule 3: neighbors of S (same level in the hierarchy) ──
@@ -99,12 +99,12 @@ describe("isInScope from Q", () => {
     expect(isInScope(root, here, "N")).toBe(true);
   });
 
-  it("neighbor's child NChild IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "NChild")).toBe(true);
+  it("neighbor's child NChild is NOT in scope as bare name", () => {
+    expect(isInScope(root, here, "NChild")).toBe(false);
   });
 
-  it("neighbor's grandchild NDeep IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "NDeep")).toBe(true);
+  it("neighbor's grandchild NDeep is NOT in scope as bare name", () => {
+    expect(isInScope(root, here, "NDeep")).toBe(false);
   });
 
   // ── Rule 4: sigils connecting S to the root ──
@@ -123,14 +123,12 @@ describe("isInScope from Q", () => {
 
   // ── NOT in scope: things off the path ──
 
-  // ── Rule 5: globally unique names resolve from anywhere ──
-
-  it("Uncle IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "Uncle")).toBe(true);
+  it("Uncle is NOT in scope (not on path from Q to Root, not a neighbor of Q)", () => {
+    expect(isInScope(root, here, "Uncle")).toBe(false);
   });
 
-  it("Cousin IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, here, "Cousin")).toBe(true);
+  it("Cousin is NOT in scope", () => {
+    expect(isInScope(root, here, "Cousin")).toBe(false);
   });
 
   // ── Rule 5: imported ontologies ──
@@ -192,24 +190,24 @@ describe("resolveRef from Q", () => {
 
   // ── Single-segment: things NOT in scope ──
 
-  it("@G resolves (unique name in tree)", () => {
-    expect(resolveRef(root, here, "@G")?.name).toBe("G");
+  it("@G does NOT resolve (grandchild, needs path)", () => {
+    expect(resolveRef(root, here, "@G")).toBeNull();
   });
 
-  it("@H resolves (unique name in tree)", () => {
-    expect(resolveRef(root, here, "@H")?.name).toBe("H");
+  it("@H does NOT resolve (great-grandchild)", () => {
+    expect(resolveRef(root, here, "@H")).toBeNull();
   });
 
-  it("@NChild resolves (unique name in tree)", () => {
-    expect(resolveRef(root, here, "@NChild")?.name).toBe("NChild");
+  it("@NChild does NOT resolve (neighbor's child, needs path)", () => {
+    expect(resolveRef(root, here, "@NChild")).toBeNull();
   });
 
-  it("@Uncle resolves (unique name in tree)", () => {
-    expect(resolveRef(root, here, "@Uncle")?.name).toBe("Uncle");
+  it("@Uncle does NOT resolve (not on path, not neighbor)", () => {
+    expect(resolveRef(root, here, "@Uncle")).toBeNull();
   });
 
-  it("@Cousin resolves (unique name in tree)", () => {
-    expect(resolveRef(root, here, "@Cousin")?.name).toBe("Cousin");
+  it("@Cousin does NOT resolve", () => {
+    expect(resolveRef(root, here, "@Cousin")).toBeNull();
   });
 
   it("@Phantom does NOT resolve", () => {
@@ -256,16 +254,16 @@ describe("resolveRef from Q", () => {
 
   // ── Multi-segment: first segment must be in scope ──
 
-  it("@Uncle@Cousin resolves (Uncle is globally unique)", () => {
-    expect(resolveRef(root, here, "@Uncle@Cousin")?.name).toBe("Cousin");
+  it("@Uncle@Cousin does NOT resolve (Uncle not in scope from Q)", () => {
+    expect(resolveRef(root, here, "@Uncle@Cousin")).toBeNull();
   });
 
-  it("@G@H resolves (G is globally unique, H is its child)", () => {
-    expect(resolveRef(root, here, "@G@H")?.name).toBe("H");
+  it("@G@H does NOT resolve (G not in scope as bare name)", () => {
+    expect(resolveRef(root, here, "@G@H")).toBeNull();
   });
 
-  it("@NChild@NDeep resolves (NChild is globally unique)", () => {
-    expect(resolveRef(root, here, "@NChild@NDeep")?.name).toBe("NDeep");
+  it("@NChild@NDeep does NOT resolve (NChild not in scope as bare name)", () => {
+    expect(resolveRef(root, here, "@NChild@NDeep")).toBeNull();
   });
 
   // ── Multi-segment: second segment must be a child of first ──
@@ -306,8 +304,8 @@ describe("isInScope from Root (path [])", () => {
     expect(isInScope(root, [], "Uncle")).toBe(true);
   });
 
-  it("grandchild Q IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, [], "Q")).toBe(true);
+  it("grandchild Q is NOT in scope as bare name", () => {
+    expect(isInScope(root, [], "Q")).toBe(false);
   });
 
   it("Root itself is in scope", () => {
@@ -324,8 +322,8 @@ describe("resolveRef from Root (path [])", () => {
     expect(resolveRef(root, [], "@P@Q")?.name).toBe("Q");
   });
 
-  it("@Q resolves (unique name in tree)", () => {
-    expect(resolveRef(root, [], "@Q")?.name).toBe("Q");
+  it("@Q does NOT resolve (not a child of Root)", () => {
+    expect(resolveRef(root, [], "@Q")).toBeNull();
   });
 });
 
@@ -352,16 +350,16 @@ describe("isInScope from C1 (path [P, Q, C1])", () => {
     expect(isInScope(root, fromC1, "Root")).toBe(true);
   });
 
-  it("N IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, fromC1, "N")).toBe(true);
+  it("N is NOT in scope (neighbor of Q, not of C1)", () => {
+    expect(isInScope(root, fromC1, "N")).toBe(false);
   });
 
-  it("Uncle IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, fromC1, "Uncle")).toBe(true);
+  it("Uncle is NOT in scope", () => {
+    expect(isInScope(root, fromC1, "Uncle")).toBe(false);
   });
 
-  it("H IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, fromC1, "H")).toBe(true);
+  it("H is NOT in scope as bare name (G's child)", () => {
+    expect(isInScope(root, fromC1, "H")).toBe(false);
   });
 });
 
@@ -384,8 +382,8 @@ describe("resolveRef from C1 (path [P, Q, C1])", () => {
     expect(resolveRef(root, fromC1, "@Q@C2")?.name).toBe("C2");
   });
 
-  it("@N resolves (unique name in tree)", () => {
-    expect(resolveRef(root, fromC1, "@N")?.name).toBe("N");
+  it("@N does NOT resolve (not in scope from C1)", () => {
+    expect(resolveRef(root, fromC1, "@N")).toBeNull();
   });
 
   it("@Q@N does NOT resolve (N is not a child of Q... wait, it is not)", () => {
@@ -413,8 +411,8 @@ describe("isInScope from N (path [P, N])", () => {
     expect(isInScope(root, fromN, "P")).toBe(true);
   });
 
-  it("Q's child C1 IS in scope (unique name in tree)", () => {
-    expect(isInScope(root, fromN, "C1")).toBe(true);
+  it("Q's child C1 is NOT in scope as bare name", () => {
+    expect(isInScope(root, fromN, "C1")).toBe(false);
   });
 });
 
@@ -429,98 +427,7 @@ describe("resolveRef from N (path [P, N])", () => {
     expect(resolveRef(root, fromN, "@Q@C1@G")?.name).toBe("G");
   });
 
-  it("@C1 resolves (unique name in tree)", () => {
-    expect(resolveRef(root, fromN, "@C1")?.name).toBe("C1");
-  });
-});
-
-// ══════════════════════════════════════════════════════════════
-// Ambiguous names do NOT resolve globally
-// ══════════════════════════════════════════════════════════════
-
-describe("ambiguous global names", () => {
-  // Tree where "Dup" appears in two places:
-  //   AmbRoot
-  //   ├── A
-  //   │   └── Dup
-  //   └── B
-  //       └── Dup
-  const ambRoot = sigil("AmbRoot", {
-    children: [
-      sigil("A", { children: [sigil("Dup")] }),
-      sigil("B", { children: [sigil("Dup")] }),
-    ],
-  });
-
-  it("@Dup does NOT resolve when name appears in multiple places", () => {
-    expect(resolveRef(ambRoot, ["A"], "@Dup")?.name).toBe("Dup"); // child — lexical scope wins
-    expect(resolveRef(ambRoot, [], "@Dup")).toBeNull(); // from root, Dup is ambiguous (not a child of root)
-  });
-
-  it("Dup is NOT in scope from root when ambiguous", () => {
-    expect(isInScope(ambRoot, [], "Dup")).toBe(false);
-  });
-
-  it("Dup IS in scope from A (it's a child — lexical wins before global)", () => {
-    expect(isInScope(ambRoot, ["A"], "Dup")).toBe(true);
-  });
-});
-
-// ══════════════════════════════════════════════════════════════
-// Proximity: closest match in outward walk wins
-// ══════════════════════════════════════════════════════════════
-
-describe("proximity resolution", () => {
-  // Tree mimicking the Language ambiguity:
-  //   Root
-  //   ├── App
-  //   │   └── Workspace
-  //   │       └── Narrating
-  //   │           └── Lang     ← closest from Narrating
-  //   └── Partner
-  //       └── Mind
-  //           └── Lang         ← farther away
-  const proxRoot = sigil("Root", {
-    children: [
-      sigil("App", {
-        children: [
-          sigil("Workspace", {
-            children: [
-              sigil("Narrating", {
-                children: [sigil("Lang")],
-              }),
-            ],
-          }),
-        ],
-      }),
-      sigil("Partner", {
-        children: [
-          sigil("Mind", {
-            children: [sigil("Lang")],
-          }),
-        ],
-      }),
-    ],
-  });
-
-  it("@Lang resolves to closest match from Narrating (child)", () => {
-    expect(resolveRef(proxRoot, ["App", "Workspace", "Narrating"], "@Lang")?.name).toBe("Lang");
-  });
-
-  it("@Lang resolves to closest match from Workspace (grandchild via outward walk)", () => {
-    // From Workspace, the nearest ancestor subtree containing Lang is Workspace itself
-    expect(resolveRef(proxRoot, ["App", "Workspace"], "@Lang")?.name).toBe("Lang");
-  });
-
-  it("@Lang is ambiguous from Root (both subtrees have it)", () => {
-    expect(resolveRef(proxRoot, [], "@Lang")).toBeNull();
-  });
-
-  it("@Lang resolves from App (only one Lang in App's subtree)", () => {
-    expect(resolveRef(proxRoot, ["App"], "@Lang")?.name).toBe("Lang");
-  });
-
-  it("@Lang resolves from Partner (only one Lang in Partner's subtree)", () => {
-    expect(resolveRef(proxRoot, ["Partner"], "@Lang")?.name).toBe("Lang");
+  it("@C1 does NOT resolve (not in scope from N)", () => {
+    expect(resolveRef(root, fromN, "@C1")).toBeNull();
   });
 });

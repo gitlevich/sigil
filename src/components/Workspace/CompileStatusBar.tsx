@@ -4,7 +4,6 @@ import styles from "./CompileStatusBar.module.css";
 
 interface CompileStatusBarProps {
   result: CompileResult;
-  currentPath: string[];
   onNavigateToError?: (error: RefError) => void;
 }
 
@@ -19,19 +18,9 @@ function groupByPath(errors: RefError[]): Map<string, RefError[]> {
   return grouped;
 }
 
-function isInScope(errorPath: string[], currentPath: string[]): boolean {
-  if (currentPath.length === 0) return true;
-  for (let i = 0; i < currentPath.length; i++) {
-    if (errorPath[i] !== currentPath[i]) return false;
-  }
-  return true;
-}
-
-export function CompileStatusBar({ result, currentPath, onNavigateToError }: CompileStatusBarProps) {
+export function CompileStatusBar({ result, onNavigateToError }: CompileStatusBarProps) {
   const [expanded, setExpanded] = useState(false);
-  const scopedErrors = result.errors.filter(e => isInScope(e.path, currentPath));
-  const scopedFiles = new Set(scopedErrors.map(e => e.path.join("/") + "/" + e.file));
-  const hasErrors = scopedErrors.length > 0;
+  const hasErrors = result.errors.length > 0;
 
   return (
     <div className={styles.container}>
@@ -43,7 +32,7 @@ export function CompileStatusBar({ result, currentPath, onNavigateToError }: Com
           {hasErrors ? (
             <>
               <span className={styles.dot + " " + styles.dotError} />
-              {scopedErrors.length} unresolved in {scopedFiles.size} file{scopedFiles.size !== 1 ? "s" : ""}
+              {result.errors.length} unresolved in {result.filesWithErrors} file{result.filesWithErrors !== 1 ? "s" : ""}
             </>
           ) : (
             <>
@@ -56,7 +45,7 @@ export function CompileStatusBar({ result, currentPath, onNavigateToError }: Com
 
       {expanded && hasErrors && (
         <div className={styles.panel}>
-          {Array.from(groupByPath(scopedErrors)).map(([fileKey, errors]) => (
+          {Array.from(groupByPath(result.errors)).map(([fileKey, errors]) => (
             <div key={fileKey} className={styles.fileGroup}>
               <div
                 className={styles.filePath}

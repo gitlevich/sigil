@@ -15,7 +15,7 @@ import { CompileStatusBar } from "./CompileStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./sigilExtensions";
-import { buildLexicalScope, flattenOntologyRefs, collectGloballyUniqueRefs } from "./lexicalScope";
+import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import * as actions from "../../actions/workspace";
@@ -51,6 +51,21 @@ function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
   if (!needsShift && e.shiftKey) return false;
 
   return e.key.toLowerCase() === keyChar;
+}
+
+function updateFolderInTree(
+  root: SigilFolder,
+  path: string[],
+  updater: (folder: SigilFolder) => SigilFolder
+): SigilFolder {
+  if (path.length === 0) return updater(root);
+  const [head, ...rest] = path;
+  return {
+    ...root,
+    children: root.children.map((child) =>
+      child.name === head ? updateFolderInTree(child, rest, updater) : child
+    ),
+  };
 }
 
 function buildBreadcrumb(root: Sigil, path: string[]): { name: string; path: string[] }[] {
@@ -167,27 +182,52 @@ export function Workspace() {
     }
   }, [menuRenaming]);
 
+  const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
+
+  // Cancel any pending debounced state update when navigating away.
+  const prevPathKeyRef = useRef(ws.currentPath.join("/"));
+  useEffect(() => {
+    const pathKey = ws.currentPath.join("/");
+    if (pathKey !== prevPathKeyRef.current) {
+      if (dispatchTimerRef.current) {
+        clearTimeout(dispatchTimerRef.current);
+        dispatchTimerRef.current = null;
+      }
+      prevPathKeyRef.current = pathKey;
+    }
+  }, [ws.currentPath]);
+
   const handleContentChange = useCallback((content: string) => {
+    const pathSnapshot = [...ws.currentPath];
+    const pathKey = pathSnapshot.join("/");
     const { scopeRoot, scopePath } = scopeInfo(ws);
     const folder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
     if (!folder) return;
-    // Memory first — compiler sees it immediately
-    wsDispatch({ type: "PATCH_LANGUAGE", path: ws.currentPath, content });
-    // Disk as side effect
     save(`${folder.path}/language.md`, content);
+    // Debounce the React state update — read fresh ws from ref to avoid stale closures
+    if (dispatchTimerRef.current) clearTimeout(dispatchTimerRef.current);
+    dispatchTimerRef.current = setTimeout(() => {
+      const current = wsRef.current;
+      // Guard: if the user navigated away, don't update the wrong node
+      if (current.currentPath.join("/") !== pathKey) return;
+      const imported = isImportedPath(current);
+      if (imported && current.spec.importedOntologies) {
+        const updatedImported = updateFolderInTree(current.spec.importedOntologies, scopePath, (f) => ({
+          ...f,
+          language: content,
+        }));
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, importedOntologies: updatedImported } });
+      } else {
+        const updatedRoot = updateFolderInTree(current.spec.root, pathSnapshot, (f) => ({
+          ...f,
+          language: content,
+        }));
+        wsDispatch({ type: "UPDATE_SPEC", spec: { ...current.spec, root: updatedRoot } });
+      }
+    }, 300);
   }, [ws, save, wsDispatch]);
-
-  const handlePropertyContentChange = useCallback(
-    (kind: "affordance" | "invariant", name: string, content: string) => {
-      const folder = resolveCurrentFolder(ws);
-      if (!folder) return;
-      // Memory first
-      wsDispatch({ type: "PATCH_PROPERTY", path: ws.currentPath, kind, name, content });
-      // Disk as side effect
-      save(`${folder.path}/${kind}-${name}.md`, content);
-    },
-    [ws, save, wsDispatch],
-  );
 
   const currentFolder = resolveCurrentFolder(ws);
 
@@ -292,11 +332,6 @@ export function Workspace() {
         refs.push(...flattenOntologyRefs(ontology, ["Imported Ontologies", ontology.name], seenNames, ontology.name));
       }
     }
-    // Add globally-unique names from the entire tree (including imported ontologies as mounted)
-    const fullRoot = importedSigil
-      ? { ...scopeRoot, children: [...scopeRoot.children, { ...importedSigil, name: "Libs", isImported: true } as SigilFolder] } as SigilFolder
-      : scopeRoot;
-    refs.push(...collectGloballyUniqueRefs(fullRoot, seenNames));
     return { allRefs: refs, allRefNames: refs.map((r) => r.name) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
@@ -349,7 +384,6 @@ export function Workspace() {
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => navigate(path)}
-            onPropertyContentChange={handlePropertyContentChange}
             keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />
@@ -416,12 +450,11 @@ export function Workspace() {
             onRenameProperty={handleRenameProperty}
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => navigate(path)}
-            onPropertyContentChange={handlePropertyContentChange}
             keybindings={appState.settings.keybindings as unknown as Record<string, string>}
             actionDeps={actionDeps}
           />
         )}
-        <CompileStatusBar result={compileResult} currentPath={ws.currentPath} onNavigateToError={(err: RefError) => {
+        <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
           narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
         }} />

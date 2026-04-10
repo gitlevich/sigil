@@ -26,26 +26,8 @@ type WorkspaceAction =
   | { type: "CLEAR_TARGET_LINE" }
   | { type: "BACK" }
   | { type: "UPDATE_SPEC"; spec: ApplicationSpec }
-  | { type: "PATCH_LANGUAGE"; path: string[]; content: string }
-  | { type: "PATCH_PROPERTY"; path: string[]; kind: "affordance" | "invariant"; name: string; content: string }
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
   | { type: "TOGGLE_COLLAPSE"; pathKey: string };
-
-/** Apply an updater to a node at a specific path in the tree. */
-function patchNodeInTree(
-  root: SigilFolder,
-  path: string[],
-  updater: (folder: SigilFolder) => SigilFolder,
-): SigilFolder {
-  if (path.length === 0) return updater(root);
-  const [head, ...rest] = path;
-  return {
-    ...root,
-    children: root.children.map((child) =>
-      child.name === head ? patchNodeInTree(child, rest, updater) : child
-    ),
-  };
-}
 
 function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
@@ -62,38 +44,7 @@ function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState
       return { ...state, currentPath, history };
     }
     case "UPDATE_SPEC":
-      // External reload from disk. Memory is authoritative for the node being edited,
-      // so preserve the current node's content (language + properties) across reloads.
-      if (state.currentPath.length > 0) {
-        const currentNode = findContext(state.spec.root as Sigil, state.currentPath) as SigilFolder | null;
-        if (currentNode) {
-          const merged = patchNodeInTree(action.spec.root, state.currentPath, (f) => ({
-            ...f,
-            language: currentNode.language,
-            affordances: currentNode.affordances,
-            invariants: currentNode.invariants,
-          }));
-          return { ...state, spec: { ...action.spec, root: merged } };
-        }
-      }
       return { ...state, spec: action.spec };
-    case "PATCH_LANGUAGE": {
-      const updated = patchNodeInTree(state.spec.root, action.path, (f) => ({
-        ...f,
-        language: action.content,
-      }));
-      return { ...state, spec: { ...state.spec, root: updated } };
-    }
-    case "PATCH_PROPERTY": {
-      const key = action.kind === "affordance" ? "affordances" : "invariants";
-      const updated = patchNodeInTree(state.spec.root, action.path, (f) => ({
-        ...f,
-        [key]: ((f as SigilFolder)[key] ?? []).map((p: { name: string; content: string }) =>
-          p.name === action.name ? { ...p, content: action.content } : p
-        ),
-      }));
-      return { ...state, spec: { ...state.spec, root: updated } };
-    }
     case "SET_COLLAPSED_PATHS":
       return { ...state, collapsedPaths: action.paths };
     case "TOGGLE_COLLAPSE": {

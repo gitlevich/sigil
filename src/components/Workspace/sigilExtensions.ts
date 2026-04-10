@@ -13,9 +13,9 @@ import { SigilFolder } from "../../tauri";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
-  resolveRefFull, diagnoseRef,
+  resolveRefFull,
 } from "sigil-core";
-import type { ScopeKind, Sigil } from "sigil-core";
+import type { ScopeKind } from "sigil-core";
 
 export interface SiblingInfo {
   name: string;
@@ -155,15 +155,67 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  return findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name, editorCtx.importedOntologies);
+  const result = findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (result) return result;
+  // Search imported ontologies (Libs are ambient root scope per spec)
+  if (editorCtx.importedOntologies) {
+    return findInvariantInOntologies(editorCtx.importedOntologies, name);
+  }
+  return null;
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  return findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name, editorCtx.importedOntologies);
+  const result = findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (result) return result;
+  // Search imported ontologies (Libs are ambient root scope per spec)
+  if (editorCtx.importedOntologies) {
+    return findAffordanceInOntologies(editorCtx.importedOntologies, name);
+  }
+  return null;
 }
 
 /** Recursively search imported ontologies for an invariant by name. */
+function findInvariantInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
+  for (const ontology of ontologies.children) {
+    const result = searchInvariantRecursive(ontology, ["Libs", ontology.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+function searchInvariantRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+  for (const inv of ctx.invariants) {
+    if (inv.name === name || inv.name === fromDashForm(name)) {
+      return { content: inv.content, ownerPath: path };
+    }
+  }
+  for (const child of ctx.children) {
+    const result = searchInvariantRecursive(child, [...path, child.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+/** Recursively search imported ontologies for an affordance by name. */
+function findAffordanceInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
+  for (const ontology of ontologies.children) {
+    const result = searchAffordanceRecursive(ontology, ["Libs", ontology.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
+function searchAffordanceRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
+  const aff = findAffordance(ctx, name);
+  if (aff) return { content: aff.content, ownerPath: path };
+  for (const child of ctx.children) {
+    const result = searchAffordanceRecursive(child, [...path, child.name], name);
+    if (result) return result;
+  }
+  return null;
+}
+
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
 interface RefResolution {
@@ -178,7 +230,6 @@ const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
   sibling: "sibling",
   ancestor: "absolute",
   lib: "lib",
-  "global-unique": "sibling",
   unresolved: "unresolved",
 };
 
@@ -748,18 +799,13 @@ export function buildSiblingHighlighter(
                   const propChar = matchText[propIdx];
                   const propName = matchText.slice(propIdx + 1);
                   const sigilRef = matchText.slice(0, propIdx);
-                  const resolution = resolveChainedRef(sigilRef);
+                  const targetCtx = resolveRefToContext(sigilRef);
                   let propExists = false;
-                  if (resolution.kind !== "unresolved" && editorCtx.sigilRoot) {
-                    const resolvedPath = resolution.absolutePath ?? resolution.path;
+                  if (targetCtx) {
                     if (propChar === "#") {
-                      propExists = !!findAffordanceInScope(
-                        editorCtx.sigilRoot as Sigil, resolvedPath, propName, editorCtx.importedOntologies as Sigil | null,
-                      );
+                      propExists = !!findAffordance(targetCtx, propName);
                     } else {
-                      propExists = !!findInvariantInScope(
-                        editorCtx.sigilRoot as Sigil, resolvedPath, propName, editorCtx.importedOntologies as Sigil | null,
-                      );
+                      propExists = targetCtx.invariants.some((inv) => inv.name === propName || inv.name === fromDashForm(propName));
                     }
                   }
                   const mark = propExists ? (propChar === "!" ? invariantMark : affordanceMark) : unresolvedMark;
@@ -843,40 +889,25 @@ export function buildSiblingHighlighter(
           if (sigilPart) {
             const resolution = resolveChainedRef(sigilPart);
             if (resolution.kind === "unresolved") {
-              // Distinguish ambiguous from truly missing
-              if (editorCtx.sigilRoot) {
-                const diag = diagnoseRef(
-                  editorCtx.sigilRoot,
-                  editorCtx.currentPath,
-                  sigilPart,
-                  editorCtx.importedOntologies,
-                );
-                if (diag.error === "ambiguous" && diag.candidates) {
-                  summary = `ambiguous: ${sigilPart}\nfound in: ${diag.candidates.map(p => p.join("/")).join(", ")}`;
-                } else {
-                  summary = `unresolved: ${sigilPart}`;
-                }
-              } else {
-                summary = `unresolved: ${sigilPart}`;
-              }
+              summary = `unresolved: ${sigilPart}`;
             } else if (resolution.kind === "external") {
               summary = resolution.summary ?? "outside scope";
             } else {
               summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
                 ? (editorCtx.siblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
                 : "");
-              if (propertyPart && editorCtx.sigilRoot) {
-                const resolvedPath = resolution.absolutePath ?? resolution.path;
-                if (propChar === "!") {
-                  const result = findInvariantInScope(
-                    editorCtx.sigilRoot as Sigil, resolvedPath, propertyPart, editorCtx.importedOntologies as Sigil | null,
+              if (propertyPart) {
+                const ctx = editorCtx.sigilRoot
+                  ? findContextByPath(resolution.absolutePath ?? resolution.path, editorCtx.sigilRoot)
+                  : null;
+                if (propChar === "!" && ctx) {
+                  const disp = ctx.invariants.find(
+                    (d) => d.name === propertyPart || d.name === fromDashForm(propertyPart!)
                   );
-                  if (result) summary = result.content.split("\n").slice(0, 3).join("\n");
-                } else {
-                  const result = findAffordanceInScope(
-                    editorCtx.sigilRoot as Sigil, resolvedPath, propertyPart, editorCtx.importedOntologies as Sigil | null,
-                  );
-                  if (result) summary = result.content.split("\n").slice(0, 3).join("\n");
+                  if (disp) summary = disp.content.split("\n").slice(0, 3).join("\n");
+                } else if (ctx) {
+                  const aff = findAffordance(ctx, propertyPart);
+                  if (aff) summary = aff.content.split("\n").slice(0, 3).join("\n");
                 }
               }
             }
