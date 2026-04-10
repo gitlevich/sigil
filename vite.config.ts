@@ -8,6 +8,7 @@ export default defineConfig(async () => ({
   clearScreen: false,
   test: {
     globals: false,
+    include: ["tests/**/*.test.{ts,tsx}"],
     css: { modules: { classNameStrategy: "non-scoped" } },
   },
   server: {
