@@ -23,7 +23,7 @@ interface PersistedDocState {
 
 export function useSettingsPersistence(
   workspaceState?: WorkspaceState | null,
-  narratingState?: LayoutState | null,
+  layoutState?: LayoutState | null,
 ) {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -170,16 +170,16 @@ export function useSettingsPersistence(
 
   // Save document UI state (panel open/closed, editor mode, active tab)
   const prevWorkspace = useRef(workspaceState);
-  const prevNarrating = useRef(narratingState);
+  const prevLayout = useRef(layoutState);
 
   useEffect(() => {
     if (!loaded.current) return;
-    if (!workspaceState || !narratingState) return;
+    if (!workspaceState || !layoutState) return;
 
     const ws = workspaceState;
-    const nr = narratingState;
+    const nr = layoutState;
     const prevWs = prevWorkspace.current;
-    const prevNr = prevNarrating.current;
+    const prevNr = prevLayout.current;
 
     if (
       prevWs && prevNr &&
@@ -197,7 +197,7 @@ export function useSettingsPersistence(
       return;
     }
     prevWorkspace.current = ws;
-    prevNarrating.current = nr;
+    prevLayout.current = nr;
 
     const rootPath = ws.spec.rootPath;
     const stateToSave: PersistedDocState = {
@@ -229,7 +229,7 @@ export function useSettingsPersistence(
         console.error("Failed to save doc state:", err);
       }
     })();
-  }, [workspaceState, narratingState]);
+  }, [workspaceState, layoutState]);
 }
 
 export async function getPersistedDocState(forRootPath?: string): Promise<PersistedDocState | null> {

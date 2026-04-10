@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppState, useAppDispatch } from "./state/AppContext";
 import { WorkspaceProvider } from "./state/WorkspaceContext";
 import { LayoutProvider, DEFAULT_LAYOUT_STATE, LayoutState } from "./state/LayoutContext";
-import { ConversingProvider, ConversingState } from "./state/ConversingContext";
+import { ChatProvider, ChatState } from "./state/ChatContext";
 import { useTheme } from "./hooks/useTheme";
 import { useSettingsPersistence, getPersistedDocState } from "./hooks/useSettingsPersistence";
 import { useUpdater } from "./hooks/useUpdater";
@@ -24,8 +24,8 @@ interface OpenedWorkspace {
   spec: ApplicationSpec;
   initialPath: string[];
   initialCollapsed: string[];
-  initialNarrating: Partial<LayoutState>;
-  initialConversing: Partial<ConversingState>;
+  initialLayout: Partial<LayoutState>;
+  initialChat: Partial<ChatState>;
 }
 
 export function App({ initialRootPath }: AppProps) {
@@ -47,7 +47,7 @@ export function App({ initialRootPath }: AppProps) {
       spec,
       initialPath: (overrides.currentPath as string[]) ?? [],
       initialCollapsed: (overrides.collapsedPaths as string[]) ?? [],
-      initialNarrating: {
+      initialLayout: {
         editorMode: (overrides.editorMode as LayoutState["editorMode"]) ?? DEFAULT_LAYOUT_STATE.editorMode,
         contentTab: (overrides.contentTab as LayoutState["contentTab"]) ?? DEFAULT_LAYOUT_STATE.contentTab,
         wordWrap: (overrides.wordWrap as boolean) ?? DEFAULT_LAYOUT_STATE.wordWrap,
@@ -56,7 +56,7 @@ export function App({ initialRootPath }: AppProps) {
         designPartnerPanelOpen: (overrides.designPartnerPanelOpen as boolean) ?? DEFAULT_LAYOUT_STATE.designPartnerPanelOpen,
         designPartnerPanelTab: (overrides.designPartnerPanelTab as LayoutState["designPartnerPanelTab"]) ?? DEFAULT_LAYOUT_STATE.designPartnerPanelTab,
       },
-      initialConversing: {
+      initialChat: {
         activeChatId: (overrides.activeChatId as string) ?? "",
         chatMessages: (overrides.chatMessages as []) ?? [],
       },
@@ -128,10 +128,10 @@ export function App({ initialRootPath }: AppProps) {
           initialPath={workspace.initialPath}
           initialCollapsed={workspace.initialCollapsed}
         >
-          <LayoutProvider initial={workspace.initialNarrating}>
-            <ConversingProvider initial={workspace.initialConversing}>
+          <LayoutProvider initial={workspace.initialLayout}>
+            <ChatProvider initial={workspace.initialChat}>
               <WorkspaceShell />
-            </ConversingProvider>
+            </ChatProvider>
           </LayoutProvider>
         </WorkspaceProvider>
       )}

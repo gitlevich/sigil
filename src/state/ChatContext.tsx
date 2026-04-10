@@ -1,5 +1,5 @@
 /**
- * ConversingContext — I entangle with DesignPartner.
+ * ChatContext — I entangle with DesignPartner.
  *
  * Chat is foreground — where we talk.
  * Memories is context — what DesignPartner has experienced.
@@ -7,21 +7,21 @@
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
 import type { ChatMessage, ChatInfo } from "../tauri";
 
-export interface ConversingState {
+export interface ChatState {
   chats: ChatInfo[];
   activeChatId: string;
   chatMessages: ChatMessage[];
   chatStreaming: boolean;
 }
 
-type ConversingAction =
+type ChatAction =
   | { type: "SET_CHATS"; chats: ChatInfo[] }
   | { type: "SET_ACTIVE_CHAT"; chatId: string; messages: ChatMessage[] }
   | { type: "SET_MESSAGES"; messages: ChatMessage[] }
   | { type: "APPEND_TOKEN"; token: string }
   | { type: "SET_STREAMING"; streaming: boolean };
 
-function reducer(state: ConversingState, action: ConversingAction): ConversingState {
+function reducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case "SET_CHATS":
       return { ...state, chats: action.chats };
@@ -44,32 +44,32 @@ function reducer(state: ConversingState, action: ConversingAction): ConversingSt
   }
 }
 
-export const DEFAULT_CONVERSING_STATE: ConversingState = {
+export const DEFAULT_CHAT_STATE: ChatState = {
   chats: [],
   activeChatId: "",
   chatMessages: [],
   chatStreaming: false,
 };
 
-const ConversingStateContext = createContext<ConversingState>(DEFAULT_CONVERSING_STATE);
-const ConversingDispatchContext = createContext<Dispatch<ConversingAction>>(() => {});
+const ChatStateContext = createContext<ChatState>(DEFAULT_CHAT_STATE);
+const ChatDispatchContext = createContext<Dispatch<ChatAction>>(() => {});
 
-export function ConversingProvider({ initial, children }: { initial?: Partial<ConversingState>; children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { ...DEFAULT_CONVERSING_STATE, ...initial });
+export function ChatProvider({ initial, children }: { initial?: Partial<ChatState>; children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, { ...DEFAULT_CHAT_STATE, ...initial });
 
   return (
-    <ConversingStateContext.Provider value={state}>
-      <ConversingDispatchContext.Provider value={dispatch}>
+    <ChatStateContext.Provider value={state}>
+      <ChatDispatchContext.Provider value={dispatch}>
         {children}
-      </ConversingDispatchContext.Provider>
-    </ConversingStateContext.Provider>
+      </ChatDispatchContext.Provider>
+    </ChatStateContext.Provider>
   );
 }
 
-export function useConversingState() {
-  return useContext(ConversingStateContext);
+export function useChatState() {
+  return useContext(ChatStateContext);
 }
 
-export function useConversingDispatch() {
-  return useContext(ConversingDispatchContext);
+export function useChatDispatch() {
+  return useContext(ChatDispatchContext);
 }

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAppState, useAppDispatch } from "../../state/AppContext";
 import { useWorkspaceState } from "../../state/WorkspaceContext";
 import { useLayoutState } from "../../state/LayoutContext";
-import { useConversingState, useConversingDispatch } from "../../state/ConversingContext";
+import { useChatState, useChatDispatch } from "../../state/ChatContext";
 import { useChatStream } from "../../hooks/useChatStream";
 import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -18,11 +18,11 @@ export function ChatPanel() {
   const appDispatch = useAppDispatch();
   const ws = useWorkspaceState();
   const layout = useLayoutState();
-  const conversing = useConversingState();
-  const conversingDispatch = useConversingDispatch();
+  const chat = useChatState();
+  const chatDispatch = useChatDispatch();
   const { sendMessage } = useChatStream();
   const [input, setInput] = useState(() => {
-    try { return localStorage.getItem(draftKey(ws.spec.rootPath, conversing.activeChatId)) || ""; }
+    try { return localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || ""; }
     catch { return ""; }
   });
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
@@ -32,7 +32,7 @@ export function ChatPanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversing.chatMessages]);
+  }, [chat.chatMessages]);
 
   useEffect(() => {
     if (layout.designPartnerPanelOpen && !prevOpen.current) {
@@ -43,19 +43,19 @@ export function ChatPanel() {
 
   // Save draft on every keystroke
   useEffect(() => {
-    try { localStorage.setItem(draftKey(ws.spec.rootPath, conversing.activeChatId), input); }
+    try { localStorage.setItem(draftKey(ws.spec.rootPath, chat.activeChatId), input); }
     catch { /* ignore */ }
-  }, [input, ws.spec.rootPath, conversing.activeChatId]);
+  }, [input, ws.spec.rootPath, chat.activeChatId]);
 
   // Restore draft when switching chats
-  const prevChatId = useRef(conversing.activeChatId);
+  const prevChatId = useRef(chat.activeChatId);
   useEffect(() => {
-    if (conversing.activeChatId === prevChatId.current) return;
-    prevChatId.current = conversing.activeChatId;
+    if (chat.activeChatId === prevChatId.current) return;
+    prevChatId.current = chat.activeChatId;
     try {
-      setInput(localStorage.getItem(draftKey(ws.spec.rootPath, conversing.activeChatId)) || "");
+      setInput(localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || "");
     } catch { setInput(""); }
-  }, [conversing.activeChatId, ws.spec.rootPath]);
+  }, [chat.activeChatId, ws.spec.rootPath]);
 
   useEffect(() => {
     const handleClick = () => setChatMenu(null);
@@ -67,17 +67,17 @@ export function ChatPanel() {
 
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed || conversing.chatStreaming) return;
+    if (!trimmed || chat.chatStreaming) return;
     sendMessage(trimmed);
     setInput("");
-    try { localStorage.removeItem(draftKey(ws.spec.rootPath, conversing.activeChatId)); }
+    try { localStorage.removeItem(draftKey(ws.spec.rootPath, chat.activeChatId)); }
     catch { /* ignore */ }
   };
 
   const switchChat = async (chatId: string) => {
     try {
       const chat = await api.readChat(ws.spec.rootPath, chatId);
-      conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: chat.messages });
+      chatDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: chat.messages });
     } catch (err) {
       console.error("Failed to switch chat:", err);
     }
@@ -85,28 +85,28 @@ export function ChatPanel() {
 
   const createChat = () => {
     const chatId = `chat-${Date.now()}`;
-    const chatName = `Chat ${conversing.chats.length + 1}`;
-    const newChats = [...conversing.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
-    conversingDispatch({ type: "SET_CHATS", chats: newChats });
-    conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: [] });
+    const chatName = `Chat ${chat.chats.length + 1}`;
+    const newChats = [...chat.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
+    chatDispatch({ type: "SET_CHATS", chats: newChats });
+    chatDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: [] });
   };
 
   const deleteChat = async (chatId: string) => {
     try {
       await api.deleteChat(ws.spec.rootPath, chatId);
-      const newChats = conversing.chats.filter((c) => c.id !== chatId);
-      if (conversing.activeChatId === chatId) {
+      const newChats = chat.chats.filter((c) => c.id !== chatId);
+      if (chat.activeChatId === chatId) {
         if (newChats.length > 0) {
           const next = newChats[0];
           const chat = await api.readChat(ws.spec.rootPath, next.id);
-          conversingDispatch({ type: "SET_CHATS", chats: newChats });
-          conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId: next.id, messages: chat.messages });
+          chatDispatch({ type: "SET_CHATS", chats: newChats });
+          chatDispatch({ type: "SET_ACTIVE_CHAT", chatId: next.id, messages: chat.messages });
         } else {
-          conversingDispatch({ type: "SET_CHATS", chats: newChats });
-          conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId: "", messages: [] });
+          chatDispatch({ type: "SET_CHATS", chats: newChats });
+          chatDispatch({ type: "SET_ACTIVE_CHAT", chatId: "", messages: [] });
         }
       } else {
-        conversingDispatch({ type: "SET_CHATS", chats: newChats });
+        chatDispatch({ type: "SET_CHATS", chats: newChats });
       }
     } catch (err) {
       console.error("Failed to delete chat:", err);
@@ -114,41 +114,41 @@ export function ChatPanel() {
   };
 
   const renameChat = async (chatId: string) => {
-    const chat = conversing.chats.find((c) => c.id === chatId);
+    const chat = chat.chats.find((c) => c.id === chatId);
     if (!chat) return;
     const newName = prompt("Rename chat:", chat.name);
     if (!newName || !newName.trim()) return;
     try {
       await api.renameChat(ws.spec.rootPath, chatId, newName.trim());
-      const newChats = conversing.chats.map((c) =>
+      const newChats = chat.chats.map((c) =>
         c.id === chatId ? { ...c, name: newName.trim() } : c
       );
-      conversingDispatch({ type: "SET_CHATS", chats: newChats });
+      chatDispatch({ type: "SET_CHATS", chats: newChats });
     } catch (err) {
       console.error("Failed to rename chat:", err);
     }
   };
 
-  const activeChatName = conversing.chats.find((c) => c.id === conversing.activeChatId)?.name;
+  const activeChatName = chat.chats.find((c) => c.id === chat.activeChatId)?.name;
 
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        {conversing.chats.length > 1 ? (
+        {chat.chats.length > 1 ? (
           <select
             className={styles.chatSwitch}
-            value={conversing.activeChatId}
+            value={chat.activeChatId}
             onChange={(e) => switchChat(e.target.value)}
             title="Switch between chat conversations"
           >
-            {conversing.chats.map((c) => (
+            {chat.chats.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         ) : (
           <span
             className={styles.title}
-            onDoubleClick={() => conversing.activeChatId && renameChat(conversing.activeChatId)}
+            onDoubleClick={() => chat.activeChatId && renameChat(chat.activeChatId)}
             title="Double-click to rename"
           >
             {activeChatName || "AI Review"}
@@ -161,12 +161,12 @@ export function ChatPanel() {
         >
           +
         </button>
-        {conversing.activeChatId && conversing.chats.length > 0 && (
+        {chat.activeChatId && chat.chats.length > 0 && (
           <button
             className={styles.chatMenuBtn}
             onClick={(e) => {
               e.stopPropagation();
-              setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: conversing.activeChatId });
+              setChatMenu(chatMenu ? null : { x: e.clientX, y: e.clientY, chatId: chat.activeChatId });
             }}
             title="Rename or delete this chat"
           >
@@ -243,7 +243,7 @@ export function ChatPanel() {
       )}
 
       <div className={styles.messages}>
-        {conversing.chatMessages.map((msg: { role: string; content: string }, i: number) => (
+        {chat.chatMessages.map((msg: { role: string; content: string }, i: number) => (
           <div
             key={i}
             className={`${styles.message} ${msg.role === "user" ? styles.userMsg : styles.assistantMsg}`}
@@ -270,8 +270,8 @@ export function ChatPanel() {
             )}
           </div>
         ))}
-        {conversing.chatStreaming && conversing.chatMessages.length > 0 &&
-         conversing.chatMessages[conversing.chatMessages.length - 1].role === "user" && (
+        {chat.chatStreaming && chat.chatMessages.length > 0 &&
+         chat.chatMessages[chat.chatMessages.length - 1].role === "user" && (
           <div className={`${styles.message} ${styles.assistantMsg}`}>
             <div className={styles.messageRole}>AI</div>
             <div className={styles.typing}>Thinking...</div>
@@ -298,7 +298,7 @@ export function ChatPanel() {
         <button
           className={styles.sendBtn}
           onClick={handleSend}
-          disabled={conversing.chatStreaming || !input.trim()}
+          disabled={chat.chatStreaming || !input.trim()}
           aria-label="Send"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

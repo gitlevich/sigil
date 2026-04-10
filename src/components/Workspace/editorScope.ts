@@ -59,10 +59,10 @@ if ((import.meta as any).hot) {
 }
 
 /** Read the current editor context. Do not mutate — use buildScopeHighlighter. */
-export function getEditorContext(): Readonly<EditorScope> { return editorScope; }
+export function getEditorScope(): Readonly<EditorScope> { return editorScope; }
 
 /** Test-only: set editorScope fields without CodeMirror dependencies. */
-export function setEditorContextForTest(patch: Partial<EditorScope>) {
+export function setEditorScopeForTest(patch: Partial<EditorScope>) {
   Object.assign(editorScope, patch);
 }
 
@@ -144,26 +144,26 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
   return ctx;
 }
 
-export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
+export function findInvariantFromEditor(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
   return findInvariantInScope(editorScope.sigilRoot, editorScope.currentPath, name, editorScope.importedOntologies);
 }
 
-export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
+export function findAffordanceFromEditor(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
   return findAffordanceInScope(editorScope.sigilRoot, editorScope.currentPath, name, editorScope.importedOntologies);
 }
 
-type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
+type HighlightKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
-interface RefResolution {
-  kind: RefKind;
+interface HighlightResolution {
+  kind: HighlightKind;
   path: string[];
   absolutePath?: string[];
   summary?: string;
 }
 
-const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
+const scopeKindToHighlightKind: Record<ScopeKind, HighlightKind> = {
   contained: "contained",
   sibling: "sibling",
   ancestor: "absolute",
@@ -172,7 +172,7 @@ const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
   unresolved: "unresolved",
 };
 
-export function resolveChainedRef(matchText: string): RefResolution {
+export function resolveFromEditor(matchText: string): HighlightResolution {
   const segments = matchText.slice(1).split("@");
   if (!editorScope.sigilRoot) return { kind: "unresolved", path: segments };
 
@@ -187,7 +187,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
 
   const summary = extractSummary(result.target.language || "");
   return {
-    kind: scopeKindToRefKind[result.kind],
+    kind: scopeKindToHighlightKind[result.kind],
     path: result.path,
     absolutePath: result.path,
     summary,
@@ -716,7 +716,7 @@ export function buildScopeHighlighter(
               if (matchText.startsWith("@")) {
                 const propIdx = findPropSeparator(matchText);
                 if (propIdx === -1) {
-                  const resolution = resolveChainedRef(matchText);
+                  const resolution = resolveFromEditor(matchText);
                   const mark =
                     resolution.kind === "contained" ? containedMark :
                     resolution.kind === "sibling" ? siblingMark :
@@ -743,7 +743,7 @@ export function buildScopeHighlighter(
                 }
               } else if (matchText.startsWith("!")) {
                 const invariantName = matchText.slice(1);
-                const invariantExists = findInvariantInScopeLocal(invariantName) !== null;
+                const invariantExists = findInvariantFromEditor(invariantName) !== null;
                 if (!invariantExists) {
                   console.warn("[sigil-debug] Unresolved invariant:", invariantName,
                     "| root:", editorScope.sigilRoot?.name,
@@ -754,7 +754,7 @@ export function buildScopeHighlighter(
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
                 const affName = matchText.slice(1);
-                const affExists = findAffordanceInScopeLocal(affName) !== null;
+                const affExists = findAffordanceFromEditor(affName) !== null;
                 if (!affExists) {
                   console.warn("[sigil-debug] Unresolved affordance:", affName,
                     "| root:", editorScope.sigilRoot?.name,
@@ -817,7 +817,7 @@ export function buildScopeHighlighter(
           let summary = "";
 
           if (sigilPart) {
-            const resolution = resolveChainedRef(sigilPart);
+            const resolution = resolveFromEditor(sigilPart);
             if (resolution.kind === "unresolved") {
               summary = `unresolved: ${sigilPart}`;
             } else if (resolution.kind === "external") {
@@ -842,14 +842,14 @@ export function buildScopeHighlighter(
               }
             }
           } else if (matchText.startsWith("!")) {
-            const result = findInvariantInScopeLocal(matchText.slice(1));
+            const result = findInvariantFromEditor(matchText.slice(1));
             if (result) {
               summary = result.content.split("\n").slice(0, 3).join("\n");
             } else {
               summary = `unresolved invariant: ${matchText}`;
             }
           } else {
-            const result = findAffordanceInScopeLocal(matchText.slice(1));
+            const result = findAffordanceFromEditor(matchText.slice(1));
             if (result) {
               summary = result.content.split("\n").slice(0, 3).join("\n");
             } else {
@@ -1173,7 +1173,7 @@ export function buildPropertyExtensions(
               if (matchText.startsWith("@")) {
                 const propIdx = findPropSeparator(matchText);
                 const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
-                const resolution = resolveChainedRef(sigilRef);
+                const resolution = resolveFromEditor(sigilRef);
                 if (cb.onNavigateToAbsPath && resolution.absolutePath !== undefined) {
                   event.preventDefault();
                   cb.onNavigateToAbsPath(resolution.absolutePath);
@@ -1190,14 +1190,14 @@ export function buildPropertyExtensions(
                   return true;
                 }
               } else if (matchText.startsWith("!")) {
-                const result = findInvariantInScopeLocal(matchText.slice(1));
+                const result = findInvariantFromEditor(matchText.slice(1));
                 if (result && cb.onNavigateToAbsPath) {
                   event.preventDefault();
                   cb.onNavigateToAbsPath(result.ownerPath);
                   return true;
                 }
               } else if (matchText.startsWith("#")) {
-                const result = findAffordanceInScopeLocal(matchText.slice(1));
+                const result = findAffordanceFromEditor(matchText.slice(1));
                 if (result && cb.onNavigateToAbsPath) {
                   event.preventDefault();
                   cb.onNavigateToAbsPath(result.ownerPath);

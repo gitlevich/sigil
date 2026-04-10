@@ -5,7 +5,7 @@
  * settings, dialogs, theme, and UI layout (panel widths, font size).
  *
  * Workspace-specific state lives in WorkspaceContext, LayoutContext,
- * and ConversingContext — provided when a workspace is open.
+ * and ChatContext — provided when a workspace is open.
  */
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
 import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";

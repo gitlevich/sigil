@@ -2,25 +2,25 @@ import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import { useWorkspaceState } from "../state/WorkspaceContext";
-import { useConversingState, useConversingDispatch } from "../state/ConversingContext";
+import { useChatState, useChatDispatch } from "../state/ChatContext";
 import { useToast } from "./useToast";
 
 export function useChatStream() {
   const appState = useAppState();
   const workspace = useWorkspaceState();
-  const conversing = useConversingState();
-  const conversingDispatch = useConversingDispatch();
+  const chat = useChatState();
+  const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
   const accumulatorRef = useRef("");
   const workspaceRef = useRef(workspace);
-  const conversingRef = useRef(conversing);
+  const chatRef = useRef(chat);
   workspaceRef.current = workspace;
-  conversingRef.current = conversing;
+  chatRef.current = chat;
 
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
       accumulatorRef.current += token;
-      const conv = conversingRef.current;
+      const conv = chatRef.current;
       const msgs = [...conv.chatMessages];
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
@@ -28,18 +28,18 @@ export function useChatStream() {
       } else {
         msgs.push({ role: "assistant", content: accumulatorRef.current });
       }
-      conversingDispatch({ type: "SET_MESSAGES", messages: msgs });
+      chatDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
     const unlistenError = events.onChatError((error) => {
       addToast(error, "error");
-      conversingDispatch({ type: "SET_STREAMING", streaming: false });
+      chatDispatch({ type: "SET_STREAMING", streaming: false });
       accumulatorRef.current = "";
     });
 
     const unlistenToolUse = events.onChatToolUse((tool) => {
       accumulatorRef.current += `\n\n*Using tool: ${tool.name}*\n`;
-      const conv = conversingRef.current;
+      const conv = chatRef.current;
       const msgs = [...conv.chatMessages];
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg && lastMsg.role === "assistant") {
@@ -47,7 +47,7 @@ export function useChatStream() {
       } else {
         msgs.push({ role: "assistant", content: accumulatorRef.current });
       }
-      conversingDispatch({ type: "SET_MESSAGES", messages: msgs });
+      chatDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
     // Sigil changes and navigation are handled by the workspace layer
@@ -56,8 +56,8 @@ export function useChatStream() {
 
     const unlistenEnd = events.onChatStreamEnd(() => {
       const ws = workspaceRef.current;
-      const conv = conversingRef.current;
-      conversingDispatch({ type: "SET_STREAMING", streaming: false });
+      const conv = chatRef.current;
+      chatDispatch({ type: "SET_STREAMING", streaming: false });
       if (conv.activeChatId && accumulatorRef.current) {
         const msgs = [...conv.chatMessages];
         const lastMsg = msgs[msgs.length - 1];
@@ -83,11 +83,11 @@ export function useChatStream() {
       unlistenNavigate.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
-  }, [conversingDispatch]);
+  }, [chatDispatch]);
 
   const sendMessage = useCallback(async (message: string) => {
     const ws = workspaceRef.current;
-    const conv = conversingRef.current;
+    const conv = chatRef.current;
 
     // If no active chat, create one
     let chatId = conv.activeChatId;
@@ -95,8 +95,8 @@ export function useChatStream() {
       chatId = `chat-${Date.now()}`;
       const chatName = `Chat ${conv.chats.length + 1}`;
       const newChats = [...conv.chats, { id: chatId, name: chatName, message_count: 0, last_modified: Date.now() / 1000 }];
-      conversingDispatch({ type: "SET_CHATS", chats: newChats });
-      conversingDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: conv.chatMessages });
+      chatDispatch({ type: "SET_CHATS", chats: newChats });
+      chatDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: conv.chatMessages });
     }
 
     const newMessages: ChatMessage[] = [
@@ -104,8 +104,8 @@ export function useChatStream() {
       { role: "user", content: message },
     ];
 
-    conversingDispatch({ type: "SET_MESSAGES", messages: newMessages });
-    conversingDispatch({ type: "SET_STREAMING", streaming: true });
+    chatDispatch({ type: "SET_MESSAGES", messages: newMessages });
+    chatDispatch({ type: "SET_STREAMING", streaming: true });
 
     const chatName = conv.chats.find((c) => c.id === chatId)?.name || `Chat ${conv.chats.length + 1}`;
     await api.writeChat(ws.spec.rootPath, {
@@ -118,7 +118,7 @@ export function useChatStream() {
     const provider = selectedProvider(appState.settings);
     if (!provider) {
       addToast("No attention provider enabled. Open Settings to add one.", "error");
-      conversingDispatch({ type: "SET_STREAMING", streaming: false });
+      chatDispatch({ type: "SET_STREAMING", streaming: false });
       return;
     }
 
@@ -140,9 +140,9 @@ export function useChatStream() {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error("Chat error:", errorMsg);
       addToast(errorMsg, "error");
-      conversingDispatch({ type: "SET_STREAMING", streaming: false });
+      chatDispatch({ type: "SET_STREAMING", streaming: false });
     }
-  }, [appState.settings, conversingDispatch, addToast]);
+  }, [appState.settings, chatDispatch, addToast]);
 
   return { sendMessage };
 }

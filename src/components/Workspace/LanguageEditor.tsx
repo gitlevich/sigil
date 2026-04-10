@@ -21,13 +21,13 @@ import {
   getThemeExtension,
   allRefsPattern,
   findPropSeparator,
-  resolveChainedRef,
+  resolveFromEditor,
   findRefAtCursor,
   findPropertyRefAtCursor,
   getFrontMatterEnd,
   getGlobalSigilRoot,
-  findInvariantInScopeLocal,
-  findAffordanceInScopeLocal,
+  findInvariantFromEditor,
+  findAffordanceFromEditor,
   findAllReferencesInTree,
 } from "./editorScope";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
@@ -387,7 +387,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
                   // @sigil ref — strip property suffix, navigate to the sigil
                   const propIdx = findPropSeparator(matchText);
                   const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
-                  const resolution = resolveChainedRef(sigilRef);
+                  const resolution = resolveFromEditor(sigilRef);
                   if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
                     event.preventDefault();
                     onNavigateAbsPathRef.current(resolution.absolutePath);
@@ -405,7 +405,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
                   }
                 } else if (matchText.startsWith("!")) {
                   // !invariant — navigate to the owning sigil
-                  const result = findInvariantInScopeLocal(matchText.slice(1));
+                  const result = findInvariantFromEditor(matchText.slice(1));
                   if (result && onNavigateAbsPathRef.current) {
                     event.preventDefault();
                     onNavigateAbsPathRef.current(result.ownerPath);
@@ -413,7 +413,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
                   }
                 } else if (matchText.startsWith("#")) {
                   // #affordance — navigate to the owning sigil
-                  const result = findAffordanceInScopeLocal(matchText.slice(1));
+                  const result = findAffordanceFromEditor(matchText.slice(1));
                   if (result && onNavigateAbsPathRef.current) {
                     event.preventDefault();
                     onNavigateAbsPathRef.current(result.ownerPath);

@@ -2,7 +2,7 @@
  * LayoutContext — how I narrate what my application does.
  *
  * Language is foreground (editor mode, word wrap).
- * Content tab switches between Language (narrating) and Atlas (navigating).
+ * Content tab switches between Language and Atlas.
  * Panel visibility for OntologyTree and VisionPanel.
  */
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";

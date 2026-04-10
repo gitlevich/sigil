@@ -10,17 +10,17 @@ import { EditorView } from "@codemirror/view";
 import { CompletionContext } from "@codemirror/autocomplete";
 import type { SigilFolder } from "../../tauri";
 import {
-  getEditorContext,
-  setEditorContextForTest,
+  getEditorScope,
+  setEditorScopeForTest,
   getGlobalScope,
   getGlobalSigilRoot,
   setGlobalImportedOntologies,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
   findInScope,
-  findInvariantInScopeLocal,
-  findAffordanceInScopeLocal,
-  resolveChainedRef,
+  findInvariantFromEditor,
+  findAffordanceFromEditor,
+  resolveFromEditor,
   allRefsPattern,
   buildCollapsibleFrontmatter,
   getThemeExtension,
@@ -55,7 +55,7 @@ function folder(name: string, opts?: {
 }
 
 function resetCtx() {
-  setEditorContextForTest({
+  setEditorScopeForTest({
     scope: [], scopeNames: [], nameIndex: new Map(),
     sigilRoot: null, importedOntologies: null, currentContext: null, currentPath: [],
   });
@@ -66,47 +66,47 @@ function resetCtx() {
 describe("editor context accessors", () => {
   beforeEach(resetCtx);
 
-  it("getEditorContext returns current context", () => {
-    const ctx = getEditorContext();
+  it("getEditorScope returns current context", () => {
+    const ctx = getEditorScope();
     expect(ctx.scope).toEqual([]);
     expect(ctx.sigilRoot).toBeNull();
   });
 
-  it("setEditorContextForTest patches specific fields", () => {
+  it("setEditorScopeForTest patches specific fields", () => {
     const root = folder("Root");
-    setEditorContextForTest({ sigilRoot: root, currentPath: ["A"] });
-    expect(getEditorContext().sigilRoot?.name).toBe("Root");
-    expect(getEditorContext().currentPath).toEqual(["A"]);
+    setEditorScopeForTest({ sigilRoot: root, currentPath: ["A"] });
+    expect(getEditorScope().sigilRoot?.name).toBe("Root");
+    expect(getEditorScope().currentPath).toEqual(["A"]);
   });
 
   it("getGlobalScope reflects context", () => {
     const sibs: ScopeEntry[] = [{ name: "X", summary: "" }];
-    setEditorContextForTest({ scope: sibs });
+    setEditorScopeForTest({ scope: sibs });
     expect(getGlobalScope()).toBe(sibs);
   });
 
   it("getGlobalSigilRoot reflects context", () => {
     const root = folder("R");
-    setEditorContextForTest({ sigilRoot: root });
+    setEditorScopeForTest({ sigilRoot: root });
     expect(getGlobalSigilRoot()?.name).toBe("R");
   });
 
   it("setGlobalImportedOntologies updates context", () => {
     const libs = folder("Libs");
     setGlobalImportedOntologies(libs);
-    expect(getEditorContext().importedOntologies?.name).toBe("Libs");
+    expect(getEditorScope().importedOntologies?.name).toBe("Libs");
     setGlobalImportedOntologies(null);
-    expect(getEditorContext().importedOntologies).toBeNull();
+    expect(getEditorScope().importedOntologies).toBeNull();
   });
 
   it("getGlobalCurrentContext reflects context", () => {
     const ctx = folder("Ctx");
-    setEditorContextForTest({ currentContext: ctx });
+    setEditorScopeForTest({ currentContext: ctx });
     expect(getGlobalCurrentContext()?.name).toBe("Ctx");
   });
 
   it("getGlobalCurrentPath reflects context", () => {
-    setEditorContextForTest({ currentPath: ["A", "B"] });
+    setEditorScopeForTest({ currentPath: ["A", "B"] });
     expect(getGlobalCurrentPath()).toEqual(["A", "B"]);
   });
 });
@@ -116,7 +116,7 @@ describe("editor context accessors", () => {
 describe("findInScope", () => {
   beforeEach(() => {
     const nameIndex = new Map([["observer", "Observer"], ["lexicalscope", "LexicalScope"]]);
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }, { name: "LexicalScope", summary: "scope" }],
       scopeNames: ["Observer", "LexicalScope"],
       nameIndex,
@@ -135,20 +135,20 @@ describe("findInScope", () => {
   });
 });
 
-// ── findInvariantInScopeLocal ──
+// ── findInvariantFromEditor ──
 
-describe("findInvariantInScopeLocal", () => {
+describe("findInvariantFromEditor", () => {
   beforeEach(resetCtx);
 
   it("returns null when sigilRoot is null", () => {
-    expect(findInvariantInScopeLocal("any")).toBeNull();
+    expect(findInvariantFromEditor("any")).toBeNull();
   });
 
   it("finds invariant in current scope", () => {
     const child = folder("Child", { invariants: [{ name: "speed", content: "fast" }] });
     const root = folder("Root", { children: [child] });
-    setEditorContextForTest({ sigilRoot: root, currentPath: ["Child"] });
-    const r = findInvariantInScopeLocal("speed");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: ["Child"] });
+    const r = findInvariantFromEditor("speed");
     expect(r).not.toBeNull();
     expect(r!.content).toBe("fast");
   });
@@ -157,63 +157,63 @@ describe("findInvariantInScopeLocal", () => {
     const root = folder("Root");
     const libChild = folder("LC", { invariants: [{ name: "timing", content: "precise" }] });
     const libs = folder("Libs", { children: [libChild] });
-    setEditorContextForTest({ sigilRoot: root, currentPath: [], importedOntologies: libs });
-    const r = findInvariantInScopeLocal("timing");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: [], importedOntologies: libs });
+    const r = findInvariantFromEditor("timing");
     expect(r).not.toBeNull();
     expect(r!.ownerPath).toEqual(["LC"]);
   });
 
   it("returns null when not found anywhere", () => {
-    setEditorContextForTest({ sigilRoot: folder("Root"), currentPath: [] });
-    expect(findInvariantInScopeLocal("missing")).toBeNull();
+    setEditorScopeForTest({ sigilRoot: folder("Root"), currentPath: [] });
+    expect(findInvariantFromEditor("missing")).toBeNull();
   });
 });
 
-// ── findAffordanceInScopeLocal ──
+// ── findAffordanceFromEditor ──
 
-describe("findAffordanceInScopeLocal", () => {
+describe("findAffordanceFromEditor", () => {
   beforeEach(resetCtx);
 
   it("returns null when sigilRoot is null", () => {
-    expect(findAffordanceInScopeLocal("any")).toBeNull();
+    expect(findAffordanceFromEditor("any")).toBeNull();
   });
 
   it("finds affordance in current scope", () => {
     const child = folder("Child", { affordances: [{ name: "navigate", content: "move" }] });
     const root = folder("Root", { children: [child] });
-    setEditorContextForTest({ sigilRoot: root, currentPath: ["Child"] });
-    expect(findAffordanceInScopeLocal("navigate")?.content).toBe("move");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: ["Child"] });
+    expect(findAffordanceFromEditor("navigate")?.content).toBe("move");
   });
 
   it("finds from imported ontologies", () => {
     const root = folder("Root");
     const libChild = folder("LC", { affordances: [{ name: "render", content: "display" }] });
-    setEditorContextForTest({ sigilRoot: root, currentPath: [], importedOntologies: folder("Libs", { children: [libChild] }) });
-    expect(findAffordanceInScopeLocal("render")?.content).toBe("display");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: [], importedOntologies: folder("Libs", { children: [libChild] }) });
+    expect(findAffordanceFromEditor("render")?.content).toBe("display");
   });
 });
 
-// ── resolveChainedRef ──
+// ── resolveFromEditor ──
 
-describe("resolveChainedRef", () => {
+describe("resolveFromEditor", () => {
   beforeEach(resetCtx);
 
   it("returns unresolved when sigilRoot is null", () => {
-    expect(resolveChainedRef("@Missing").kind).toBe("unresolved");
+    expect(resolveFromEditor("@Missing").kind).toBe("unresolved");
   });
 
   it("resolves a contained child", () => {
     const child = folder("Child", { language: "child content" });
     const root = folder("Root", { children: [child] });
-    setEditorContextForTest({ sigilRoot: root, currentPath: [] });
-    const r = resolveChainedRef("@Child");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: [] });
+    const r = resolveFromEditor("@Child");
     expect(r.kind).toBe("contained");
     expect(r.path).toEqual(["Child"]);
   });
 
   it("returns unresolved for non-existent ref", () => {
-    setEditorContextForTest({ sigilRoot: folder("Root"), currentPath: [] });
-    expect(resolveChainedRef("@Nonexistent").kind).toBe("unresolved");
+    setEditorScopeForTest({ sigilRoot: folder("Root"), currentPath: [] });
+    expect(resolveFromEditor("@Nonexistent").kind).toBe("unresolved");
   });
 });
 
@@ -338,10 +338,10 @@ describe("buildScopeHighlighter", () => {
       currentCtx,
       ["Parent"],
     );
-    expect(getEditorContext().sigilRoot?.name).toBe("Root");
-    expect(getEditorContext().currentContext?.name).toBe("Root");
-    expect(getEditorContext().currentPath).toEqual(["Parent"]);
-    expect(getEditorContext().scope).toHaveLength(1);
+    expect(getEditorScope().sigilRoot?.name).toBe("Root");
+    expect(getEditorScope().currentContext?.name).toBe("Root");
+    expect(getEditorScope().currentPath).toEqual(["Parent"]);
+    expect(getEditorScope().scope).toHaveLength(1);
   });
 });
 
@@ -350,7 +350,7 @@ describe("buildScopeHighlighter", () => {
 describe("findRefAtCursor", () => {
   beforeEach(() => {
     const root = folder("Root", { children: [folder("Observer", { language: "watches" })] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
@@ -388,7 +388,7 @@ describe("findRefAtCursor", () => {
   });
 
   it("marks unknown refs as not known", () => {
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [],
       scopeNames: [],
       nameIndex: new Map(),
@@ -420,7 +420,7 @@ describe("findPropertyRefAtCursor", () => {
       invariants: [{ name: "speed", content: "fast" }],
     });
     const root = folder("Root", { children: [child] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Widget", summary: "" }],
       scopeNames: ["Widget"],
       nameIndex: new Map([["widget", "Widget"]]),
@@ -464,7 +464,7 @@ describe("findPropertyRefAtCursor", () => {
 
   it("finds bare #affordance ref", () => {
     const root = folder("Root", { affordances: [{ name: "navigate", content: "move" }] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
@@ -483,7 +483,7 @@ describe("findPropertyRefAtCursor", () => {
 
   it("finds bare !invariant ref", () => {
     const root = folder("Root", { invariants: [{ name: "speed", content: "fast" }] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
@@ -547,7 +547,7 @@ describe("findPropertyRefAtCursor", () => {
 
   it("bare #unknown has no targetContext (creates on current sigil)", () => {
     const root = folder("Root");
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
@@ -744,7 +744,7 @@ describe("syntax highlighting decorations", () => {
       [{ name: "Perception", summary: "perception", kind: "lib", libPrefix: "Libs" }],
       root, root, [],
     );
-    setEditorContextForTest({ sigilRoot: root, currentPath: [], importedOntologies: libs });
+    setEditorScopeForTest({ sigilRoot: root, currentPath: [], importedOntologies: libs });
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -880,7 +880,7 @@ describe("scopeCompletion", () => {
       affordances: [{ name: "navigate", content: "move" }],
       invariants: [{ name: "speed", content: "fast" }],
     });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
       scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
@@ -903,7 +903,7 @@ describe("scopeCompletion", () => {
   });
 
   it("returns null when no siblings and no match", () => {
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: folder("Root"), currentContext: folder("Root"),
       currentPath: [], importedOntologies: null,
@@ -946,7 +946,7 @@ describe("scopeCompletion: chained @A@B ref", () => {
   beforeEach(() => {
     const child = folder("Child", { language: "child content" });
     const root = folder("Root", { children: [folder("Parent", { children: [child] })] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Parent", summary: "parent", kind: "contained" }],
       scopeNames: ["Parent"],
       nameIndex: new Map([["parent", "Parent"]]),
@@ -974,7 +974,7 @@ describe("scopeCompletion: @Sigil#affordance property completion", () => {
       invariants: [{ name: "speed", content: "fast" }],
     });
     const root = folder("Root", { children: [widget] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Widget", summary: "", kind: "contained" }],
       scopeNames: ["Widget"],
       nameIndex: new Map([["widget", "Widget"]]),
@@ -1010,7 +1010,7 @@ describe("scopeCompletion: frontmatter value completion", () => {
       language: "---\nstatus: done\n---\nContent",
       children: [folder("Child", { language: "---\nstatus: active\n---\nChild content" })],
     });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
@@ -1029,7 +1029,7 @@ describe("scopeCompletion: frontmatter value completion", () => {
 
 describe("refCompletion", () => {
   beforeEach(() => {
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
       scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
@@ -1058,7 +1058,7 @@ describe("refCompletion", () => {
 
   it("returns standalone #affordance completions", () => {
     const root = folder("Root", { affordances: [{ name: "navigate", content: "move" }] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
@@ -1072,7 +1072,7 @@ describe("refCompletion", () => {
 
   it("returns standalone !invariant completions", () => {
     const root = folder("Root", { invariants: [{ name: "speed", content: "fast" }] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });

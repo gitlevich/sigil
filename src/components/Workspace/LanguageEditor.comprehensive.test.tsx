@@ -29,7 +29,7 @@ vi.mock("../../tauri", () => ({
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LanguageEditor, isImageFile, findStatusAtCursor, buildCustomKeymap } from "./LanguageEditor";
-import { setEditorContextForTest } from "./editorScope";
+import { setEditorScopeForTest } from "./editorScope";
 import type { SigilFolder } from "../../tauri";
 
 function folder(name: string, opts?: {
@@ -493,7 +493,7 @@ describe("LanguageEditor component", () => {
     const onCreateAffordance = vi.fn();
     const chat = folder("Chat", { path: "/mock/Chat" });
     const root = folder("Root", { children: [chat], path: "/mock/Root" });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Chat", summary: "chat" }],
       scopeNames: ["Chat"],
       nameIndex: new Map([["chat", "Chat"]]),
@@ -858,7 +858,7 @@ describe("buildCustomKeymap", () => {
       children: [folder("Observer", { language: "Uses @Observer." })],
       language: "@Observer is referenced.",
     });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
@@ -884,7 +884,7 @@ describe("buildCustomKeymap", () => {
     const ctx = folder("Root", {
       affordances: [{ name: "navigate", content: "move" }],
     });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
@@ -908,7 +908,7 @@ describe("buildCustomKeymap", () => {
     const setRenameState = vi.fn();
     const child = folder("Observer");
     const root = folder("Root", { children: [child] });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
@@ -936,7 +936,7 @@ describe("buildCustomKeymap", () => {
       affordances: [{ name: "navigate", content: "go" }],
       language: "#navigate used here.",
     });
-    setEditorContextForTest({
+    setEditorScopeForTest({
       scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
