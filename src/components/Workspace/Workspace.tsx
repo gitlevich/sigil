@@ -23,7 +23,8 @@ import {
   buildBreadcrumb as coreBuildBreadcrumb,
   buildLexicalScope as coreBuildLexicalScope,
   buildScope as coreBuildScope,
-  makeSummary, resolveRefName, findContext,
+  resolve as coreResolve,
+  makeSummary, findContext,
 } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import styles from "./Workspace.module.css";
@@ -257,41 +258,22 @@ export function Workspace() {
   }, [ws, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
-    const folder = resolveCurrentFolder(ws);
-    if (!folder) return;
     const { scopeRoot, scopePath } = scopeInfo(ws);
-    let target = folder.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
-    if (!target && ws.currentPath.length > 0) {
-      const parentPath = scopePath.slice(0, -1);
-      const parent = findContext(scopeRoot as Sigil, parentPath) as SigilFolder | null;
-      target = parent?.children.find((c) => c.name.toLowerCase() === oldName.toLowerCase());
-    }
-    if (target) {
+    const result = coreResolve(scopeRoot as Sigil, scopePath, `@${oldName}`, ws.spec.importedOntologies);
+    if (result && !result.ambiguous) {
+      const target = result.target as SigilFolder;
       await actions.renameSigil(target.path, newName, actionDeps);
     }
   }, [ws, actionDeps]);
 
   const handleNavigateToSigil = useCallback((name: string) => {
-    const folder = resolveCurrentFolder(ws);
-    if (!folder) return;
-    // Check contained sigils
-    const containedNames = folder.children.map((c) => c.name);
-    const resolvedContained = resolveRefName(name, containedNames);
-    if (resolvedContained) {
-      navigate([...ws.currentPath, resolvedContained]);
-      return;
-    }
-    // Check neighbors
-    if (ws.currentPath.length > 0) {
-      const parentPath = ws.currentPath.slice(0, -1);
-      const { scopeRoot, scopePath } = scopeInfo(ws);
-      const resolvedParentPath = isImportedPath(ws) ? scopePath.slice(0, -1) : parentPath;
-      const parent = findContext(scopeRoot as Sigil, resolvedParentPath);
-      const neighborNames = parent ? parent.children.filter((c) => c.name !== folder.name).map((c) => c.name) : [];
-      const resolvedNeighbor = resolveRefName(name, neighborNames);
-      if (resolvedNeighbor) {
-        navigate([...parentPath, resolvedNeighbor]);
-      }
+    const { scopeRoot, scopePath } = scopeInfo(ws);
+    const importedSigil = ws.spec.importedOntologies ?? null;
+    const result = coreResolve(scopeRoot as Sigil, scopePath, `@${name}`, importedSigil);
+    if (result && !result.ambiguous) {
+      const isImported = isImportedPath(ws);
+      const navPath = isImported ? ["Imported Ontologies", ...result.path] : result.path;
+      navigate(navPath);
     }
   }, [ws, navigate]);
 
