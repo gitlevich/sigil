@@ -4,7 +4,6 @@
  * Composes the language editor, affordance and invariant panels,
  * toolbar, and preview into a single editing surface.
  */
-import { useRef } from "react";
 import { useLayoutState } from "../../state/LayoutContext";
 import { SigilFolder } from "../../tauri";
 import type { ScopeEntry } from "./editorScope";

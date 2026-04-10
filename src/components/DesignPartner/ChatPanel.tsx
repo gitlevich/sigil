@@ -114,9 +114,9 @@ export function ChatPanel() {
   };
 
   const renameChat = async (chatId: string) => {
-    const chat = chat.chats.find((c) => c.id === chatId);
-    if (!chat) return;
-    const newName = prompt("Rename chat:", chat.name);
+    const found = chat.chats.find((c) => c.id === chatId);
+    if (!found) return;
+    const newName = prompt("Rename chat:", found.name);
     if (!newName || !newName.trim()) return;
     try {
       await api.renameChat(ws.spec.rootPath, chatId, newName.trim());

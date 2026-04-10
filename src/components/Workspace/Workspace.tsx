@@ -14,7 +14,6 @@ import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
-import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { Atlas } from "./Atlas";
@@ -75,11 +74,10 @@ export function Workspace() {
   const appState = useAppState();
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
-  const { navigate, back, reload } = useWorkspaceActions();
+  const { navigate, back } = useWorkspaceActions();
   const layout = useLayoutState();
   const layoutDispatch = useLayoutDispatch();
   const { save } = useAutoSave();
-  const { addToast } = useToast();
 
   // Ephemeral UI state
   const [menuRenaming, setMenuRenaming] = useState<{ name: string } | null>(null);

@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import {
   useWorkspaceState, useWorkspaceActions, resolveCurrentFolder,
 } from "../../state/WorkspaceContext";
 import { api, SigilFolder } from "../../tauri";
-import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { buildPath, type Context as CoreContext } from "sigil-core";
@@ -13,8 +12,7 @@ import styles from "./Atlas.module.css";
 
 export function Atlas() {
   const ws = useWorkspaceState();
-  const { navigate, reload } = useWorkspaceActions();
-  const { addToast } = useToast();
+  const { navigate } = useWorkspaceActions();
 
   const actionDeps = useActionDeps();
 

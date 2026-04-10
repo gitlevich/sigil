@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useWorkspaceState, useWorkspaceActions } from "../../state/WorkspaceContext";
-import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import styles from "./Breadcrumb.module.css";
@@ -15,8 +14,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const [renameName, setRenameName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const ws = useWorkspaceState();
-  const { navigate, back, reload } = useWorkspaceActions();
-  const { addToast } = useToast();
+  const { navigate, back } = useWorkspaceActions();
 
   const actionDeps = useActionDeps();
 

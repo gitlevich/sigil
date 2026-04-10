@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { SigilFolder } from "../../tauri";
 import {
   useWorkspaceState, useWorkspaceActions,
 } from "../../state/WorkspaceContext";
 import { useLayoutDispatch } from "../../state/LayoutContext";
-import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import styles from "./SubContextBar.module.css";
@@ -20,9 +19,8 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; childName: string } | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const ws = useWorkspaceState();
-  const { navigate, reload } = useWorkspaceActions();
+  const { navigate } = useWorkspaceActions();
   const layoutDispatch = useLayoutDispatch();
-  const { addToast } = useToast();
 
   const actionDeps = useActionDeps();
 

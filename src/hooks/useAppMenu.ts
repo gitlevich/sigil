@@ -36,7 +36,7 @@ export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null
 async function buildMenu(
   dispatch: ReturnType<typeof useAppDispatch>,
   getWorkspace: () => WorkspaceState | null,
-  getLayout: () => LayoutState | null,
+  _getLayout: () => LayoutState | null,
   getUI: () => ReturnType<typeof useAppState>["ui"],
   getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
 ) {
