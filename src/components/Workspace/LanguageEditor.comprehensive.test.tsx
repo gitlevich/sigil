@@ -29,7 +29,7 @@ vi.mock("../../tauri", () => ({
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LanguageEditor, isImageFile, findStatusAtCursor, buildCustomKeymap } from "./LanguageEditor";
-import { setEditorContextForTest } from "./sigilExtensions";
+import { setEditorContextForTest } from "./editorScope";
 import type { SigilFolder } from "../../tauri";
 
 function folder(name: string, opts?: {

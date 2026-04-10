@@ -4,7 +4,7 @@ import {
   collectFrontmatterKeys,
   collectFrontmatterValues,
   getFrontMatterEnd,
-} from "./sigilExtensions";
+} from "./editorScope";
 import type { SigilFolder } from "../../tauri";
 
 function folder(name: string, opts?: { language?: string; path?: string; children?: SigilFolder[] }): SigilFolder {

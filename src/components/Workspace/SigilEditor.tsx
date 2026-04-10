@@ -7,7 +7,7 @@
 import { useRef } from "react";
 import { useLayoutState } from "../../state/LayoutContext";
 import { SigilFolder } from "../../tauri";
-import type { ScopeEntry } from "./sigilExtensions";
+import type { ScopeEntry } from "./editorScope";
 import type { Ref } from "sigil-core";
 import type { ActionDeps } from "../../actions/workspace";
 import { LanguageEditor } from "./LanguageEditor";

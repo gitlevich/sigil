@@ -15,7 +15,7 @@ import {
   buildCollapsibleFrontmatter,
   getThemeExtension,
   PropertyEditorCallbacks,
-} from "./sigilExtensions";
+} from "./editorScope";
 import styles from "./SigilPropertyEditor.module.css";
 
 // ── Cross-panel drag source (global, like OntologyEditor's dragSourcePath) ──

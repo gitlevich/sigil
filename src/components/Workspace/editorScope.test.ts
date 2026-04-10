@@ -7,7 +7,7 @@ import {
   findContextByPath,
   collectAncestorProperties,
   findAllReferencesInTree,
-} from "./sigilExtensions";
+} from "./editorScope";
 import type { SigilFolder } from "../../tauri";
 
 // ── Helpers ──

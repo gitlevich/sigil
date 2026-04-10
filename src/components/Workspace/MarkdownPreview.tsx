@@ -12,7 +12,7 @@ import {
   type Segment,
 } from "sigil-core";
 import { api } from "../../tauri";
-import type { ScopeEntry } from "./sigilExtensions";
+import type { ScopeEntry } from "./editorScope";
 import styles from "./MarkdownPreview.module.css";
 
 interface MarkdownPreviewProps {

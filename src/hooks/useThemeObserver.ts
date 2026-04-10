@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { Compartment } from "@codemirror/state";
-import { getThemeExtension } from "../components/Workspace/sigilExtensions";
+import { getThemeExtension } from "../components/Workspace/editorScope";
 
 export function useThemeObserver(
   viewRef: RefObject<EditorView | null>,

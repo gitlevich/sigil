@@ -16,7 +16,7 @@ import {
   getGlobalSigilRoot,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
-} from "../Workspace/sigilExtensions";
+} from "../Workspace/editorScope";
 import styles from "./VisionEditor.module.css";
 
 const themeCompartment = new Compartment();

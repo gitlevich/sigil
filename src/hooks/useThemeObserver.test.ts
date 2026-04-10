@@ -8,7 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { useThemeObserver } from "./useThemeObserver";
 
-vi.mock("../components/Workspace/sigilExtensions", () => ({
+vi.mock("../components/Workspace/editorScope", () => ({
   getThemeExtension: vi.fn().mockReturnValue([]),
 }));
 

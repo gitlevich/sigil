@@ -9,7 +9,7 @@ import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
-import { findAllReferencesInTree } from "../Workspace/sigilExtensions";
+import { findAllReferencesInTree } from "../Workspace/editorScope";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import type { RefHit } from "../shared/RefsDropdown";
 import { useMouseDrag } from "../../hooks/useMouseDrag";

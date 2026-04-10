@@ -39,8 +39,8 @@ import {
   collectFrontmatterKeys,
   collectFrontmatterValues,
   findAllReferencesInTree,
-} from "./sigilExtensions";
-import type { ScopeEntry } from "./sigilExtensions";
+} from "./editorScope";
+import type { ScopeEntry } from "./editorScope";
 
 function folder(name: string, opts?: {
   language?: string; path?: string; children?: SigilFolder[];

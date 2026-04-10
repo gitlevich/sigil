@@ -29,7 +29,7 @@ import {
   findInvariantInScopeLocal,
   findAffordanceInScopeLocal,
   findAllReferencesInTree,
-} from "./sigilExtensions";
+} from "./editorScope";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
 import styles from "./LanguageEditor.module.css";
 
