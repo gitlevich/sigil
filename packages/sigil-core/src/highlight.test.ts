@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildRefPattern, buildRefLookup, highlightText, type Segment } from "./highlight";
+import { buildRefPattern, buildRefLookup, highlightText, styleForPrefix, type Segment } from "./highlight";
 import type { Ref } from "./refs";
 
 const refs: Ref[] = [
@@ -86,5 +86,104 @@ describe("highlightText", () => {
       { text: "@Chat#branch", prefix: "#" },
       { text: "@Chat#persists", prefix: "#" },
     ]);
+  });
+});
+
+// ── styleForPrefix ──
+
+describe("styleForPrefix", () => {
+  it("returns ref-context for @", () => expect(styleForPrefix("@")).toBe("ref-context"));
+  it("returns ref-affordance for #", () => expect(styleForPrefix("#")).toBe("ref-affordance"));
+  it("returns ref-invariant for !", () => expect(styleForPrefix("!")).toBe("ref-invariant"));
+  it("returns ref-context for unknown prefix", () => expect(styleForPrefix("?")).toBe("ref-context"));
+});
+
+// ── buildRefPattern ──
+
+describe("buildRefPattern", () => {
+  it("returns null for empty refs", () => {
+    expect(buildRefPattern([])).toBeNull();
+  });
+
+  it("includes inflected forms for -e ending words", () => {
+    const pattern = buildRefPattern([
+      { name: "Collapse", prefix: "@", summary: "", navigable: true },
+    ])!;
+    expect("@Collapsed".match(pattern)).not.toBeNull();
+    expect("@Collapsing".match(pattern)).not.toBeNull();
+  });
+
+  it("includes adjective/noun inflections", () => {
+    const pattern = buildRefPattern([
+      { name: "beauty", prefix: "#", summary: "", navigable: false },
+    ])!;
+    expect("#beautiful".match(pattern)).not.toBeNull();
+  });
+});
+
+// ── buildRefLookup ──
+
+describe("buildRefLookup", () => {
+  it("maps inflected forms for -e ending names", () => {
+    const lookup = buildRefLookup([
+      { name: "Collapse", prefix: "@", summary: "", navigable: true },
+    ]);
+    expect(lookup["@collapsed"]).toBeDefined();
+    expect(lookup["@collapsing"]).toBeDefined();
+    expect(lookup["@collapses"]).toBeDefined();
+  });
+
+  it("maps inflected forms for non-e ending names", () => {
+    const lookup = buildRefLookup([
+      { name: "Attend", prefix: "@", summary: "", navigable: true },
+    ]);
+    expect(lookup["@attended"]).toBeDefined();
+    expect(lookup["@attending"]).toBeDefined();
+  });
+
+  it("maps adjective-noun y/iful forms", () => {
+    const lookup = buildRefLookup([
+      { name: "beauty", prefix: "#", summary: "", navigable: false },
+      { name: "beautiful", prefix: "#", summary: "", navigable: false },
+    ]);
+    expect(lookup["#beautiful"]).toBeDefined();
+    expect(lookup["#beauty"]).toBeDefined();
+  });
+});
+
+// ── highlightText: unmatched refs fallback ──
+
+describe("highlightText edge cases", () => {
+  it("returns plain text for unmatched compound ref", () => {
+    // Pattern matches the name but lookup doesn't contain it
+    const refList: Ref[] = [
+      { name: "Widget", prefix: "@", summary: "", navigable: true },
+    ];
+    const pattern = buildRefPattern(refList)!;
+    // Empty lookup — no entries
+    const result = highlightText("@Widget#missing text", pattern, {});
+    // Widget not in lookup, so compound falls through to text
+    const texts = result.filter((s) => s.kind === "text").map((s) => s.text);
+    expect(texts.join("")).toBe("@Widget#missing text");
+  });
+
+  it("returns plain text for unmatched standalone ref", () => {
+    const refList: Ref[] = [
+      { name: "render", prefix: "#", summary: "", navigable: false },
+    ];
+    const pattern = buildRefPattern(refList)!;
+    const result = highlightText("#render here", pattern, {});
+    const texts = result.filter((s) => s.kind === "text").map((s) => s.text);
+    expect(texts.join("")).toBe("#render here");
+  });
+
+  it("returns plain text for unmatched simple @ ref", () => {
+    const refList: Ref[] = [
+      { name: "Observer", prefix: "@", summary: "", navigable: true },
+    ];
+    const pattern = buildRefPattern(refList)!;
+    const result = highlightText("@Observer here", pattern, {});
+    const texts = result.filter((s) => s.kind === "text").map((s) => s.text);
+    expect(texts.join("")).toBe("@Observer here");
   });
 });
