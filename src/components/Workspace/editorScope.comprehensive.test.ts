@@ -161,7 +161,7 @@ describe("findInvariantInScopeLocal", () => {
     setEditorContextForTest({ sigilRoot: root, currentPath: [], importedOntologies: libs });
     const r = findInvariantInScopeLocal("timing");
     expect(r).not.toBeNull();
-    expect(r!.ownerPath).toEqual(["Libs", "LC"]);
+    expect(r!.ownerPath).toEqual(["LC"]);
   });
 
   it("returns null when not found anywhere", () => {

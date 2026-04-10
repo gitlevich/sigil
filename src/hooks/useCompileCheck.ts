@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import type { Sigil } from "sigil-core";
 import {
-  buildLexicalScope,
   findAffordanceInScope,
   findInvariantInScope,
-  resolveRefName,
-  findContext,
+  resolveRefFull,
+  allRefsPattern,
+  isInCodeSpan,
 } from "sigil-core";
 
 export interface RefError {
@@ -22,17 +22,6 @@ export interface CompileResult {
   errors: RefError[];
   totalRefs: number;
   filesWithErrors: number;
-}
-
-const allRefsPattern =
-  /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
-
-function isInCodeSpan(lineText: string, matchIndex: number): boolean {
-  let count = 0;
-  for (let i = 0; i < matchIndex; i++) {
-    if (lineText[i] === "`") count++;
-  }
-  return count % 2 === 1;
 }
 
 interface ParsedRef {
@@ -59,55 +48,12 @@ function parseRef(token: string): ParsedRef | null {
   return { segments, property };
 }
 
-function findSigilPathDFS(sigil: Sigil, name: string, prefix: string[]): string[] | null {
-  for (const child of sigil.children) {
-    const childPath = [...prefix, child.name];
-    if (child.name === name) return childPath;
-    const found = findSigilPathDFS(child, name, childPath);
-    if (found) return found;
-  }
-  return null;
-}
-
-function findSigilPath(root: Sigil, name: string): string[] | null {
-  if (root.name === name) return [];
-  return findSigilPathDFS(root, name, []);
-}
-
-function resolveSegments(root: Sigil, currentPath: string[], segments: string[]): string[] | null {
-  if (segments.length === 0) return currentPath;
-
-  const scope = buildLexicalScope(root, currentPath);
-  const sigilNames = scope.filter((r) => r.prefix === "@").map((r) => r.name);
-  const firstName = segments[0];
-  const resolved = resolveRefName(firstName, sigilNames);
-  if (!resolved) return null;
-
-  const targetPath = findSigilPath(root, resolved);
-  if (!targetPath) return null;
-
-  if (segments.length === 1) return targetPath;
-
-  let ctx = findContext(root, targetPath);
-  if (!ctx) return null;
-  const resultPath = [...targetPath];
-  for (let i = 1; i < segments.length; i++) {
-    const childNames = ctx.children.map((c) => c.name);
-    const childResolved = resolveRefName(segments[i], childNames);
-    if (!childResolved) return null;
-    resultPath.push(childResolved);
-    const next = ctx.children.find((c) => c.name === childResolved);
-    if (!next) return null;
-    ctx = next;
-  }
-  return resultPath;
-}
-
 function checkContent(
   root: Sigil,
   currentPath: string[],
   content: string,
   file: string,
+  importedOntologies?: Sigil | null,
 ): { errors: RefError[]; refCount: number } {
   const lines = content.split("\n");
   const errors: RefError[] = [];
@@ -124,23 +70,31 @@ function checkContent(
       if (!parsed) continue;
       refCount++;
 
-      let targetPath = currentPath;
       if (parsed.segments.length > 0) {
-        const resolved = resolveSegments(root, currentPath, parsed.segments);
+        const sigilRef = "@" + parsed.segments.join("@");
+        const resolved = resolveRefFull(root, currentPath, sigilRef, importedOntologies);
         if (!resolved) {
           errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved sigil" });
           continue;
         }
-        targetPath = resolved;
-      }
-
-      if (parsed.property) {
+        if (parsed.property) {
+          if (parsed.property.prefix === "#") {
+            if (!findAffordanceInScope(root, resolved.path, parsed.property.name)) {
+              errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved affordance" });
+            }
+          } else {
+            if (!findInvariantInScope(root, resolved.path, parsed.property.name)) {
+              errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved invariant" });
+            }
+          }
+        }
+      } else if (parsed.property) {
         if (parsed.property.prefix === "#") {
-          if (!findAffordanceInScope(root, targetPath, parsed.property.name)) {
+          if (!findAffordanceInScope(root, currentPath, parsed.property.name)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved affordance" });
           }
         } else {
-          if (!findInvariantInScope(root, targetPath, parsed.property.name)) {
+          if (!findInvariantInScope(root, currentPath, parsed.property.name)) {
             errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved invariant" });
           }
         }
@@ -156,41 +110,21 @@ export function compileCheck(root: Sigil): CompileResult {
   const allErrors: RefError[] = [];
   let totalRefs = 0;
   const filesWithErrorPaths = new Set<string>();
+  const importedOntologies = root.children.find((c) => c.isImported) ?? null;
+
+  function check(path: string[], content: string, file: string) {
+    const { errors, refCount } = checkContent(root, path, content, file, importedOntologies);
+    totalRefs += refCount;
+    if (errors.length > 0) {
+      allErrors.push(...errors);
+      filesWithErrorPaths.add(path.join("/") + "/" + file);
+    }
+  }
 
   function walk(sigil: Sigil, path: string[]) {
-    // Check language.md
-    if (sigil.language) {
-      const { errors, refCount } = checkContent(root, path, sigil.language, "language.md");
-      totalRefs += refCount;
-      if (errors.length > 0) {
-        allErrors.push(...errors);
-        filesWithErrorPaths.add(path.join("/") + "/language.md");
-      }
-    }
-
-    // Check affordances
-    for (const aff of sigil.affordances) {
-      const file = `affordance-${aff.name}.md`;
-      const { errors, refCount } = checkContent(root, path, aff.content, file);
-      totalRefs += refCount;
-      if (errors.length > 0) {
-        allErrors.push(...errors);
-        filesWithErrorPaths.add(path.join("/") + "/" + file);
-      }
-    }
-
-    // Check invariants
-    for (const inv of sigil.invariants) {
-      const file = `invariant-${inv.name}.md`;
-      const { errors, refCount } = checkContent(root, path, inv.content, file);
-      totalRefs += refCount;
-      if (errors.length > 0) {
-        allErrors.push(...errors);
-        filesWithErrorPaths.add(path.join("/") + "/" + file);
-      }
-    }
-
-    // Recurse children
+    if (sigil.language) check(path, sigil.language, "language.md");
+    for (const aff of sigil.affordances) check(path, aff.content, `affordance-${aff.name}.md`);
+    for (const inv of sigil.invariants) check(path, inv.content, `invariant-${inv.name}.md`);
     for (const child of sigil.children) {
       if (child.isImported) continue;
       walk(child, [...path, child.name]);

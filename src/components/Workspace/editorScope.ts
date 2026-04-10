@@ -14,6 +14,7 @@ import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
   resolveRefFull,
+  allRefsPattern, isInCodeSpan,
 } from "sigil-core";
 import type { ScopeKind } from "sigil-core";
 
@@ -84,19 +85,9 @@ const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 const invariantMark = Decoration.mark({ class: "cm-ref-invariant" });
 const todoMark = Decoration.mark({ class: "cm-todo" });
 
-// ── Patterns ──
+// ── Patterns (re-exported from sigil-core) ──
 
-export const allRefsPattern = /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
-
-// ── Utility functions ──
-
-export function isInCodeSpan(lineText: string, matchIndex: number): boolean {
-  let count = 0;
-  for (let i = 0; i < matchIndex; i++) {
-    if (lineText[i] === "`") count++;
-  }
-  return count % 2 === 1;
-}
+export { allRefsPattern, isInCodeSpan };
 
 export function toDashForm(name: string): string {
   return name.replace(/\s+/g, "-");
@@ -155,65 +146,12 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
-  const result = findInvariantInScope(editorScope.sigilRoot, editorScope.currentPath, name);
-  if (result) return result;
-  // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorScope.importedOntologies) {
-    return findInvariantInOntologies(editorScope.importedOntologies, name);
-  }
-  return null;
+  return findInvariantInScope(editorScope.sigilRoot, editorScope.currentPath, name, editorScope.importedOntologies);
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
   if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
-  const result = findAffordanceInScope(editorScope.sigilRoot, editorScope.currentPath, name);
-  if (result) return result;
-  // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorScope.importedOntologies) {
-    return findAffordanceInOntologies(editorScope.importedOntologies, name);
-  }
-  return null;
-}
-
-/** Recursively search imported ontologies for an invariant by name. */
-function findInvariantInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
-  for (const ontology of ontologies.children) {
-    const result = searchInvariantRecursive(ontology, ["Libs", ontology.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-function searchInvariantRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  for (const inv of ctx.invariants) {
-    if (inv.name === name || inv.name === fromDashForm(name)) {
-      return { content: inv.content, ownerPath: path };
-    }
-  }
-  for (const child of ctx.children) {
-    const result = searchInvariantRecursive(child, [...path, child.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-/** Recursively search imported ontologies for an affordance by name. */
-function findAffordanceInOntologies(ontologies: SigilFolder, name: string): { content: string; ownerPath: string[] } | null {
-  for (const ontology of ontologies.children) {
-    const result = searchAffordanceRecursive(ontology, ["Libs", ontology.name], name);
-    if (result) return result;
-  }
-  return null;
-}
-
-function searchAffordanceRecursive(ctx: SigilFolder, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  const aff = findAffordance(ctx, name);
-  if (aff) return { content: aff.content, ownerPath: path };
-  for (const child of ctx.children) {
-    const result = searchAffordanceRecursive(child, [...path, child.name], name);
-    if (result) return result;
-  }
-  return null;
+  return findAffordanceInScope(editorScope.sigilRoot, editorScope.currentPath, name, editorScope.importedOntologies);
 }
 
 type RefKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
