@@ -940,7 +940,7 @@ describe("buildCustomKeymap", () => {
     view.dispatch({ selection: { anchor: 3 } });
     const result = km.value![3].run!(view);
     if (result) {
-      expect(onCreateAffordance).toHaveBeenCalledWith("new-thing");
+      expect(onCreateAffordance).toHaveBeenCalledWith("new-thing", undefined);
     }
     view.destroy();
   });
@@ -965,7 +965,7 @@ describe("buildCustomKeymap", () => {
     view.dispatch({ selection: { anchor: 3 } });
     const result = km.value![3].run!(view);
     if (result) {
-      expect(onCreateInvariant).toHaveBeenCalledWith("new-rule");
+      expect(onCreateInvariant).toHaveBeenCalledWith("new-rule", undefined);
     }
     view.destroy();
   });

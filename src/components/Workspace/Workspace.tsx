@@ -238,14 +238,14 @@ export function Workspace() {
     await actions.updateStatus(folder, newValue, actionDeps);
   }, [ws, actionDeps]);
 
-  const handleCreateAffordance = useCallback(async (name: string) => {
-    const folder = resolveCurrentFolder(ws);
+  const handleCreateAffordance = useCallback(async (name: string, target?: SigilFolder) => {
+    const folder = target ?? resolveCurrentFolder(ws);
     if (!folder) return;
     await actions.createAffordance(folder, name, actionDeps);
   }, [ws, actionDeps]);
 
-  const handleCreateInvariant = useCallback(async (name: string) => {
-    const folder = resolveCurrentFolder(ws);
+  const handleCreateInvariant = useCallback(async (name: string, target?: SigilFolder) => {
+    const folder = target ?? resolveCurrentFolder(ws);
     if (!folder) return;
     await actions.createInvariant(folder, name, actionDeps);
   }, [ws, actionDeps]);

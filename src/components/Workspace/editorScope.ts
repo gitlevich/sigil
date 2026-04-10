@@ -1039,8 +1039,8 @@ export interface PropertyEditorCallbacks {
 }
 
 export function buildPropertyExtensions(
-  onCreateAffordance?: (name: string) => void,
-  onCreateInvariant?: (name: string) => void,
+  onCreateAffordance?: (name: string, target?: SigilFolder) => void,
+  onCreateInvariant?: (name: string, target?: SigilFolder) => void,
   callbacks?: PropertyEditorCallbacks,
 ) {
   const cb = callbacks ?? {};
@@ -1063,12 +1063,12 @@ export function buildPropertyExtensions(
             const prop = findPropertyRefAtCursor(view);
             if (prop && !prop.exists) {
               if (prop.kind === "affordance" && onCreateAffordance) {
-                onCreateAffordance(prop.name);
+                onCreateAffordance(prop.name, prop.targetContext);
                 event.preventDefault();
                 return true;
               }
               if (prop.kind === "invariant" && onCreateInvariant) {
-                onCreateInvariant(prop.name);
+                onCreateInvariant(prop.name, prop.targetContext);
                 event.preventDefault();
                 return true;
               }

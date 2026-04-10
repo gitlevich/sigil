@@ -72,8 +72,8 @@ interface LanguageEditorProps {
   sigilDir?: string;
   wordWrap?: boolean;
   onCreateSigil?: (name: string) => void;
-  onCreateAffordance?: (name: string) => void;
-  onCreateInvariant?: (name: string) => void;
+  onCreateAffordance?: (name: string, target?: SigilFolder) => void;
+  onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onRenameStatus?: (oldValue: string, newValue: string) => void;
@@ -207,11 +207,11 @@ export function buildCustomKeymap(
         const prop = findPropertyRefAtCursor(view);
         if (prop && !prop.exists) {
           if (prop.kind === "affordance" && onCreateAffordanceRef.current) {
-            onCreateAffordanceRef.current(prop.name);
+            onCreateAffordanceRef.current(prop.name, prop.targetContext);
             return true;
           }
           if (prop.kind === "invariant" && onCreateInvariantRef.current) {
-            onCreateInvariantRef.current(prop.name);
+            onCreateInvariantRef.current(prop.name, prop.targetContext);
             return true;
           }
         }
@@ -360,11 +360,11 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
               if (prop && !prop.exists) {
                 event.preventDefault();
                 if (prop.kind === "affordance" && onCreateAffordanceRef.current) {
-                  onCreateAffordanceRef.current(prop.name);
+                  onCreateAffordanceRef.current(prop.name, prop.targetContext);
                   return true;
                 }
                 if (prop.kind === "invariant" && onCreateInvariantRef.current) {
-                  onCreateInvariantRef.current(prop.name);
+                  onCreateInvariantRef.current(prop.name, prop.targetContext);
                   return true;
                 }
               }

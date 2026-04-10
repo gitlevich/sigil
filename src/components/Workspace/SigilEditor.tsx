@@ -28,8 +28,8 @@ interface SigilEditorProps {
   keybindings: Record<string, string>;
   actionDeps: ActionDeps;
   onCreateSigil: (name: string) => void;
-  onCreateAffordance: (name: string) => void;
-  onCreateInvariant: (name: string) => void;
+  onCreateAffordance: (name: string, target?: SigilFolder) => void;
+  onCreateInvariant: (name: string, target?: SigilFolder) => void;
   onRenameSigil: (oldName: string, newName: string) => void;
   onRenameProperty: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onRenameStatus: (oldValue: string, newValue: string) => void;

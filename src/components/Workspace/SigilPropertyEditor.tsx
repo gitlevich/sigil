@@ -65,8 +65,8 @@ interface SigilPropertyEditorProps {
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
-  onCreateAffordance?: (name: string) => void;
-  onCreateInvariant?: (name: string) => void;
+  onCreateAffordance?: (name: string, target?: SigilFolder) => void;
+  onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onNavigateToSigil?: (name: string) => void;
@@ -136,8 +136,8 @@ function PropertyCodeMirror({
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
-  onCreateAffordance?: (name: string) => void;
-  onCreateInvariant?: (name: string) => void;
+  onCreateAffordance?: (name: string, target?: SigilFolder) => void;
+  onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   editorCallbacks?: PropertyEditorCallbacks;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -338,8 +338,8 @@ function PropertyItem({
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
-  onCreateAffordance?: (name: string) => void;
-  onCreateInvariant?: (name: string) => void;
+  onCreateAffordance?: (name: string, target?: SigilFolder) => void;
+  onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   editorCallbacks?: PropertyEditorCallbacks;
 }) {
   const [nameValue, setNameValue] = useState(item.name);
