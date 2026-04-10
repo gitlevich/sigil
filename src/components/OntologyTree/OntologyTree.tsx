@@ -7,6 +7,7 @@ import {
 import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
+import { useActionDeps } from "../../hooks/useActionDeps";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
 import { findAllReferencesInTree } from "../Workspace/sigilExtensions";
 import { RefsDropdown } from "../shared/RefsDropdown";
@@ -17,7 +18,7 @@ import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import styles from "./OntologyTree.module.css";
 
-interface OntologyNode {
+export interface OntologyNode {
   name: string;
   path: string[];
   fsPath: string;
@@ -34,7 +35,7 @@ interface ContextMenuState {
   node: OntologyNode;
 }
 
-function buildOntology(folder: SigilFolder, path: string[], depth: number): OntologyNode {
+export function buildOntology(folder: SigilFolder, path: string[], depth: number): OntologyNode {
   return {
     name: folder.name,
     path,
@@ -47,22 +48,22 @@ function buildOntology(folder: SigilFolder, path: string[], depth: number): Onto
   };
 }
 
-function nodeMatches(node: OntologyNode, query: string): boolean {
+export function nodeMatches(node: OntologyNode, query: string): boolean {
   if (node.name.toLowerCase().includes(query)) return true;
   return node.children.some((c) => nodeMatches(c, query));
 }
 
-function pathsEqual(a: string[], b: string[]): boolean {
+export function pathsEqual(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
-function flattenPaths(node: OntologyNode): string[][] {
+export function flattenPaths(node: OntologyNode): string[][] {
   const result: string[][] = [node.path];
   for (const child of node.children) result.push(...flattenPaths(child));
   return result;
 }
 
-function flattenNodes(node: OntologyNode): OntologyNode[] {
+export function flattenNodes(node: OntologyNode): OntologyNode[] {
   return [node, ...node.children.flatMap(flattenNodes)];
 }
 
@@ -336,11 +337,7 @@ export function OntologyTree() {
   const { save } = useAutoSave();
   const { addToast } = useToast();
 
-  const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: ws.spec.rootPath,
-    reload: async () => { await reload(); },
-    addToast,
-  }), [ws.spec.rootPath, reload, addToast]);
+  const actionDeps = useActionDeps();
 
   const [search, setSearch] = useState("");
   const [definitions, setDefinitions] = useState<Record<string, string>>({});

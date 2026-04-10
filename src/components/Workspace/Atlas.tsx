@@ -5,8 +5,8 @@ import {
 } from "../../state/WorkspaceContext";
 import { api, SigilFolder } from "../../tauri";
 import { useToast } from "../../hooks/useToast";
+import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
-import type { ActionDeps } from "../../actions/workspace";
 import { buildPath, type Context as CoreContext } from "sigil-core";
 import { Atlas as AtlasView } from "sigil-core/react/Atlas";
 import styles from "./Atlas.module.css";
@@ -16,11 +16,7 @@ export function Atlas() {
   const { navigate, reload } = useWorkspaceActions();
   const { addToast } = useToast();
 
-  const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: ws.spec.rootPath,
-    reload: async () => { await reload(); },
-    addToast,
-  }), [ws.spec.rootPath, reload, addToast]);
+  const actionDeps = useActionDeps();
 
   const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; ctx: SigilFolder } | null>(null);
 

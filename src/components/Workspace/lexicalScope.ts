@@ -1,7 +1,7 @@
 import { findContext, makeSummary } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import type { SigilFolder } from "../../tauri";
-import type { SiblingInfo } from "./MarkdownEditor";
+import type { SiblingInfo } from "./sigilExtensions";
 
 /** Build the full lexical scope for the current path: children -> ancestry levels -> root.
  *  pathPrefix is prepended to all absolutePath values (e.g., ["Imported Ontologies"] for lib navigation).

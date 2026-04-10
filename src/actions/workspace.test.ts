@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ActionDeps } from "./workspace";
-import type { Context } from "../tauri";
+import type { SigilFolder } from "../tauri";
 
 // Mock the tauri api module
 vi.mock("../tauri", () => ({
@@ -28,7 +28,7 @@ function makeDeps(overrides?: Partial<ActionDeps>): ActionDeps {
   };
 }
 
-function makeContext(overrides?: Partial<Context>): Context {
+function makeContext(overrides?: Partial<SigilFolder>): SigilFolder {
   return {
     name: "TestSigil",
     path: "/mock/root/TestSigil",
@@ -38,7 +38,7 @@ function makeContext(overrides?: Partial<Context>): Context {
     invariants: [],
     isImported: false,
     ...overrides,
-  } as Context;
+  } as SigilFolder;
 }
 
 beforeEach(() => {

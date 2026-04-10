@@ -54,12 +54,14 @@ describe("menuAccelerator", () => {
 });
 
 describe("toDisplayShortcut", () => {
-  it("converts Alt-Mod-r for display (non-Mac in Node)", () => {
-    // In Node (no navigator), isMac is false → Ctrl/Alt labels
-    expect(toDisplayShortcut("Alt-Mod-r")).toBe("Alt+Ctrl+R");
+  it("converts Alt-Mod-r for display", () => {
+    const result = toDisplayShortcut("Alt-Mod-r");
+    // On Mac: "Option+Cmd+R", on non-Mac: "Alt+Ctrl+R"
+    expect(result).toMatch(/^(Alt\+Ctrl|Option\+Cmd)\+R$/);
   });
 
   it("converts simple shortcut", () => {
-    expect(toDisplayShortcut("Mod-e")).toBe("Ctrl+E");
+    const result = toDisplayShortcut("Mod-e");
+    expect(result).toMatch(/^(Cmd|Ctrl)\+E$/);
   });
 });

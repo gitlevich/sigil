@@ -9,7 +9,7 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
-import { Context, api, events } from "../../tauri";
+import { SigilFolder, api, events } from "../../tauri";
 import { RenamePopup } from "../shared/RenamePopup";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { fromDashForm } from "sigil-core";
@@ -30,13 +30,12 @@ import {
   findAffordanceInScopeLocal,
   findAllReferencesInTree,
 } from "./sigilExtensions";
+import { useThemeObserver } from "../../hooks/useThemeObserver";
 import styles from "./MarkdownEditor.module.css";
-
-export type { SiblingInfo } from "./sigilExtensions";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp"]);
 
-function isImageFile(name: string): boolean {
+export function isImageFile(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_EXTENSIONS.has(ext);
 }
@@ -67,8 +66,8 @@ interface MarkdownEditorProps {
   onChange: (content: string) => void;
   siblingNames?: string[];
   siblings?: SiblingInfo[];
-  sigilRoot?: Context;
-  currentContext?: Context;
+  sigilRoot?: SigilFolder;
+  currentContext?: SigilFolder;
   currentPath?: string[];
   sigilDir?: string;
   wordWrap?: boolean;
@@ -118,7 +117,7 @@ const aiHighlightField = StateField.define<DecorationSet>({
 
 
 /** Find a status value in front matter at the cursor position. */
-function findStatusAtCursor(view: EditorView): { value: string; from: number } | null {
+export function findStatusAtCursor(view: EditorView): { value: string; from: number } | null {
   const pos = view.state.selection.main.head;
   const doc = view.state.doc;
   const closeLineNum = getFrontMatterEnd(doc);
@@ -137,7 +136,7 @@ type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "af
 type SetRenameState = (s: RenameTarget | null) => void;
 type SetRefsState = (s: { hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null) => void;
 
-function buildCustomKeymap(
+export function buildCustomKeymap(
   kb: Record<string, string>,
   setRenameState: SetRenameState,
   setRefsState: SetRefsState,
@@ -490,23 +489,7 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Watch for theme changes
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      const view = viewRef.current;
-      if (!view) return;
-      view.dispatch({
-        effects: themeCompartment.reconfigure(getThemeExtension()),
-      });
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  useThemeObserver(viewRef, themeCompartment);
 
   // Handle image drops (OS file drops via HTML5 drag-and-drop)
   useEffect(() => {

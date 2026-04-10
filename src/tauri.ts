@@ -28,11 +28,6 @@ export interface ApplicationSpec {
   importedOntologies?: SigilFolder;
 }
 
-// ── Backward compatibility (used during migration, remove after) ──
-
-/** @deprecated Use SigilFolder */
-export type Context = SigilFolder;
-
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;

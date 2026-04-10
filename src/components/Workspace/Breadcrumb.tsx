@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useWorkspaceState, useWorkspaceActions } from "../../state/WorkspaceContext";
 import { useToast } from "../../hooks/useToast";
+import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
-import type { ActionDeps } from "../../actions/workspace";
 import styles from "./Breadcrumb.module.css";
 
 interface BreadcrumbProps {
@@ -18,11 +18,7 @@ export function Breadcrumb({ crumbs, onNavigate }: BreadcrumbProps) {
   const { navigate, back, reload } = useWorkspaceActions();
   const { addToast } = useToast();
 
-  const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: ws.spec.rootPath,
-    reload: async () => { await reload(); },
-    addToast,
-  }), [ws.spec.rootPath, reload, addToast]);
+  const actionDeps = useActionDeps();
 
   useEffect(() => {
     if (renaming && inputRef.current) {

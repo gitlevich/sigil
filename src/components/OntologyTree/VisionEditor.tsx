@@ -7,6 +7,7 @@ import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { useWorkspaceState, useWorkspaceDispatch } from "../../state/WorkspaceContext";
 import { useAutoSave } from "../../hooks/useAutoSave";
+import { useThemeObserver } from "../../hooks/useThemeObserver";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
   buildSiblingHighlighter,
@@ -92,19 +93,7 @@ export function VisionEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Theme changes
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      viewRef.current?.dispatch({
-        effects: themeCompartment.reconfigure(getThemeExtension()),
-      });
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
+  useThemeObserver(viewRef, themeCompartment);
 
   // Sync external content (e.g. navigation to different sigil)
   useEffect(() => {

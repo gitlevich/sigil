@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, tooltips } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { api, Context } from "../../tauri";
+import { api, SigilFolder } from "../../tauri";
 import { RenamePopup } from "../shared/RenamePopup";
 import { RefsDropdown } from "../shared/RefsDropdown";
+import { useThemeObserver } from "../../hooks/useThemeObserver";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import {
@@ -37,7 +38,7 @@ export function clearDragPropertySource(): void {
 }
 
 /** Normalize a property name to a valid reference token: spaces to hyphens. */
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name.trim().replace(/\s+/g, "-");
 }
 
@@ -61,8 +62,8 @@ interface SigilPropertyEditorProps {
   // Context for autocomplete / highlighting
   siblings?: SiblingInfo[];
   siblingNames?: string[];
-  sigilRoot?: Context;
-  currentContext?: Context;
+  sigilRoot?: SigilFolder;
+  currentContext?: SigilFolder;
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;
@@ -132,8 +133,8 @@ function PropertyCodeMirror({
   onRevert: () => void;
   siblings?: SiblingInfo[];
   siblingNames?: string[];
-  sigilRoot?: Context;
-  currentContext?: Context;
+  sigilRoot?: SigilFolder;
+  currentContext?: SigilFolder;
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;
@@ -281,16 +282,7 @@ function PropertyCodeMirror({
     });
   }, [siblingNames, siblings, sigilRoot, currentContext, currentPath]);
 
-  // Watch for theme changes
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      const view = viewRef.current;
-      if (!view) return;
-      view.dispatch({ effects: themeCompartRef.current.reconfigure(getThemeExtension()) });
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
+  useThemeObserver(viewRef, themeCompartRef);
 
   return <div ref={containerRef} className={styles.contentArea} />;
 }
@@ -343,8 +335,8 @@ function PropertyItem({
   onDrop: () => void;
   siblings?: SiblingInfo[];
   siblingNames?: string[];
-  sigilRoot?: Context;
-  currentContext?: Context;
+  sigilRoot?: SigilFolder;
+  currentContext?: SigilFolder;
   currentPath?: string[];
   onCreateAffordance?: (name: string) => void;
   onCreateInvariant?: (name: string) => void;

@@ -114,7 +114,7 @@ export function findPropSeparator(refText: string): number {
   return -1;
 }
 
-function extractSummary(domainLanguage: string): string {
+export function extractSummary(domainLanguage: string): string {
   let text = domainLanguage;
   if (text.startsWith("---")) {
     const end = text.indexOf("\n---", 3);
@@ -595,7 +595,7 @@ class FrontmatterSummaryWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
-function extractFrontmatterSummary(doc: { line: (n: number) => { text: string } }, closeLineNum: number): string {
+export function extractFrontmatterSummary(doc: { line: (n: number) => { text: string } }, closeLineNum: number): string {
   const tuples: string[] = [];
   for (let i = 2; i < closeLineNum; i++) {
     const text = doc.line(i).text.trim();

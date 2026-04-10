@@ -8,7 +8,8 @@ import { useNarratingState, useNarratingDispatch } from "../../state/NarratingCo
 import { OntologyPanel } from "../OntologyTree/OntologyPanel";
 import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
-import { MarkdownEditor, SiblingInfo } from "./MarkdownEditor";
+import { MarkdownEditor } from "./MarkdownEditor";
+import type { SiblingInfo } from "./sigilExtensions";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { CompileStatusBar } from "./CompileStatusBar";
@@ -18,8 +19,8 @@ import { setGlobalImportedOntologies } from "./sigilExtensions";
 import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
+import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
-import type { ActionDeps } from "../../actions/workspace";
 import { Atlas } from "./Atlas";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import {
@@ -87,11 +88,7 @@ export function Workspace() {
   const menuRenameRef = useRef<HTMLInputElement>(null);
   const findReferencesNameRef = useRef<string | null>(null);
 
-  const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: ws.spec.rootPath,
-    reload: async () => { await reload(); },
-    addToast,
-  }), [ws.spec.rootPath, reload, addToast]);
+  const actionDeps = useActionDeps();
 
   // Invariant: open sigil is always visible and selected in ontology tree.
   // Ensures panel is open, on ontology tab, and all ancestor nodes are expanded.

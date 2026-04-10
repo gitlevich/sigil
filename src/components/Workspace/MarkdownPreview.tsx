@@ -12,13 +12,8 @@ import {
   type Segment,
 } from "sigil-core";
 import { api } from "../../tauri";
+import type { SiblingInfo } from "./sigilExtensions";
 import styles from "./MarkdownPreview.module.css";
-
-export interface SiblingInfo {
-  name: string;
-  summary: string;
-  kind?: "contained" | "sibling" | "lib";
-}
 
 interface MarkdownPreviewProps {
   content: string;

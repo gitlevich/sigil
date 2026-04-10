@@ -6,8 +6,8 @@ import {
 } from "../../state/WorkspaceContext";
 import { useNarratingDispatch } from "../../state/NarratingContext";
 import { useToast } from "../../hooks/useToast";
+import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
-import type { ActionDeps } from "../../actions/workspace";
 import styles from "./SubContextBar.module.css";
 
 interface SubContextBarProps {
@@ -24,11 +24,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const narratingDispatch = useNarratingDispatch();
   const { addToast } = useToast();
 
-  const actionDeps: ActionDeps = useMemo(() => ({
-    rootPath: ws.spec.rootPath,
-    reload: async () => { await reload(); },
-    addToast,
-  }), [ws.spec.rootPath, reload, addToast]);
+  const actionDeps = useActionDeps();
 
   useEffect(() => {
     if (renamingChild && renameInputRef.current) {

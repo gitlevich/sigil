@@ -21,7 +21,7 @@ export interface WorkspaceState {
   targetLine: number | null;
 }
 
-type WorkspaceAction =
+export type WorkspaceAction =
   | { type: "NAVIGATE"; path: string[]; targetLine?: number }
   | { type: "CLEAR_TARGET_LINE" }
   | { type: "BACK" }
@@ -29,7 +29,7 @@ type WorkspaceAction =
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
   | { type: "TOGGLE_COLLAPSE"; pathKey: string };
 
-function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
+export function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
     case "NAVIGATE": {
       const history = [...state.history, state.currentPath];
