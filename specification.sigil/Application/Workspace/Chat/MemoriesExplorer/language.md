@@ -2,7 +2,7 @@
 status: idea
 ---
 
-# Memories
+# MemoriesExplorer
 
 A force-directed graph of what @DesignPartner has experienced and remembered. Nodes are concepts, edges are relationships between them. 
 

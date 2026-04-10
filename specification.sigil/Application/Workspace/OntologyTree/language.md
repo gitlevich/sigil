@@ -4,12 +4,11 @@ status: implemented
 
 # Ontology Tree
 
-This is the !structural-projection of the @sigil. 
+The sigil tree. Aggregate root of @SigilNodes. Owns !lexical-scoping: what names are visible from any position is determined by the tree structure.
 
-It lives in the left panel. Shows the @sigil tree along the structural axis (!structural-projection): branching, depth, parent-child relationships.
+Shows the @sigil along the structural axis (!structural-projection): branching, depth, parent-child relationships. Lives in the left panel.
 
 Each @sigil is wrapped in a @SigilNode.
-
 
 I can #search-by-name, #move or #drag-and-drop to rearrange, #delete to remove, #add-peer to create a sibling. Cross-cutting affordances (@Workspace#navigate, @Workspace#rename) are on @Workspace.
 

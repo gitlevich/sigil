@@ -2,11 +2,11 @@
 status: implemented
 ---
 
-# Language
+# Sigil Editor
 
-This is a Markdown editor.
+Edits the selected @SigilNode. Projects a sigil's three facets into editable panels: the narrative (language), the @Affordances, the @Invariants. Also has @Preview for rendered markdown.
 
-Here I type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Workspace#shortcuts.
+The language panel is a Markdown editor. Here I type the narrative. I want the experience to be comfortable, smooth and non-distracting: attention is limited, shame to waste it on trivialities. For that, I need @Workspace#shortcuts.
 
 I am used to IDE-style #reference-syntax-highlighting, so I specify it here as an affordance, to highlight @sigils, affordances and relevant @invariants. When I work on defining an API, I write exploratory tests, test-first style: I write non-existing methods on instances of not-yet-created types. It doesn't compile. I fix compile errors by having the IDE create them.
 
