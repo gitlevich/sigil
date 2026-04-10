@@ -8,10 +8,7 @@ import { useLayoutState, useLayoutDispatch } from "../../state/LayoutContext";
 import { OntologyPanel } from "../OntologyTree/OntologyPanel";
 import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
-import { MarkdownEditor } from "./MarkdownEditor";
 import type { ScopeEntry } from "./sigilExtensions";
-import { MarkdownPreview } from "./MarkdownPreview";
-import { EditorToolbar } from "./EditorToolbar";
 import { CompileStatusBar } from "./CompileStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
@@ -22,7 +19,7 @@ import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { Atlas } from "./Atlas";
-import { SigilPropertyEditor } from "./SigilPropertyEditor";
+import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
   buildLexicalScope as coreBuildLexicalScope,
@@ -359,96 +356,32 @@ export function Workspace() {
           crumbs={breadcrumbs}
           onNavigate={(path) => navigate(path)}
         />
-        <EditorToolbar />
-        {layout.contentTab !== "atlas" && (
-          <SigilPropertyEditor
-            sigilPath={currentFolder.path}
-            filePrefix="affordance"
-            title="Affordances"
-            refPrefix="#"
-            color="#3d9e8c"
-            namePlaceholder="I need to..."
-            contentPlaceholder="so that..."
-            items={currentFolder.affordances}
+        {layout.contentTab === "atlas" ? (
+          <Atlas />
+        ) : (
+          <SigilEditor
+            sigil={currentFolder}
+            content={content}
+            onChange={handleContentChange}
             scope={scope}
             scopeNames={scopeNames}
-            sigilRoot={scopeRoot}
-            currentContext={currentFolder}
-            currentPath={scopePath}
+            scopeRoot={scopeRoot}
+            scopePath={scopePath}
+            coreRefs={coreRefs}
+            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
+            actionDeps={actionDeps}
+            onCreateSigil={handleCreateSigil}
             onCreateAffordance={handleCreateAffordance}
             onCreateInvariant={handleCreateInvariant}
             onRenameSigil={handleRenameSigil}
             onRenameProperty={handleRenameProperty}
+            onRenameStatus={handleRenameStatus}
             onNavigateToSigil={handleNavigateToSigil}
             onNavigateToAbsPath={(path) => navigate(path)}
-            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
-            actionDeps={actionDeps}
-          />
-        )}
-        <div className={styles.editorArea}>
-          {layout.contentTab === "atlas" ? (
-            <Atlas />
-          ) : (
-            <>
-              {(layout.editorMode === "edit" || layout.editorMode === "split") && (
-                <div className={layout.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
-                  <MarkdownEditor
-                    content={content}
-                    onChange={handleContentChange}
-                    scopeNames={scopeNames}
-                    scope={scope}
-                    sigilRoot={scopeRoot}
-                    currentContext={currentFolder}
-                    currentPath={scopePath}
-                    sigilDir={currentFolder.path}
-                    wordWrap={layout.wordWrap}
-                    onCreateSigil={handleCreateSigil}
-                    onCreateAffordance={handleCreateAffordance}
-                    onCreateInvariant={handleCreateInvariant}
-                    onRenameSigil={handleRenameSigil}
-                    onRenameProperty={handleRenameProperty}
-                    onRenameStatus={handleRenameStatus}
-                    onNavigateToSigil={handleNavigateToSigil}
-                    onNavigateToAbsPath={(path) => navigate(path)}
-                    keybindings={appState.settings.keybindings as unknown as Record<string, string>}
-                    findReferencesName={findReferencesNameRef.current}
-                    onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
-                    goToLine={ws.targetLine}
-                    onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
-                  />
-                </div>
-              )}
-              {(layout.editorMode === "preview" || layout.editorMode === "split") && (
-                <div className={layout.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
-                  <MarkdownPreview content={content} refs={coreRefs} sigilDir={currentFolder.path} images={currentFolder.images} onContentChange={handleContentChange} />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        {layout.contentTab !== "atlas" && (
-          <SigilPropertyEditor
-            sigilPath={currentFolder.path}
-            filePrefix="invariant"
-            title="Invariants"
-            refPrefix="!"
-            color="#e8a040"
-            namePlaceholder="what must hold..."
-            contentPlaceholder="because..."
-            items={currentFolder.invariants}
-            scope={scope}
-            scopeNames={scopeNames}
-            sigilRoot={scopeRoot}
-            currentContext={currentFolder}
-            currentPath={scopePath}
-            onCreateAffordance={handleCreateAffordance}
-            onCreateInvariant={handleCreateInvariant}
-            onRenameSigil={handleRenameSigil}
-            onRenameProperty={handleRenameProperty}
-            onNavigateToSigil={handleNavigateToSigil}
-            onNavigateToAbsPath={(path) => navigate(path)}
-            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
-            actionDeps={actionDeps}
+            findReferencesName={findReferencesNameRef.current}
+            onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
+            goToLine={ws.targetLine}
+            onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
           />
         )}
         <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {

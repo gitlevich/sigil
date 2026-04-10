@@ -1,6 +1,6 @@
 /**
  * Shared CodeMirror extensions for sigil reference highlighting, autocomplete,
- * and hover tooltips. Used by both MarkdownEditor and SigilPropertyEditor.
+ * and hover tooltips. Used by both LanguageEditor and SigilPropertyEditor.
  */
 import { EditorState, RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
 import {

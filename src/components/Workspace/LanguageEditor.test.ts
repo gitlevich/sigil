@@ -11,7 +11,7 @@ vi.mock("../../tauri", () => ({
   },
 }));
 
-import { isImageFile } from "./MarkdownEditor";
+import { isImageFile } from "./LanguageEditor";
 
 describe("isImageFile", () => {
   it("recognizes png", () => expect(isImageFile("photo.png")).toBe(true));

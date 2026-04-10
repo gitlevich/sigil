@@ -28,7 +28,7 @@ vi.mock("../../tauri", () => ({
 
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { MarkdownEditor, isImageFile, findStatusAtCursor, buildCustomKeymap } from "./MarkdownEditor";
+import { LanguageEditor, isImageFile, findStatusAtCursor, buildCustomKeymap } from "./LanguageEditor";
 import { setEditorContextForTest } from "./sigilExtensions";
 import type { SigilFolder } from "../../tauri";
 
@@ -132,12 +132,12 @@ describe("isImageFile", () => {
   it("rejects no extension", () => expect(isImageFile("noext")).toBe(false));
 });
 
-describe("MarkdownEditor component", () => {
+describe("LanguageEditor component", () => {
   it("mounts and renders content in CodeMirror", async () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="# Hello World"
           onChange={vi.fn()}
         />,
@@ -154,7 +154,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="" onChange={vi.fn()} />,
+        <LanguageEditor content="" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -165,7 +165,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Some content" onChange={vi.fn()} />,
+        <LanguageEditor content="Some content" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -180,7 +180,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="---\nstatus: idea\n---\n# Title"
           onChange={vi.fn()}
         />,
@@ -195,7 +195,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="Uses @Observer here."
           onChange={vi.fn()}
           scopeNames={["Observer"]}
@@ -215,7 +215,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Long content" onChange={vi.fn()} wordWrap={true} />,
+        <LanguageEditor content="Long content" onChange={vi.fn()} wordWrap={true} />,
       );
       container = result.container;
     });
@@ -226,7 +226,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="test"
           onChange={vi.fn()}
           keybindings={{ "rename-sigil": "Alt-Mod-r", "create-sigil": "Alt-Enter", "delete-line": "Mod-d", "find-references": "Alt-Mod-f" }}
@@ -240,12 +240,12 @@ describe("MarkdownEditor component", () => {
   it("updates content when prop changes (simulating navigation)", async () => {
     const onChange = vi.fn();
     const { rerender, container } = render(
-      <MarkdownEditor content="Original" onChange={onChange} currentPath={["A"]} />,
+      <LanguageEditor content="Original" onChange={onChange} currentPath={["A"]} />,
     );
 
     await act(async () => {
       rerender(
-        <MarkdownEditor content="New content" onChange={onChange} currentPath={["B"]} />,
+        <LanguageEditor content="New content" onChange={onChange} currentPath={["B"]} />,
       );
     });
 
@@ -257,7 +257,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Line 1\nLine 2\nLine 3" onChange={vi.fn()} />,
+        <LanguageEditor content="Line 1\nLine 2\nLine 3" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -270,7 +270,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="Test content"
           onChange={vi.fn()}
           onCreateSigil={vi.fn()}
@@ -294,7 +294,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Initial" onChange={onChange} />,
+        <LanguageEditor content="Initial" onChange={onChange} />,
       );
       container = result.container;
     });
@@ -306,7 +306,7 @@ describe("MarkdownEditor component", () => {
   it("handles goToLine prop", async () => {
     const onGoToLineDone = vi.fn();
     const { rerender, container } = render(
-      <MarkdownEditor
+      <LanguageEditor
         content="Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
         onChange={vi.fn()}
         goToLine={null}
@@ -316,7 +316,7 @@ describe("MarkdownEditor component", () => {
 
     await act(async () => {
       rerender(
-        <MarkdownEditor
+        <LanguageEditor
           content="Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
           onChange={vi.fn()}
           goToLine={3}
@@ -334,7 +334,7 @@ describe("MarkdownEditor component", () => {
     const root = { name: "Root", path: "/mock/Root", language: "Uses @Observer.", affordances: [], invariants: [], children: [{ name: "Observer", path: "/mock/Root/Observer", language: "@Observer is here too.", affordances: [], invariants: [], children: [], images: [] }], images: [] } as any;
 
     const { rerender } = render(
-      <MarkdownEditor
+      <LanguageEditor
         content="Uses @Observer."
         onChange={vi.fn()}
         sigilRoot={root}
@@ -345,7 +345,7 @@ describe("MarkdownEditor component", () => {
 
     await act(async () => {
       rerender(
-        <MarkdownEditor
+        <LanguageEditor
           content="Uses @Observer."
           onChange={vi.fn()}
           sigilRoot={root}
@@ -360,12 +360,12 @@ describe("MarkdownEditor component", () => {
 
   it("toggles word wrap via prop change", async () => {
     const { rerender, container } = render(
-      <MarkdownEditor content="test" onChange={vi.fn()} wordWrap={false} />,
+      <LanguageEditor content="test" onChange={vi.fn()} wordWrap={false} />,
     );
 
     await act(async () => {
       rerender(
-        <MarkdownEditor content="test" onChange={vi.fn()} wordWrap={true} />,
+        <LanguageEditor content="test" onChange={vi.fn()} wordWrap={true} />,
       );
     });
 
@@ -374,12 +374,12 @@ describe("MarkdownEditor component", () => {
 
   it("reconfigures keybindings on prop change", async () => {
     const { rerender, container } = render(
-      <MarkdownEditor content="test" onChange={vi.fn()} keybindings={{}} />,
+      <LanguageEditor content="test" onChange={vi.fn()} keybindings={{}} />,
     );
 
     await act(async () => {
       rerender(
-        <MarkdownEditor content="test" onChange={vi.fn()} keybindings={{ "delete-line": "Mod-Shift-d" }} />,
+        <LanguageEditor content="test" onChange={vi.fn()} keybindings={{ "delete-line": "Mod-Shift-d" }} />,
       );
     });
 
@@ -389,11 +389,11 @@ describe("MarkdownEditor component", () => {
   it("content sync: local edit then rerender with same content is no-op", async () => {
     const onChange = vi.fn();
     const { rerender, container } = render(
-      <MarkdownEditor content="Hello" onChange={onChange} currentPath={["A"]} />,
+      <LanguageEditor content="Hello" onChange={onChange} currentPath={["A"]} />,
     );
     // Simulate what happens when onChange fires with the same content back
     await act(async () => {
-      rerender(<MarkdownEditor content="Hello" onChange={onChange} currentPath={["A"]} />);
+      rerender(<LanguageEditor content="Hello" onChange={onChange} currentPath={["A"]} />);
     });
     const cmContent = container.querySelector(".cm-content");
     expect(cmContent!.textContent).toContain("Hello");
@@ -402,10 +402,10 @@ describe("MarkdownEditor component", () => {
   it("content sync: navigation replaces doc content", async () => {
     const onChange = vi.fn();
     const { rerender, container } = render(
-      <MarkdownEditor content="Page A content" onChange={onChange} currentPath={["A"]} />,
+      <LanguageEditor content="Page A content" onChange={onChange} currentPath={["A"]} />,
     );
     await act(async () => {
-      rerender(<MarkdownEditor content="Page B content" onChange={onChange} currentPath={["B"]} />);
+      rerender(<LanguageEditor content="Page B content" onChange={onChange} currentPath={["B"]} />);
     });
     expect(container.querySelector(".cm-content")!.textContent).toContain("Page B content");
   });
@@ -413,11 +413,11 @@ describe("MarkdownEditor component", () => {
   it("content sync: external reload without path change replaces content", async () => {
     const onChange = vi.fn();
     const { rerender, container } = render(
-      <MarkdownEditor content="Original" onChange={onChange} currentPath={["A"]} />,
+      <LanguageEditor content="Original" onChange={onChange} currentPath={["A"]} />,
     );
     // Same path, different content — external reload
     await act(async () => {
-      rerender(<MarkdownEditor content="Reloaded" onChange={onChange} currentPath={["A"]} />);
+      rerender(<LanguageEditor content="Reloaded" onChange={onChange} currentPath={["A"]} />);
     });
     // Should update since localEditRef is false
     expect(container.querySelector(".cm-content")!.textContent).toContain("Reloaded");
@@ -426,7 +426,7 @@ describe("MarkdownEditor component", () => {
   it("DOM keydown/keyup events are wired on CodeMirror content", async () => {
     let container: HTMLElement;
     await act(async () => {
-      const result = render(<MarkdownEditor content="test" onChange={vi.fn()} />);
+      const result = render(<LanguageEditor content="test" onChange={vi.fn()} />);
       container = result.container;
     });
     const cmContent = container!.querySelector(".cm-content") as HTMLElement;
@@ -441,7 +441,7 @@ describe("MarkdownEditor component", () => {
   it("blur event on content removes cmd-held class", async () => {
     let container: HTMLElement;
     await act(async () => {
-      const result = render(<MarkdownEditor content="test" onChange={vi.fn()} />);
+      const result = render(<LanguageEditor content="test" onChange={vi.fn()} />);
       container = result.container;
     });
     const cmContent = container!.querySelector(".cm-content") as HTMLElement;
@@ -454,7 +454,7 @@ describe("MarkdownEditor component", () => {
   it("empty content shows empty hint div", async () => {
     let container: HTMLElement;
     await act(async () => {
-      const result = render(<MarkdownEditor content="" onChange={vi.fn()} />);
+      const result = render(<LanguageEditor content="" onChange={vi.fn()} />);
       container = result.container;
     });
     const hint = container!.querySelector("[class*='emptyHint']");
@@ -465,7 +465,7 @@ describe("MarkdownEditor component", () => {
   it("non-empty content hides empty hint", async () => {
     let container: HTMLElement;
     await act(async () => {
-      const result = render(<MarkdownEditor content="has content" onChange={vi.fn()} />);
+      const result = render(<LanguageEditor content="has content" onChange={vi.fn()} />);
       container = result.container;
     });
     const hint = container!.querySelector("[class*='emptyHint']");
@@ -476,7 +476,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Line 1\nLine 2\nLine 3" onChange={vi.fn()} />,
+        <LanguageEditor content="Line 1\nLine 2\nLine 3" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -494,7 +494,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="@UnknownSigil here"
           onChange={vi.fn()}
           onCreateSigil={onCreateSigil}
@@ -515,7 +515,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="test" onChange={vi.fn()} sigilDir="/mock/dir" />,
+        <LanguageEditor content="test" onChange={vi.fn()} sigilDir="/mock/dir" />,
       );
       container = result.container;
     });
@@ -526,7 +526,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="test" onChange={vi.fn()} sigilDir="/mock/dir" />,
+        <LanguageEditor content="test" onChange={vi.fn()} sigilDir="/mock/dir" />,
       );
       container = result.container;
     });
@@ -545,7 +545,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="The @Observer watches."
           onChange={vi.fn()}
           scopeNames={["Observer"]}
@@ -581,7 +581,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="Uses @Widget."
           onChange={vi.fn()}
           sigilRoot={root}
@@ -601,7 +601,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor
+        <LanguageEditor
           content="---\nstatus: idea\n---\n# Content with @Ref and #aff and !inv"
           onChange={vi.fn()}
           wordWrap={true}
@@ -621,12 +621,12 @@ describe("MarkdownEditor component", () => {
 
   it("reconfigures sibling highlighting on prop change", async () => {
     const { rerender, container } = render(
-      <MarkdownEditor content="@Observer" onChange={vi.fn()} scopeNames={[]} siblings={[]} />,
+      <LanguageEditor content="@Observer" onChange={vi.fn()} scopeNames={[]} siblings={[]} />,
     );
 
     await act(async () => {
       rerender(
-        <MarkdownEditor
+        <LanguageEditor
           content="@Observer"
           onChange={vi.fn()}
           scopeNames={["Observer"]}
@@ -642,7 +642,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Line one\nLine two\nLine three" onChange={vi.fn()} />,
+        <LanguageEditor content="Line one\nLine two\nLine three" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -663,7 +663,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Line 1\nLine 2\nLine 3\nLine 4" onChange={vi.fn()} />,
+        <LanguageEditor content="Line 1\nLine 2\nLine 3\nLine 4" onChange={vi.fn()} />,
       );
       container = result.container;
     });
@@ -680,7 +680,7 @@ describe("MarkdownEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <MarkdownEditor content="Hello World" onChange={onChange} />,
+        <LanguageEditor content="Hello World" onChange={onChange} />,
       );
       container = result.container;
     });

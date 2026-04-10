@@ -31,7 +31,7 @@ import {
   findAllReferencesInTree,
 } from "./sigilExtensions";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
-import styles from "./MarkdownEditor.module.css";
+import styles from "./LanguageEditor.module.css";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp"]);
 
@@ -61,7 +61,7 @@ async function insertImagesFromClipboard(files: FileList, view: EditorView, sigi
   });
 }
 
-interface MarkdownEditorProps {
+interface LanguageEditorProps {
   content: string;
   onChange: (content: string) => void;
   scopeNames?: string[];
@@ -259,7 +259,7 @@ export function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, scopeNames = [], scope = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: MarkdownEditorProps) {
+export function LanguageEditor({ content, onChange, scopeNames = [], scope = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: LanguageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
