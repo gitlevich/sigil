@@ -289,7 +289,7 @@ export function Workspace() {
 
   const { scopeRoot, scopePath } = scopeInfo(ws);
 
-  const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null);
+  const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {

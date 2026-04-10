@@ -105,8 +105,8 @@ function checkContent(
   return { errors, refCount };
 }
 
-/** Walk the entire sigil tree and check all references. */
-export function compileCheck(root: Sigil): CompileResult {
+/** Check references in a subtree. Resolution uses the full tree; walking starts at the subtree. */
+export function compileCheck(root: Sigil, startPath: string[] = []): CompileResult {
   const allErrors: RefError[] = [];
   let totalRefs = 0;
   const filesWithErrorPaths = new Set<string>();
@@ -131,7 +131,14 @@ export function compileCheck(root: Sigil): CompileResult {
     }
   }
 
-  walk(root, []);
+  // Walk from the selected subtree, not from root
+  let startNode: Sigil = root;
+  for (const seg of startPath) {
+    const child = startNode.children.find((c) => c.name === seg);
+    if (!child) break;
+    startNode = child;
+  }
+  walk(startNode, startPath);
 
   return {
     errors: allErrors,
@@ -146,10 +153,10 @@ export function compileCheck(root: Sigil): CompileResult {
  * child of root (mirroring the CLI script) so references to library sigils resolve.
  * Memoized on tree identity — only re-runs when the spec changes.
  */
-export function useCompileCheck(root: Sigil | null, importedOntologies?: Sigil | null): CompileResult {
+export function useCompileCheck(root: Sigil | null, importedOntologies?: Sigil | null, currentPath: string[] = []): CompileResult {
   return useMemo(() => {
     if (!root) return { errors: [], totalRefs: 0, filesWithErrors: 0 };
-    // Mount imported ontologies as "Libs" child, same as the CLI compile-check
+    // Mount imported ontologies as "Libs" child so references to library sigils resolve
     let checkRoot = root;
     if (importedOntologies) {
       const libs: Sigil = {
@@ -159,6 +166,6 @@ export function useCompileCheck(root: Sigil | null, importedOntologies?: Sigil |
       };
       checkRoot = { ...root, children: [...root.children, libs] };
     }
-    return compileCheck(checkRoot);
-  }, [root, importedOntologies]);
+    return compileCheck(checkRoot, currentPath);
+  }, [root, importedOntologies, currentPath]);
 }
