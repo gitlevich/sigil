@@ -194,16 +194,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
   };
 }
 
-export function resolveRefToContext(sigilRef: string): SigilFolder | null {
-  if (!editorScope.sigilRoot) return null;
-  const result = resolve(
-    editorScope.sigilRoot,
-    editorScope.currentPath,
-    sigilRef,
-    editorScope.importedOntologies,
-  );
-  return result ? result.target as SigilFolder : null;
-}
+
 
 export function collectAncestorProperties(root: SigilFolder | null, path: string[]) {
   if (!root) return { affordances: [] as { name: string; content: string; source: string }[], invariants: [] as { name: string; content: string; source: string }[] };
@@ -346,7 +337,7 @@ function scopeCompletionBody(context: CompletionContext) {
     if (sepIdx !== -1) {
       const sepChar = text[sepIdx];
       const sigilRef = text.slice(0, sepIdx);
-      const ctx = resolveRefToContext(sigilRef);
+      const ctx = resolve(editorScope.sigilRoot!, editorScope.currentPath, sigilRef, editorScope.importedOntologies)?.target as SigilFolder | null;
       if (ctx) {
         const propFrom = beforeProperty.from + sepIdx + 1;
         if (sepChar === "#" && ctx.affordances.length > 0) {
@@ -651,7 +642,7 @@ export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" 
       const propChar = qMatch[0][propIdx];
       const propName = qMatch[0].slice(propIdx + 1);
       const sigilRef = qMatch[0].slice(0, propIdx);
-      const targetCtx = resolveRefToContext(sigilRef);
+      const targetCtx = resolve(editorScope.sigilRoot!, editorScope.currentPath, sigilRef, editorScope.importedOntologies)?.target as SigilFolder | null;
       if (propChar === "!") {
         const exists = !!targetCtx?.invariants.find((s) => s.name === propName || s.name === fromDashForm(propName));
         return { kind: "invariant", name: propName, exists, targetContext: targetCtx ?? undefined };
@@ -738,7 +729,7 @@ export function buildScopeHighlighter(
                   const propChar = matchText[propIdx];
                   const propName = matchText.slice(propIdx + 1);
                   const sigilRef = matchText.slice(0, propIdx);
-                  const targetCtx = resolveRefToContext(sigilRef);
+                  const targetCtx = resolve(editorScope.sigilRoot!, editorScope.currentPath, sigilRef, editorScope.importedOntologies)?.target as SigilFolder | null;
                   let propExists = false;
                   if (targetCtx) {
                     if (propChar === "#") {

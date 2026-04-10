@@ -21,7 +21,6 @@ import {
   findInvariantInScopeLocal,
   findAffordanceInScopeLocal,
   resolveChainedRef,
-  resolveRefToContext,
   allRefsPattern,
   buildCollapsibleFrontmatter,
   getThemeExtension,
@@ -218,26 +217,6 @@ describe("resolveChainedRef", () => {
   });
 });
 
-// ── resolveRefToContext ──
-
-describe("resolveRefToContext", () => {
-  beforeEach(resetCtx);
-
-  it("returns null when sigilRoot is null", () => {
-    expect(resolveRefToContext("@Any")).toBeNull();
-  });
-
-  it("resolves to target folder", () => {
-    const child = folder("Target");
-    setEditorContextForTest({ sigilRoot: folder("Root", { children: [child] }), currentPath: [] });
-    expect(resolveRefToContext("@Target")?.name).toBe("Target");
-  });
-
-  it("returns null for unresolved", () => {
-    setEditorContextForTest({ sigilRoot: folder("Root"), currentPath: [] });
-    expect(resolveRefToContext("@Missing")).toBeNull();
-  });
-});
 
 // ── allRefsPattern ──
 
