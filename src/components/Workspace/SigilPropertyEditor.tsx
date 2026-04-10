@@ -143,7 +143,7 @@ function PropertyCodeMirror({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeCompartRef = useRef(new Compartment());
-  const siblingCompartRef = useRef(new Compartment());
+  const scopeCompartRef = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const onCommitRef = useRef(onCommit);
@@ -165,7 +165,7 @@ function PropertyCodeMirror({
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         themeCompartRef.current.of(getThemeExtension()),
-        siblingCompartRef.current.of(
+        scopeCompartRef.current.of(
           buildScopeHighlighter(
             scopeNames ?? [],
             scope ?? [],
@@ -270,7 +270,7 @@ function PropertyCodeMirror({
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: siblingCompartRef.current.reconfigure(
+      effects: scopeCompartRef.current.reconfigure(
         buildScopeHighlighter(
           scopeNames ?? [],
           scope ?? [],
