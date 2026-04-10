@@ -3,7 +3,7 @@ import type { Sigil } from "sigil-core";
 import {
   findAffordanceInScope,
   findInvariantInScope,
-  resolveRefFull,
+  resolve,
   allRefsPattern,
   isInCodeSpan,
 } from "sigil-core";
@@ -72,7 +72,7 @@ function checkContent(
 
       if (parsed.segments.length > 0) {
         const sigilRef = "@" + parsed.segments.join("@");
-        const resolved = resolveRefFull(root, currentPath, sigilRef, importedOntologies);
+        const resolved = resolve(root, currentPath, sigilRef, importedOntologies);
         if (!resolved) {
           errors.push({ path: currentPath, file, line: i + 1, ref: token, reason: "unresolved sigil" });
           continue;

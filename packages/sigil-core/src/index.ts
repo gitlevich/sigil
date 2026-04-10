@@ -15,8 +15,8 @@ export {
 } from "./refs";
 export type { Segment } from "./highlight";
 export { styleForPrefix, buildRefPattern, buildRefLookup, highlightText } from "./highlight";
-export type { ScopeKind, ScopeResolution } from "./lexicalScope";
-export { isInScope, resolveRef, resolveRefFull } from "./lexicalScope";
+export type { ScopeKind, ScopeResolution, ScopeItem } from "./lexicalScope";
+export { isInScope, resolve, buildScope } from "./lexicalScope";
 export { allRefsPattern, isInCodeSpan } from "./refs-pattern";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {

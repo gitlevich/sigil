@@ -13,7 +13,7 @@ import { SigilFolder } from "../../tauri";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
-  resolveRefFull,
+  resolve,
   allRefsPattern, isInCodeSpan,
 } from "sigil-core";
 import type { ScopeKind } from "sigil-core";
@@ -168,6 +168,7 @@ const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
   sibling: "sibling",
   ancestor: "absolute",
   lib: "lib",
+  proximity: "absolute",
   unresolved: "unresolved",
 };
 
@@ -175,7 +176,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
   const segments = matchText.slice(1).split("@");
   if (!editorScope.sigilRoot) return { kind: "unresolved", path: segments };
 
-  const result = resolveRefFull(
+  const result = resolve(
     editorScope.sigilRoot,
     editorScope.currentPath,
     matchText,
@@ -195,7 +196,7 @@ export function resolveChainedRef(matchText: string): RefResolution {
 
 export function resolveRefToContext(sigilRef: string): SigilFolder | null {
   if (!editorScope.sigilRoot) return null;
-  const result = resolveRefFull(
+  const result = resolve(
     editorScope.sigilRoot,
     editorScope.currentPath,
     sigilRef,
@@ -408,7 +409,7 @@ function scopeCompletionBody(context: CompletionContext) {
 
   // Resolve the prefix path using tree-based scope resolution
   const prefixRef = "@" + prefix.join("@");
-  const resolved = resolveRefFull(
+  const resolved = resolve(
     editorScope.sigilRoot,
     editorScope.currentPath,
     prefixRef,

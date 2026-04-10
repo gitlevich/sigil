@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { isInScope, resolveRef, resolveRefFull } from "./lexicalScope";
+import { isInScope, resolve } from "./lexicalScope";
 import type { Sigil } from "./types";
+import type { ScopeResolution } from "./lexicalScope";
+
+/** Convenience: resolve and return just the target sigil, or null. */
+function resolveTarget(root: Sigil, path: string[], ref: string, libs?: Sigil | null): Sigil | null {
+  const r = resolve(root, path, ref, libs);
+  return r && !r.ambiguous ? r.target : null;
+}
 
 function sigil(name: string, opts?: {
   language?: string;
@@ -141,7 +148,7 @@ describe("isInScope from Q", () => {
   // ── Proximity resolves with correct kind ──
 
   it("proximity resolution reports kind 'proximity'", () => {
-    const r = resolveRefFull(root, here, "@G");
+    const r = resolve(root, here, "@G");
     expect(r?.kind).toBe("proximity");
     expect(r?.path).toEqual(["P", "Q", "C1", "G"]);
   });
@@ -166,7 +173,7 @@ describe("priority: innermost wins", () => {
   const r = sigil("Root", { children: [parent] });
 
   it("child wins over sibling", () => {
-    const result = resolveRefFull(r, ["Parent", "S"], "@Target");
+    const result = resolve(r, ["Parent", "S"], "@Target");
     expect(result?.kind).toBe("contained");
     expect(result?.path).toEqual(["Parent", "S", "Target"]);
   });
@@ -185,7 +192,7 @@ describe("ambiguity detection", () => {
     const r = sigil("Root", { children: [s] });
 
     expect(isInScope(r, ["S"], "Widget")).toBe(false);
-    const result = resolveRefFull(r, ["S"], "@Widget");
+    const result = resolve(r, ["S"], "@Widget");
     expect(result?.ambiguous).toBe(true);
     expect(result?.candidates).toHaveLength(2);
   });
@@ -200,7 +207,7 @@ describe("ambiguity detection", () => {
     const r = sigil("Root", { children: [parent] });
 
     // From S, "Gadget" exists in both B1 and B2 — ambiguous at parent's subtree level
-    const result = resolveRefFull(r, ["Parent", "S"], "@Gadget");
+    const result = resolve(r, ["Parent", "S"], "@Gadget");
     expect(result?.ambiguous).toBe(true);
     expect(result?.candidates).toHaveLength(2);
   });
@@ -211,7 +218,7 @@ describe("ambiguity detection", () => {
     const s = sigil("S", { children: [a1, a2] });
     const r = sigil("Root", { children: [s] });
 
-    expect(resolveRef(r, ["S"], "@Thing")).toBeNull();
+    expect(resolveTarget(r, ["S"], "@Thing")).toBeNull();
   });
 
   it("unique name at nearer subtree wins over duplicate at farther level", () => {
@@ -222,7 +229,7 @@ describe("ambiguity detection", () => {
     const parent = sigil("Parent", { children: [s, b1] });
     const r = sigil("Root", { children: [parent] });
 
-    const result = resolveRefFull(r, ["Parent", "S"], "@Gadget");
+    const result = resolve(r, ["Parent", "S"], "@Gadget");
     expect(result?.ambiguous).toBeUndefined();
     expect(result?.kind).toBe("proximity");
   });
@@ -235,67 +242,67 @@ describe("ambiguity detection", () => {
 describe("resolveRef from Q", () => {
 
   it("@C1 resolves (child)", () => {
-    expect(resolveRef(root, here, "@C1")?.name).toBe("C1");
+    expect(resolveTarget(root, here, "@C1")?.name).toBe("C1");
   });
 
   it("@N resolves (neighbor)", () => {
-    expect(resolveRef(root, here, "@N")?.name).toBe("N");
+    expect(resolveTarget(root, here, "@N")?.name).toBe("N");
   });
 
   it("@P resolves (ancestor)", () => {
-    expect(resolveRef(root, here, "@P")?.name).toBe("P");
+    expect(resolveTarget(root, here, "@P")?.name).toBe("P");
   });
 
   it("@Root resolves (root ancestor)", () => {
-    expect(resolveRef(root, here, "@Root")?.name).toBe("Root");
+    expect(resolveTarget(root, here, "@Root")?.name).toBe("Root");
   });
 
   // Proximity single-segment
   it("@G resolves via proximity (grandchild)", () => {
-    expect(resolveRef(root, here, "@G")?.name).toBe("G");
+    expect(resolveTarget(root, here, "@G")?.name).toBe("G");
   });
 
   it("@Uncle resolves via proximity", () => {
-    expect(resolveRef(root, here, "@Uncle")?.name).toBe("Uncle");
+    expect(resolveTarget(root, here, "@Uncle")?.name).toBe("Uncle");
   });
 
   // Multi-segment paths
   it("@C1@G resolves (child's child)", () => {
-    expect(resolveRef(root, here, "@C1@G")?.name).toBe("G");
+    expect(resolveTarget(root, here, "@C1@G")?.name).toBe("G");
   });
 
   it("@C1@G@H resolves (arbitrary depth)", () => {
-    expect(resolveRef(root, here, "@C1@G@H")?.name).toBe("H");
+    expect(resolveTarget(root, here, "@C1@G@H")?.name).toBe("H");
   });
 
   it("@N@NChild resolves (neighbor's child via path)", () => {
-    expect(resolveRef(root, here, "@N@NChild")?.name).toBe("NChild");
+    expect(resolveTarget(root, here, "@N@NChild")?.name).toBe("NChild");
   });
 
   it("@Root@Uncle@Cousin resolves (absolute path through root)", () => {
-    expect(resolveRef(root, here, "@Root@Uncle@Cousin")?.name).toBe("Cousin");
+    expect(resolveTarget(root, here, "@Root@Uncle@Cousin")?.name).toBe("Cousin");
   });
 
   // Multi-segment: first segment must be in scope
   it("@C1@Nonexistent does NOT resolve", () => {
-    expect(resolveRef(root, here, "@C1@Nonexistent")).toBeNull();
+    expect(resolveTarget(root, here, "@C1@Nonexistent")).toBeNull();
   });
 
   it("@C1@C2 does NOT resolve (C2 is not a child of C1)", () => {
-    expect(resolveRef(root, here, "@C1@C2")).toBeNull();
+    expect(resolveTarget(root, here, "@C1@C2")).toBeNull();
   });
 
   it("@Phantom does NOT resolve", () => {
-    expect(resolveRef(root, here, "@Phantom")).toBeNull();
+    expect(resolveTarget(root, here, "@Phantom")).toBeNull();
   });
 
   // Multi-segment with libs
   it("@Shapes@Circle resolves (lib path)", () => {
-    expect(resolveRef(root, here, "@Shapes@Circle", ontologies)?.name).toBe("Circle");
+    expect(resolveTarget(root, here, "@Shapes@Circle", ontologies)?.name).toBe("Circle");
   });
 
   it("@Shapes@Box@Corner resolves (deep lib path)", () => {
-    expect(resolveRef(root, here, "@Shapes@Box@Corner", ontologies)?.name).toBe("Corner");
+    expect(resolveTarget(root, here, "@Shapes@Box@Corner", ontologies)?.name).toBe("Corner");
   });
 });
 
@@ -323,15 +330,15 @@ describe("isInScope from Root (path [])", () => {
 
 describe("resolveRef from Root (path [])", () => {
   it("@P resolves", () => {
-    expect(resolveRef(root, [], "@P")?.name).toBe("P");
+    expect(resolveTarget(root, [], "@P")?.name).toBe("P");
   });
 
   it("@P@Q resolves via path", () => {
-    expect(resolveRef(root, [], "@P@Q")?.name).toBe("Q");
+    expect(resolveTarget(root, [], "@P@Q")?.name).toBe("Q");
   });
 
   it("@Q resolves via proximity (unique in root's subtree)", () => {
-    expect(resolveRef(root, [], "@Q")?.name).toBe("Q");
+    expect(resolveTarget(root, [], "@Q")?.name).toBe("Q");
   });
 });
 
@@ -371,19 +378,19 @@ describe("resolveRef from C1 (path [P, Q, C1])", () => {
   const fromC1 = ["P", "Q", "C1"];
 
   it("@G resolves (child)", () => {
-    expect(resolveRef(root, fromC1, "@G")?.name).toBe("G");
+    expect(resolveTarget(root, fromC1, "@G")?.name).toBe("G");
   });
 
   it("@G@H resolves (child's child via path)", () => {
-    expect(resolveRef(root, fromC1, "@G@H")?.name).toBe("H");
+    expect(resolveTarget(root, fromC1, "@G@H")?.name).toBe("H");
   });
 
   it("@C2 resolves (neighbor)", () => {
-    expect(resolveRef(root, fromC1, "@C2")?.name).toBe("C2");
+    expect(resolveTarget(root, fromC1, "@C2")?.name).toBe("C2");
   });
 
   it("@P@N resolves (P is ancestor, N is child of P)", () => {
-    expect(resolveRef(root, fromC1, "@P@N")?.name).toBe("N");
+    expect(resolveTarget(root, fromC1, "@P@N")?.name).toBe("N");
   });
 });
 
@@ -411,14 +418,14 @@ describe("resolveRef from N (path [P, N])", () => {
   const fromN = ["P", "N"];
 
   it("@Q@C1 resolves (neighbor's child via path)", () => {
-    expect(resolveRef(root, fromN, "@Q@C1")?.name).toBe("C1");
+    expect(resolveTarget(root, fromN, "@Q@C1")?.name).toBe("C1");
   });
 
   it("@Q@C1@G resolves (neighbor's grandchild via path)", () => {
-    expect(resolveRef(root, fromN, "@Q@C1@G")?.name).toBe("G");
+    expect(resolveTarget(root, fromN, "@Q@C1@G")?.name).toBe("G");
   });
 
   it("@C1 resolves via proximity", () => {
-    expect(resolveRef(root, fromN, "@C1")?.name).toBe("C1");
+    expect(resolveTarget(root, fromN, "@C1")?.name).toBe("C1");
   });
 });

@@ -13,7 +13,6 @@ import { CompileStatusBar } from "./CompileStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
-import { buildLexicalScope, flattenOntologyRefs } from "./lexicalScope";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
@@ -23,6 +22,7 @@ import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
   buildLexicalScope as coreBuildLexicalScope,
+  buildScope as coreBuildScope,
   makeSummary, resolveRefName, findContext,
 } from "sigil-core";
 import type { Sigil } from "sigil-core";
@@ -309,23 +309,20 @@ export function Workspace() {
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null);
 
-  // Memoize lexical scope
+  // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {
-    const isImported = ws.currentPath[0] === "Imported Ontologies" && ws.spec.importedOntologies;
-    const scopePrefix = isImported ? ["Imported Ontologies"] : [];
-    const refs: ScopeEntry[] = buildLexicalScope(scopeRoot, scopePath, scopePrefix);
-    const seenNames = new Set(refs.map((r) => r.name));
     const importedSigil = ws.spec.importedOntologies ?? null;
     setGlobalImportedOntologies(importedSigil);
-    if (importedSigil) {
-      for (const ontology of importedSigil.children) {
-        if (!seenNames.has(ontology.name)) {
-          seenNames.add(ontology.name);
-          refs.push({ name: ontology.name, summary: makeSummary(ontology), kind: "lib", absolutePath: ["Imported Ontologies", ontology.name], libPrefix: ontology.name });
-        }
-        refs.push(...flattenOntologyRefs(ontology, ["Imported Ontologies", ontology.name], seenNames, ontology.name));
-      }
-    }
+    const isImported = ws.currentPath[0] === "Imported Ontologies" && importedSigil;
+    const pathPrefix = isImported ? ["Imported Ontologies"] : [];
+    const items = coreBuildScope(scopeRoot as Sigil, scopePath, importedSigil);
+    const refs: ScopeEntry[] = items.map((item) => ({
+      name: item.name,
+      summary: makeSummary(item.target),
+      kind: item.kind === "ancestor" || item.kind === "proximity" ? "sibling" as const : item.kind as ScopeEntry["kind"],
+      absolutePath: [...pathPrefix, ...item.path],
+      libPrefix: item.kind === "lib" ? item.path[0] : undefined,
+    }));
     return { scope: refs, scopeNames: refs.map((r) => r.name) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
