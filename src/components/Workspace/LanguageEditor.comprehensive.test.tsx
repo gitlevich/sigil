@@ -489,6 +489,44 @@ describe("LanguageEditor component", () => {
     }
   });
 
+  it("Alt+Enter on @Chat#boo creates affordance on Chat, not current sigil", async () => {
+    const onCreateAffordance = vi.fn();
+    const chat = folder("Chat", { path: "/mock/Chat" });
+    const root = folder("Root", { children: [chat], path: "/mock/Root" });
+    setEditorContextForTest({
+      scope: [{ name: "Chat", summary: "chat" }],
+      scopeNames: ["Chat"],
+      nameIndex: new Map([["chat", "Chat"]]),
+      sigilRoot: root, currentContext: root,
+      currentPath: [], importedOntologies: null,
+    });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(
+        <LanguageEditor
+          content="@Chat#boo here"
+          onChange={vi.fn()}
+          onCreateAffordance={onCreateAffordance}
+          sigilRoot={root}
+          currentContext={root}
+          currentPath={[]}
+        />,
+      );
+      container = result.container;
+    });
+    const cmContent = container!.querySelector(".cm-content") as HTMLElement;
+    if (cmContent) {
+      await act(async () => {
+        fireEvent.keyDown(cmContent, { key: "Enter", altKey: true });
+      });
+    }
+    // onCreateAffordance MUST be called with the target Chat folder, not Root
+    expect(onCreateAffordance).toHaveBeenCalledTimes(1);
+    const [name, target] = onCreateAffordance.mock.calls[0];
+    expect(name).toBe("boo");
+    expect(target?.name).toBe("Chat");
+  });
+
   it("Alt+Enter on unresolved ref fires create callback", async () => {
     const onCreateSigil = vi.fn();
     let container: HTMLElement;

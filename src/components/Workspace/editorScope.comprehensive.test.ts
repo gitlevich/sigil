@@ -521,6 +521,84 @@ describe("findPropertyRefAtCursor", () => {
     view.destroy();
   });
 
+  it("@Sigil#affordance returns targetContext pointing to resolved sigil", () => {
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Uses @Widget#render." }),
+      parent,
+    });
+    view.dispatch({ selection: { anchor: 13 } });
+    const ref = findPropertyRefAtCursor(view);
+    expect(ref!.targetContext).toBeDefined();
+    expect(ref!.targetContext!.name).toBe("Widget");
+    view.destroy();
+  });
+
+  it("@Sigil#unknown returns exists=false with targetContext", () => {
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Uses @Widget#boo." }),
+      parent,
+    });
+    view.dispatch({ selection: { anchor: 13 } });
+    const ref = findPropertyRefAtCursor(view);
+    expect(ref).not.toBeNull();
+    expect(ref!.kind).toBe("affordance");
+    expect(ref!.name).toBe("boo");
+    expect(ref!.exists).toBe(false);
+    expect(ref!.targetContext!.name).toBe("Widget");
+    view.destroy();
+  });
+
+  it("@Sigil!unknown returns exists=false with targetContext", () => {
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Check @Widget!missing." }),
+      parent,
+    });
+    view.dispatch({ selection: { anchor: 14 } });
+    const ref = findPropertyRefAtCursor(view);
+    expect(ref).not.toBeNull();
+    expect(ref!.kind).toBe("invariant");
+    expect(ref!.name).toBe("missing");
+    expect(ref!.exists).toBe(false);
+    expect(ref!.targetContext!.name).toBe("Widget");
+    view.destroy();
+  });
+
+  it("bare #unknown has no targetContext (creates on current sigil)", () => {
+    const root = folder("Root");
+    setEditorContextForTest({
+      scope: [], scopeNames: [], nameIndex: new Map(),
+      sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
+    });
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Uses #newone." }),
+      parent,
+    });
+    view.dispatch({ selection: { anchor: 7 } });
+    const ref = findPropertyRefAtCursor(view);
+    expect(ref).not.toBeNull();
+    expect(ref!.exists).toBe(false);
+    expect(ref!.targetContext).toBeUndefined();
+    view.destroy();
+  });
+
+  it("@UnknownSigil#prop returns null targetContext (sigil doesn't resolve)", () => {
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Uses @Phantom#thing." }),
+      parent,
+    });
+    view.dispatch({ selection: { anchor: 14 } });
+    const ref = findPropertyRefAtCursor(view);
+    expect(ref).not.toBeNull();
+    expect(ref!.exists).toBe(false);
+    expect(ref!.targetContext).toBeUndefined();
+    view.destroy();
+  });
+
   it("returns null when cursor not on property ref", () => {
     const parent = document.createElement("div");
     const view = new EditorView({
