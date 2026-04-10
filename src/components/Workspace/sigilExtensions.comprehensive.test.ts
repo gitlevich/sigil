@@ -12,12 +12,12 @@ import type { SigilFolder } from "../../tauri";
 import {
   getEditorContext,
   setEditorContextForTest,
-  getGlobalSiblings,
+  getGlobalScope,
   getGlobalSigilRoot,
   setGlobalImportedOntologies,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
-  findSibling,
+  findInScope,
   findInvariantInScopeLocal,
   findAffordanceInScopeLocal,
   resolveChainedRef,
@@ -26,10 +26,10 @@ import {
   buildCollapsibleFrontmatter,
   getThemeExtension,
   getFrontMatterEnd,
-  buildSiblingHighlighter,
+  buildScopeHighlighter,
   buildPropertyExtensions,
   refTheme,
-  siblingCompletion,
+  scopeCompletion,
   refCompletion,
   findRefAtCursor,
   findPropertyRefAtCursor,
@@ -40,7 +40,7 @@ import {
   collectFrontmatterValues,
   findAllReferencesInTree,
 } from "./sigilExtensions";
-import type { SiblingInfo } from "./sigilExtensions";
+import type { ScopeEntry } from "./sigilExtensions";
 
 function folder(name: string, opts?: {
   language?: string; path?: string; children?: SigilFolder[];
@@ -57,7 +57,7 @@ function folder(name: string, opts?: {
 
 function resetCtx() {
   setEditorContextForTest({
-    siblings: [], siblingNames: [], nameIndex: new Map(),
+    scope: [], scopeNames: [], nameIndex: new Map(),
     sigilRoot: null, importedOntologies: null, currentContext: null, currentPath: [],
   });
 }
@@ -69,7 +69,7 @@ describe("editor context accessors", () => {
 
   it("getEditorContext returns current context", () => {
     const ctx = getEditorContext();
-    expect(ctx.siblings).toEqual([]);
+    expect(ctx.scope).toEqual([]);
     expect(ctx.sigilRoot).toBeNull();
   });
 
@@ -80,10 +80,10 @@ describe("editor context accessors", () => {
     expect(getEditorContext().currentPath).toEqual(["A"]);
   });
 
-  it("getGlobalSiblings reflects context", () => {
-    const sibs: SiblingInfo[] = [{ name: "X", summary: "" }];
-    setEditorContextForTest({ siblings: sibs });
-    expect(getGlobalSiblings()).toBe(sibs);
+  it("getGlobalScope reflects context", () => {
+    const sibs: ScopeEntry[] = [{ name: "X", summary: "" }];
+    setEditorContextForTest({ scope: sibs });
+    expect(getGlobalScope()).toBe(sibs);
   });
 
   it("getGlobalSigilRoot reflects context", () => {
@@ -112,27 +112,27 @@ describe("editor context accessors", () => {
   });
 });
 
-// ── findSibling ──
+// ── findInScope ──
 
-describe("findSibling", () => {
+describe("findInScope", () => {
   beforeEach(() => {
     const nameIndex = new Map([["observer", "Observer"], ["lexicalscope", "LexicalScope"]]);
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches" }, { name: "LexicalScope", summary: "scope" }],
-      siblingNames: ["Observer", "LexicalScope"],
+      scope: [{ name: "Observer", summary: "watches" }, { name: "LexicalScope", summary: "scope" }],
+      scopeNames: ["Observer", "LexicalScope"],
       nameIndex,
       sigilRoot: null, importedOntologies: null, currentContext: null, currentPath: [],
     });
   });
 
   it("finds by case-insensitive nameIndex", () => {
-    expect(findSibling("observer")?.name).toBe("Observer");
+    expect(findInScope("observer")?.name).toBe("Observer");
   });
   it("finds by canonical name", () => {
-    expect(findSibling("Observer")?.name).toBe("Observer");
+    expect(findInScope("Observer")?.name).toBe("Observer");
   });
   it("returns undefined for unknown", () => {
-    expect(findSibling("Unknown")).toBeUndefined();
+    expect(findInScope("Unknown")).toBeUndefined();
   });
 });
 
@@ -292,13 +292,13 @@ describe("getThemeExtension", () => {
   });
 });
 
-// ── buildSiblingHighlighter with EditorView ──
+// ── buildScopeHighlighter with EditorView ──
 
-describe("buildSiblingHighlighter", () => {
+describe("buildScopeHighlighter", () => {
   beforeEach(resetCtx);
 
   it("returns CodeMirror extensions", () => {
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Observer"],
       [{ name: "Observer", summary: "watches", kind: "contained" }],
       folder("Root", { children: [folder("Observer")] }),
@@ -311,7 +311,7 @@ describe("buildSiblingHighlighter", () => {
 
   it("extensions can be mounted in EditorView with @references in content", () => {
     const root = folder("Root", { children: [folder("Observer", { language: "watches" })] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Observer"],
       [{ name: "Observer", summary: "watches", kind: "contained" }],
       root,
@@ -336,7 +336,7 @@ describe("buildSiblingHighlighter", () => {
 
   it("marks unresolved references differently from resolved ones", () => {
     const root = folder("Root");
-    const exts = buildSiblingHighlighter([], [], root, root, []);
+    const exts = buildScopeHighlighter([], [], root, root, []);
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -352,7 +352,7 @@ describe("buildSiblingHighlighter", () => {
   it("updates editor context globals", () => {
     const root = folder("Root", { children: [folder("Child")] });
     const currentCtx = folder("Root");
-    buildSiblingHighlighter(
+    buildScopeHighlighter(
       ["Child"],
       [{ name: "Child", summary: "child", kind: "contained" }],
       root,
@@ -362,7 +362,7 @@ describe("buildSiblingHighlighter", () => {
     expect(getEditorContext().sigilRoot?.name).toBe("Root");
     expect(getEditorContext().currentContext?.name).toBe("Root");
     expect(getEditorContext().currentPath).toEqual(["Parent"]);
-    expect(getEditorContext().siblings).toHaveLength(1);
+    expect(getEditorContext().scope).toHaveLength(1);
   });
 });
 
@@ -372,8 +372,8 @@ describe("findRefAtCursor", () => {
   beforeEach(() => {
     const root = folder("Root", { children: [folder("Observer", { language: "watches" })] });
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches" }],
-      siblingNames: ["Observer"],
+      scope: [{ name: "Observer", summary: "watches" }],
+      scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
       sigilRoot: root,
       currentContext: root,
@@ -410,8 +410,8 @@ describe("findRefAtCursor", () => {
 
   it("marks unknown refs as not known", () => {
     setEditorContextForTest({
-      siblings: [],
-      siblingNames: [],
+      scope: [],
+      scopeNames: [],
       nameIndex: new Map(),
       sigilRoot: folder("Root"),
       currentContext: folder("Root"),
@@ -442,8 +442,8 @@ describe("findPropertyRefAtCursor", () => {
     });
     const root = folder("Root", { children: [child] });
     setEditorContextForTest({
-      siblings: [{ name: "Widget", summary: "" }],
-      siblingNames: ["Widget"],
+      scope: [{ name: "Widget", summary: "" }],
+      scopeNames: ["Widget"],
       nameIndex: new Map([["widget", "Widget"]]),
       sigilRoot: root,
       currentContext: root,
@@ -486,7 +486,7 @@ describe("findPropertyRefAtCursor", () => {
   it("finds bare #affordance ref", () => {
     const root = folder("Root", { affordances: [{ name: "navigate", content: "move" }] });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
     const parent = document.createElement("div");
@@ -505,7 +505,7 @@ describe("findPropertyRefAtCursor", () => {
   it("finds bare !invariant ref", () => {
     const root = folder("Root", { invariants: [{ name: "speed", content: "fast" }] });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
     const parent = document.createElement("div");
@@ -539,7 +539,7 @@ describe("syntax highlighting decorations", () => {
   it("applies cm-ref-contained class to contained references", () => {
     const child = folder("Observer", { language: "watches" });
     const root = folder("Root", { children: [child] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Observer"],
       [{ name: "Observer", summary: "watches", kind: "contained" }],
       root, root, [],
@@ -561,7 +561,7 @@ describe("syntax highlighting decorations", () => {
 
   it("applies cm-ref-unresolved class to unknown references", () => {
     const root = folder("Root");
-    const exts = buildSiblingHighlighter([], [], root, root, []);
+    const exts = buildScopeHighlighter([], [], root, root, []);
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -580,7 +580,7 @@ describe("syntax highlighting decorations", () => {
     const childA = folder("Alpha", { language: "alpha" });
     const childB = folder("Beta", { language: "beta" });
     const root = folder("Root", { children: [childA, childB] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Alpha", "Beta"],
       [
         { name: "Alpha", summary: "alpha", kind: "sibling" },
@@ -605,7 +605,7 @@ describe("syntax highlighting decorations", () => {
 
   it("applies cm-ref-affordance class to #affordance references", () => {
     const root = folder("Root", { affordances: [{ name: "navigate", content: "move" }] });
-    const exts = buildSiblingHighlighter([], [], root, root, []);
+    const exts = buildScopeHighlighter([], [], root, root, []);
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -622,7 +622,7 @@ describe("syntax highlighting decorations", () => {
 
   it("applies cm-ref-invariant class to !invariant references", () => {
     const root = folder("Root", { invariants: [{ name: "speed", content: "fast" }] });
-    const exts = buildSiblingHighlighter([], [], root, root, []);
+    const exts = buildScopeHighlighter([], [], root, root, []);
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -639,7 +639,7 @@ describe("syntax highlighting decorations", () => {
 
   it("applies cm-todo class to TODO markers", () => {
     const root = folder("Root");
-    const exts = buildSiblingHighlighter([], [], root, root, []);
+    const exts = buildScopeHighlighter([], [], root, root, []);
     const parent = document.createElement("div");
     const view = new EditorView({
       state: EditorState.create({
@@ -657,7 +657,7 @@ describe("syntax highlighting decorations", () => {
   it("does not mark references inside code spans", () => {
     const child = folder("Observer", { language: "watches" });
     const root = folder("Root", { children: [child] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Observer"],
       [{ name: "Observer", summary: "watches", kind: "contained" }],
       root, root, [],
@@ -682,7 +682,7 @@ describe("syntax highlighting decorations", () => {
     const libChild = folder("Perception", { language: "perception concept" });
     const libs = folder("Libs", { children: [libChild] });
     const root = folder("Root", { children: [] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Perception"],
       [{ name: "Perception", summary: "perception", kind: "lib", libPrefix: "Libs" }],
       root, root, [],
@@ -707,7 +707,7 @@ describe("syntax highlighting decorations", () => {
       affordances: [{ name: "render", content: "display" }],
     });
     const root = folder("Root", { children: [widget] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Widget"],
       [{ name: "Widget", summary: "", kind: "contained" }],
       root, root, [],
@@ -731,7 +731,7 @@ describe("syntax highlighting decorations", () => {
       invariants: [{ name: "speed", content: "fast" }],
     });
     const root = folder("Root", { children: [widget] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Widget"],
       [{ name: "Widget", summary: "", kind: "contained" }],
       root, root, [],
@@ -815,7 +815,7 @@ describe("refTheme", () => {
 
 // ── Autocomplete functions ──
 
-describe("siblingCompletion", () => {
+describe("scopeCompletion", () => {
   beforeEach(() => {
     const child = folder("Observer", { language: "watches" });
     const root = folder("Root", {
@@ -824,8 +824,8 @@ describe("siblingCompletion", () => {
       invariants: [{ name: "speed", content: "fast" }],
     });
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches", kind: "contained" }],
-      siblingNames: ["Observer"],
+      scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
+      scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
       sigilRoot: root,
       currentContext: root,
@@ -837,7 +837,7 @@ describe("siblingCompletion", () => {
   it("returns sibling completions for @ trigger", () => {
     const state = EditorState.create({ doc: "The @" });
     const ctx = new CompletionContext(state, 5, false);
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     expect(result).not.toBeNull();
     if (result) {
       expect(result.options.length).toBeGreaterThan(0);
@@ -847,19 +847,19 @@ describe("siblingCompletion", () => {
 
   it("returns null when no siblings and no match", () => {
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: folder("Root"), currentContext: folder("Root"),
       currentPath: [], importedOntologies: null,
     });
     const state = EditorState.create({ doc: "Nothing here" });
     const ctx = new CompletionContext(state, 12, false);
-    expect(siblingCompletion(ctx)).toBeNull();
+    expect(scopeCompletion(ctx)).toBeNull();
   });
 
   it("returns frontmatter key completions inside --- block", () => {
     const state = EditorState.create({ doc: "---\nst\n---\n# Content" });
     const ctx = new CompletionContext(state, 6, false); // cursor after "st"
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     // Should offer frontmatter keys like "status"
     if (result) {
       expect(result.options.some(o => o.label === "status")).toBe(true);
@@ -869,7 +869,7 @@ describe("siblingCompletion", () => {
   it("returns affordance completions for standalone #", () => {
     const state = EditorState.create({ doc: "Uses #nav" });
     const ctx = new CompletionContext(state, 9, false); // cursor after #nav
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       expect(result.options.some(o => o.label.includes("navigate"))).toBe(true);
     }
@@ -878,20 +878,20 @@ describe("siblingCompletion", () => {
   it("returns invariant completions for standalone !", () => {
     const state = EditorState.create({ doc: "Must !sp" });
     const ctx = new CompletionContext(state, 8, false);
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       expect(result.options.some(o => o.label.includes("speed"))).toBe(true);
     }
   });
 });
 
-describe("siblingCompletion: chained @A@B ref", () => {
+describe("scopeCompletion: chained @A@B ref", () => {
   beforeEach(() => {
     const child = folder("Child", { language: "child content" });
     const root = folder("Root", { children: [folder("Parent", { children: [child] })] });
     setEditorContextForTest({
-      siblings: [{ name: "Parent", summary: "parent", kind: "contained" }],
-      siblingNames: ["Parent"],
+      scope: [{ name: "Parent", summary: "parent", kind: "contained" }],
+      scopeNames: ["Parent"],
       nameIndex: new Map([["parent", "Parent"]]),
       sigilRoot: root,
       currentContext: root,
@@ -903,14 +903,14 @@ describe("siblingCompletion: chained @A@B ref", () => {
   it("returns children for @Parent@ chain", () => {
     const state = EditorState.create({ doc: "@Parent@" });
     const ctx = new CompletionContext(state, 8, false);
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       expect(result.options.some(o => o.label.includes("Child"))).toBe(true);
     }
   });
 });
 
-describe("siblingCompletion: @Sigil#affordance property completion", () => {
+describe("scopeCompletion: @Sigil#affordance property completion", () => {
   beforeEach(() => {
     const widget = folder("Widget", {
       affordances: [{ name: "render", content: "display" }],
@@ -918,8 +918,8 @@ describe("siblingCompletion: @Sigil#affordance property completion", () => {
     });
     const root = folder("Root", { children: [widget] });
     setEditorContextForTest({
-      siblings: [{ name: "Widget", summary: "", kind: "contained" }],
-      siblingNames: ["Widget"],
+      scope: [{ name: "Widget", summary: "", kind: "contained" }],
+      scopeNames: ["Widget"],
       nameIndex: new Map([["widget", "Widget"]]),
       sigilRoot: root,
       currentContext: root,
@@ -931,7 +931,7 @@ describe("siblingCompletion: @Sigil#affordance property completion", () => {
   it("returns affordance completions for @Widget#", () => {
     const state = EditorState.create({ doc: "@Widget#" });
     const ctx = new CompletionContext(state, 8, false);
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       expect(result.options.some(o => o.label.includes("render"))).toBe(true);
     }
@@ -940,21 +940,21 @@ describe("siblingCompletion: @Sigil#affordance property completion", () => {
   it("returns invariant completions for @Widget!", () => {
     const state = EditorState.create({ doc: "@Widget!" });
     const ctx = new CompletionContext(state, 8, false);
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       expect(result.options.some(o => o.label.includes("speed"))).toBe(true);
     }
   });
 });
 
-describe("siblingCompletion: frontmatter value completion", () => {
+describe("scopeCompletion: frontmatter value completion", () => {
   beforeEach(() => {
     const root = folder("Root", {
       language: "---\nstatus: done\n---\nContent",
       children: [folder("Child", { language: "---\nstatus: active\n---\nChild content" })],
     });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
   });
@@ -962,7 +962,7 @@ describe("siblingCompletion: frontmatter value completion", () => {
   it("returns status values after 'status: ' in frontmatter", () => {
     const state = EditorState.create({ doc: "---\nstatus: \n---\n# Content" });
     const ctx = new CompletionContext(state, 12, false); // cursor after "status: "
-    const result = siblingCompletion(ctx);
+    const result = scopeCompletion(ctx);
     if (result) {
       // Should include "idea" (default) and values from tree
       expect(result.options.length).toBeGreaterThan(0);
@@ -973,8 +973,8 @@ describe("siblingCompletion: frontmatter value completion", () => {
 describe("refCompletion", () => {
   beforeEach(() => {
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches", kind: "contained" }],
-      siblingNames: ["Observer"],
+      scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
+      scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
       sigilRoot: folder("Root", { children: [folder("Observer")] }),
       currentContext: folder("Root"),
@@ -1002,7 +1002,7 @@ describe("refCompletion", () => {
   it("returns standalone #affordance completions", () => {
     const root = folder("Root", { affordances: [{ name: "navigate", content: "move" }] });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
     const state = EditorState.create({ doc: "#nav" });
@@ -1016,7 +1016,7 @@ describe("refCompletion", () => {
   it("returns standalone !invariant completions", () => {
     const root = folder("Root", { invariants: [{ name: "speed", content: "fast" }] });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: root, currentContext: root, currentPath: [], importedOntologies: null,
     });
     const state = EditorState.create({ doc: "!sp" });
@@ -1031,9 +1031,9 @@ describe("refCompletion", () => {
 // ── Hover tooltip ──
 
 describe("hover tooltip via EditorView", () => {
-  it("hover tooltip extensions are included in buildSiblingHighlighter output", () => {
+  it("hover tooltip extensions are included in buildScopeHighlighter output", () => {
     const root = folder("Root", { children: [folder("Observer", { language: "watches things" })] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Observer"],
       [{ name: "Observer", summary: "watches things", kind: "contained" }],
       root, root, [],
@@ -1044,7 +1044,7 @@ describe("hover tooltip via EditorView", () => {
 
   it("editor with hover tooltip extension renders without error", () => {
     const root = folder("Root", { children: [folder("Child", { language: "content" })] });
-    const exts = buildSiblingHighlighter(
+    const exts = buildScopeHighlighter(
       ["Child"],
       [{ name: "Child", summary: "content", kind: "contained" }],
       root, root, [],

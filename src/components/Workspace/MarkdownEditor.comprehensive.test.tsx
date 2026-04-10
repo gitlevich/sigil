@@ -198,7 +198,7 @@ describe("MarkdownEditor component", () => {
         <MarkdownEditor
           content="Uses @Observer here."
           onChange={vi.fn()}
-          siblingNames={["Observer"]}
+          scopeNames={["Observer"]}
           siblings={[{ name: "Observer", summary: "watches", kind: "contained" as const }]}
           sigilRoot={{ name: "Root", path: "/mock/Root", language: "", affordances: [], invariants: [], children: [{ name: "Observer", path: "/mock/Root/Observer", language: "watches", affordances: [], invariants: [], children: [], images: [] }], images: [] } as any}
           currentContext={{ name: "Root", path: "/mock/Root", language: "", affordances: [], invariants: [], children: [], images: [] } as any}
@@ -548,7 +548,7 @@ describe("MarkdownEditor component", () => {
         <MarkdownEditor
           content="The @Observer watches."
           onChange={vi.fn()}
-          siblingNames={["Observer"]}
+          scopeNames={["Observer"]}
           siblings={[{ name: "Observer", summary: "watches", kind: "contained" as const }]}
           sigilRoot={{
             name: "Root", path: "/mock/Root", language: "", affordances: [], invariants: [],
@@ -605,7 +605,7 @@ describe("MarkdownEditor component", () => {
           content="---\nstatus: idea\n---\n# Content with @Ref and #aff and !inv"
           onChange={vi.fn()}
           wordWrap={true}
-          siblingNames={["Ref"]}
+          scopeNames={["Ref"]}
           siblings={[{ name: "Ref", summary: "ref", kind: "contained" as const }]}
           keybindings={{ "rename-sigil": "Alt-Mod-r", "create-sigil": "Alt-Enter", "delete-line": "Mod-d", "find-references": "Alt-Mod-f" }}
           sigilDir="/mock/dir"
@@ -621,7 +621,7 @@ describe("MarkdownEditor component", () => {
 
   it("reconfigures sibling highlighting on prop change", async () => {
     const { rerender, container } = render(
-      <MarkdownEditor content="@Observer" onChange={vi.fn()} siblingNames={[]} siblings={[]} />,
+      <MarkdownEditor content="@Observer" onChange={vi.fn()} scopeNames={[]} siblings={[]} />,
     );
 
     await act(async () => {
@@ -629,7 +629,7 @@ describe("MarkdownEditor component", () => {
         <MarkdownEditor
           content="@Observer"
           onChange={vi.fn()}
-          siblingNames={["Observer"]}
+          scopeNames={["Observer"]}
           siblings={[{ name: "Observer", summary: "watches", kind: "contained" as const }]}
         />,
       );
@@ -800,7 +800,7 @@ describe("buildCustomKeymap", () => {
   it("create-sigil keymap: calls onCreateSigil for unknown @ref", () => {
     const onCreateSigil = vi.fn();
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: folder("Root"), currentContext: folder("Root"),
       currentPath: [], importedOntologies: null,
     });
@@ -847,8 +847,8 @@ describe("buildCustomKeymap", () => {
       language: "@Observer is referenced.",
     });
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches" }],
-      siblingNames: ["Observer"],
+      scope: [{ name: "Observer", summary: "watches" }],
+      scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
       sigilRoot: root, currentContext: root,
       currentPath: [], importedOntologies: null,
@@ -875,7 +875,7 @@ describe("buildCustomKeymap", () => {
       affordances: [{ name: "navigate", content: "move" }],
     });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
     });
@@ -899,8 +899,8 @@ describe("buildCustomKeymap", () => {
     const child = folder("Observer");
     const root = folder("Root", { children: [child] });
     setEditorContextForTest({
-      siblings: [{ name: "Observer", summary: "watches" }],
-      siblingNames: ["Observer"],
+      scope: [{ name: "Observer", summary: "watches" }],
+      scopeNames: ["Observer"],
       nameIndex: new Map([["observer", "Observer"]]),
       sigilRoot: root, currentContext: root,
       currentPath: [], importedOntologies: null,
@@ -924,7 +924,7 @@ describe("buildCustomKeymap", () => {
     const onCreateAffordance = vi.fn();
     const ctx = folder("Root");
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
     });
@@ -949,7 +949,7 @@ describe("buildCustomKeymap", () => {
     const onCreateInvariant = vi.fn();
     const ctx = folder("Root");
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
     });
@@ -977,7 +977,7 @@ describe("buildCustomKeymap", () => {
       language: "#navigate used here.",
     });
     setEditorContextForTest({
-      siblings: [], siblingNames: [], nameIndex: new Map(),
+      scope: [], scopeNames: [], nameIndex: new Map(),
       sigilRoot: ctx, currentContext: ctx,
       currentPath: [], importedOntologies: null,
     });

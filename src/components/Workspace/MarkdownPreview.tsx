@@ -12,7 +12,7 @@ import {
   type Segment,
 } from "sigil-core";
 import { api } from "../../tauri";
-import type { SiblingInfo } from "./sigilExtensions";
+import type { ScopeEntry } from "./sigilExtensions";
 import styles from "./MarkdownPreview.module.css";
 
 interface MarkdownPreviewProps {
@@ -22,9 +22,9 @@ interface MarkdownPreviewProps {
   images?: string[];
   onContentChange?: (content: string) => void;
   /** @deprecated Use refs instead */
-  siblingNames?: string[];
+  scopeNames?: string[];
   /** @deprecated Use refs instead */
-  siblings?: SiblingInfo[];
+  scope?: ScopeEntry[];
 }
 
 function ResizableImage({
@@ -114,9 +114,9 @@ function SigilImage({ path }: { path: string }) {
   return <img src={dataUrl} alt="" className={styles.sigilImage} />;
 }
 
-/** Convert SiblingInfo[] to Ref[] so the shared highlighting can consume them. */
-function siblingsToRefs(siblings: SiblingInfo[]): Ref[] {
-  return siblings.map((s) => ({
+/** Convert ScopeEntry[] to Ref[] so the shared highlighting can consume them. */
+function scopeToRefs(scope: ScopeEntry[]): Ref[] {
+  return scope.map((s) => ({
     name: s.name,
     prefix: "@" as const,
     summary: s.summary,
@@ -125,10 +125,10 @@ function siblingsToRefs(siblings: SiblingInfo[]): Ref[] {
   }));
 }
 
-export function MarkdownPreview({ content, refs: refsProp, sigilDir, images = [], onContentChange, siblings = [] }: MarkdownPreviewProps) {
+export function MarkdownPreview({ content, refs: refsProp, sigilDir, images = [], onContentChange, scope = [] }: MarkdownPreviewProps) {
   const refs = useMemo(
-    () => refsProp ?? siblingsToRefs(siblings),
-    [refsProp, siblings],
+    () => refsProp ?? scopeToRefs(scope),
+    [refsProp, scope],
   );
   const pattern = useMemo(() => buildRefPattern(refs), [refs]);
   const lookup = useMemo(() => buildRefLookup(refs), [refs]);
@@ -137,11 +137,11 @@ export function MarkdownPreview({ content, refs: refsProp, sigilDir, images = []
   // Build a kind map for CSS class differentiation (contained vs sibling vs lib)
   const kindMap = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const s of siblings) {
+    for (const s of scope) {
       map[s.name.toLowerCase()] = s.kind || "contained";
     }
     return map;
-  }, [siblings]);
+  }, [scope]);
 
   const handleImageResize = useCallback((src: string, width: number) => {
     if (!onContentChange) return;

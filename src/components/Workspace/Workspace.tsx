@@ -9,7 +9,7 @@ import { OntologyPanel } from "../OntologyTree/OntologyPanel";
 import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import { MarkdownEditor } from "./MarkdownEditor";
-import type { SiblingInfo } from "./sigilExtensions";
+import type { ScopeEntry } from "./sigilExtensions";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { CompileStatusBar } from "./CompileStatusBar";
@@ -313,10 +313,10 @@ export function Workspace() {
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null);
 
   // Memoize lexical scope
-  const { allRefs, allRefNames } = useMemo(() => {
+  const { scope, scopeNames } = useMemo(() => {
     const isImported = ws.currentPath[0] === "Imported Ontologies" && ws.spec.importedOntologies;
     const scopePrefix = isImported ? ["Imported Ontologies"] : [];
-    const refs: SiblingInfo[] = buildLexicalScope(scopeRoot, scopePath, scopePrefix);
+    const refs: ScopeEntry[] = buildLexicalScope(scopeRoot, scopePath, scopePrefix);
     const seenNames = new Set(refs.map((r) => r.name));
     const importedSigil = ws.spec.importedOntologies ?? null;
     setGlobalImportedOntologies(importedSigil);
@@ -329,7 +329,7 @@ export function Workspace() {
         refs.push(...flattenOntologyRefs(ontology, ["Imported Ontologies", ontology.name], seenNames, ontology.name));
       }
     }
-    return { allRefs: refs, allRefNames: refs.map((r) => r.name) };
+    return { scope: refs, scopeNames: refs.map((r) => r.name) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeFingerprint, scopePath]);
 
@@ -370,8 +370,8 @@ export function Workspace() {
             namePlaceholder="I need to..."
             contentPlaceholder="so that..."
             items={currentFolder.affordances}
-            siblings={allRefs}
-            siblingNames={allRefNames}
+            scope={scope}
+            scopeNames={scopeNames}
             sigilRoot={scopeRoot}
             currentContext={currentFolder}
             currentPath={scopePath}
@@ -395,8 +395,8 @@ export function Workspace() {
                   <MarkdownEditor
                     content={content}
                     onChange={handleContentChange}
-                    siblingNames={allRefNames}
-                    siblings={allRefs}
+                    scopeNames={scopeNames}
+                    scope={scope}
                     sigilRoot={scopeRoot}
                     currentContext={currentFolder}
                     currentPath={scopePath}
@@ -436,8 +436,8 @@ export function Workspace() {
             namePlaceholder="what must hold..."
             contentPlaceholder="because..."
             items={currentFolder.invariants}
-            siblings={allRefs}
-            siblingNames={allRefNames}
+            scope={scope}
+            scopeNames={scopeNames}
             sigilRoot={scopeRoot}
             currentContext={currentFolder}
             currentPath={scopePath}

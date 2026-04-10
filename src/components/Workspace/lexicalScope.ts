@@ -1,7 +1,7 @@
 import { findContext, makeSummary } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import type { SigilFolder } from "../../tauri";
-import type { SiblingInfo } from "./sigilExtensions";
+import type { ScopeEntry } from "./sigilExtensions";
 
 /** Build the full lexical scope for the current path: children -> ancestry levels -> root.
  *  pathPrefix is prepended to all absolutePath values (e.g., ["Imported Ontologies"] for lib navigation).
@@ -10,8 +10,8 @@ export function buildLexicalScope(
   root: SigilFolder,
   currentPath: string[],
   pathPrefix: string[] = [],
-): SiblingInfo[] {
-  const refs: SiblingInfo[] = [];
+): ScopeEntry[] {
+  const refs: ScopeEntry[] = [];
   const seen = new Set<string>();
   const currentFolder = findContext(root as Sigil, currentPath) as SigilFolder;
   if (!currentFolder) return refs;
@@ -57,8 +57,8 @@ export function flattenOntologyRefs(
   basePath: string[],
   seen: Set<string>,
   libPrefix: string,
-): SiblingInfo[] {
-  const refs: SiblingInfo[] = [];
+): ScopeEntry[] {
+  const refs: ScopeEntry[] = [];
   for (const child of ontology.children) {
     const childPath = [...basePath, child.name];
     if (!seen.has(child.name)) {

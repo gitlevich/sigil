@@ -14,9 +14,9 @@ import { RenamePopup } from "../shared/RenamePopup";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { fromDashForm } from "sigil-core";
 import {
-  SiblingInfo,
-  siblingCompletion,
-  buildSiblingHighlighter,
+  ScopeEntry,
+  scopeCompletion,
+  buildScopeHighlighter,
   buildCollapsibleFrontmatter,
   getThemeExtension,
   allRefsPattern,
@@ -64,8 +64,8 @@ async function insertImagesFromClipboard(files: FileList, view: EditorView, sigi
 interface MarkdownEditorProps {
   content: string;
   onChange: (content: string) => void;
-  siblingNames?: string[];
-  siblings?: SiblingInfo[];
+  scopeNames?: string[];
+  scope?: ScopeEntry[];
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
@@ -87,7 +87,7 @@ interface MarkdownEditorProps {
 }
 
 const themeCompartment = new Compartment();
-const siblingCompartment = new Compartment();
+const scopeCompartment = new Compartment();
 const keymapCompartment = new Compartment();
 const wrapCompartment = new Compartment();
 
@@ -259,7 +259,7 @@ export function buildCustomKeymap(
   ]);
 }
 
-export function MarkdownEditor({ content, onChange, siblingNames = [], siblings = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, scopeNames = [], scope = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: MarkdownEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -331,12 +331,12 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
-        siblingCompartment.of(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
+        scopeCompartment.of(buildScopeHighlighter(scopeNames, scope, sigilRoot ?? null, currentContext ?? null, currentPath)),
         wrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
         buildCollapsibleFrontmatter(),
         aiHighlightField,
         autocompletion({
-          override: [siblingCompletion],
+          override: [scopeCompletion],
           activateOnTyping: true,
           activateOnTypingDelay: 0,
         }),
@@ -583,9 +583,9 @@ export function MarkdownEditor({ content, onChange, siblingNames = [], siblings 
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: siblingCompartment.reconfigure(buildSiblingHighlighter(siblingNames, siblings, sigilRoot ?? null, currentContext ?? null, currentPath)),
+      effects: scopeCompartment.reconfigure(buildScopeHighlighter(scopeNames, scope, sigilRoot ?? null, currentContext ?? null, currentPath)),
     });
-  }, [siblingNames, siblings, sigilRoot, currentContext, currentPath]);
+  }, [scopeNames, scope, sigilRoot, currentContext, currentPath]);
 
   // Toggle word wrap
   useEffect(() => {

@@ -10,9 +10,9 @@ import { useAutoSave } from "../../hooks/useAutoSave";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
-  buildSiblingHighlighter,
+  buildScopeHighlighter,
   getThemeExtension,
-  getGlobalSiblings,
+  getGlobalScope,
   getGlobalSigilRoot,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
@@ -20,15 +20,15 @@ import {
 import styles from "./VisionEditor.module.css";
 
 const themeCompartment = new Compartment();
-const siblingCompartment = new Compartment();
+const scopeCompartment = new Compartment();
 
 function buildVisionHighlighter() {
-  const siblings = getGlobalSiblings();
+  const scope = getGlobalScope();
   const root = getGlobalSigilRoot();
   const ctx = getGlobalCurrentContext();
   const path = getGlobalCurrentPath();
-  const names = siblings.map((s) => s.name);
-  return buildSiblingHighlighter(names, siblings, root, ctx, path);
+  const names = scope.map((s) => s.name);
+  return buildScopeHighlighter(names, scope, root, ctx, path);
 }
 
 export function VisionEditor() {
@@ -64,7 +64,7 @@ export function VisionEditor() {
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
-        siblingCompartment.of(buildVisionHighlighter()),
+        scopeCompartment.of(buildVisionHighlighter()),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -112,7 +112,7 @@ export function VisionEditor() {
   // Refresh sigil reference highlighting when context changes
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: siblingCompartment.reconfigure(buildVisionHighlighter()),
+      effects: scopeCompartment.reconfigure(buildVisionHighlighter()),
     });
   }, [ws.spec]);
 

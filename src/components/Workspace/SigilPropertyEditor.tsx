@@ -9,8 +9,8 @@ import { useThemeObserver } from "../../hooks/useThemeObserver";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import {
-  SiblingInfo,
-  buildSiblingHighlighter,
+  ScopeEntry,
+  buildScopeHighlighter,
   buildPropertyExtensions,
   buildCollapsibleFrontmatter,
   getThemeExtension,
@@ -60,8 +60,8 @@ interface SigilPropertyEditorProps {
   contentPlaceholder: string;
   items: { name: string; content: string }[];
   // Context for autocomplete / highlighting
-  siblings?: SiblingInfo[];
-  siblingNames?: string[];
+  scope?: ScopeEntry[];
+  scopeNames?: string[];
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
@@ -117,8 +117,8 @@ function PropertyCodeMirror({
   onChange,
   onCommit,
   onRevert,
-  siblings,
-  siblingNames,
+  scope,
+  scopeNames,
   sigilRoot,
   currentContext,
   currentPath,
@@ -131,8 +131,8 @@ function PropertyCodeMirror({
   onChange: (v: string) => void;
   onCommit: () => void;
   onRevert: () => void;
-  siblings?: SiblingInfo[];
-  siblingNames?: string[];
+  scope?: ScopeEntry[];
+  scopeNames?: string[];
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
@@ -166,9 +166,9 @@ function PropertyCodeMirror({
         keymap.of([...defaultKeymap, ...historyKeymap]),
         themeCompartRef.current.of(getThemeExtension()),
         siblingCompartRef.current.of(
-          buildSiblingHighlighter(
-            siblingNames ?? [],
-            siblings ?? [],
+          buildScopeHighlighter(
+            scopeNames ?? [],
+            scope ?? [],
             sigilRoot ?? null,
             currentContext ?? null,
             currentPath ?? [],
@@ -271,16 +271,16 @@ function PropertyCodeMirror({
     if (!view) return;
     view.dispatch({
       effects: siblingCompartRef.current.reconfigure(
-        buildSiblingHighlighter(
-          siblingNames ?? [],
-          siblings ?? [],
+        buildScopeHighlighter(
+          scopeNames ?? [],
+          scope ?? [],
           sigilRoot ?? null,
           currentContext ?? null,
           currentPath ?? [],
         )
       ),
     });
-  }, [siblingNames, siblings, sigilRoot, currentContext, currentPath]);
+  }, [scopeNames, scope, sigilRoot, currentContext, currentPath]);
 
   useThemeObserver(viewRef, themeCompartRef);
 
@@ -307,8 +307,8 @@ function PropertyItem({
   onDragStart,
   onDragOver,
   onDrop,
-  siblings,
-  siblingNames,
+  scope,
+  scopeNames,
   sigilRoot,
   currentContext,
   currentPath,
@@ -333,8 +333,8 @@ function PropertyItem({
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
-  siblings?: SiblingInfo[];
-  siblingNames?: string[];
+  scope?: ScopeEntry[];
+  scopeNames?: string[];
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
@@ -429,8 +429,8 @@ function PropertyItem({
           onChange={onContentChange}
           onCommit={() => { contentBeforeEdit.current = item.content; }}
           onRevert={() => { onContentChange(contentBeforeEdit.current); }}
-          siblings={siblings}
-          siblingNames={siblingNames}
+          scope={scope}
+          scopeNames={scopeNames}
           sigilRoot={sigilRoot}
           currentContext={currentContext}
           currentPath={currentPath}
@@ -453,8 +453,8 @@ export function SigilPropertyEditor({
   namePlaceholder,
   contentPlaceholder,
   items: externalItems,
-  siblings,
-  siblingNames,
+  scope,
+  scopeNames,
   sigilRoot,
   currentContext,
   currentPath,
@@ -698,8 +698,8 @@ export function SigilPropertyEditor({
                 onDragStart={() => { dragSourceIndex.current = i; }}
                 onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
                 onDrop={() => handleDrop(i)}
-                siblings={siblings}
-                siblingNames={siblingNames}
+                scope={scope}
+                scopeNames={scopeNames}
                 sigilRoot={sigilRoot}
                 currentContext={currentContext}
                 currentPath={currentPath}

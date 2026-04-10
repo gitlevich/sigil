@@ -17,7 +17,7 @@ import {
 } from "sigil-core";
 import type { ScopeKind } from "sigil-core";
 
-export interface SiblingInfo {
+export interface ScopeEntry {
   name: string;
   summary: string;
   kind?: "contained" | "sibling" | "lib";
@@ -25,15 +25,15 @@ export interface SiblingInfo {
   libPrefix?: string;
 }
 
-// ── Editor context (set by buildSiblingHighlighter, read by completion/decoration) ──
+// ── Editor context (set by buildScopeHighlighter, read by completion/decoration) ──
 //
 // Single mutable object holding the sigil tree context for CodeMirror extensions.
-// Mutation happens ONLY in buildSiblingHighlighter() and setGlobalImportedOntologies().
+// Mutation happens ONLY in buildScopeHighlighter() and setGlobalImportedOntologies().
 // Long-term: migrate to a CodeMirror StateField so each editor instance owns its context.
 
 export interface SigilEditorContext {
-  siblings: SiblingInfo[];
-  siblingNames: string[];
+  scope: ScopeEntry[];
+  scopeNames: string[];
   nameIndex: Map<string, string>;
   sigilRoot: SigilFolder | null;
   importedOntologies: SigilFolder | null;
@@ -45,8 +45,8 @@ export interface SigilEditorContext {
 // module reinitialization clears the context and all refs show unresolved
 // until the user navigates away and back.
 const editorCtx: SigilEditorContext = (import.meta as any).hot?.data?.editorCtx ?? {
-  siblings: [],
-  siblingNames: [],
+  scope: [],
+  scopeNames: [],
   nameIndex: new Map(),
   sigilRoot: null,
   importedOntologies: null,
@@ -57,7 +57,7 @@ if ((import.meta as any).hot) {
   (import.meta as any).hot.dispose((data: any) => { data.editorCtx = editorCtx; });
 }
 
-/** Read the current editor context. Do not mutate — use buildSiblingHighlighter. */
+/** Read the current editor context. Do not mutate — use buildScopeHighlighter. */
 export function getEditorContext(): Readonly<SigilEditorContext> { return editorCtx; }
 
 /** Test-only: set editorCtx fields without CodeMirror dependencies. */
@@ -66,7 +66,7 @@ export function setEditorContextForTest(patch: Partial<SigilEditorContext>) {
 }
 
 // Convenience accessors (match existing call sites, thin wrappers)
-export function getGlobalSiblings() { return editorCtx.siblings; }
+export function getGlobalScope() { return editorCtx.scope; }
 export function getGlobalSigilRoot() { return editorCtx.sigilRoot; }
 export function setGlobalImportedOntologies(ctx: SigilFolder | null) { editorCtx.importedOntologies = ctx; }
 export function getGlobalCurrentContext() { return editorCtx.currentContext; }
@@ -126,11 +126,11 @@ export function extractSummary(domainLanguage: string): string {
     .join("\n");
 }
 
-export function findSibling(name: string): SiblingInfo | undefined {
+export function findInScope(name: string): ScopeEntry | undefined {
   const fast = editorCtx.nameIndex.get(name.toLowerCase()) ?? editorCtx.nameIndex.get(flattenName(name));
-  if (fast) return editorCtx.siblings.find((s) => s.name === fast);
-  const canonical = resolveRefName(name, editorCtx.siblingNames);
-  return canonical ? editorCtx.siblings.find((s) => s.name === canonical) : undefined;
+  if (fast) return editorCtx.scope.find((s) => s.name === fast);
+  const canonical = resolveRefName(name, editorCtx.scopeNames);
+  return canonical ? editorCtx.scope.find((s) => s.name === canonical) : undefined;
 }
 
 export function walkTree(segments: string[], ctx: SigilFolder): string[] | null {
@@ -307,7 +307,7 @@ export function collectAncestorProperties(root: SigilFolder | null, path: string
 
 // ── Autocomplete ──
 
-export function siblingCompletion(context: CompletionContext) {
+export function scopeCompletion(context: CompletionContext) {
   // Front matter: offer key/value completions when inside the --- block
   const closeLineNum = getFrontMatterEnd(context.state.doc);
   if (closeLineNum !== -1) {
@@ -340,15 +340,15 @@ export function siblingCompletion(context: CompletionContext) {
     }
   }
 
-  return siblingCompletionBody(context);
+  return scopeCompletionBody(context);
 }
 
 /** Autocomplete for references only (no front-matter handling). Used by property panels. */
 export function refCompletion(context: CompletionContext) {
-  return siblingCompletionBody(context);
+  return scopeCompletionBody(context);
 }
 
-function siblingCompletionBody(context: CompletionContext) {
+function scopeCompletionBody(context: CompletionContext) {
   const ancestorProps = collectAncestorProperties(editorCtx.sigilRoot, editorCtx.currentPath);
 
   // Case 0: standalone #partial — offer affordances
@@ -453,10 +453,10 @@ function siblingCompletionBody(context: CompletionContext) {
   const segments = typed.slice(1).split("@");
 
   if (segments.length <= 1) {
-    if (editorCtx.siblings.length === 0) return null;
+    if (editorCtx.scope.length === 0) return null;
     return {
       from: before.from,
-      options: editorCtx.siblings.map((s) => ({
+      options: editorCtx.scope.map((s) => ({
         label: s.kind === "lib" && s.libPrefix ? `@${s.libPrefix}@${s.name}` : `@${s.name}`,
         detail: `${s.kind === "sibling" ? "[neighbor] " : s.kind === "lib" ? "[lib] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
         type: s.kind === "sibling" ? "property" as const : s.kind === "lib" ? "enum" as const : "variable" as const,
@@ -512,7 +512,7 @@ function siblingCompletionBody(context: CompletionContext) {
   return { from: before.from, options, filter: true };
 }
 
-// ── Front matter helpers (used by siblingCompletion) ──
+// ── Front matter helpers (used by scopeCompletion) ──
 
 const DEFAULT_STATUS = "idea";
 
@@ -686,7 +686,7 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
     const to = from + match[0].length;
     if (pos >= from && pos <= to) {
       const raw = match[1];
-      const canonical = resolveRefName(raw, editorCtx.siblings.map((s) => s.name));
+      const canonical = resolveRefName(raw, editorCtx.scope.map((s) => s.name));
       const known = canonical !== undefined;
       return { name: canonical ?? raw, from, known };
     }
@@ -750,16 +750,16 @@ export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" 
 
 // ── Highlighter + hover tooltip builder ──
 
-export function buildSiblingHighlighter(
+export function buildScopeHighlighter(
   _names: string[],
-  siblings: SiblingInfo[],
+  scope: ScopeEntry[],
   sigilRoot: SigilFolder | null,
   currentCtx: SigilFolder | null,
   path: string[] = [],
 ) {
-  editorCtx.siblings = siblings;
-  editorCtx.siblingNames = siblings.map((s) => s.name);
-  editorCtx.nameIndex = buildNameIndex(editorCtx.siblingNames);
+  editorCtx.scope = scope;
+  editorCtx.scopeNames = scope.map((s) => s.name);
+  editorCtx.nameIndex = buildNameIndex(editorCtx.scopeNames);
   editorCtx.sigilRoot = sigilRoot;
   editorCtx.currentContext = currentCtx;
   editorCtx.currentPath = path;
@@ -894,7 +894,7 @@ export function buildSiblingHighlighter(
               summary = resolution.summary ?? "outside scope";
             } else {
               summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
-                ? (editorCtx.siblings.find((s) => s.name === resolution.path[0])?.summary ?? "")
+                ? (editorCtx.scope.find((s) => s.name === resolution.path[0])?.summary ?? "")
                 : "");
               if (propertyPart) {
                 const ctx = editorCtx.sigilRoot
