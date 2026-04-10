@@ -8,11 +8,11 @@ import { api, SigilFolder, openInNewWindow, toTauriAccelerator, menuAccelerator,
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WorkspaceState } from "../state/WorkspaceContext";
-import { NarratingState } from "../state/NarratingContext";
+import { LayoutState } from "../state/LayoutContext";
 
 export interface MenuWorkspaceRef {
   workspace: WorkspaceState | null;
-  narrating: NarratingState | null;
+  layout: LayoutState | null;
 }
 
 export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null>) {
@@ -25,7 +25,7 @@ export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null
     buildMenu(
       dispatch,
       () => workspaceRef.current?.workspace ?? null,
-      () => workspaceRef.current?.narrating ?? null,
+      () => workspaceRef.current?.layout ?? null,
       () => stateRef.current.ui,
       () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS,
     ).catch(console.error);
@@ -36,7 +36,7 @@ export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null
 async function buildMenu(
   dispatch: ReturnType<typeof useAppDispatch>,
   getWorkspace: () => WorkspaceState | null,
-  _getNarrating: () => NarratingState | null,
+  _getNarrating: () => LayoutState | null,
   getUI: () => ReturnType<typeof useAppState>["ui"],
   getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
 ) {
@@ -245,7 +245,7 @@ async function buildMenu(
     action: () => {
       const ws = getWorkspace();
       if (!ws) return;
-      // Word wrap toggle is now handled by the narrating layer
+      // Word wrap toggle is now handled by the layout layer
     },
   });
 

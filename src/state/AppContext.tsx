@@ -4,7 +4,7 @@
  * Composes the workspace-independent concerns: screen (picker vs workspace),
  * settings, dialogs, theme, and UI layout (panel widths, font size).
  *
- * Workspace-specific state lives in WorkspaceContext, NarratingContext,
+ * Workspace-specific state lives in WorkspaceContext, LayoutContext,
  * and ConversingContext — provided when a workspace is open.
  */
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";

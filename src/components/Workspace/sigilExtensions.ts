@@ -31,7 +31,7 @@ export interface ScopeEntry {
 // Mutation happens ONLY in buildScopeHighlighter() and setGlobalImportedOntologies().
 // Long-term: migrate to a CodeMirror StateField so each editor instance owns its context.
 
-export interface SigilEditorContext {
+export interface EditorScope {
   scope: ScopeEntry[];
   scopeNames: string[];
   nameIndex: Map<string, string>;
@@ -44,7 +44,7 @@ export interface SigilEditorContext {
 // Preserve editor context across Vite HMR reloads — without this,
 // module reinitialization clears the context and all refs show unresolved
 // until the user navigates away and back.
-const editorCtx: SigilEditorContext = (import.meta as any).hot?.data?.editorCtx ?? {
+const editorScope: EditorScope = (import.meta as any).hot?.data?.editorScope ?? {
   scope: [],
   scopeNames: [],
   nameIndex: new Map(),
@@ -54,23 +54,23 @@ const editorCtx: SigilEditorContext = (import.meta as any).hot?.data?.editorCtx 
   currentPath: [],
 };
 if ((import.meta as any).hot) {
-  (import.meta as any).hot.dispose((data: any) => { data.editorCtx = editorCtx; });
+  (import.meta as any).hot.dispose((data: any) => { data.editorScope = editorScope; });
 }
 
 /** Read the current editor context. Do not mutate — use buildScopeHighlighter. */
-export function getEditorContext(): Readonly<SigilEditorContext> { return editorCtx; }
+export function getEditorContext(): Readonly<EditorScope> { return editorScope; }
 
-/** Test-only: set editorCtx fields without CodeMirror dependencies. */
-export function setEditorContextForTest(patch: Partial<SigilEditorContext>) {
-  Object.assign(editorCtx, patch);
+/** Test-only: set editorScope fields without CodeMirror dependencies. */
+export function setEditorContextForTest(patch: Partial<EditorScope>) {
+  Object.assign(editorScope, patch);
 }
 
 // Convenience accessors (match existing call sites, thin wrappers)
-export function getGlobalScope() { return editorCtx.scope; }
-export function getGlobalSigilRoot() { return editorCtx.sigilRoot; }
-export function setGlobalImportedOntologies(ctx: SigilFolder | null) { editorCtx.importedOntologies = ctx; }
-export function getGlobalCurrentContext() { return editorCtx.currentContext; }
-export function getGlobalCurrentPath() { return editorCtx.currentPath; }
+export function getGlobalScope() { return editorScope.scope; }
+export function getGlobalSigilRoot() { return editorScope.sigilRoot; }
+export function setGlobalImportedOntologies(ctx: SigilFolder | null) { editorScope.importedOntologies = ctx; }
+export function getGlobalCurrentContext() { return editorScope.currentContext; }
+export function getGlobalCurrentPath() { return editorScope.currentPath; }
 
 // ── Decoration marks ──
 
@@ -127,10 +127,10 @@ export function extractSummary(domainLanguage: string): string {
 }
 
 export function findInScope(name: string): ScopeEntry | undefined {
-  const fast = editorCtx.nameIndex.get(name.toLowerCase()) ?? editorCtx.nameIndex.get(flattenName(name));
-  if (fast) return editorCtx.scope.find((s) => s.name === fast);
-  const canonical = resolveRefName(name, editorCtx.scopeNames);
-  return canonical ? editorCtx.scope.find((s) => s.name === canonical) : undefined;
+  const fast = editorScope.nameIndex.get(name.toLowerCase()) ?? editorScope.nameIndex.get(flattenName(name));
+  if (fast) return editorScope.scope.find((s) => s.name === fast);
+  const canonical = resolveRefName(name, editorScope.scopeNames);
+  return canonical ? editorScope.scope.find((s) => s.name === canonical) : undefined;
 }
 
 export function walkTree(segments: string[], ctx: SigilFolder): string[] | null {
@@ -154,23 +154,23 @@ export function findContextByPath(path: string[], root: SigilFolder): SigilFolde
 }
 
 export function findInvariantInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
-  if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  const result = findInvariantInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
+  const result = findInvariantInScope(editorScope.sigilRoot, editorScope.currentPath, name);
   if (result) return result;
   // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorCtx.importedOntologies) {
-    return findInvariantInOntologies(editorCtx.importedOntologies, name);
+  if (editorScope.importedOntologies) {
+    return findInvariantInOntologies(editorScope.importedOntologies, name);
   }
   return null;
 }
 
 export function findAffordanceInScopeLocal(name: string): { content: string; ownerPath: string[] } | null {
-  if (!editorCtx.sigilRoot || !editorCtx.currentPath) return null;
-  const result = findAffordanceInScope(editorCtx.sigilRoot, editorCtx.currentPath, name);
+  if (!editorScope.sigilRoot || !editorScope.currentPath) return null;
+  const result = findAffordanceInScope(editorScope.sigilRoot, editorScope.currentPath, name);
   if (result) return result;
   // Search imported ontologies (Libs are ambient root scope per spec)
-  if (editorCtx.importedOntologies) {
-    return findAffordanceInOntologies(editorCtx.importedOntologies, name);
+  if (editorScope.importedOntologies) {
+    return findAffordanceInOntologies(editorScope.importedOntologies, name);
   }
   return null;
 }
@@ -235,13 +235,13 @@ const scopeKindToRefKind: Record<ScopeKind, RefKind> = {
 
 export function resolveChainedRef(matchText: string): RefResolution {
   const segments = matchText.slice(1).split("@");
-  if (!editorCtx.sigilRoot) return { kind: "unresolved", path: segments };
+  if (!editorScope.sigilRoot) return { kind: "unresolved", path: segments };
 
   const result = resolveRefFull(
-    editorCtx.sigilRoot,
-    editorCtx.currentPath,
+    editorScope.sigilRoot,
+    editorScope.currentPath,
     matchText,
-    editorCtx.importedOntologies,
+    editorScope.importedOntologies,
   );
 
   if (!result) return { kind: "unresolved", path: segments };
@@ -256,12 +256,12 @@ export function resolveChainedRef(matchText: string): RefResolution {
 }
 
 export function resolveRefToContext(sigilRef: string): SigilFolder | null {
-  if (!editorCtx.sigilRoot) return null;
+  if (!editorScope.sigilRoot) return null;
   const result = resolveRefFull(
-    editorCtx.sigilRoot,
-    editorCtx.currentPath,
+    editorScope.sigilRoot,
+    editorScope.currentPath,
     sigilRef,
-    editorCtx.importedOntologies,
+    editorScope.importedOntologies,
   );
   return result ? result.target as SigilFolder : null;
 }
@@ -349,7 +349,7 @@ export function refCompletion(context: CompletionContext) {
 }
 
 function scopeCompletionBody(context: CompletionContext) {
-  const ancestorProps = collectAncestorProperties(editorCtx.sigilRoot, editorCtx.currentPath);
+  const ancestorProps = collectAncestorProperties(editorScope.sigilRoot, editorScope.currentPath);
 
   // Case 0: standalone #partial — offer affordances
   const standaloneHash = context.matchBefore(context.explicit ? /#(?:[a-zA-Z_][\w-]*)?/ : /#[a-zA-Z_][\w-]*/);
@@ -366,7 +366,7 @@ function scopeCompletionBody(context: CompletionContext) {
           return {
             label: dash,
             displayLabel: `#${dash}`,
-            detail: `${a.source !== editorCtx.currentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            detail: `${a.source !== editorScope.currentContext?.name ? `[${a.source}] ` : ""}${a.content.split("\n")[0]?.slice(0, 50) || ""}`,
             type: "property" as const,
           };
         }),
@@ -390,7 +390,7 @@ function scopeCompletionBody(context: CompletionContext) {
           return {
             label: dash,
             displayLabel: `!${dash}`,
-            detail: `${d.source !== editorCtx.currentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
+            detail: `${d.source !== editorScope.currentContext?.name ? `[${d.source}] ` : ""}${d.content.split("\n")[0]?.slice(0, 50) || ""}`,
             type: "property" as const,
           };
         }),
@@ -453,10 +453,10 @@ function scopeCompletionBody(context: CompletionContext) {
   const segments = typed.slice(1).split("@");
 
   if (segments.length <= 1) {
-    if (editorCtx.scope.length === 0) return null;
+    if (editorScope.scope.length === 0) return null;
     return {
       from: before.from,
-      options: editorCtx.scope.map((s) => ({
+      options: editorScope.scope.map((s) => ({
         label: s.kind === "lib" && s.libPrefix ? `@${s.libPrefix}@${s.name}` : `@${s.name}`,
         detail: `${s.kind === "sibling" ? "[neighbor] " : s.kind === "lib" ? "[lib] " : ""}${s.summary.split("\n")[0]?.slice(0, 50) || ""}`,
         type: s.kind === "sibling" ? "property" as const : s.kind === "lib" ? "enum" as const : "variable" as const,
@@ -465,16 +465,16 @@ function scopeCompletionBody(context: CompletionContext) {
     };
   }
 
-  if (!editorCtx.sigilRoot) return null;
+  if (!editorScope.sigilRoot) return null;
   const prefix = segments.slice(0, -1);
 
   // Resolve the prefix path using tree-based scope resolution
   const prefixRef = "@" + prefix.join("@");
   const resolved = resolveRefFull(
-    editorCtx.sigilRoot,
-    editorCtx.currentPath,
+    editorScope.sigilRoot,
+    editorScope.currentPath,
     prefixRef,
-    editorCtx.importedOntologies,
+    editorScope.importedOntologies,
   );
   if (!resolved) return null;
 
@@ -555,16 +555,16 @@ export function collectFrontmatterValues(key: string, ctx: SigilFolder, excludeP
 }
 
 function getKnownValues(key: string): string[] {
-  const excludePath = editorCtx.currentContext?.path ?? "";
-  const found = editorCtx.sigilRoot
-    ? collectFrontmatterValues(key, editorCtx.sigilRoot, excludePath)
+  const excludePath = editorScope.currentContext?.path ?? "";
+  const found = editorScope.sigilRoot
+    ? collectFrontmatterValues(key, editorScope.sigilRoot, excludePath)
     : [];
   const defaults = key === "status" ? [DEFAULT_STATUS] : [];
   return [...defaults, ...found].filter((s, i, arr) => arr.indexOf(s) === i);
 }
 
 function getKnownKeys(): string[] {
-  const found = editorCtx.sigilRoot ? collectFrontmatterKeys(editorCtx.sigilRoot) : [];
+  const found = editorScope.sigilRoot ? collectFrontmatterKeys(editorScope.sigilRoot) : [];
   return ["status", ...found].filter((s, i, arr) => arr.indexOf(s) === i);
 }
 
@@ -686,7 +686,7 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
     const to = from + match[0].length;
     if (pos >= from && pos <= to) {
       const raw = match[1];
-      const canonical = resolveRefName(raw, editorCtx.scope.map((s) => s.name));
+      const canonical = resolveRefName(raw, editorScope.scope.map((s) => s.name));
       const known = canonical !== undefined;
       return { name: canonical ?? raw, from, known };
     }
@@ -734,13 +734,13 @@ export function findPropertyRefAtCursor(view: EditorView): { kind: "affordance" 
       const text = match[0];
       if (text.startsWith("!")) {
         const name = text.slice(1);
-        const exists = !!editorCtx.currentContext?.invariants.find(
+        const exists = !!editorScope.currentContext?.invariants.find(
           (s) => s.name === name || s.name === fromDashForm(name)
         );
         return { kind: "invariant", name, exists };
       } else {
         const name = text.slice(1);
-        const exists = !!findAffordance(editorCtx.currentContext ?? undefined, name);
+        const exists = !!findAffordance(editorScope.currentContext ?? undefined, name);
         return { kind: "affordance", name, exists };
       }
     }
@@ -757,12 +757,12 @@ export function buildScopeHighlighter(
   currentCtx: SigilFolder | null,
   path: string[] = [],
 ) {
-  editorCtx.scope = scope;
-  editorCtx.scopeNames = scope.map((s) => s.name);
-  editorCtx.nameIndex = buildNameIndex(editorCtx.scopeNames);
-  editorCtx.sigilRoot = sigilRoot;
-  editorCtx.currentContext = currentCtx;
-  editorCtx.currentPath = path;
+  editorScope.scope = scope;
+  editorScope.scopeNames = scope.map((s) => s.name);
+  editorScope.nameIndex = buildNameIndex(editorScope.scopeNames);
+  editorScope.sigilRoot = sigilRoot;
+  editorScope.currentContext = currentCtx;
+  editorScope.currentPath = path;
 
   return [
     ViewPlugin.fromClass(
@@ -816,9 +816,9 @@ export function buildScopeHighlighter(
                 const invariantExists = findInvariantInScopeLocal(invariantName) !== null;
                 if (!invariantExists) {
                   console.warn("[sigil-debug] Unresolved invariant:", invariantName,
-                    "| root:", editorCtx.sigilRoot?.name,
-                    "| path:", editorCtx.currentPath,
-                    "| ctx invariants:", editorCtx.currentContext?.invariants?.map((i: {name: string}) => i.name),
+                    "| root:", editorScope.sigilRoot?.name,
+                    "| path:", editorScope.currentPath,
+                    "| ctx invariants:", editorScope.currentContext?.invariants?.map((i: {name: string}) => i.name),
                   );
                 }
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
@@ -827,9 +827,9 @@ export function buildScopeHighlighter(
                 const affExists = findAffordanceInScopeLocal(affName) !== null;
                 if (!affExists) {
                   console.warn("[sigil-debug] Unresolved affordance:", affName,
-                    "| root:", editorCtx.sigilRoot?.name,
-                    "| path:", editorCtx.currentPath,
-                    "| ctx affordances:", editorCtx.currentContext?.affordances?.map((a: {name: string}) => a.name),
+                    "| root:", editorScope.sigilRoot?.name,
+                    "| path:", editorScope.currentPath,
+                    "| ctx affordances:", editorScope.currentContext?.affordances?.map((a: {name: string}) => a.name),
                   );
                 }
                 builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
@@ -894,11 +894,11 @@ export function buildScopeHighlighter(
               summary = resolution.summary ?? "outside scope";
             } else {
               summary = resolution.summary ?? (resolution.kind === "contained" || resolution.kind === "sibling" || resolution.kind === "lib"
-                ? (editorCtx.scope.find((s) => s.name === resolution.path[0])?.summary ?? "")
+                ? (editorScope.scope.find((s) => s.name === resolution.path[0])?.summary ?? "")
                 : "");
               if (propertyPart) {
-                const ctx = editorCtx.sigilRoot
-                  ? findContextByPath(resolution.absolutePath ?? resolution.path, editorCtx.sigilRoot)
+                const ctx = editorScope.sigilRoot
+                  ? findContextByPath(resolution.absolutePath ?? resolution.path, editorScope.sigilRoot)
                   : null;
                 if (propChar === "!" && ctx) {
                   const disp = ctx.invariants.find(

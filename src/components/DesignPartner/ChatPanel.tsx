@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAppState, useAppDispatch } from "../../state/AppContext";
 import { useWorkspaceState } from "../../state/WorkspaceContext";
-import { useNarratingState } from "../../state/NarratingContext";
+import { useLayoutState } from "../../state/LayoutContext";
 import { useConversingState, useConversingDispatch } from "../../state/ConversingContext";
 import { useChatStream } from "../../hooks/useChatStream";
 import { api } from "../../tauri";
@@ -17,7 +17,7 @@ export function ChatPanel() {
   const appState = useAppState();
   const appDispatch = useAppDispatch();
   const ws = useWorkspaceState();
-  const narrating = useNarratingState();
+  const layout = useLayoutState();
   const conversing = useConversingState();
   const conversingDispatch = useConversingDispatch();
   const { sendMessage } = useChatStream();
@@ -28,18 +28,18 @@ export function ChatPanel() {
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const prevOpen = useRef(narrating.designPartnerPanelOpen);
+  const prevOpen = useRef(layout.designPartnerPanelOpen);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversing.chatMessages]);
 
   useEffect(() => {
-    if (narrating.designPartnerPanelOpen && !prevOpen.current) {
+    if (layout.designPartnerPanelOpen && !prevOpen.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-    prevOpen.current = narrating.designPartnerPanelOpen;
-  }, [narrating.designPartnerPanelOpen]);
+    prevOpen.current = layout.designPartnerPanelOpen;
+  }, [layout.designPartnerPanelOpen]);
 
   // Save draft on every keystroke
   useEffect(() => {

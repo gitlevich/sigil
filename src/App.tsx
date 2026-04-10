@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppState, useAppDispatch } from "./state/AppContext";
 import { WorkspaceProvider } from "./state/WorkspaceContext";
-import { NarratingProvider, DEFAULT_NARRATING_STATE, NarratingState } from "./state/NarratingContext";
+import { LayoutProvider, DEFAULT_LAYOUT_STATE, LayoutState } from "./state/LayoutContext";
 import { ConversingProvider, ConversingState } from "./state/ConversingContext";
 import { useTheme } from "./hooks/useTheme";
 import { useSettingsPersistence, getPersistedDocState } from "./hooks/useSettingsPersistence";
@@ -24,7 +24,7 @@ interface OpenedWorkspace {
   spec: ApplicationSpec;
   initialPath: string[];
   initialCollapsed: string[];
-  initialNarrating: Partial<NarratingState>;
+  initialNarrating: Partial<LayoutState>;
   initialConversing: Partial<ConversingState>;
 }
 
@@ -48,13 +48,13 @@ export function App({ initialRootPath }: AppProps) {
       initialPath: (overrides.currentPath as string[]) ?? [],
       initialCollapsed: (overrides.collapsedPaths as string[]) ?? [],
       initialNarrating: {
-        editorMode: (overrides.editorMode as NarratingState["editorMode"]) ?? DEFAULT_NARRATING_STATE.editorMode,
-        contentTab: (overrides.contentTab as NarratingState["contentTab"]) ?? DEFAULT_NARRATING_STATE.contentTab,
-        wordWrap: (overrides.wordWrap as boolean) ?? DEFAULT_NARRATING_STATE.wordWrap,
-        ontologyPanelOpen: (overrides.ontologyPanelOpen as boolean) ?? DEFAULT_NARRATING_STATE.ontologyPanelOpen,
-        ontologyPanelTab: (overrides.ontologyPanelTab as NarratingState["ontologyPanelTab"]) ?? DEFAULT_NARRATING_STATE.ontologyPanelTab,
-        designPartnerPanelOpen: (overrides.designPartnerPanelOpen as boolean) ?? DEFAULT_NARRATING_STATE.designPartnerPanelOpen,
-        designPartnerPanelTab: (overrides.designPartnerPanelTab as NarratingState["designPartnerPanelTab"]) ?? DEFAULT_NARRATING_STATE.designPartnerPanelTab,
+        editorMode: (overrides.editorMode as LayoutState["editorMode"]) ?? DEFAULT_LAYOUT_STATE.editorMode,
+        contentTab: (overrides.contentTab as LayoutState["contentTab"]) ?? DEFAULT_LAYOUT_STATE.contentTab,
+        wordWrap: (overrides.wordWrap as boolean) ?? DEFAULT_LAYOUT_STATE.wordWrap,
+        ontologyPanelOpen: (overrides.ontologyPanelOpen as boolean) ?? DEFAULT_LAYOUT_STATE.ontologyPanelOpen,
+        ontologyPanelTab: (overrides.ontologyPanelTab as LayoutState["ontologyPanelTab"]) ?? DEFAULT_LAYOUT_STATE.ontologyPanelTab,
+        designPartnerPanelOpen: (overrides.designPartnerPanelOpen as boolean) ?? DEFAULT_LAYOUT_STATE.designPartnerPanelOpen,
+        designPartnerPanelTab: (overrides.designPartnerPanelTab as LayoutState["designPartnerPanelTab"]) ?? DEFAULT_LAYOUT_STATE.designPartnerPanelTab,
       },
       initialConversing: {
         activeChatId: (overrides.activeChatId as string) ?? "",
@@ -128,11 +128,11 @@ export function App({ initialRootPath }: AppProps) {
           initialPath={workspace.initialPath}
           initialCollapsed={workspace.initialCollapsed}
         >
-          <NarratingProvider initial={workspace.initialNarrating}>
+          <LayoutProvider initial={workspace.initialNarrating}>
             <ConversingProvider initial={workspace.initialConversing}>
               <WorkspaceShell />
             </ConversingProvider>
-          </NarratingProvider>
+          </LayoutProvider>
         </WorkspaceProvider>
       )}
       <SettingsDialog />

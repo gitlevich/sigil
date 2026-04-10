@@ -1,5 +1,5 @@
 /**
- * NarratingContext — how I narrate what my application does.
+ * LayoutContext — how I narrate what my application does.
  *
  * Language is foreground (editor mode, word wrap).
  * Content tab switches between Language (narrating) and Atlas (navigating).
@@ -7,7 +7,7 @@
  */
 import { createContext, useContext, useReducer, ReactNode, Dispatch } from "react";
 
-export interface NarratingState {
+export interface LayoutState {
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "atlas";
   wordWrap: boolean;
@@ -17,14 +17,14 @@ export interface NarratingState {
   designPartnerPanelTab: "chat" | "memories";
 }
 
-type NarratingAction =
+type LayoutAction =
   | { type: "SET_EDITOR_MODE"; mode: "edit" | "split" | "preview" }
   | { type: "SET_CONTENT_TAB"; tab: "language" | "atlas" }
   | { type: "SET_WORD_WRAP"; wrap: boolean }
   | { type: "SET_ONTOLOGY_PANEL"; open: boolean; tab?: "vision" | "ontology" }
   | { type: "SET_DESIGN_PARTNER_PANEL"; open: boolean; tab?: "chat" | "memories" };
 
-function reducer(state: NarratingState, action: NarratingAction): NarratingState {
+function reducer(state: LayoutState, action: LayoutAction): LayoutState {
   switch (action.type) {
     case "SET_EDITOR_MODE":
       return { ...state, editorMode: action.mode };
@@ -47,7 +47,7 @@ function reducer(state: NarratingState, action: NarratingAction): NarratingState
   }
 }
 
-export const DEFAULT_NARRATING_STATE: NarratingState = {
+export const DEFAULT_LAYOUT_STATE: LayoutState = {
   editorMode: "split",
   contentTab: "language",
   wordWrap: false,
@@ -57,25 +57,25 @@ export const DEFAULT_NARRATING_STATE: NarratingState = {
   designPartnerPanelTab: "chat",
 };
 
-const NarratingStateContext = createContext<NarratingState>(DEFAULT_NARRATING_STATE);
-const NarratingDispatchContext = createContext<Dispatch<NarratingAction>>(() => {});
+const LayoutStateContext = createContext<LayoutState>(DEFAULT_LAYOUT_STATE);
+const LayoutDispatchContext = createContext<Dispatch<LayoutAction>>(() => {});
 
-export function NarratingProvider({ initial, children }: { initial?: Partial<NarratingState>; children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { ...DEFAULT_NARRATING_STATE, ...initial });
+export function LayoutProvider({ initial, children }: { initial?: Partial<LayoutState>; children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, { ...DEFAULT_LAYOUT_STATE, ...initial });
 
   return (
-    <NarratingStateContext.Provider value={state}>
-      <NarratingDispatchContext.Provider value={dispatch}>
+    <LayoutStateContext.Provider value={state}>
+      <LayoutDispatchContext.Provider value={dispatch}>
         {children}
-      </NarratingDispatchContext.Provider>
-    </NarratingStateContext.Provider>
+      </LayoutDispatchContext.Provider>
+    </LayoutStateContext.Provider>
   );
 }
 
-export function useNarratingState() {
-  return useContext(NarratingStateContext);
+export function useLayoutState() {
+  return useContext(LayoutStateContext);
 }
 
-export function useNarratingDispatch() {
-  return useContext(NarratingDispatchContext);
+export function useLayoutDispatch() {
+  return useContext(LayoutDispatchContext);
 }

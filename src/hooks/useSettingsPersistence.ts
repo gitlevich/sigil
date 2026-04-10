@@ -3,7 +3,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { useAppState, useAppDispatch, ThemePreference, UIState } from "../state/AppContext";
 import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";
 import { WorkspaceState } from "../state/WorkspaceContext";
-import { NarratingState } from "../state/NarratingContext";
+import { LayoutState } from "../state/LayoutContext";
 
 const STORE_FILE = "settings.json";
 
@@ -23,7 +23,7 @@ interface PersistedDocState {
 
 export function useSettingsPersistence(
   workspaceState?: WorkspaceState | null,
-  narratingState?: NarratingState | null,
+  narratingState?: LayoutState | null,
 ) {
   const state = useAppState();
   const dispatch = useAppDispatch();

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAppState, useAppDispatch } from "../../state/AppContext";
-import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
+import { useLayoutState, useLayoutDispatch } from "../../state/LayoutContext";
 import { ChatPanel } from "./ChatPanel";
 import { MemoriesPanel } from "./MemoriesPanel";
 import { ResizeHandle } from "../shared/ResizeHandle";
@@ -12,8 +12,8 @@ const MAX_WIDTH = 600;
 export function DesignPartnerPanel() {
   const appState = useAppState();
   const appDispatch = useAppDispatch();
-  const narrating = useNarratingState();
-  const narratingDispatch = useNarratingDispatch();
+  const layout = useLayoutState();
+  const layoutDispatch = useLayoutDispatch();
   const [dragWidth, setDragWidth] = useState<number | null>(null);
 
   const committedWidth = appState.ui.designPartnerPanelWidth;
@@ -35,18 +35,18 @@ export function DesignPartnerPanel() {
     });
   }, [appDispatch]);
 
-  if (!narrating.designPartnerPanelOpen) {
+  if (!layout.designPartnerPanelOpen) {
     return (
       <div
         className={styles.collapsed}
-        onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true })}
+        onClick={() => layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true })}
       >
         <span className={styles.collapseIcon}>&lsaquo;</span>
       </div>
     );
   }
 
-  const tab = narrating.designPartnerPanelTab;
+  const tab = layout.designPartnerPanelTab;
 
   return (
     <>
@@ -56,20 +56,20 @@ export function DesignPartnerPanel() {
           <div className={styles.tabs}>
             <button
               className={`${styles.tab} ${tab === "chat" ? styles.active : ""}`}
-              onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "chat" })}
+              onClick={() => layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "chat" })}
             >
               Chat
             </button>
             <button
               className={`${styles.tab} ${tab === "memories" ? styles.active : ""}`}
-              onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "memories" })}
+              onClick={() => layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "memories" })}
             >
               Memories
             </button>
           </div>
           <button
             className={styles.collapseBtn}
-            onClick={() => narratingDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: false })}
+            onClick={() => layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: false })}
           >
             &rsaquo;
           </button>

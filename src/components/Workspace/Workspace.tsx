@@ -4,7 +4,7 @@ import {
   useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
   resolveCurrentFolder, scopeInfo, isImportedPath,
 } from "../../state/WorkspaceContext";
-import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
+import { useLayoutState, useLayoutDispatch } from "../../state/LayoutContext";
 import { OntologyPanel } from "../OntologyTree/OntologyPanel";
 import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
@@ -78,8 +78,8 @@ export function Workspace() {
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
   const { navigate, back, reload } = useWorkspaceActions();
-  const narrating = useNarratingState();
-  const narratingDispatch = useNarratingDispatch();
+  const layout = useLayoutState();
+  const layoutDispatch = useLayoutDispatch();
   const { save } = useAutoSave();
   const { addToast } = useToast();
 
@@ -93,8 +93,8 @@ export function Workspace() {
   // Invariant: open sigil is always visible and selected in ontology tree.
   // Ensures panel is open, on ontology tab, and all ancestor nodes are expanded.
   useEffect(() => {
-    if (!narrating.ontologyPanelOpen || narrating.ontologyPanelTab !== "ontology") {
-      narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
+    if (!layout.ontologyPanelOpen || layout.ontologyPanelTab !== "ontology") {
+      layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
     }
     // Expand all ancestors of currentPath in the tree.
     // The root node has pathKey "" (from [].join("/")), imported paths start with "Imported Ontologies".
@@ -126,17 +126,17 @@ export function Workspace() {
       }
       if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
-        narratingDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" });
+        layoutDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" });
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
         e.preventDefault();
-        narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "vision" });
+        layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "vision" });
         return;
       }
       if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
-        narratingDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
+        layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
         return;
       }
       if (matchesBinding(e, kb["rename-sigil"] || "Alt-Mod-r")) {
@@ -160,7 +160,7 @@ export function Workspace() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [ws, appState.settings.keybindings, narratingDispatch]);
+  }, [ws, appState.settings.keybindings, layoutDispatch]);
 
   useEffect(() => {
     const handler = () => {
@@ -360,7 +360,7 @@ export function Workspace() {
           onNavigate={(path) => navigate(path)}
         />
         <EditorToolbar />
-        {narrating.contentTab !== "atlas" && (
+        {layout.contentTab !== "atlas" && (
           <SigilPropertyEditor
             sigilPath={currentFolder.path}
             filePrefix="affordance"
@@ -386,12 +386,12 @@ export function Workspace() {
           />
         )}
         <div className={styles.editorArea}>
-          {narrating.contentTab === "atlas" ? (
+          {layout.contentTab === "atlas" ? (
             <Atlas />
           ) : (
             <>
-              {(narrating.editorMode === "edit" || narrating.editorMode === "split") && (
-                <div className={narrating.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
+              {(layout.editorMode === "edit" || layout.editorMode === "split") && (
+                <div className={layout.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
                   <MarkdownEditor
                     content={content}
                     onChange={handleContentChange}
@@ -401,7 +401,7 @@ export function Workspace() {
                     currentContext={currentFolder}
                     currentPath={scopePath}
                     sigilDir={currentFolder.path}
-                    wordWrap={narrating.wordWrap}
+                    wordWrap={layout.wordWrap}
                     onCreateSigil={handleCreateSigil}
                     onCreateAffordance={handleCreateAffordance}
                     onCreateInvariant={handleCreateInvariant}
@@ -418,15 +418,15 @@ export function Workspace() {
                   />
                 </div>
               )}
-              {(narrating.editorMode === "preview" || narrating.editorMode === "split") && (
-                <div className={narrating.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
+              {(layout.editorMode === "preview" || layout.editorMode === "split") && (
+                <div className={layout.editorMode === "split" ? styles.splitRight : styles.fullEditor}>
                   <MarkdownPreview content={content} refs={coreRefs} sigilDir={currentFolder.path} images={currentFolder.images} onContentChange={handleContentChange} />
                 </div>
               )}
             </>
           )}
         </div>
-        {narrating.contentTab !== "atlas" && (
+        {layout.contentTab !== "atlas" && (
           <SigilPropertyEditor
             sigilPath={currentFolder.path}
             filePrefix="invariant"
@@ -452,7 +452,7 @@ export function Workspace() {
           />
         )}
         <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
-          narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
+          layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
         }} />
       </div>

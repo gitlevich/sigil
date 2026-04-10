@@ -4,7 +4,7 @@ import { SigilFolder } from "../../tauri";
 import {
   useWorkspaceState, useWorkspaceActions,
 } from "../../state/WorkspaceContext";
-import { useNarratingDispatch } from "../../state/NarratingContext";
+import { useLayoutDispatch } from "../../state/LayoutContext";
 import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
@@ -21,7 +21,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const renameInputRef = useRef<HTMLInputElement>(null);
   const ws = useWorkspaceState();
   const { navigate, reload } = useWorkspaceActions();
-  const narratingDispatch = useNarratingDispatch();
+  const layoutDispatch = useLayoutDispatch();
   const { addToast } = useToast();
 
   const actionDeps = useActionDeps();
@@ -43,7 +43,7 @@ export function SubContextBar({ context }: SubContextBarProps) {
 
   const handleNavigate = (childName: string) => {
     navigate([...ws.currentPath, childName]);
-    narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
+    layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
   };
 
   const handleRename = async (oldName: string) => {

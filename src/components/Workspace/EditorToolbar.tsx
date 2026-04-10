@@ -1,5 +1,5 @@
 import { useAppState } from "../../state/AppContext";
-import { useNarratingState, useNarratingDispatch } from "../../state/NarratingContext";
+import { useLayoutState, useLayoutDispatch } from "../../state/LayoutContext";
 import { DEFAULT_KEYBINDINGS, toDisplayShortcut } from "../../tauri";
 import styles from "./EditorToolbar.module.css";
 
@@ -36,57 +36,57 @@ const WrapIcon = () => (
 
 export function EditorToolbar() {
   const appState = useAppState();
-  const narrating = useNarratingState();
-  const narratingDispatch = useNarratingDispatch();
+  const layout = useLayoutState();
+  const layoutDispatch = useLayoutDispatch();
 
   const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
   const ds = (key: keyof typeof kb) => toDisplayShortcut(kb[key]);
 
   const setMode = (mode: "edit" | "split" | "preview") => {
-    narratingDispatch({ type: "SET_EDITOR_MODE", mode });
+    layoutDispatch({ type: "SET_EDITOR_MODE", mode });
   };
 
   const toggleWrap = () => {
-    narratingDispatch({ type: "SET_WORD_WRAP", wrap: !narrating.wordWrap });
+    layoutDispatch({ type: "SET_WORD_WRAP", wrap: !layout.wordWrap });
   };
 
   return (
     <div className={styles.toolbar}>
       <div className={styles.contentTabs}>
         <button
-          className={`${styles.contentTab} ${narrating.contentTab === "language" ? styles.contentTabActive : ""}`}
-          onClick={() => narratingDispatch({ type: "SET_CONTENT_TAB", tab: "language" })}
+          className={`${styles.contentTab} ${layout.contentTab === "language" ? styles.contentTabActive : ""}`}
+          onClick={() => layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" })}
           title="Language"
         >
           Language
         </button>
         <button
-          className={`${styles.contentTab} ${narrating.contentTab === "atlas" ? styles.contentTabActive : ""}`}
-          onClick={() => narratingDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" })}
+          className={`${styles.contentTab} ${layout.contentTab === "atlas" ? styles.contentTabActive : ""}`}
+          onClick={() => layoutDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" })}
           title={`Atlas — treemap of context structure (${ds("facet-map")})`}
         >
           Atlas
         </button>
       </div>
 
-      {narrating.contentTab !== "atlas" && (
+      {layout.contentTab !== "atlas" && (
         <div className={styles.viewModes}>
           <button
-            className={`${styles.modeBtn} ${narrating.editorMode === "edit" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${layout.editorMode === "edit" ? styles.active : ""}`}
             onClick={() => setMode("edit")}
             title="Markup source"
           >
             <MarkupIcon />
           </button>
           <button
-            className={`${styles.modeBtn} ${narrating.editorMode === "split" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${layout.editorMode === "split" ? styles.active : ""}`}
             onClick={() => setMode("split")}
             title="Side-by-side markup and preview"
           >
             <SplitIcon />
           </button>
           <button
-            className={`${styles.modeBtn} ${narrating.editorMode === "preview" ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${layout.editorMode === "preview" ? styles.active : ""}`}
             onClick={() => setMode("preview")}
             title="Rendered preview"
           >
@@ -94,7 +94,7 @@ export function EditorToolbar() {
           </button>
           <span className={styles.separator} />
           <button
-            className={`${styles.modeBtn} ${narrating.wordWrap ? styles.active : ""}`}
+            className={`${styles.modeBtn} ${layout.wordWrap ? styles.active : ""}`}
             onClick={toggleWrap}
             title={`Toggle word wrap (${ds("toggle-word-wrap")})`}
           >
