@@ -16,7 +16,12 @@ import {
   getGlobalSigilRoot,
   getGlobalCurrentContext,
   getGlobalCurrentPath,
+  findPropertyRefAtCursor,
+  findRefAtCursor,
 } from "../Workspace/editorScope";
+import { resolveCurrentFolder } from "../../state/WorkspaceContext";
+import { useActionDeps } from "../../hooks/useActionDeps";
+import * as actions from "../../actions/workspace";
 import styles from "./VisionEditor.module.css";
 
 const themeCompartment = new Compartment();
@@ -35,10 +40,15 @@ export function VisionEditor() {
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
   const { save } = useAutoSave();
+  const actionDeps = useActionDeps();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef<(value: string) => void>(() => {});
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
+  const actionDepsRef = useRef(actionDeps);
+  actionDepsRef.current = actionDeps;
 
   const handleChange = (value: string) => {
     const path = `${ws.spec.rootPath}/vision.md`;
@@ -65,6 +75,33 @@ export function VisionEditor() {
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
         scopeCompartment.of(buildVisionHighlighter()),
+        EditorView.domEventHandlers({
+          keydown: (event, view) => {
+            if (event.altKey && event.key === "Enter") {
+              const folder = resolveCurrentFolder(wsRef.current);
+              if (!folder) return false;
+              const prop = findPropertyRefAtCursor(view);
+              if (prop && !prop.exists) {
+                event.preventDefault();
+                if (prop.kind === "affordance") {
+                  actions.createAffordance(prop.targetContext ?? folder, prop.name, actionDepsRef.current);
+                  return true;
+                }
+                if (prop.kind === "invariant") {
+                  actions.createInvariant(prop.targetContext ?? folder, prop.name, actionDepsRef.current);
+                  return true;
+                }
+              }
+              const ref = findRefAtCursor(view);
+              if (ref && !ref.known) {
+                event.preventDefault();
+                actions.createSigil(folder, ref.name, actionDepsRef.current);
+                return true;
+              }
+            }
+            return false;
+          },
+        }),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

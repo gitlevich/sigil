@@ -187,7 +187,7 @@ function PropertyCodeMirror({
         }),
         EditorView.domEventHandlers({
           keydown: (event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
               event.preventDefault();
               onCommitRef.current();
               return true;

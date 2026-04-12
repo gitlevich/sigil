@@ -1,16 +1,16 @@
 {
   "name": "sigil",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.38.0",
   "type": "module",
   "workspaces": [
     "packages/*",
     "site"
   ],
   "scripts": {
-    "predev": "npx tsx scripts/generate-partner-prompt.ts",
+    "predev": "npx tsx scripts/sync-version.ts && npx tsx scripts/generate-partner-prompt.ts",
     "dev": "vite",
-    "prebuild": "npx tsx scripts/generate-partner-prompt.ts",
+    "prebuild": "npx tsx scripts/sync-version.ts && npx tsx scripts/generate-partner-prompt.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

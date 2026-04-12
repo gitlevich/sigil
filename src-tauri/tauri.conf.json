@@ -39,10 +39,14 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["sigil"],
+        "ext": [
+          "sigil"
+        ],
         "exportedType": {
           "identifier": "com.sigilengineering.package",
-          "conformsTo": ["com.apple.package"]
+          "conformsTo": [
+            "com.apple.package"
+          ]
         },
         "rank": "Owner"
       }
