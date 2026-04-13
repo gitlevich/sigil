@@ -12,6 +12,8 @@ This @sigil is below the level of abstraction relevant to @DesignPartner when de
 
 The @LeftHemisphere is a high-resolution remote model accessed via API. It is not always running. It arrives when the @CorpusCallosum escalates — a signal from the @RightHemisphere strong enough to warrant high-resolution attention. It receives the current state: the @sigil tree, the @Memory, the @Spellbook, the specific signal that triggered escalation. It does its work and leaves.
 
+Phi may be adequate if the !vocabulary-bounded invariant keeps context small enough. The @LeftHemisphere receives lexical scope of the recognized @sigil as vocabulary, not the whole world. That is a small context.
+
 In the context of @LeftHemisphere, @DesignPartner generates sentences that this @application's ontology allows, as LLM completions. @Coherence here means only meaningful sentences appear as completions. 
 
 Otherwise, it isn't: the number of generated sentences feels unbounded, or the number is bounded but we get many meaningless sentences — in which case we need to constrain the spec's ontology further.

@@ -27,7 +27,7 @@ Full release pipeline for Sigil. Produces DMG executables via GitHub Actions and
    ```
    Derive the summary from `git log` since the last version tag and `git diff --stat`.
 
-5. **Bump version**: Run `npm version minor --no-git-tag-version` (or `major`/`patch` if specified). Then run `npx tsx scripts/sync-version.ts` to propagate to `Cargo.toml` and `tauri.conf.json`. The single source of truth is `package.json`.
+5. **Bump version**: Run `npm version patch --no-git-tag-version` (default) or `minor`/`major` if explicitly specified. Then run `npx tsx scripts/sync-version.ts` to propagate to `Cargo.toml` and `tauri.conf.json`. The single source of truth is `package.json`.
 
    Commit: `release: bump version to X.Y.Z`
 

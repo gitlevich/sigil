@@ -10,23 +10,19 @@ Note change of perspective: "I" describing @DesignPartner changes to "we", so it
 
 This @sigil is below the level of abstraction relevant to @DesignPartner when designing other applications. It IS relevant when building this one.
 
-A small local model running continuously inside the app. Always on. Low resolution — it can sense the gestalt, feel asymmetry, notice that something changed. It cannot articulate what. That's not its job.
-
-Two models run locally via ONNX inside the Tauri process. No network dependency, no API key needed: @EmbeddingModel and @LocalLLM.
-
-This is the @RightHemisphere's voice. Not high resolution — it cannot do what the @LeftHemisphere does. But it has genuine language understanding: it can summarize, classify relevance, compress experience into traces that the @LeftHemisphere can later expand to full resolution.
+The @RightHemisphere sees @ContrastSpace through @CoOccurrenceGeometry. No neural model, no network dependency, no API key. The compiler already parses every `@reference`. Co-occurrence of `@references` in the same sentence defines entanglement. From entanglement, distances. From distances, sphere positions. That is the @shape.
 
 Three jobs:
 
-#ContinuousAttention watches the @EmbeddingSpace for changes. 
+#continuous-attention watches @ContrastSpace for changes in the sphere arrangement.
 
-@Subconscious#filtering selects what get remembered.
+@Subconscious#filtering selects what gets remembered.
 
 @Subconscious takes care of autonomic behavior.
 
 Acceptance criteria:
 
-!always-on — local models are loaded and responsive whenever the app is running
+!always-on — co-occurrence geometry is recomputed whenever the spec changes
 
 !no-network — operates without API calls or internet
 

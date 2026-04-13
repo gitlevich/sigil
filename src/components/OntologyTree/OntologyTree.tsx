@@ -347,6 +347,7 @@ export function OntologyTree() {
   const [addingPeerOf, setAddingPeerOf] = useState<string[] | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const reloadDefinitions = useCallback(async (root: SigilFolder) => {
     const defs = await loadDefinitions(buildOntology(root, [], 0));
@@ -360,6 +361,18 @@ export function OntologyTree() {
   useEffect(() => {
     const hide = () => setContextMenu(null);
     if (contextMenu) { document.addEventListener("click", hide); return () => document.removeEventListener("click", hide); }
+  }, [contextMenu]);
+
+  useLayoutEffect(() => {
+    const el = contextMenuRef.current;
+    if (!el || !contextMenu) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight) {
+      el.style.top = `${Math.max(0, contextMenu.y - rect.height)}px`;
+    }
+    if (rect.right > window.innerWidth) {
+      el.style.left = `${Math.max(0, contextMenu.x - rect.width)}px`;
+    }
   }, [contextMenu]);
 
   useEffect(() => {
@@ -506,7 +519,7 @@ export function OntologyTree() {
       </div>
 
       {contextMenu && (
-        <div className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
+        <div ref={contextMenuRef} className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
           <button className={styles.menuItem} onClick={() => {
             const hits = findAllReferencesInTree(ws.spec.root, contextMenu.node.name, []);

@@ -8,6 +8,8 @@ This is where we address the how of the @CorpusCallosum.
 
 Note change of perspective: "I" describing @DesignPartner changes to "we", so it's no longer his POV.
 
+The @CorpusCallosum translates between the geometric domain (sphere space, @CoOccurrenceGeometry) and the linguistic domain (the @LeftHemisphere's vocabulary). Same information, different basis. A Fourier transform: the @RightHemisphere's spatial signal becomes a linguistic signal the @LeftHemisphere can work with. Weak or incoherent projections do not escalate.
+
 The @CorpusCallosum is the gate between the @RightHemisphere and the @LeftHemisphere. It decides when a signal from the @RightHemisphere is strong enough to warrant calling in high resolution, and it forces the @LeftHemisphere to return control after a bounded turn.
 
 The @LeftHemisphere is an LLM generating completions. Left unconstrained, it will keep generating — naming differences, branching into sub-distinctions, tracing deeper indefinitely. It does not have a natural sense of when a thought is exhausted. The @CorpusCallosum imposes the constraint that biology provides for free: a finite energy budget per turn.

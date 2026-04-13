@@ -4,11 +4,8 @@ status: idea
 
 # Embedding Space
 
-AKA @ContrastSpace: this is where @sight and recognition happens. 
+AKA @ContrastSpace. Built from @CoOccurrenceGeometry. This is where @Sight and recognition happen.
 
-My unproven prediction is that in @EmbeddingSpace the spec:
+The spec has a @shape in this space. @Coherence is measurable as shape stability: re-compute co-occurrence after a change, measure how much the sphere arrangement shifted. The more well-formed a spec is, the more stable its @shape under edits.
 
-- has a @shape
-- it is possible to measure @coherence of the spec using geometry of the @shape in the @EmbeddingSpace
-- the more well-formed a spec is, the more symmetrical in the space it appears. 
-
+Regions where spheres cluster tightly indicate strong entanglement. Isolated spheres indicate concepts the author has not yet connected to anything.
