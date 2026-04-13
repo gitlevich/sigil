@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::sync::Arc;
+
 use tauri::{AppHandle, Emitter};
 use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
 use crate::models::sigil::SigilFolder;
@@ -354,42 +354,17 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
 }
 
 /// Ensure memory is initialized for the given sigil root. Lazy — first call loads the ONNX model.
+///
+/// DISABLED: Memory machinery runs without the Subconscious relevance filter
+/// (spec status: idea). Without that gatekeeper, the memorizer hoards
+/// indiscriminately and the recall injection distracts the DesignPartner.
+/// Re-enable when BicameralMind/RightHemisphere/Subconscious is implemented.
 async fn ensure_memory_initialized(
-    memory_handle: &MemoryHandle,
-    sleep_rx: &SleepRx,
-    root_path: &str,
+    _memory_handle: &MemoryHandle,
+    _sleep_rx: &SleepRx,
+    _root_path: &str,
 ) -> Result<(), String> {
-    let mut guard = memory_handle.0.lock().await;
-    if guard.is_some() {
-        return Ok(());
-    }
-
-    eprintln!("[memory] Initializing memory for: {}", root_path);
-    let embedder = memory::FastEmbedProvider::load()
-        .map_err(|e| format!("Failed to load embedding model: {}", e))?;
-    let embedder: Arc<dyn memory::embedder::EmbeddingProvider> = Arc::new(embedder);
-    let root = Path::new(root_path);
-    let state = memory::MemoryState::open(root, embedder).await
-        .map_err(|e| format!("Failed to open memory: {}", e))?;
-
-    // Index the sigil tree on first load
-    eprintln!("[memory] Indexing sigil tree...");
-    let stats = memory::indexer::index_sigil_tree(root, &state.db, state.embedder.as_ref())
-        .map_err(|e| format!("Index error: {}", e))?;
-    eprintln!("[memory] Indexed {} chunks, skipped {}, removed {}", stats.indexed, stats.skipped, stats.removed);
-
-    *guard = Some(state);
-
-    // Start the sleep loop now that memory is initialized (take the receiver once)
-    let mut rx_guard = sleep_rx.0.lock().await;
-    if let Some(rx) = rx_guard.take() {
-        let handle = memory_handle.0.clone();
-        tokio::spawn(async move {
-            memory::sleeper::sleep_loop(handle, rx).await;
-        });
-        eprintln!("[memory] Sleep loop started (trigger-driven)");
-    }
-
+    eprintln!("[memory] Memory disabled — Subconscious filter not yet implemented");
     Ok(())
 }
 
