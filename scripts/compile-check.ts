@@ -1,6 +1,10 @@
 /**
  * Validate all @references, #affordances, and !invariants in a sigil spec.
  *
+ * Uses the same resolution logic as the in-app compiler (useCompileCheck.ts):
+ * sigil-core's resolve(), findAffordanceInScope, findInvariantInScope with
+ * full 5-level lexical scoping (children, siblings, ancestors, libs, proximity).
+ *
  * Usage: npx tsx scripts/compile-check.ts [sigil-root]
  *   Default sigil-root: specification.sigil
  *
@@ -10,11 +14,11 @@ import * as fs from "fs";
 import * as path from "path";
 import type { Sigil } from "sigil-core";
 import {
-  findContext,
-  buildLexicalScope,
-  resolveRefName,
+  allRefsPattern,
+  isInCodeSpan,
   findAffordanceInScope,
   findInvariantInScope,
+  resolve,
 } from "sigil-core";
 
 // ── Filesystem → Sigil tree ──
@@ -126,19 +130,6 @@ function markImported(sigil: Sigil): void {
   for (const child of sigil.children) markImported(child);
 }
 
-// ── Reference pattern (from sigilExtensions.ts:76) ──
-
-const allRefsPattern =
-  /@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?|#[a-zA-Z_][\w-]*|![a-zA-Z_][\w-]*/g;
-
-function isInCodeSpan(lineText: string, matchIndex: number): boolean {
-  let count = 0;
-  for (let i = 0; i < matchIndex; i++) {
-    if (lineText[i] === "`") count++;
-  }
-  return count % 2 === 1;
-}
-
 // ── Parse a reference token ──
 
 interface ParsedRef {
@@ -166,65 +157,6 @@ function parseRef(token: string): ParsedRef | null {
   return { segments, property };
 }
 
-// ── Scope description for error messages ──
-
-function describeScope(root: Sigil, currentPath: string[]): string {
-  const scope = buildLexicalScope(root, currentPath);
-  const sigils = scope.filter((r) => r.prefix === "@").map((r) => r.name);
-  const affs = scope.filter((r) => r.prefix === "#").map((r) => r.name);
-  const invs = scope.filter((r) => r.prefix === "!").map((r) => r.name);
-  const parts: string[] = [];
-  if (sigils.length > 0) parts.push(`@{${sigils.join(", ")}}`);
-  if (affs.length > 0) parts.push(`#{${affs.join(", ")}}`);
-  if (invs.length > 0) parts.push(`!{${invs.join(", ")}}`);
-  return parts.join("  ");
-}
-
-// ── Resolve a multi-segment @ref against the tree ──
-
-function resolveSegments(root: Sigil, currentPath: string[], segments: string[]): string[] | null {
-  if (segments.length === 0) return currentPath;
-
-  const scope = buildLexicalScope(root, currentPath);
-  const sigilNames = scope.filter((r) => r.prefix === "@").map((r) => r.name);
-  const firstName = segments[0];
-  const resolved = resolveRefName(firstName, sigilNames);
-  if (!resolved) return null;
-
-  const targetPath = findSigilPath(root, resolved);
-  if (!targetPath) return null;
-
-  if (segments.length === 1) return targetPath;
-
-  let ctx = findContext(root, targetPath);
-  const resultPath = [...targetPath];
-  for (let i = 1; i < segments.length; i++) {
-    const childNames = ctx.children.map((c) => c.name);
-    const childResolved = resolveRefName(segments[i], childNames);
-    if (!childResolved) return null;
-    resultPath.push(childResolved);
-    const next = ctx.children.find((c) => c.name === childResolved);
-    if (!next) return null;
-    ctx = next;
-  }
-  return resultPath;
-}
-
-function findSigilPath(root: Sigil, name: string): string[] | null {
-  if (root.name === name) return [];
-  return findSigilPathDFS(root, name, []);
-}
-
-function findSigilPathDFS(sigil: Sigil, name: string, prefix: string[]): string[] | null {
-  for (const child of sigil.children) {
-    const childPath = [...prefix, child.name];
-    if (child.name === name) return childPath;
-    const found = findSigilPathDFS(child, name, childPath);
-    if (found) return found;
-  }
-  return null;
-}
-
 // ── Walk files and check ──
 
 interface RefError {
@@ -232,7 +164,6 @@ interface RefError {
   line: number;
   ref: string;
   reason: string;
-  scope: string;
 }
 
 function collectFiles(dir: string, relPrefix: string): { absPath: string; relPath: string }[] {
@@ -264,19 +195,13 @@ function checkFile(
   sigilRoot: string,
   filePath: string,
   relPath: string,
+  importedOntologies: Sigil | null,
 ): { errors: RefError[]; refCount: number } {
   const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.split("\n");
   const currentPath = pathForFile(sigilRoot, filePath);
   const errors: RefError[] = [];
   let refCount = 0;
-
-  // Cache scope description per file (same for all refs in the file)
-  let scopeDesc: string | undefined;
-  const getScope = () => {
-    if (scopeDesc === undefined) scopeDesc = describeScope(root, currentPath);
-    return scopeDesc;
-  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -289,46 +214,35 @@ function checkFile(
       if (!parsed) continue;
       refCount++;
 
-      // Resolve sigil segments
-      let targetPath = currentPath;
       if (parsed.segments.length > 0) {
-        const resolved = resolveSegments(root, currentPath, parsed.segments);
+        // Sigil reference: use resolve() from sigil-core
+        const sigilRef = "@" + parsed.segments.join("@");
+        const resolved = resolve(root, currentPath, sigilRef, importedOntologies);
         if (!resolved) {
-          errors.push({
-            file: relPath,
-            line: i + 1,
-            ref: token,
-            reason: "unresolved sigil",
-            scope: getScope(),
-          });
+          errors.push({ file: relPath, line: i + 1, ref: token, reason: "unresolved sigil" });
           continue;
         }
-        targetPath = resolved;
-      }
-
-      // Resolve property
-      if (parsed.property) {
+        // Check property on resolved target
+        if (parsed.property) {
+          if (parsed.property.prefix === "#") {
+            if (!findAffordanceInScope(root, resolved.path, parsed.property.name, importedOntologies)) {
+              errors.push({ file: relPath, line: i + 1, ref: token, reason: "unresolved affordance" });
+            }
+          } else {
+            if (!findInvariantInScope(root, resolved.path, parsed.property.name, importedOntologies)) {
+              errors.push({ file: relPath, line: i + 1, ref: token, reason: "unresolved invariant" });
+            }
+          }
+        }
+      } else if (parsed.property) {
+        // Bare #affordance or !invariant
         if (parsed.property.prefix === "#") {
-          const found = findAffordanceInScope(root, targetPath, parsed.property.name);
-          if (!found) {
-            errors.push({
-              file: relPath,
-              line: i + 1,
-              ref: token,
-              reason: "unresolved affordance",
-              scope: getScope(),
-            });
+          if (!findAffordanceInScope(root, currentPath, parsed.property.name, importedOntologies)) {
+            errors.push({ file: relPath, line: i + 1, ref: token, reason: "unresolved affordance" });
           }
         } else {
-          const found = findInvariantInScope(root, targetPath, parsed.property.name);
-          if (!found) {
-            errors.push({
-              file: relPath,
-              line: i + 1,
-              ref: token,
-              reason: "unresolved invariant",
-              scope: getScope(),
-            });
+          if (!findInvariantInScope(root, currentPath, parsed.property.name, importedOntologies)) {
+            errors.push({ file: relPath, line: i + 1, ref: token, reason: "unresolved invariant" });
           }
         }
       }
@@ -352,12 +266,13 @@ if (!fs.existsSync(sigilRoot)) {
   process.exit(1);
 }
 
-// Build tree: root sigil with Libs mounted as a child named "Libs"
+// Build tree: root sigil with Libs mounted as a child
 const root = readSigil(sigilRoot);
 const libs = readLibs(sigilRoot);
 if (libs) {
   root.children.push(libs);
 }
+const importedOntologies = libs ?? null;
 
 // Collect and check all .md files
 const files = collectFiles(sigilRoot, "");
@@ -367,15 +282,13 @@ const allErrors: RefError[] = [];
 const filesWithErrors = new Set<string>();
 
 for (const { absPath, relPath } of files) {
-  const { errors, refCount } = checkFile(root, sigilRoot, absPath, relPath);
+  const { errors, refCount } = checkFile(root, sigilRoot, absPath, relPath, importedOntologies);
   totalRefs += refCount;
   if (errors.length > 0) {
     allErrors.push(...errors);
     filesWithErrors.add(relPath);
   }
 }
-
-// All output to stdout for machine readability.
 
 if (allErrors.length === 0) {
   console.log(`compile-check: ${totalRefs} references checked across ${files.length} files — all resolve`);
@@ -394,7 +307,6 @@ for (const [file, errs] of byFile) {
   console.log(`\n${file}`);
   for (const err of errs) {
     console.log(`  ${err.line}: ${err.ref}  — ${err.reason}`);
-    console.log(`       scope: ${err.scope}`);
   }
 }
 

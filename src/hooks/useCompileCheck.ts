@@ -156,12 +156,13 @@ export function compileCheck(root: Sigil, startPath: string[] = []): CompileResu
 export function useCompileCheck(root: Sigil | null, importedOntologies?: Sigil | null, currentPath: string[] = []): CompileResult {
   return useMemo(() => {
     if (!root) return { errors: [], totalRefs: 0, filesWithErrors: 0 };
-    // Mount imported ontologies as "Libs" child so references to library sigils resolve
+    // Mount imported ontologies as a child so references to library sigils resolve.
+    // Keep the original name ("Imported Ontologies") so currentPath navigation works
+    // when the user is browsed into the imported tree.
     let checkRoot = root;
     if (importedOntologies) {
       const libs: Sigil = {
         ...importedOntologies,
-        name: "Libs",
         isImported: true,
       };
       checkRoot = { ...root, children: [...root.children, libs] };
