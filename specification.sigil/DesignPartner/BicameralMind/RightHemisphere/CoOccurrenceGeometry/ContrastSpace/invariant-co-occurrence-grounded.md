@@ -1,0 +1,3 @@
+A sigil's position in @ContrastSpace is determined by its co-occurrence pattern in the spec text — which other sigils it appears alongside in sentences, and how frequently. Positions are never assigned arbitrarily or derived from content alone. Two sigils that never co-occur are far apart regardless of how semantically similar their text might be to a language model.
+
+Violation: a sigil's position is computed from text embedding alone without incorporating co-occurrence structure. The space becomes a generic semantic space rather than a reflection of the spec's own referential geometry.

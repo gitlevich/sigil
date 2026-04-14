@@ -1,0 +1,1 @@
+Measure how far apart two @Positions are in @ContrastSpace. This is the primitive operation behind #neighbors, #displacement, and the @Relevance filter. Distance is inverse co-occurrence — sigils that appear together in sentences are close, sigils that never co-occur are far.

@@ -1,0 +1,1 @@
+Measure how far a sigil moved from its previous position. After a sigil's text changes and its position recomputes, the distance between old and new positions is the disturbance magnitude. This is the signal that #continuous-attention watches — not the text diff, but the geometric shift in @ContrastSpace.

@@ -1,0 +1,1 @@
+Find sigils near a position. Returns the closest positions with their attached vocabulary. This is how @Recognition finds familiar sigils and how the @Relevance filter judges proximity to active work.

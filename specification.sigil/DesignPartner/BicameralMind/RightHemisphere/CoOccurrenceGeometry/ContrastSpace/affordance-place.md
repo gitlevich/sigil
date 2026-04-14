@@ -1,0 +1,1 @@
+Compute a sigil's position from its co-occurrence pattern and store it. Called when a sigil is first seen or when its text changes. The position carries the sigil's name, affordances, and invariants — the vocabulary that @Memory@Recognition needs to deliver to the @LeftHemisphere.
