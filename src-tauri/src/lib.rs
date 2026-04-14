@@ -1,6 +1,7 @@
 mod commands;
 mod models;
 pub mod memory;
+pub mod bicameral_mind;
 
 use commands::watcher::WatcherState;
 use commands::workspace_lock::WorkspaceLocks;
