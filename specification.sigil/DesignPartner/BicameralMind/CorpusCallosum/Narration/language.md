@@ -4,7 +4,7 @@ status: idea
 
 # Narration
 
-Compression of @attention into language at the center of the @CorpusCallosum. !relevant.
+Compression of @attention into language at the center of the @CorpusCallosum by !relevance.
 
 Narrative is compressed @attention. Every sentence is @attention that was spread across the whole @shape, collapsed into a sequence of words.
 

@@ -1,0 +1,1 @@
+whatever @contrasts apply in the direction @attention is focusing on. @attention!is-bounded, and so it oscillates between @spacelike and @timelike
