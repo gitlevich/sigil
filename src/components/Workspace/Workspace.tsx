@@ -10,10 +10,11 @@ import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import type { ScopeEntry } from "./editorScope";
 import { CompileStatusBar } from "./CompileStatusBar";
+import { ConflictBanner } from "./ConflictBanner";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
-import { useAutoSave } from "../../hooks/useAutoSave";
+import { useAutoSave, setBase } from "../../hooks/useAutoSave";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { Atlas } from "./Atlas";
@@ -180,7 +181,8 @@ export function Workspace() {
   wsRef.current = ws;
 
   // Cancel any pending debounced state update when navigating away.
-  const prevPathKeyRef = useRef(ws.currentPath.join("/"));
+  // Also set the base version for the new path so conflict detection works.
+  const prevPathKeyRef = useRef<string | null>(null);
   useEffect(() => {
     const pathKey = ws.currentPath.join("/");
     if (pathKey !== prevPathKeyRef.current) {
@@ -189,6 +191,12 @@ export function Workspace() {
         dispatchTimerRef.current = null;
       }
       prevPathKeyRef.current = pathKey;
+      // Set base version for the newly navigated file.
+      const { scopeRoot, scopePath } = scopeInfo(ws);
+      const folder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
+      if (folder) {
+        setBase(`${folder.path}/language.md`, folder.language);
+      }
     }
   }, [ws.currentPath]);
 
@@ -333,6 +341,7 @@ export function Workspace() {
           crumbs={breadcrumbs}
           onNavigate={(path) => navigate(path)}
         />
+        <ConflictBanner />
         {layout.contentTab === "atlas" ? (
           <Atlas />
         ) : (

@@ -45,6 +45,7 @@ export function VisionEditor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef<(value: string) => void>(() => {});
+  const localEditRef = useRef(false);
   const wsRef = useRef(ws);
   wsRef.current = ws;
   const actionDepsRef = useRef(actionDeps);
@@ -52,6 +53,7 @@ export function VisionEditor() {
 
   const handleChange = (value: string) => {
     const path = `${ws.spec.rootPath}/vision.md`;
+    localEditRef.current = true;
     save(path, value);
     wsDispatch({
       type: "UPDATE_SPEC",
@@ -132,18 +134,22 @@ export function VisionEditor() {
 
   useThemeObserver(viewRef, themeCompartment);
 
-  // Sync external content (e.g. navigation to different sigil)
+  // Sync external content (e.g. navigation to different sigil, or tree reload).
+  // Skip if user has local edits — those take precedence until saved.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
     const incoming = ws.spec.vision;
-    if (current !== incoming) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: incoming },
-        annotations: [Transaction.addToHistory.of(false)],
-      });
+    if (current === incoming) {
+      localEditRef.current = false;
+      return;
     }
+    if (localEditRef.current) return;
+    view.dispatch({
+      changes: { from: 0, to: current.length, insert: incoming },
+      annotations: [Transaction.addToHistory.of(false)],
+    });
   }, [ws.spec.vision]);
 
   // Refresh sigil reference highlighting when context changes

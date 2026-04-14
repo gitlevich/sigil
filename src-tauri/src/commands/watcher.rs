@@ -1,6 +1,22 @@
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, Event};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher, Event, EventKind};
+use serde::Serialize;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
+
+#[derive(Serialize, Clone)]
+pub struct FsChangeEvent {
+    pub paths: Vec<String>,
+    pub kind: String,
+}
+
+fn event_kind_str(kind: &EventKind) -> &'static str {
+    match kind {
+        EventKind::Create(_) => "create",
+        EventKind::Modify(_) => "modify",
+        EventKind::Remove(_) => "remove",
+        _ => "other",
+    }
+}
 
 pub struct WatcherState(pub Mutex<Option<RecommendedWatcher>>);
 
@@ -17,7 +33,11 @@ pub fn watch_directory(app: AppHandle, root_path: String) -> Result<(), String> 
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .collect();
-            let _ = app_handle.emit("fs-change", paths);
+            let payload = FsChangeEvent {
+                paths,
+                kind: event_kind_str(&event.kind).to_string(),
+            };
+            let _ = app_handle.emit("fs-change", payload);
         }
     })
     .map_err(|e| e.to_string())?;

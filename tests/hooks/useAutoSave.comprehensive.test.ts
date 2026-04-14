@@ -9,11 +9,11 @@ vi.mock("../../src/tauri", () => ({
   api: { writeFile: (...args: any[]) => mockWriteFile(...args) },
 }));
 
-import { useAutoSave, isAutoSaveDirty } from "../../src/../src/hooks/useAutoSave";
+import { useAutoSave, getAutoSavePendingPath, getAutoSavePendingContent } from "../../src/hooks/useAutoSave";
 
-describe("isAutoSaveDirty", () => {
-  it("returns false initially", () => {
-    expect(isAutoSaveDirty()).toBe(false);
+describe("pending path tracking", () => {
+  it("returns null initially", () => {
+    expect(getAutoSavePendingPath()).toBeNull();
   });
 });
 
@@ -25,7 +25,8 @@ describe("useAutoSave hook", () => {
     const { result } = renderHook(() => useAutoSave(100));
     act(() => result.current.save("/test.md", "content"));
     expect(mockWriteFile).not.toHaveBeenCalled();
-    expect(isAutoSaveDirty()).toBe(true);
+    expect(getAutoSavePendingPath()).toBe("/test.md");
+    expect(getAutoSavePendingContent()).toBe("content");
     act(() => vi.advanceTimersByTime(100));
     expect(mockWriteFile).toHaveBeenCalledWith("/test.md", "content");
   });
@@ -71,5 +72,16 @@ describe("useAutoSave hook", () => {
     expect(mockWriteFile).toHaveBeenCalledTimes(1);
     act(() => result.current.flush());
     expect(mockWriteFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancel clears pending write", () => {
+    const { result } = renderHook(() => useAutoSave(100));
+    act(() => result.current.save("/f", "content"));
+    expect(getAutoSavePendingPath()).toBe("/f");
+    act(() => result.current.cancel());
+    expect(getAutoSavePendingPath()).toBeNull();
+    expect(getAutoSavePendingContent()).toBeNull();
+    act(() => vi.advanceTimersByTime(100));
+    expect(mockWriteFile).not.toHaveBeenCalled();
   });
 });

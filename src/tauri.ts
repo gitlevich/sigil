@@ -63,6 +63,11 @@ export interface MemoryGraph {
   edges: MemoryEdge[];
 }
 
+export interface FsChangeEvent {
+  paths: string[];
+  kind: "create" | "modify" | "remove" | "other";
+}
+
 export interface RecentDocument {
   name: string;
   path: string;
@@ -324,8 +329,8 @@ export const events = {
   onReplaceSelectedText: (handler: (text: string) => void): Promise<UnlistenFn> =>
     listen<string>("replace-selected-text", (event) => handler(event.payload)),
 
-  onFsChange: (handler: (paths: string[]) => void): Promise<UnlistenFn> =>
-    listen<string[]>("fs-change", (event) => handler(event.payload)),
+  onFsChange: (handler: (event: FsChangeEvent) => void): Promise<UnlistenFn> =>
+    listen<FsChangeEvent>("fs-change", (event) => handler(event.payload)),
 };
 
 let windowCounter = 0;

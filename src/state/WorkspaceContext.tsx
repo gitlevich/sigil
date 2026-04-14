@@ -12,6 +12,13 @@ import { ApplicationSpec, SigilFolder, api } from "../tauri";
 import { findContext } from "sigil-core";
 import type { Sigil } from "sigil-core";
 
+export interface FileConflict {
+  path: string;
+  diskContent: string;
+  localContent: string;
+  deleted: boolean;
+}
+
 export interface WorkspaceState {
   spec: ApplicationSpec;
   currentPath: string[];
@@ -19,6 +26,7 @@ export interface WorkspaceState {
   collapsedPaths: string[];
   /** When set, the editor should scroll to this line after navigation. Consumed once. */
   targetLine: number | null;
+  conflict: FileConflict | null;
 }
 
 export type WorkspaceAction =
@@ -27,7 +35,9 @@ export type WorkspaceAction =
   | { type: "BACK" }
   | { type: "UPDATE_SPEC"; spec: ApplicationSpec }
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
-  | { type: "TOGGLE_COLLAPSE"; pathKey: string };
+  | { type: "TOGGLE_COLLAPSE"; pathKey: string }
+  | { type: "SET_CONFLICT"; conflict: FileConflict }
+  | { type: "RESOLVE_CONFLICT" };
 
 export function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
@@ -54,6 +64,10 @@ export function reducer(state: WorkspaceState, action: WorkspaceAction): Workspa
         : [...state.collapsedPaths, action.pathKey];
       return { ...state, collapsedPaths: paths };
     }
+    case "SET_CONFLICT":
+      return { ...state, conflict: action.conflict };
+    case "RESOLVE_CONFLICT":
+      return { ...state, conflict: null };
   }
 }
 
@@ -104,6 +118,7 @@ export function WorkspaceProvider({ spec, initialPath = [], initialCollapsed = [
     history: [],
     collapsedPaths: initialCollapsed,
     targetLine: null,
+    conflict: null,
   });
 
   return (

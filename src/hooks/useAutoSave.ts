@@ -1,13 +1,50 @@
 import { useRef, useCallback, useEffect } from "react";
 import { api } from "../tauri";
 
-// Shared flag so the file watcher can check if we have pending writes.
-// This prevents the watcher from reloading the tree and overwriting
-// in-memory edits that haven't been flushed to disk yet.
-let globalDirty = false;
+// ── Base version tracking ──
+// Stores the content as last read from or written to disk, per path.
+// Used for three-way conflict detection: base vs local vs disk.
+const baseContent = new Map<string, string>();
 
-export function isAutoSaveDirty(): boolean {
-  return globalDirty;
+export function getBase(path: string): string | null {
+  return baseContent.get(path) ?? null;
+}
+
+export function setBase(path: string, content: string): void {
+  baseContent.set(path, content);
+}
+
+export function clearBase(path: string): void {
+  baseContent.delete(path);
+}
+
+// ── Pause control ──
+// When a conflict is detected for a path, auto-save pauses for that path.
+const pausedPaths = new Set<string>();
+
+export function pauseAutoSaveFor(path: string): void {
+  pausedPaths.add(path);
+}
+
+export function resumeAutoSaveFor(path: string): void {
+  pausedPaths.delete(path);
+}
+
+export function isAutoSavePaused(path: string): boolean {
+  return pausedPaths.has(path);
+}
+
+// ── Pending write tracking ──
+let globalPendingPath: string | null = null;
+
+let globalPendingContent: string | null = null;
+
+export function getAutoSavePendingPath(): string | null {
+  return globalPendingPath;
+}
+
+export function getAutoSavePendingContent(): string | null {
+  return globalPendingContent;
 }
 
 interface PendingWrite {
@@ -21,14 +58,17 @@ export function useAutoSave(delayMs = 500) {
 
   const writeToDisk = useCallback((path: string, content: string) => {
     pendingRef.current = null;
+    globalPendingPath = null;
+    globalPendingContent = null;
+
+    if (isAutoSavePaused(path)) return;
+
     api.writeFile(path, content)
+      .then(() => {
+        baseContent.set(path, content);
+      })
       .catch((err) => {
         console.error("Auto-save failed:", err);
-      })
-      .finally(() => {
-        setTimeout(() => {
-          globalDirty = false;
-        }, 500);
       });
   }, []);
 
@@ -36,7 +76,8 @@ export function useAutoSave(delayMs = 500) {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
-    globalDirty = true;
+    globalPendingPath = path;
+    globalPendingContent = content;
     pendingRef.current = { path, content };
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
@@ -55,6 +96,16 @@ export function useAutoSave(delayMs = 500) {
     }
   }, [writeToDisk]);
 
+  const cancel = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    pendingRef.current = null;
+    globalPendingPath = null;
+    globalPendingContent = null;
+  }, []);
+
   // Flush on unmount so no pending writes are ever lost
   useEffect(() => {
     return () => {
@@ -65,13 +116,17 @@ export function useAutoSave(delayMs = 500) {
       const pending = pendingRef.current;
       if (pending) {
         // Fire-and-forget: component is unmounting, just ensure the write starts
-        api.writeFile(pending.path, pending.content).catch((err) => {
-          console.error("Auto-save flush on unmount failed:", err);
-        });
+        if (!isAutoSavePaused(pending.path)) {
+          api.writeFile(pending.path, pending.content).catch((err) => {
+            console.error("Auto-save flush on unmount failed:", err);
+          });
+        }
         pendingRef.current = null;
+        globalPendingPath = null;
+        globalPendingContent = null;
       }
     };
   }, []);
 
-  return { save, flush };
+  return { save, flush, cancel };
 }

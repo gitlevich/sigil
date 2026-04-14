@@ -1,0 +1,67 @@
+.banner {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 2px solid var(--warning, #e6a700);
+  background: color-mix(in srgb, var(--warning, #e6a700) 6%, var(--bg-primary));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.message {
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+}
+
+.btnPrimary {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.btnPrimary:hover {
+  opacity: 0.9;
+}
+
+.mergeContainer {
+  height: 300px;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+}
+
+.mergeContainer .cm-mergeView {
+  height: 100%;
+}
+
+.label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 0.2rem 0.75rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
