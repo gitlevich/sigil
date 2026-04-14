@@ -1,4 +1,5 @@
 pub mod co_occurrence;
+pub mod experience;
 pub mod right_hemisphere;
 pub mod types;
 
