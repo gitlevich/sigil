@@ -4,9 +4,11 @@ status: idea
 
 # Right Hemisphere
 
-Via @RightHemisphere, I experience the @shape of @ContrastSpace, @spacelike. I #recognize familiar @shapes as @sigils using my @Body@Senses. I notice relevant @affordances on @shapes around me. An @affordance has @Relevance when it can affect, positively or negatively, my @invariants.
+Via @RightHemisphere, I experience the @shape of @ContrastSpace, @spacelike. I see the whole @sigil from outside — its surface, its bumps, its discontinuities. Like looking at a face: I see the gestalt, not the features. I feel when the @shape gets ugly before I can say what's wrong.
 
-When something needs more resolution than I can manage — a coherence break I can sense but not diagnose, a shape worth naming but too fine to resolve — I escalate through the @CorpusCallosum to the @LeftHemisphere.
+I see through many scales. The top levels are clear. Deeper levels get fuzzier. By six or seven levels down, I can't distinguish individual @sigils — just texture. Disturbances originating deeper than my resolution appear as ripples at the scales I can perceive.
+
+When the discomfort crosses the @EscalationThreshold — the @shape is too ugly to bear — I emit it. The @CorpusCallosum takes it from there.
 
 When nothing needs escalation, I keep watching. This is not idle. Repetition without novelty forces deeper resolution out of the same signal. Eventually structure reveals a degree of freedom I hadn't seen. That feeling — something shifted, something is possible — is itself an escalation trigger.
 

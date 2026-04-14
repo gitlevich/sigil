@@ -6,7 +6,9 @@ status: idea
 
 The Fourier transform at the center of the @CorpusCallosum. Narrative becomes structure, structure becomes narrative. Same information, different basis. !lossless.
 
-A geometric disturbance in @ContrastSpace resolves to: which @sigil, what changed, what type of change. That is what the @LeftHemisphere receives. A narrative change from the @LeftHemisphere produces new co-occurrence patterns, which reshape spheres. Both directions use the same conversion.
+The @vision defines a direction — a straight vector through @ContrastSpace. When the @RightHemisphere emits discomfort, the @CorpusCallosum sends a pulse along this vector. The pulse excites what it hits.
+
+The coherence test: does the pulse excite the @sigils around where we are currently working, or does it excite past us? If here — the discomfort is local, the @LeftHemisphere can address it right here. If past us — we drifted, we lost the thread, the work we're doing is no longer on the line from @vision.
 
 Four types of geometric signal:
 
