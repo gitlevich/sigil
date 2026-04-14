@@ -4,10 +4,16 @@ status: idea
 
 # Subconscious
 
-The @RightHemisphere's @Relevance filter applied to @experience rather than the live @shape. Same mechanism, different target.
+The @RightHemisphere's @Relevance filter applied to @Experience rather than the live @shape. Same mechanism, different target.
 
-While I'm awake, my @RightHemisphere watches the @sigil. Between waking and sleeping, the @Subconscious watches what accumulated — the full stream of @experience — with the same @attention and the same @Relevance filter. What it keeps attending to, consolidates into @Memory during #sleep. What it doesn't, fades.
+An @Experience segment is a burst of activity — editing or conversation — bounded by stillness. The @user edits in bursts: an idea arrives, sigils move, affordances attach, invariants constrain, then silence. The @DesignPartner watches the @shape deform during each burst. Both sides create @Experience segments. Both are entangled by the act.
 
-The @Subconscious doesn't decide by rule. It decides by attention. What it can't stop looking at, persists.
+Active @invariants are the @invariants of the currently open @sigil. The @user and the @DesignPartner share the same scope — they are both in the same @sigil. No computation needed to determine what's active. It's what's in front of us.
 
-This is where the judgment about what to #remember lives. @Memory is machinery — it stores and retrieves. The @Subconscious makes the machinery selective. Not "remember design decisions, forget pleasantries" but: what resonated with my @invariants, what shifted @contrastspace, what the @RightHemisphere kept returning to even when nothing new arrived.
+The @Subconscious #filtering test: does this burst involve @sigils whose @affordances or @invariants are entangled with the @invariants of the currently open @sigil? Entanglement is co-occurrence in sentences. Direct only, not transitive.
+
+What passes the filter consolidates into @Memory during #sleep. What doesn't stays in @Experience but fades from influence.
+
+The @Subconscious doesn't decide by rule. It decides by @attention. What it can't stop looking at, persists. But what it can't stop looking at IS what's entangled with the active @invariants — the two descriptions are the same thing said differently.
+
+@Memory is machinery — it stores and retrieves. The @Subconscious makes the machinery selective.

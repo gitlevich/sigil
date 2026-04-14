@@ -13,3 +13,4 @@ The vocabulary for generation is the lexical scope of the recognized @sigil — 
 The @LeftHemisphere generates sentences that the @Application's ontology allows. @Coherence means only meaningful sentences appear as completions. If the generations are coherent, @Sufficiency checks whether all meaningful sentences have been generated. If not, we descend to lower @Resolution until we reach @primitives.
 
 See @McGilchrist@LeftHemisphere.
+
