@@ -18,4 +18,10 @@ Language change — co-occurrence patterns shifted. The story told about childre
 
 Structural change — a child @sigil moved in or out. The parent loses or gains authority. A moved child can still be referenced but is no longer controlled — its @affordances and @invariants are shaped by whoever now contains it.
 
-The ownership distinction matters: I control @affordances and @invariants of @sigils I contain. Everything else I can reference but not shape. A child moving out is a loss of authority. A reference to an external @sigil is a dependency on someone else's definitions.
+Three levels of trust in referenced @affordances:
+
+Children — I define them. I control their @affordances and @invariants. Reliable. A child's affordance changing is my work.
+
+Neighbors — I reference them. They are peers, not under my authority. Unreliable — they can change without consulting me. A neighbor's affordance changing is a dependency risk.
+
+Parent — I inherit from it. I don't control it and I can't see its implementation. Its @affordances are laws of nature for me. A parent's affordance changing is an earthquake — the ground moved.
