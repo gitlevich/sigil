@@ -4,7 +4,7 @@ Three relationships to @attention determine the nature of membership:
 
 Structural — can't stop attending. Laws of nature. The world.
 
-Inherited — attend by default. Born into it. Can leave but takes effort.
+Inherited — attend by default. Born into it. Can leave but takes effort. Have to transcend it: is being Russian still relevant after living 30 years in the US?
 
 Chosen — choose to attend. Joined voluntarily. Can leave freely.
 
