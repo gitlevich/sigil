@@ -354,20 +354,25 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
 }
 
 /// Recall vocabulary for the active sigil from the co-occurrence graph.
-/// Returns neighboring sigil names + their affordances as context strings.
+/// Only returns neighbors that pass the relevance filter (have affordances).
 fn recall_from_graph(
     space: &bicameral_mind::types::ContrastSpace,
     sigil_name: &str,
+    children: &[bicameral_mind::types::SigilId],
+    parent: Option<&bicameral_mind::types::SigilId>,
 ) -> String {
-    let sigil_id = bicameral_mind::types::SigilId::new(sigil_name);
+    use bicameral_mind::right_hemisphere::*;
 
-    // Find all neighbors (co-occurring sigils)
-    let mut neighbors: Vec<(&bicameral_mind::types::SigilId, f32)> = Vec::new();
+    let active = bicameral_mind::types::SigilId::new(sigil_name);
+
+    // Build a synthetic disturbance containing all neighbors as "present"
+    // so the relevance filter can classify them
+    let mut neighbors: Vec<(bicameral_mind::types::SigilId, f32)> = Vec::new();
     for edge in &space.edges {
-        if edge.a == sigil_id {
-            neighbors.push((&edge.b, edge.weight));
-        } else if edge.b == sigil_id {
-            neighbors.push((&edge.a, edge.weight));
+        if edge.a == active {
+            neighbors.push((edge.b.clone(), edge.weight));
+        } else if edge.b == active {
+            neighbors.push((edge.a.clone(), edge.weight));
         }
     }
 
@@ -375,24 +380,25 @@ fn recall_from_graph(
         return String::new();
     }
 
-    // Sort by weight descending (strongest co-occurrences first)
-    neighbors.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    let mut lines = Vec::new();
-    for (neighbor_id, weight) in neighbors.iter().take(10) {
-        let mut desc = format!("@{} (co-occurrence: {:.0})", neighbor_id.as_str(), weight);
-        if let Some(sphere) = space.spheres.get(neighbor_id) {
-            if !sphere.affordances.is_empty() {
-                desc.push_str(&format!(" — affordances: {}", sphere.affordances.join(", ")));
-            }
-            if !sphere.invariants.is_empty() {
-                desc.push_str(&format!(" — invariants: {}", sphere.invariants.join(", ")));
-            }
+    // Filter each neighbor through relevance
+    let mut relevant: Vec<(bicameral_mind::types::SigilId, f32)> = Vec::new();
+    for (neighbor_id, weight) in &neighbors {
+        let relation = classify_relation(neighbor_id, &active, space, children, parent);
+        let result = filter_relevance(neighbor_id, space, relation, RelevanceScope::Live);
+        if result.relevant {
+            relevant.push((neighbor_id.clone(), *weight));
         }
-        lines.push(desc);
     }
 
-    lines.join("\n")
+    if relevant.is_empty() {
+        return String::new();
+    }
+
+    relevant.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    relevant.iter().take(10).map(|(id, weight)| {
+        format!("@{} (weight: {:.0})", id.as_str(), weight)
+    }).collect::<Vec<_>>().join("\n")
 }
 
 #[tauri::command]
@@ -413,7 +419,8 @@ pub async fn send_chat_message(
             let space = state.space_receiver.borrow();
             // Use the last segment of current_path as the active sigil
             let active_name = current_path.last().cloned().unwrap_or_default();
-            recall_from_graph(&space, &active_name)
+            // TODO: pass real children/parent from sigil tree when available
+            recall_from_graph(&space, &active_name, &[], None)
         } else {
             String::new()
         }
@@ -758,7 +765,7 @@ pub async fn memory_recall_for_sigil(
         .to_string_lossy()
         .to_string();
 
-    let recall = recall_from_graph(&space, &sigil_name);
+    let recall = recall_from_graph(&space, &sigil_name, &[], None);
     if recall.is_empty() {
         return Ok(Vec::new());
     }
@@ -851,16 +858,25 @@ pub async fn read_memories(
     };
     let space = state.space_receiver.borrow();
 
-    let nodes: Vec<MemoryNode> = space.spheres.values().map(|s| MemoryNode {
-        id: s.id.as_str().to_string(),
-        name: s.id.as_str().to_string(),
-        language: format!(
-            "affordances: [{}], invariants: [{}], volume: {}",
-            s.affordances.join(", "),
-            s.invariants.join(", "),
-            s.content_volume,
-        ),
-    }).collect();
+    // Only sigils that appear in at least one edge are remembered.
+    // Memory is earned through entanglement, not granted by existence.
+    let mut entangled: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for edge in &space.edges {
+        entangled.insert(edge.a.as_str());
+        entangled.insert(edge.b.as_str());
+    }
+
+    let nodes: Vec<MemoryNode> = space.spheres.values()
+        .filter(|s| entangled.contains(s.id.as_str()))
+        .map(|s| {
+            // Read actual language.md content for the detail panel
+            let language = s.language_content.clone().unwrap_or_default();
+            MemoryNode {
+                id: s.id.as_str().to_string(),
+                name: s.id.as_str().to_string(),
+                language,
+            }
+        }).collect();
 
     let edges: Vec<MemoryEdge> = space.edges.iter().map(|e| MemoryEdge {
         source: e.a.as_str().to_string(),
@@ -1064,21 +1080,37 @@ mod tests {
     #[test]
     fn test_recall_from_graph_empty() {
         let space = crate::bicameral_mind::types::ContrastSpace::new();
-        let result = recall_from_graph(&space, "Nonexistent");
+        let result = recall_from_graph(&space, "Nonexistent", &[], None);
         assert!(result.is_empty());
     }
 
     #[test]
-    fn test_recall_from_graph_finds_neighbors() {
+    fn test_recall_from_graph_filters_by_relevance() {
         let mut space = crate::bicameral_mind::types::ContrastSpace::new();
         crate::bicameral_mind::co_occurrence::add_file_to_space(
             &mut space,
             std::path::Path::new("test.md"),
             "@Alpha and @Beta together. @Alpha and @Gamma too.",
+            &std::collections::HashMap::new(),
         );
-        let result = recall_from_graph(&space, "Alpha");
+        // Without affordances, neighbors are filtered as noise
+        let result = recall_from_graph(&space, "Alpha", &[], None);
+        assert!(result.is_empty(), "neighbors without affordances should be filtered");
+
+        // Add affordances to Beta — now it passes the filter
+        space.spheres.insert(
+            crate::bicameral_mind::types::SigilId::new("Beta"),
+            crate::bicameral_mind::types::SigilSphere {
+                id: crate::bicameral_mind::types::SigilId::new("Beta"),
+                affordances: vec!["act".to_string()],
+                invariants: vec![],
+                content_volume: 0,
+                language_content: None,
+            },
+        );
+        let result = recall_from_graph(&space, "Alpha", &[], None);
         assert!(result.contains("Beta"));
-        assert!(result.contains("Gamma"));
+        assert!(!result.contains("Gamma"), "Gamma has no affordances, should be filtered");
     }
 
     #[test]

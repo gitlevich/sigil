@@ -35,6 +35,9 @@ pub struct SigilSphere {
     pub invariants: Vec<String>,
     /// Bytes of language content — proxy for sphere radius.
     pub content_volume: usize,
+    /// Actual language.md content for display.
+    #[serde(skip)]
+    pub language_content: Option<String>,
 }
 
 impl SigilSphere {

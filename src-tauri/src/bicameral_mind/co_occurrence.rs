@@ -7,16 +7,45 @@ use walkdir::WalkDir;
 
 static REF_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@(\w+)").unwrap());
 
-/// Extract @references from a single sentence.
-/// Returns the unique sigil names referenced (without the @ prefix).
-fn extract_refs(sentence: &str) -> Vec<String> {
+/// Extract @references from a single sentence, resolving each to a canonical
+/// sphere name using the variant lookup. Unresolved references pass through as-is.
+fn extract_refs(sentence: &str, resolver: &HashMap<String, String>) -> Vec<String> {
     let mut refs: Vec<String> = REF_REGEX
         .captures_iter(sentence)
-        .map(|c| c[1].to_string())
+        .map(|c| {
+            let raw = &c[1];
+            resolver.get(raw).cloned().unwrap_or_else(|| raw.to_string())
+        })
         .collect();
     refs.sort();
     refs.dedup();
     refs
+}
+
+/// Build a lookup from every grammatical variant of a sphere name to its
+/// canonical form. Mirrors the variant logic in commands/sigil.rs:
+/// exact, lowercase, +s plural, y→ies plural, and lowercase versions of each.
+pub fn build_variant_resolver(canonical_names: &[String]) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for name in canonical_names {
+        // Exact
+        map.entry(name.clone()).or_insert_with(|| name.clone());
+        // Lowercase
+        let lower = name.to_lowercase();
+        map.entry(lower.clone()).or_insert_with(|| name.clone());
+        // +s plural
+        map.entry(format!("{}s", name)).or_insert_with(|| name.clone());
+        map.entry(format!("{}s", lower)).or_insert_with(|| name.clone());
+        // y→ies
+        if name.ends_with('y') || name.ends_with('Y') {
+            let stem = &name[..name.len() - 1];
+            let suffix = if name.ends_with('Y') { "IES" } else { "ies" };
+            map.entry(format!("{}{}", stem, suffix)).or_insert_with(|| name.clone());
+            let lower_stem = &lower[..lower.len() - 1];
+            map.entry(format!("{}ies", lower_stem)).or_insert_with(|| name.clone());
+        }
+    }
+    map
 }
 
 /// Split markdown text into sentences.
@@ -56,10 +85,11 @@ fn split_sentences(text: &str) -> Vec<(String, usize)> {
 /// Parse a single markdown file and extract co-occurrence edges.
 /// Returns pairs of (SigilId, SigilId, line_number) for every pair of
 /// @references co-occurring in the same sentence.
-pub fn extract_co_occurrences(content: &str) -> Vec<(SigilId, SigilId, usize)> {
+/// References are resolved to canonical sphere names via the resolver.
+pub fn extract_co_occurrences(content: &str, resolver: &HashMap<String, String>) -> Vec<(SigilId, SigilId, usize)> {
     let mut result = Vec::new();
     for (sentence, line_num) in split_sentences(content) {
-        let refs = extract_refs(&sentence);
+        let refs = extract_refs(&sentence, resolver);
         // Generate all unique pairs — order normalized (a < b)
         for i in 0..refs.len() {
             for j in (i + 1)..refs.len() {
@@ -105,24 +135,32 @@ pub fn scan_spec_files(root: &Path) -> Vec<(PathBuf, String)> {
 
 /// Build a ContrastSpace from a directory of spec files.
 /// This is the full rebuild — called at app startup.
+///
+/// Order matters: spheres are populated first so that the variant resolver
+/// can map grammatical forms (@sigils, @attention) to canonical sphere names.
 pub fn build_contrast_space(root: &Path) -> Result<ContrastSpace, BicameralError> {
-    let files = scan_spec_files(root);
     let mut space = ContrastSpace::new();
 
-    for (path, content) in &files {
-        add_file_to_space(&mut space, path, content);
-    }
-
-    // Build sphere inventory from the sigil directory structure
+    // 1. Build sphere inventory first — we need canonical names for resolution
     populate_spheres_from_tree(root, &mut space);
+
+    // 2. Build variant resolver from known sphere names
+    let canonical_names: Vec<String> = space.spheres.keys().map(|k| k.as_str().to_string()).collect();
+    let resolver = build_variant_resolver(&canonical_names);
+
+    // 3. Extract co-occurrences with resolved references
+    let files = scan_spec_files(root);
+    for (path, content) in &files {
+        add_file_to_space(&mut space, path, content, &resolver);
+    }
 
     Ok(space)
 }
 
 /// Add a single file's co-occurrences to the ContrastSpace.
 /// Tracks which edge indices belong to this file for incremental removal.
-pub fn add_file_to_space(space: &mut ContrastSpace, path: &Path, content: &str) {
-    let co_occurrences = extract_co_occurrences(content);
+pub fn add_file_to_space(space: &mut ContrastSpace, path: &Path, content: &str, resolver: &HashMap<String, String>) {
+    let co_occurrences = extract_co_occurrences(content, resolver);
 
     let mut file_edge_indices = Vec::new();
 
@@ -199,9 +237,9 @@ pub fn remove_file_from_space(space: &mut ContrastSpace, path: &Path) {
 }
 
 /// Update a single file: remove old contribution, add new.
-pub fn update_file_in_space(space: &mut ContrastSpace, path: &Path, new_content: &str) {
+pub fn update_file_in_space(space: &mut ContrastSpace, path: &Path, new_content: &str, resolver: &HashMap<String, String>) {
     remove_file_from_space(space, path);
-    add_file_to_space(space, path, new_content);
+    add_file_to_space(space, path, new_content, resolver);
 }
 
 /// Rebuild file_edges index after structural changes (swap_remove).
@@ -249,9 +287,8 @@ fn populate_spheres_from_tree(root: &Path, space: &mut ContrastSpace) {
             continue;
         }
 
-        let content_volume = std::fs::read_to_string(&language_file)
-            .map(|c| c.len())
-            .unwrap_or(0);
+        let language_text = std::fs::read_to_string(&language_file).ok();
+        let content_volume = language_text.as_ref().map(|c| c.len()).unwrap_or(0);
 
         let affordances: Vec<String> = std::fs::read_dir(dir)
             .into_iter()
@@ -295,6 +332,7 @@ fn populate_spheres_from_tree(root: &Path, space: &mut ContrastSpace) {
                 affordances,
                 invariants,
                 content_volume,
+                language_content: language_text,
             },
         );
     }
@@ -306,21 +344,25 @@ mod tests {
     use tempfile::TempDir;
     use std::fs;
 
+    fn empty_resolver() -> HashMap<String, String> {
+        HashMap::new()
+    }
+
     #[test]
     fn test_extract_refs_basic() {
-        let refs = extract_refs("@Alpha and @Beta are related.");
+        let refs = extract_refs("@Alpha and @Beta are related.", &empty_resolver());
         assert_eq!(refs, vec!["Alpha", "Beta"]);
     }
 
     #[test]
     fn test_extract_refs_dedup() {
-        let refs = extract_refs("@Alpha references @Alpha again.");
+        let refs = extract_refs("@Alpha references @Alpha again.", &empty_resolver());
         assert_eq!(refs, vec!["Alpha"]);
     }
 
     #[test]
     fn test_extract_refs_none() {
-        let refs = extract_refs("No references here.");
+        let refs = extract_refs("No references here.", &empty_resolver());
         assert!(refs.is_empty());
     }
 
@@ -344,6 +386,7 @@ mod tests {
     fn test_sentence_co_occurrence() {
         let pairs = extract_co_occurrences(
             "@Alpha and @Beta in same sentence. @Gamma alone here.",
+            &empty_resolver(),
         );
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].0, SigilId::new("Alpha"));
@@ -354,6 +397,7 @@ mod tests {
     fn test_paragraph_no_co_occurrence() {
         let pairs = extract_co_occurrences(
             "@Alpha in first sentence. @Beta in second sentence.",
+            &empty_resolver(),
         );
         // Alpha and Beta are in different sentences — no co-occurrence
         assert!(pairs.is_empty());
@@ -363,6 +407,7 @@ mod tests {
     fn test_transitive_irrelevance() {
         let pairs = extract_co_occurrences(
             "@Alpha and @Beta together. @Beta and @Gamma together. @Alpha alone.",
+            &empty_resolver(),
         );
         let has_alpha_beta = pairs.iter().any(|(a, b, _)| {
             (a.as_str() == "Alpha" && b.as_str() == "Beta")
@@ -385,7 +430,7 @@ mod tests {
     fn test_repetition_strengthens() {
         let mut space = ContrastSpace::new();
         let content = "@Alpha and @Beta here. Another sentence. @Alpha with @Beta again. And @Alpha plus @Beta once more.";
-        add_file_to_space(&mut space, Path::new("test.md"), content);
+        add_file_to_space(&mut space, Path::new("test.md"), content, &empty_resolver());
         let edge = space.edges.iter().find(|e| {
             (e.a.as_str() == "Alpha" && e.b.as_str() == "Beta")
                 || (e.a.as_str() == "Beta" && e.b.as_str() == "Alpha")
@@ -398,7 +443,7 @@ mod tests {
     fn test_distance_inverse_weight() {
         let mut space = ContrastSpace::new();
         let content = "@A and @B. @A and @B. @A and @B."; // weight 3
-        add_file_to_space(&mut space, Path::new("test.md"), content);
+        add_file_to_space(&mut space, Path::new("test.md"), content, &empty_resolver());
         let dist = space.distance(&SigilId::new("A"), &SigilId::new("B"));
         assert!(dist.is_some());
         let d = dist.unwrap();
@@ -414,17 +459,17 @@ mod tests {
     #[test]
     fn test_incremental_add_file() {
         let mut space = ContrastSpace::new();
-        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.");
+        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.", &empty_resolver());
         assert_eq!(space.edges.len(), 1);
-        add_file_to_space(&mut space, Path::new("b.md"), "@Y and @Z together.");
+        add_file_to_space(&mut space, Path::new("b.md"), "@Y and @Z together.", &empty_resolver());
         assert_eq!(space.edges.len(), 2);
     }
 
     #[test]
     fn test_incremental_remove_file() {
         let mut space = ContrastSpace::new();
-        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.");
-        add_file_to_space(&mut space, Path::new("b.md"), "@Y and @Z together.");
+        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.", &empty_resolver());
+        add_file_to_space(&mut space, Path::new("b.md"), "@Y and @Z together.", &empty_resolver());
         assert_eq!(space.edges.len(), 2);
         remove_file_from_space(&mut space, Path::new("a.md"));
         assert_eq!(space.edges.len(), 1);
@@ -436,10 +481,10 @@ mod tests {
     #[test]
     fn test_update_file() {
         let mut space = ContrastSpace::new();
-        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.");
+        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y together.", &empty_resolver());
         assert!(space.distance(&SigilId::new("X"), &SigilId::new("Y")).is_some());
 
-        update_file_in_space(&mut space, Path::new("a.md"), "@X and @Z together.");
+        update_file_in_space(&mut space, Path::new("a.md"), "@X and @Z together.", &empty_resolver());
         assert!(space.distance(&SigilId::new("X"), &SigilId::new("Y")).is_none());
         assert!(space.distance(&SigilId::new("X"), &SigilId::new("Z")).is_some());
     }
@@ -497,9 +542,47 @@ mod tests {
     }
 
     #[test]
+    fn test_variant_resolution_in_build() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+
+        let sigil_a = root.join("Sigil");
+        fs::create_dir_all(&sigil_a).unwrap();
+        fs::write(sigil_a.join("language.md"), "content").unwrap();
+
+        let sigil_b = root.join("Observer");
+        fs::create_dir_all(&sigil_b).unwrap();
+        // Uses lowercase and plural variants
+        fs::write(sigil_b.join("language.md"), "@sigils attend to @observers.").unwrap();
+
+        let space = build_contrast_space(root).unwrap();
+
+        // "sigils" resolves to Sigil, "observers" resolves to Observer
+        assert!(
+            space.distance(&SigilId::new("Sigil"), &SigilId::new("Observer")).is_some(),
+            "lowercase plural @sigils and @observers should resolve to their canonical spheres"
+        );
+    }
+
+    #[test]
+    fn test_variant_resolver_coverage() {
+        let names = vec!["Strategy".to_string(), "Observer".to_string()];
+        let resolver = build_variant_resolver(&names);
+        assert_eq!(resolver.get("Strategy"), Some(&"Strategy".to_string()));
+        assert_eq!(resolver.get("strategy"), Some(&"Strategy".to_string()));
+        assert_eq!(resolver.get("Strategys"), Some(&"Strategy".to_string()));
+        assert_eq!(resolver.get("Strategies"), Some(&"Strategy".to_string()));
+        assert_eq!(resolver.get("strategies"), Some(&"Strategy".to_string()));
+        assert_eq!(resolver.get("Observer"), Some(&"Observer".to_string()));
+        assert_eq!(resolver.get("observer"), Some(&"Observer".to_string()));
+        assert_eq!(resolver.get("Observers"), Some(&"Observer".to_string()));
+        assert_eq!(resolver.get("observers"), Some(&"Observer".to_string()));
+    }
+
+    #[test]
     fn test_file_deleted_gracefully() {
         let mut space = ContrastSpace::new();
-        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y.");
+        add_file_to_space(&mut space, Path::new("a.md"), "@X and @Y.", &empty_resolver());
         // Remove a file that doesn't exist in tracking — no panic
         remove_file_from_space(&mut space, Path::new("nonexistent.md"));
         assert_eq!(space.edges.len(), 1);

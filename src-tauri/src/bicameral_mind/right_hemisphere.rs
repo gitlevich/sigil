@@ -209,6 +209,7 @@ pub fn filter_disturbance(
 mod tests {
     use super::*;
     use crate::bicameral_mind::co_occurrence::add_file_to_space;
+    use std::collections::HashMap;
     use std::path::Path;
 
     fn make_sphere(name: &str, affordances: Vec<&str>, invariants: Vec<&str>) -> SigilSphere {
@@ -217,19 +218,21 @@ mod tests {
             affordances: affordances.into_iter().map(String::from).collect(),
             invariants: invariants.into_iter().map(String::from).collect(),
             content_volume: 100,
+            language_content: None,
         }
     }
 
     #[test]
     fn test_rewording_no_disturbance() {
         let mut old = ContrastSpace::new();
-        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are related.");
+        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are related.", &HashMap::new());
 
         let mut new = ContrastSpace::new();
         add_file_to_space(
             &mut new,
             Path::new("a.md"),
             "@Alpha connects to @Beta in some way.",
+            &HashMap::new(),
         );
 
         let d = detect_disturbance(&old, &new);
@@ -239,10 +242,10 @@ mod tests {
     #[test]
     fn test_removed_reference_produces_disturbance() {
         let mut old = ContrastSpace::new();
-        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are related.");
+        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are related.", &HashMap::new());
 
         let mut new = ContrastSpace::new();
-        add_file_to_space(&mut new, Path::new("a.md"), "@Alpha stands alone now.");
+        add_file_to_space(&mut new, Path::new("a.md"), "@Alpha stands alone now.", &HashMap::new());
 
         let d = detect_disturbance(&old, &new);
         assert!(!d.is_empty());
@@ -252,10 +255,10 @@ mod tests {
     #[test]
     fn test_added_reference_produces_disturbance() {
         let mut old = ContrastSpace::new();
-        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha stands alone.");
+        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha stands alone.", &HashMap::new());
 
         let mut new = ContrastSpace::new();
-        add_file_to_space(&mut new, Path::new("a.md"), "@Alpha and @Beta together now.");
+        add_file_to_space(&mut new, Path::new("a.md"), "@Alpha and @Beta together now.", &HashMap::new());
 
         let d = detect_disturbance(&old, &new);
         assert!(!d.is_empty());
@@ -265,10 +268,10 @@ mod tests {
     #[test]
     fn test_weight_change_disturbance() {
         let mut old = ContrastSpace::new();
-        add_file_to_space(&mut old, Path::new("a.md"), "@A and @B.");
+        add_file_to_space(&mut old, Path::new("a.md"), "@A and @B.", &HashMap::new());
 
         let mut new = ContrastSpace::new();
-        add_file_to_space(&mut new, Path::new("a.md"), "@A and @B. Again @A with @B.");
+        add_file_to_space(&mut new, Path::new("a.md"), "@A and @B. Again @A with @B.", &HashMap::new());
 
         let d = detect_disturbance(&old, &new);
         assert_eq!(d.weight_changes.len(), 1);
@@ -315,13 +318,14 @@ mod tests {
     fn test_formatting_no_disturbance() {
         // Whitespace/formatting changes that don't affect @references
         let mut old = ContrastSpace::new();
-        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are close.");
+        add_file_to_space(&mut old, Path::new("a.md"), "@Alpha and @Beta are close.", &HashMap::new());
 
         let mut new = ContrastSpace::new();
         add_file_to_space(
             &mut new,
             Path::new("a.md"),
             "  @Alpha   and   @Beta   are   close.  ",
+            &HashMap::new(),
         );
 
         let d = detect_disturbance(&old, &new);
@@ -465,7 +469,7 @@ mod tests {
     #[test]
     fn test_classify_neighbor_via_edge() {
         let mut space = ContrastSpace::new();
-        add_file_to_space(&mut space, Path::new("x.md"), "@Active and @Nb together.");
+        add_file_to_space(&mut space, Path::new("x.md"), "@Active and @Nb together.", &HashMap::new());
         let r = classify_relation(
             &SigilId::new("Nb"), &SigilId::new("Active"), &space,
             &[], None,
