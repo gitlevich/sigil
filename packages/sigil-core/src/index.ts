@@ -18,6 +18,13 @@ export { styleForPrefix, buildRefPattern, buildRefLookup, highlightText } from "
 export type { ScopeKind, ScopeResolution, ScopeItem } from "./lexicalScope";
 export { isInScope, resolve, buildScope } from "./lexicalScope";
 export { allRefsPattern, isInCodeSpan } from "./refs-pattern";
+export type { CoOccurrenceMap } from "./coOccurrence";
+export {
+  extractCoOccurrences,
+  coOccurrenceCount,
+  coOccurrenceDistance,
+  parsePairKey,
+} from "./coOccurrence";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,
