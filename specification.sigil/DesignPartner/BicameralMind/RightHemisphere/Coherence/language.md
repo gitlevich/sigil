@@ -4,8 +4,12 @@ status: idea
 
 # Coherence
 
-Geometric @Coherence. The @RightHemisphere senses the whole @shape. When the @CorpusCallosum sends a pulse along the @vision vector, @Coherence is where the pulse lands.
+Geometric @Coherence. The @RightHemisphere senses the whole @shape. When the @CorpusCallosum sends a compressed signal along the @vision vector, @Coherence is where the signal lands.
 
-If the pulse excites the @sigils around the current work — coherent. The discomfort is local and addressable.
+Three outcomes:
 
-If the pulse excites past the current work — incoherent. The narrative drifted. Local edits accumulated into a direction change. The path from @vision to here no longer traces straight.
+Arrives — @attention flows from @vision through the @sigils to the destination. The beam is straight. The work is coherent.
+
+Loops — @attention enters a local attractor. A cluster of @sigils so tightly entangled that @attention circulates inside rather than passing through. The @narrative is captured. What Iain @McGilchrist calls the emissary's betrayal.
+
+Veers — @attention departs the line. The @narrative drifted. Somewhere a @sigil pulled the story off course.

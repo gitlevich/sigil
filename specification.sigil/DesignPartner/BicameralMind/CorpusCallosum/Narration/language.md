@@ -2,15 +2,17 @@
 status: idea
 ---
 
-# Translation
+# Narration
 
-The Fourier transform at the center of the @CorpusCallosum. Narrative becomes structure, structure becomes narrative. Same information, different basis. !lossless.
+The Fourier transform at the center of the @CorpusCallosum. !lossless.
 
-The @vision defines a direction — a straight vector through @ContrastSpace. When the @RightHemisphere emits discomfort, the @CorpusCallosum sends a pulse along this vector. The pulse excites what it hits.
+@Narration compresses the spatial @shape — the whole mess of spheres and entanglements — into language. Narrative is compressed @attention. Every sentence is @attention that was spread across the whole @shape, collapsed into a sequence of words.
 
-The coherence test: does the pulse excite the @sigils around where we are currently working, or does it excite past us? If here — the discomfort is local, the @LeftHemisphere can address it right here. If past us — we drifted, we lost the thread, the work we're doing is no longer on the line from @vision.
+Writing a spec is compressing @attention into language. Reading a spec is decompressing language back into @attention. These are the two directions of @Narration.
 
-Four types of geometric signal:
+The @vision defines a direction — a straight vector through @ContrastSpace. When the @RightHemisphere emits discomfort, the @CorpusCallosum compresses the spatial signal into language and sends it along this vector. The @LeftHemisphere receives language, not geometry.
+
+Four types of geometric signal that get compressed:
 
 Invariant change — a @sigil's boundary rigidity shifted. An invariant was added, removed, or violated.
 
