@@ -287,6 +287,16 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<ApplicationSpec, String
 pub fn create_context(parent_path: String, name: String) -> Result<SigilFolder, String> {
     let parent = Path::new(&parent_path);
 
+    // A sigil decomposes into at most 5 children before recursing deeper.
+    let existing_children = fs::read_dir(parent)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir() && !e.file_name().to_string_lossy().starts_with('.'))
+        .count();
+    if existing_children >= 5 {
+        return Err("Maximum of 5 sigils at this level. Recurse deeper instead.".to_string());
+    }
+
     let context_path = parent.join(&name);
     if context_path.exists() {
         return Err(format!("Context '{}' already exists", name));
@@ -689,7 +699,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_context_max_five() {
+    fn test_create_sigil_max_five() {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);
 
