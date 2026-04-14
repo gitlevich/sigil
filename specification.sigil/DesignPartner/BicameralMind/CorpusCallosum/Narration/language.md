@@ -4,7 +4,7 @@ status: idea
 
 # Narration
 
-The Fourier transform at the center of the @CorpusCallosum. !lossless.
+Compression of @attention into language at the center of the @CorpusCallosum. !relevant.
 
 @Narration compresses the spatial @shape — the whole mess of spheres and entanglements — into language. Narrative is compressed @attention. Every sentence is @attention that was spread across the whole @shape, collapsed into a sequence of words.
 

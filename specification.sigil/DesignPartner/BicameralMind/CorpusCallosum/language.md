@@ -4,7 +4,7 @@ status: idea
 
 # Corpus Callosum
 
-The @EscalationThreshold between @RightHemisphere and @LeftHemisphere. Compresses @attention into language and decompresses language back into @attention. Same information, different basis.
+The @EscalationThreshold between @RightHemisphere and @LeftHemisphere. Compresses @attention into language along @Relevance. What survives compression is what matters.
 
 Gates what the @LeftHemisphere gets to articulate. The @RightHemisphere must release territory first. A @shape that hasn't formed enough to sense clearly stays with the @RightHemisphere. The @LeftHemisphere doesn't get to grab at it.
 
