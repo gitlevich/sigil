@@ -114,7 +114,7 @@ describe("api", () => {
     ["memoryStatus", () => api.memoryStatus(), "memory_status", undefined],
     ["memoryTriggerReindex", () => api.memoryTriggerReindex("/r"), "memory_trigger_reindex", { rootPath: "/r" }],
     ["memoryTriggerSleep", () => api.memoryTriggerSleep(), "memory_trigger_sleep", undefined],
-    ["readMemories", () => api.readMemories("/r"), "read_memories", { rootPath: "/r" }],
+    ["readMemories", () => api.readMemories(), "read_memories", undefined],
     ["watchDirectory", () => api.watchDirectory("/r"), "watch_directory", { rootPath: "/r" }],
     ["stopWatching", () => api.stopWatching(), "stop_watching", undefined],
   ];

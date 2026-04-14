@@ -9,7 +9,7 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
-import { api, ApplicationSpec } from "./tauri";
+import { api, ApplicationSpec, ChatInfo } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -43,6 +43,14 @@ export function App({ initialRootPath }: AppProps) {
 
   const handleOpen = useCallback(async (rootPath: string, overrides: Record<string, unknown> = {}) => {
     const spec = await openDocument(rootPath);
+
+    const [chats] = await Promise.all([
+      api.listChats(rootPath).catch(() => [] as ChatInfo[]),
+      api.memoryTriggerReindex(rootPath).catch(console.error),
+    ]);
+    const activeChatId = (overrides.activeChatId as string) ?? (chats.length > 0 ? chats[0].id : "");
+    const chatMessages = (overrides.chatMessages as []) ?? [];
+
     setWorkspace({
       spec,
       initialPath: (overrides.currentPath as string[]) ?? [],
@@ -57,8 +65,9 @@ export function App({ initialRootPath }: AppProps) {
         designPartnerPanelTab: (overrides.designPartnerPanelTab as LayoutState["designPartnerPanelTab"]) ?? DEFAULT_LAYOUT_STATE.designPartnerPanelTab,
       },
       initialChat: {
-        activeChatId: (overrides.activeChatId as string) ?? "",
-        chatMessages: (overrides.chatMessages as []) ?? [],
+        chats,
+        activeChatId,
+        chatMessages,
       },
     });
     dispatch({ type: "SET_SCREEN", screen: "workspace" });

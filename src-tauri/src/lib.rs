@@ -1,6 +1,6 @@
 mod commands;
 mod models;
-pub mod memory;
+pub mod bicameral_mind;
 
 use commands::watcher::WatcherState;
 use commands::workspace_lock::WorkspaceLocks;
@@ -15,14 +15,8 @@ fn take_pending_open_path(state: tauri::State<'_, PendingOpenPath>) -> Option<St
     state.0.lock().expect("PendingOpenPath mutex poisoned").take()
 }
 
-/// Lazily-initialized memory state. Opened on first use when sigil root is known.
-pub struct MemoryHandle(pub Arc<tokio::sync::Mutex<Option<memory::MemoryState>>>);
-
-/// Channel to trigger sleep consolidation.
-pub struct SleepSender(pub tokio::sync::mpsc::Sender<memory::sleeper::SleepTrigger>);
-
-/// Receiver side of sleep trigger — taken once to start the sleep loop.
-pub struct SleepRx(pub Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Receiver<memory::sleeper::SleepTrigger>>>>);
+/// Lazily-initialized BicameralMind state. Started when sigil root is known.
+pub struct BicameralHandle(pub Arc<tokio::sync::Mutex<Option<bicameral_mind::BicameralState>>>);
 
 fn urlencoding(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
@@ -75,8 +69,7 @@ mod tests {
 }
 
 pub fn run() {
-    let memory_handle = MemoryHandle(Arc::new(tokio::sync::Mutex::new(None)));
-    let (sleep_tx, sleep_rx) = tokio::sync::mpsc::channel::<memory::sleeper::SleepTrigger>(4);
+    let bicameral_handle = BicameralHandle(Arc::new(tokio::sync::Mutex::new(None)));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -87,8 +80,7 @@ pub fn run() {
         .manage(WatcherState(Mutex::new(None)))
         .manage(WorkspaceLocks(Mutex::new(std::collections::HashMap::new())))
         .manage(PendingOpenPath(Mutex::new(None)))
-        .manage(memory_handle)
-        .manage(SleepSender(sleep_tx))
+        .manage(bicameral_handle)
         .invoke_handler(tauri::generate_handler![
             commands::sigil::scaffold_sigil,
             commands::sigil::check_imported_ontologies,
@@ -128,7 +120,6 @@ pub fn run() {
             commands::workspace_lock::close_workspace,
             take_pending_open_path,
         ])
-        .manage(SleepRx(Arc::new(tokio::sync::Mutex::new(Some(sleep_rx)))))
         .build(tauri::generate_context!())
         .expect("error while building Sigil")
         .run(|app, event| {
