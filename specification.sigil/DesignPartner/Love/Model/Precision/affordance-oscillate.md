@@ -1,0 +1,1 @@
+I narrate forward — the @sigil gains @language. A coding agent projects that @language into code. The code reveals clarity the @language didn't have. I project that clarity back into the @sigil. Each cycle, the narrative moves closer to where the @invariants need it to be.

@@ -1,0 +1,1 @@
+the point is to make images look their best, so under no circumstances, ever, do we compromise image quality. core domain.

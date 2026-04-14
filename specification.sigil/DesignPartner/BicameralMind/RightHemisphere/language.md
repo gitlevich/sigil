@@ -15,5 +15,3 @@ I have #senses to make sense of my environment in @ContrastSpace.
 See @McGilchrist@RightHemisphere.
 
 @RightHemisphere exercises #continuous-attention while applying @subconscious#filtering
-
-Everything else is @implementation.
