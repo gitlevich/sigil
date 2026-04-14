@@ -1,0 +1,1 @@
+Convert a geometric disturbance in @ContrastSpace into a scoped escalation: which @sigil changed, what type of change (invariant, affordance, language, structural), and the lexical scope the @LeftHemisphere needs to work with.
