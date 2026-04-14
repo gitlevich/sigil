@@ -120,34 +120,50 @@ pub struct RelevanceResult {
 }
 
 /// Single parameterized relevance filter.
-/// Invariants: affordance-relevance, relevance-gating, single-mechanism, no-escalation.
 ///
-/// Relevant = sigil has affordances AND is related to the active sigil's invariants.
-/// Children: always relevant.
-/// Parent: always relevant (laws of nature).
-/// Neighbors: relevant if their affordances match active sigil's invariants.
-/// Distant: not relevant.
+/// From the spec: "An Experience segment is relevant when it involves sigils
+/// whose affordances can affect the active invariants of the currently open sigil.
+/// Co-occurrence in sentences establishes entanglement. Proximity alone is not
+/// sufficient."
 ///
-/// Subconscious scope: never produces escalation signal.
+/// Children: always relevant — this is the work itself.
+/// Parent: always relevant — its affordances are laws of nature for the current sigil.
+/// Neighbors: relevant when the neighbor has affordances AND the active sigil has
+///   invariants. The co-occurrence edge between them IS the entanglement evidence —
+///   the author put them in the same sentence. But a neighbor with no affordances
+///   can't affect anything, and a neighbor whose active sigil has no invariants
+///   has nothing to affect.
+/// Distant: not relevant — no entanglement.
+///
+/// Subconscious scope never produces escalation signal.
 pub fn filter_relevance(
     sigil: &SigilId,
+    active_sigil: &SigilId,
     space: &ContrastSpace,
     relation: SigilRelation,
     scope: RelevanceScope,
 ) -> RelevanceResult {
-    let sphere = space.spheres.get(sigil);
-
-    // No affordances = noise (affordance-relevance invariant)
-    let has_affordances = sphere.map_or(false, |s| s.has_affordances());
-
     let relevant = match &relation {
-        SigilRelation::Child => true,       // always relevant
-        SigilRelation::Parent => true,      // laws of nature
-        SigilRelation::Neighbor => has_affordances,
+        SigilRelation::Child => true,
+        SigilRelation::Parent => true,
+        SigilRelation::Neighbor => {
+            // affordance-relevance: neighbor must have affordances that can act
+            let neighbor_has_affordances = space
+                .spheres
+                .get(sigil)
+                .map_or(false, |s| s.has_affordances());
+            // The active sigil must have invariants that can be affected
+            let active_has_invariants = space
+                .spheres
+                .get(active_sigil)
+                .map_or(false, |s| !s.invariants.is_empty());
+            // Both conditions required: something to act with, something to act on.
+            // The co-occurrence edge (Neighbor classification) is the entanglement.
+            neighbor_has_affordances && active_has_invariants
+        }
         SigilRelation::Distant => false,
     };
 
-    // Subconscious never escalates (no-escalation invariant)
     let escalate = relevant && scope == RelevanceScope::Live;
 
     RelevanceResult {
@@ -199,7 +215,7 @@ pub fn filter_disturbance(
         .into_iter()
         .map(|s| {
             let relation = classify_relation(&s, active_sigil, space, children, parent);
-            filter_relevance(&s, space, relation, scope)
+            filter_relevance(&s, active_sigil, space, relation, scope)
         })
         .filter(|r| r.relevant)
         .collect()
@@ -347,101 +363,95 @@ mod tests {
     }
 
     // --- Relevance filter tests ---
+    //
+    // From the spec (affordance-relevance): relevant when the neighbor's
+    // affordances can affect the active sigil's invariants. Both sides
+    // must be present. The co-occurrence edge is the entanglement.
 
     #[test]
     fn test_children_always_relevant() {
         let space = ContrastSpace::new();
-        let child = SigilId::new("Child");
-        let active = SigilId::new("Parent");
         let result = filter_relevance(
-            &child, &space,
+            &SigilId::new("Child"), &SigilId::new("Parent"), &space,
             SigilRelation::Child, RelevanceScope::Live,
         );
-        assert!(result.relevant, "children should always be relevant");
+        assert!(result.relevant);
     }
 
     #[test]
     fn test_parent_always_relevant() {
         let space = ContrastSpace::new();
-        let parent = SigilId::new("GrandParent");
-        let active = SigilId::new("Child");
         let result = filter_relevance(
-            &parent, &space,
+            &SigilId::new("GrandParent"), &SigilId::new("Child"), &space,
             SigilRelation::Parent, RelevanceScope::Live,
         );
-        assert!(result.relevant, "parent should always be relevant");
+        assert!(result.relevant);
     }
 
     #[test]
     fn test_neighbor_without_affordances_filtered() {
         let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("Neighbor"),
-            make_sphere("Neighbor", vec![], vec!["some-rule"]),
-        );
+        // Neighbor has no affordances — can't act on anything
+        space.spheres.insert(SigilId::new("Nb"), make_sphere("Nb", vec![], vec!["rule"]));
+        // Active has invariants — something to affect
+        space.spheres.insert(SigilId::new("Active"), make_sphere("Active", vec![], vec!["constraint"]));
         let result = filter_relevance(
-            &SigilId::new("Neighbor"), &space,
+            &SigilId::new("Nb"), &SigilId::new("Active"), &space,
             SigilRelation::Neighbor, RelevanceScope::Live,
         );
-        assert!(!result.relevant, "neighbor without affordances is noise");
+        assert!(!result.relevant, "neighbor without affordances can't affect anything");
     }
 
     #[test]
-    fn test_neighbor_with_affordances_relevant() {
+    fn test_neighbor_with_affordances_but_active_has_no_invariants() {
         let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("Neighbor"),
-            make_sphere("Neighbor", vec!["do-something"], vec![]),
-        );
+        // Neighbor has affordances
+        space.spheres.insert(SigilId::new("Nb"), make_sphere("Nb", vec!["act"], vec![]));
+        // Active has NO invariants — nothing to be affected
+        space.spheres.insert(SigilId::new("Active"), make_sphere("Active", vec!["do"], vec![]));
         let result = filter_relevance(
-            &SigilId::new("Neighbor"), &space,
+            &SigilId::new("Nb"), &SigilId::new("Active"), &space,
             SigilRelation::Neighbor, RelevanceScope::Live,
         );
-        assert!(result.relevant, "neighbor with affordances should be relevant");
+        assert!(!result.relevant, "nothing to affect when active has no invariants");
+    }
+
+    #[test]
+    fn test_neighbor_relevant_when_both_sides_present() {
+        let mut space = ContrastSpace::new();
+        // Neighbor has affordances — can act
+        space.spheres.insert(SigilId::new("Nb"), make_sphere("Nb", vec!["act"], vec![]));
+        // Active has invariants — can be affected
+        space.spheres.insert(SigilId::new("Active"), make_sphere("Active", vec![], vec!["constraint"]));
+        let result = filter_relevance(
+            &SigilId::new("Nb"), &SigilId::new("Active"), &space,
+            SigilRelation::Neighbor, RelevanceScope::Live,
+        );
+        assert!(result.relevant);
+        assert!(result.escalate);
     }
 
     #[test]
     fn test_subconscious_never_escalates() {
-        let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("Child"),
-            make_sphere("Child", vec!["act"], vec![]),
-        );
+        let space = ContrastSpace::new();
         let result = filter_relevance(
-            &SigilId::new("Child"), &space,
+            &SigilId::new("Child"), &SigilId::new("Parent"), &space,
             SigilRelation::Child, RelevanceScope::Subconscious,
         );
         assert!(result.relevant);
-        assert!(!result.escalate, "subconscious must never escalate");
-    }
-
-    #[test]
-    fn test_live_scope_can_escalate() {
-        let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("Nb"),
-            make_sphere("Nb", vec!["act"], vec![]),
-        );
-        let result = filter_relevance(
-            &SigilId::new("Nb"), &space,
-            SigilRelation::Neighbor, RelevanceScope::Live,
-        );
-        assert!(result.relevant);
-        assert!(result.escalate, "live scope should allow escalation");
+        assert!(!result.escalate);
     }
 
     #[test]
     fn test_distant_never_relevant() {
         let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("Far"),
-            make_sphere("Far", vec!["act"], vec![]),
-        );
+        space.spheres.insert(SigilId::new("Far"), make_sphere("Far", vec!["act"], vec![]));
+        space.spheres.insert(SigilId::new("Active"), make_sphere("Active", vec![], vec!["rule"]));
         let result = filter_relevance(
-            &SigilId::new("Far"), &space,
+            &SigilId::new("Far"), &SigilId::new("Active"), &space,
             SigilRelation::Distant, RelevanceScope::Live,
         );
-        assert!(!result.relevant, "distant sigils should not be relevant");
+        assert!(!result.relevant);
     }
 
     #[test]

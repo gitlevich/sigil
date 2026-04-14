@@ -3,6 +3,7 @@ pub mod experience;
 pub mod right_hemisphere;
 pub mod types;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
@@ -18,12 +19,13 @@ pub enum SpecChange {
 }
 
 /// Shared state for the BicameralMind runtime.
-/// Tauri commands read the current ContrastSpace via the watch receiver.
 pub struct BicameralState {
     /// Send file-change events into the RightHemisphere processing loop.
     pub change_sender: mpsc::Sender<SpecChange>,
-    /// Receive the latest ContrastSpace snapshot. Updated after each geometry recomputation.
+    /// Receive the latest ContrastSpace snapshot.
     pub space_receiver: watch::Receiver<Arc<ContrastSpace>>,
+    /// The Experience journal. Protected by a tokio Mutex for async access.
+    pub experience: tokio::sync::Mutex<experience::Experience>,
 }
 
 /// Start the BicameralMind runtime.
@@ -49,18 +51,27 @@ pub async fn start(root: &Path) -> Result<BicameralState, BicameralError> {
     .map_err(|e| BicameralError::Parse(format!("spawn_blocking failed: {e}")))?
     ?;
 
+    let resolver: HashMap<String, String> = {
+        let names: Vec<String> = initial_space.spheres.keys().map(|k| k.as_str().to_string()).collect();
+        co_occurrence::build_variant_resolver(&names)
+    };
+
     let initial_arc = Arc::new(initial_space);
     let (space_tx, space_rx) = watch::channel(initial_arc.clone());
     let (change_tx, change_rx) = mpsc::channel::<SpecChange>(256);
 
     let root_owned = root.to_path_buf();
     tokio::spawn(async move {
-        run_attention_loop(change_rx, space_tx, initial_arc, root_owned).await;
+        run_attention_loop(change_rx, space_tx, initial_arc, root_owned, resolver).await;
     });
+
+    let journal_dir = root.join(".private/DesignPartnerState/experience");
+    let exp = experience::Experience::new(journal_dir);
 
     Ok(BicameralState {
         change_sender: change_tx,
         space_receiver: space_rx,
+        experience: tokio::sync::Mutex::new(exp),
     })
 }
 
@@ -71,6 +82,7 @@ async fn run_attention_loop(
     space_tx: watch::Sender<Arc<ContrastSpace>>,
     initial_space: Arc<ContrastSpace>,
     _root: PathBuf,
+    resolver: HashMap<String, String>,
 ) {
     let mut current_space = (*initial_space).clone();
     let debounce_ms = 200;
@@ -126,7 +138,7 @@ async fn run_attention_loop(
                     .await;
                     match content {
                         Ok(Ok(text)) => {
-                            co_occurrence::update_file_in_space(&mut current_space, p, &text);
+                            co_occurrence::update_file_in_space(&mut current_space, p, &text, &resolver);
                         }
                         _ => {
                             // File disappeared between notification and read

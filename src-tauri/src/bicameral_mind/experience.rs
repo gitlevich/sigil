@@ -7,19 +7,30 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 /// A single entry in the Experience journal.
-/// Records what changed in the geometry during an edit.
+/// The spec says: "every word spoken between me and the user is recorded."
+/// Experience captures both conversations and geometry changes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExperienceEntry {
     pub timestamp: DateTime<Utc>,
     pub session_id: u64,
-    /// Sigils involved in the geometry change.
-    pub sigils_involved: Vec<SigilId>,
-    /// The sigil currently open in the editor.
     pub active_sigil: SigilId,
-    /// Edge deltas from the disturbance.
-    pub edge_deltas: Vec<EdgeDelta>,
-    /// Which file triggered this entry.
-    pub source_file: PathBuf,
+    pub content: ExperienceContent,
+}
+
+/// What happened. Conversations and geometry changes are both Experience.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExperienceContent {
+    /// A conversation turn between user and DesignPartner.
+    Conversation {
+        user_message: String,
+        assistant_message: String,
+    },
+    /// A geometry change from a file edit.
+    GeometryChange {
+        sigils_involved: Vec<SigilId>,
+        edge_deltas: Vec<EdgeDelta>,
+        source_file: PathBuf,
+    },
 }
 
 /// A single edge change recorded in Experience.
@@ -62,66 +73,80 @@ impl Experience {
         }
     }
 
-    /// Append an entry. Checks for session boundary first.
-    /// Returns the session_id used (may have incremented).
-    pub fn record(
+    /// Check and advance session boundary if idle threshold exceeded.
+    fn check_session_boundary(&mut self) {
+        let now = Utc::now();
+        if let Some(last) = self.last_entry_at {
+            if (now - last).num_seconds() >= self.idle_threshold_secs {
+                self.end_session();
+            }
+        }
+        self.last_entry_at = Some(now);
+    }
+
+    /// Record a geometry change from a file edit.
+    pub fn record_geometry(
         &mut self,
         active_sigil: SigilId,
         disturbance: &Disturbance,
         source_file: PathBuf,
     ) -> Result<u64, BicameralError> {
-        let now = Utc::now();
+        self.check_session_boundary();
 
-        // Check idle-based session boundary
-        if let Some(last) = self.last_entry_at {
-            let elapsed = (now - last).num_seconds();
-            if elapsed >= self.idle_threshold_secs {
-                self.end_session();
-            }
-        }
-
-        self.last_entry_at = Some(now);
-
-        let sigils = disturbance.involved_sigils();
-
-        // Build edge deltas
         let mut edge_deltas = Vec::new();
         for e in &disturbance.added_edges {
-            edge_deltas.push(EdgeDelta::Added {
-                a: e.a.clone(),
-                b: e.b.clone(),
-                weight: e.weight,
-            });
+            edge_deltas.push(EdgeDelta::Added { a: e.a.clone(), b: e.b.clone(), weight: e.weight });
         }
         for e in &disturbance.removed_edges {
-            edge_deltas.push(EdgeDelta::Removed {
-                a: e.a.clone(),
-                b: e.b.clone(),
-                weight: e.weight,
-            });
+            edge_deltas.push(EdgeDelta::Removed { a: e.a.clone(), b: e.b.clone(), weight: e.weight });
         }
         for wc in &disturbance.weight_changes {
-            edge_deltas.push(EdgeDelta::WeightChanged {
-                a: wc.a.clone(),
-                b: wc.b.clone(),
-                old: wc.old_weight,
-                new: wc.new_weight,
-            });
+            edge_deltas.push(EdgeDelta::WeightChanged { a: wc.a.clone(), b: wc.b.clone(), old: wc.old_weight, new: wc.new_weight });
         }
 
         let entry = ExperienceEntry {
-            timestamp: now,
+            timestamp: Utc::now(),
             session_id: self.session_id,
-            sigils_involved: sigils,
             active_sigil,
-            edge_deltas,
-            source_file,
+            content: ExperienceContent::GeometryChange {
+                sigils_involved: disturbance.involved_sigils(),
+                edge_deltas,
+                source_file,
+            },
         };
 
         // Append to disk
         self.append_to_disk(&entry)?;
 
         // Append to buffer, evict oldest if over limit
+        self.buffer.push_back(entry);
+        if self.buffer.len() > self.buffer_limit {
+            self.buffer.pop_front();
+        }
+
+        Ok(self.session_id)
+    }
+
+    /// Record a conversation turn. The spec says every word spoken is recorded.
+    pub fn record_conversation(
+        &mut self,
+        active_sigil: SigilId,
+        user_message: String,
+        assistant_message: String,
+    ) -> Result<u64, BicameralError> {
+        self.check_session_boundary();
+
+        let entry = ExperienceEntry {
+            timestamp: Utc::now(),
+            session_id: self.session_id,
+            active_sigil,
+            content: ExperienceContent::Conversation {
+                user_message,
+                assistant_message,
+            },
+        };
+
+        self.append_to_disk(&entry)?;
         self.buffer.push_back(entry);
         if self.buffer.len() > self.buffer_limit {
             self.buffer.pop_front();
@@ -252,8 +277,8 @@ mod tests {
         let mut exp = Experience::new(tmp.path().join("journal"));
 
         let d = make_disturbance_with_added("A", "B");
-        exp.record(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
-        exp.record(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
 
         // Read back from disk — both entries present
         let entries = exp.read_session(exp.session_id()).unwrap();
@@ -267,8 +292,8 @@ mod tests {
 
         let d1 = make_disturbance_with_added("A", "B");
         let d2 = make_disturbance_with_removed("A", "B");
-        exp.record(SigilId::new("Root"), &d1, PathBuf::from("a.md")).unwrap();
-        exp.record(SigilId::new("Root"), &d2, PathBuf::from("a.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d1, PathBuf::from("a.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d2, PathBuf::from("a.md")).unwrap();
 
         let entries = exp.read_session(exp.session_id()).unwrap();
         assert!(entries[0].timestamp <= entries[1].timestamp);
@@ -282,12 +307,12 @@ mod tests {
         exp.idle_threshold_secs = 0;
 
         let d = make_disturbance_with_added("A", "B");
-        let s1 = exp.record(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
+        let s1 = exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
 
         // Simulate idle by setting last_entry_at to the past
         exp.last_entry_at = Some(Utc::now() - chrono::Duration::seconds(1));
 
-        let s2 = exp.record(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
+        let s2 = exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
         assert!(s2 > s1, "idle should trigger new session");
     }
 
@@ -297,9 +322,9 @@ mod tests {
         let mut exp = Experience::new(tmp.path().join("journal"));
 
         let d = make_disturbance_with_added("A", "B");
-        let s1 = exp.record(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
+        let s1 = exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
         exp.end_session();
-        let s2 = exp.record(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
+        let s2 = exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("b.md")).unwrap();
         assert_eq!(s2, s1 + 1);
     }
 
@@ -311,7 +336,7 @@ mod tests {
 
         let d = make_disturbance_with_added("A", "B");
         for i in 0..5 {
-            exp.record(SigilId::new("Root"), &d, PathBuf::from(format!("{i}.md"))).unwrap();
+            exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from(format!("{i}.md"))).unwrap();
         }
 
         assert_eq!(exp.buffer_len(), 3);
@@ -326,18 +351,43 @@ mod tests {
         let mut exp = Experience::new(tmp.path().join("journal"));
 
         let d = make_disturbance_with_added("Alpha", "Beta");
-        exp.record(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
 
         let entries = exp.read_session(exp.session_id()).unwrap();
-        let sigils: Vec<&str> = entries[0].sigils_involved.iter().map(|s| s.as_str()).collect();
-        assert!(sigils.contains(&"Alpha"));
-        assert!(sigils.contains(&"Beta"));
+        match &entries[0].content {
+            ExperienceContent::GeometryChange { sigils_involved, .. } => {
+                let names: Vec<&str> = sigils_involved.iter().map(|s| s.as_str()).collect();
+                assert!(names.contains(&"Alpha"));
+                assert!(names.contains(&"Beta"));
+            }
+            _ => panic!("expected GeometryChange"),
+        }
+    }
+
+    #[test]
+    fn test_experience_records_conversation() {
+        let tmp = TempDir::new().unwrap();
+        let mut exp = Experience::new(tmp.path().join("journal"));
+
+        exp.record_conversation(
+            SigilId::new("Root"),
+            "what is this sigil?".to_string(),
+            "it handles authentication".to_string(),
+        ).unwrap();
+
+        let entries = exp.read_session(exp.session_id()).unwrap();
+        assert_eq!(entries.len(), 1);
+        match &entries[0].content {
+            ExperienceContent::Conversation { user_message, assistant_message } => {
+                assert_eq!(user_message, "what is this sigil?");
+                assert_eq!(assistant_message, "it handles authentication");
+            }
+            _ => panic!("expected Conversation"),
+        }
     }
 
     #[test]
     fn test_experience_empty_disturbance_no_record_needed() {
-        // An empty disturbance should still record (completeness invariant)
-        // but produce zero edge deltas
         let tmp = TempDir::new().unwrap();
         let mut exp = Experience::new(tmp.path().join("journal"));
 
@@ -348,11 +398,16 @@ mod tests {
             new_sigils: Vec::new(),
             lost_sigils: Vec::new(),
         };
-        exp.record(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
+        exp.record_geometry(SigilId::new("Root"), &d, PathBuf::from("a.md")).unwrap();
 
         let entries = exp.read_session(exp.session_id()).unwrap();
         assert_eq!(entries.len(), 1);
-        assert!(entries[0].edge_deltas.is_empty());
+        match &entries[0].content {
+            ExperienceContent::GeometryChange { edge_deltas, .. } => {
+                assert!(edge_deltas.is_empty());
+            }
+            _ => panic!("expected GeometryChange"),
+        }
     }
 
     #[test]

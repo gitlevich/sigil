@@ -384,7 +384,7 @@ fn recall_from_graph(
     let mut relevant: Vec<(bicameral_mind::types::SigilId, f32)> = Vec::new();
     for (neighbor_id, weight) in &neighbors {
         let relation = classify_relation(neighbor_id, &active, space, children, parent);
-        let result = filter_relevance(neighbor_id, space, relation, RelevanceScope::Live);
+        let result = filter_relevance(neighbor_id, &active, space, relation, RelevanceScope::Live);
         if result.relevant {
             relevant.push((neighbor_id.clone(), *weight));
         }
@@ -483,8 +483,26 @@ pub async fn send_chat_message(
                 eprintln!("Failed to persist chat after stream: {}", e);
             }
 
-            // Experience recording now happens through the BicameralMind
-            // disturbance pipeline (file-save events), not chat turns.
+            // Record every word spoken — Experience complete invariant.
+            if !assistant_text.is_empty() {
+                let bic = bicameral.0.clone();
+                let active_name = current_path.last().cloned().unwrap_or_default();
+                let user_msg = message.clone();
+                let asst_msg = assistant_text.clone();
+                tokio::spawn(async move {
+                    let guard = bic.lock().await;
+                    if let Some(ref state) = *guard {
+                        let mut exp = state.experience.lock().await;
+                        if let Err(e) = exp.record_conversation(
+                            bicameral_mind::types::SigilId::new(&active_name),
+                            user_msg,
+                            asst_msg,
+                        ) {
+                            eprintln!("[experience] Failed to record conversation: {e}");
+                        }
+                    }
+                });
+            }
         }
         Err(err) => {
             let _ = app.emit("chat-error", err.clone());
@@ -1097,13 +1115,24 @@ mod tests {
         let result = recall_from_graph(&space, "Alpha", &[], None);
         assert!(result.is_empty(), "neighbors without affordances should be filtered");
 
-        // Add affordances to Beta — now it passes the filter
+        // Add affordances to Beta AND invariants to Alpha (the active sigil).
+        // Both sides needed: something to act with, something to act on.
         space.spheres.insert(
             crate::bicameral_mind::types::SigilId::new("Beta"),
             crate::bicameral_mind::types::SigilSphere {
                 id: crate::bicameral_mind::types::SigilId::new("Beta"),
                 affordances: vec!["act".to_string()],
                 invariants: vec![],
+                content_volume: 0,
+                language_content: None,
+            },
+        );
+        space.spheres.insert(
+            crate::bicameral_mind::types::SigilId::new("Alpha"),
+            crate::bicameral_mind::types::SigilSphere {
+                id: crate::bicameral_mind::types::SigilId::new("Alpha"),
+                affordances: vec![],
+                invariants: vec!["constraint".to_string()],
                 content_volume: 0,
                 language_content: None,
             },
