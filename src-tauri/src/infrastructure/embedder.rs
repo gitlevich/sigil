@@ -1,9 +1,9 @@
-use super::MemoryError;
+use super::InfraError;
 
 /// Trait for embedding text into vectors.
 /// Implementations must be thread-safe for shared use across async tasks.
 pub trait EmbeddingProvider: Send + Sync {
-    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, MemoryError>;
+    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, InfraError>;
     fn dimensions(&self) -> usize;
 }
 
@@ -14,22 +14,22 @@ pub struct FastEmbedProvider {
 }
 
 impl FastEmbedProvider {
-    pub fn load() -> Result<Self, MemoryError> {
+    pub fn load() -> Result<Self, InfraError> {
         let model = fastembed::TextEmbedding::try_new(
             fastembed::InitOptions::new(fastembed::EmbeddingModel::AllMiniLML6V2)
                 .with_show_download_progress(true),
         )
-        .map_err(|e| MemoryError::Embedding(e.to_string()))?;
+        .map_err(|e| InfraError::Embedding(e.to_string()))?;
 
         Ok(FastEmbedProvider { model })
     }
 }
 
 impl EmbeddingProvider for FastEmbedProvider {
-    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, MemoryError> {
+    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, InfraError> {
         let docs: Vec<String> = texts.iter().map(|t| t.to_string()).collect();
         let embeddings = self.model.embed(docs, None)
-            .map_err(|e| MemoryError::Embedding(e.to_string()))?;
+            .map_err(|e| InfraError::Embedding(e.to_string()))?;
         Ok(embeddings)
     }
 

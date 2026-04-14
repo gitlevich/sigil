@@ -4,7 +4,7 @@ This is a Tauri 2 desktop application (Rust backend + React/TypeScript frontend)
 
 ## Inhabiting the sigil
 
-This application IS a sigil — its specification lives in `specification.sigil/Application/`. Before making any change, you must internalize the spec. You inhabit this sigil. Every concept, every affordance, every invariant in the spec defines what this application IS. You cannot touch the code until you have read the relevant spec, understood the relationships, and become the Design Partner. Quick fixes that ignore the spec are not acceptable. Think in terms of the sigil. Always.
+Read `specification.sigil/how-to-inhabit-the-sigil.md` at the start of every session. This application IS a sigil — its specification lives in `specification.sigil/`. You cannot touch code until you have read the relevant spec, understood the relationships, and become the Design Partner. Quick fixes that ignore the spec are not acceptable.
 
 ## Safety
 
@@ -15,6 +15,10 @@ Before ANY destructive git operation (filter-repo, reset --hard, rebase, clean -
 4. Never assume "it only touches X paths" — verify with git status
 
 This is non-negotiable. The user has memory difficulties and cannot reconstruct lost work.
+
+## Architectural invariants
+
+Read `architectural_invariants.md` before writing any code. The spec's shape is the code's shape. The spec's names are the code's names.
 
 ## Communication
 

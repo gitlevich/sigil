@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Mutex;
 use rusqlite::{params, Connection};
-use super::MemoryError;
+use super::InfraError;
 use super::embedder::cosine_similarity;
 
 pub struct MemoryDb {
@@ -26,7 +26,7 @@ pub struct ScoredChunk {
 }
 
 impl MemoryDb {
-    pub fn open(db_path: &Path) -> Result<Self, MemoryError> {
+    pub fn open(db_path: &Path) -> Result<Self, InfraError> {
         let conn = Connection::open(db_path)?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
         let db = MemoryDb { conn: Mutex::new(conn) };
@@ -34,8 +34,8 @@ impl MemoryDb {
         Ok(db)
     }
 
-    fn init_schema(&self) -> Result<(), MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    fn init_schema(&self) -> Result<(), InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS chunks (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,8 +65,8 @@ impl MemoryDb {
     }
 
     /// Upsert a chunk. Replaces existing entry for the same (file_path, chunk_index).
-    pub fn upsert_chunk(&self, file_path: &str, chunk_index: usize, text: &str, embedding: &[f32], file_hash: &str) -> Result<(), MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn upsert_chunk(&self, file_path: &str, chunk_index: usize, text: &str, embedding: &[f32], file_hash: &str) -> Result<(), InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let embedding_bytes = embedding_to_bytes(embedding);
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -84,23 +84,23 @@ impl MemoryDb {
     }
 
     /// Delete all chunks for a file path.
-    pub fn delete_chunks_for_file(&self, file_path: &str) -> Result<(), MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn delete_chunks_for_file(&self, file_path: &str) -> Result<(), InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         conn.execute("DELETE FROM chunks WHERE file_path = ?1", params![file_path])?;
         Ok(())
     }
 
     /// Get the file hash for a path, if indexed.
-    pub fn get_file_hash(&self, file_path: &str) -> Result<Option<String>, MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn get_file_hash(&self, file_path: &str) -> Result<Option<String>, InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT file_hash FROM chunks WHERE file_path = ?1 LIMIT 1")?;
         let hash = stmt.query_row(params![file_path], |row| row.get::<_, String>(0)).ok();
         Ok(hash)
     }
 
     /// Find nearest neighbors by cosine similarity. Full scan — fast at sigil scale.
-    pub fn nearest_neighbors(&self, query_vec: &[f32], top_k: usize) -> Result<Vec<ScoredChunk>, MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn nearest_neighbors(&self, query_vec: &[f32], top_k: usize) -> Result<Vec<ScoredChunk>, InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, file_path, chunk_index, text, embedding, file_hash, indexed_at FROM chunks"
         )?;
@@ -131,15 +131,15 @@ impl MemoryDb {
     }
 
     /// Count total chunks in the index.
-    pub fn chunk_count(&self) -> Result<usize, MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn chunk_count(&self) -> Result<usize, InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM chunks", [], |row| row.get(0))?;
         Ok(count as usize)
     }
 
     /// Get a metadata value.
-    pub fn get_meta(&self, key: &str) -> Result<Option<String>, MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn get_meta(&self, key: &str) -> Result<Option<String>, InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let val = conn.query_row(
             "SELECT value FROM memory_meta WHERE key = ?1",
             params![key],
@@ -149,8 +149,8 @@ impl MemoryDb {
     }
 
     /// Set a metadata value.
-    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         conn.execute(
             "INSERT INTO memory_meta (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = ?2",
@@ -160,8 +160,8 @@ impl MemoryDb {
     }
 
     /// Get all indexed file paths.
-    pub fn indexed_files(&self) -> Result<Vec<String>, MemoryError> {
-        let conn = self.conn.lock().map_err(|e| MemoryError::Db(e.to_string()))?;
+    pub fn indexed_files(&self) -> Result<Vec<String>, InfraError> {
+        let conn = self.conn.lock().map_err(|e| InfraError::Db(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT DISTINCT file_path FROM chunks")?;
         let paths: Vec<String> = stmt.query_map([], |row| row.get(0))?
             .filter_map(|r| r.ok())
