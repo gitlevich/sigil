@@ -131,7 +131,6 @@ pub struct RelevanceResult {
 /// Subconscious scope: never produces escalation signal.
 pub fn filter_relevance(
     sigil: &SigilId,
-    _active_sigil: &SigilId,
     space: &ContrastSpace,
     relation: SigilRelation,
     scope: RelevanceScope,
@@ -195,32 +194,12 @@ pub fn filter_disturbance(
     parent: Option<&SigilId>,
     scope: RelevanceScope,
 ) -> Vec<RelevanceResult> {
-    // Collect all sigils mentioned in the disturbance
-    let mut sigils: HashSet<SigilId> = HashSet::new();
-    for e in &disturbance.added_edges {
-        sigils.insert(e.a.clone());
-        sigils.insert(e.b.clone());
-    }
-    for e in &disturbance.removed_edges {
-        sigils.insert(e.a.clone());
-        sigils.insert(e.b.clone());
-    }
-    for wc in &disturbance.weight_changes {
-        sigils.insert(wc.a.clone());
-        sigils.insert(wc.b.clone());
-    }
-    for s in &disturbance.new_sigils {
-        sigils.insert(s.clone());
-    }
-    for s in &disturbance.lost_sigils {
-        sigils.insert(s.clone());
-    }
-
-    sigils
+    disturbance
+        .involved_sigils()
         .into_iter()
         .map(|s| {
             let relation = classify_relation(&s, active_sigil, space, children, parent);
-            filter_relevance(&s, active_sigil, space, relation, scope)
+            filter_relevance(&s, space, relation, scope)
         })
         .filter(|r| r.relevant)
         .collect()
@@ -371,7 +350,7 @@ mod tests {
         let child = SigilId::new("Child");
         let active = SigilId::new("Parent");
         let result = filter_relevance(
-            &child, &active, &space,
+            &child, &space,
             SigilRelation::Child, RelevanceScope::Live,
         );
         assert!(result.relevant, "children should always be relevant");
@@ -383,7 +362,7 @@ mod tests {
         let parent = SigilId::new("GrandParent");
         let active = SigilId::new("Child");
         let result = filter_relevance(
-            &parent, &active, &space,
+            &parent, &space,
             SigilRelation::Parent, RelevanceScope::Live,
         );
         assert!(result.relevant, "parent should always be relevant");
@@ -397,7 +376,7 @@ mod tests {
             make_sphere("Neighbor", vec![], vec!["some-rule"]),
         );
         let result = filter_relevance(
-            &SigilId::new("Neighbor"), &SigilId::new("Active"), &space,
+            &SigilId::new("Neighbor"), &space,
             SigilRelation::Neighbor, RelevanceScope::Live,
         );
         assert!(!result.relevant, "neighbor without affordances is noise");
@@ -411,7 +390,7 @@ mod tests {
             make_sphere("Neighbor", vec!["do-something"], vec![]),
         );
         let result = filter_relevance(
-            &SigilId::new("Neighbor"), &SigilId::new("Active"), &space,
+            &SigilId::new("Neighbor"), &space,
             SigilRelation::Neighbor, RelevanceScope::Live,
         );
         assert!(result.relevant, "neighbor with affordances should be relevant");
@@ -425,7 +404,7 @@ mod tests {
             make_sphere("Child", vec!["act"], vec![]),
         );
         let result = filter_relevance(
-            &SigilId::new("Child"), &SigilId::new("Parent"), &space,
+            &SigilId::new("Child"), &space,
             SigilRelation::Child, RelevanceScope::Subconscious,
         );
         assert!(result.relevant);
@@ -440,7 +419,7 @@ mod tests {
             make_sphere("Nb", vec!["act"], vec![]),
         );
         let result = filter_relevance(
-            &SigilId::new("Nb"), &SigilId::new("Active"), &space,
+            &SigilId::new("Nb"), &space,
             SigilRelation::Neighbor, RelevanceScope::Live,
         );
         assert!(result.relevant);
@@ -455,7 +434,7 @@ mod tests {
             make_sphere("Far", vec!["act"], vec![]),
         );
         let result = filter_relevance(
-            &SigilId::new("Far"), &SigilId::new("Active"), &space,
+            &SigilId::new("Far"), &space,
             SigilRelation::Distant, RelevanceScope::Live,
         );
         assert!(!result.relevant, "distant sigils should not be relevant");

@@ -1,6 +1,7 @@
 use crate::bicameral_mind::types::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -37,7 +38,7 @@ pub struct Experience {
     /// Current session id.
     session_id: u64,
     /// In-memory buffer of recent entries (bounded window).
-    buffer: Vec<ExperienceEntry>,
+    buffer: VecDeque<ExperienceEntry>,
     /// Max entries to keep in memory. Older entries remain on disk.
     buffer_limit: usize,
     /// Timestamp of last recorded entry (for idle detection).
@@ -54,7 +55,7 @@ impl Experience {
         Self {
             journal_dir,
             session_id,
-            buffer: Vec::new(),
+            buffer: VecDeque::new(),
             buffer_limit: 1000,
             last_entry_at: None,
             idle_threshold_secs: 30 * 60,
@@ -81,26 +82,7 @@ impl Experience {
 
         self.last_entry_at = Some(now);
 
-        // Collect sigils involved
-        let mut sigils: Vec<SigilId> = Vec::new();
-        for edge in &disturbance.added_edges {
-            if !sigils.contains(&edge.a) { sigils.push(edge.a.clone()); }
-            if !sigils.contains(&edge.b) { sigils.push(edge.b.clone()); }
-        }
-        for edge in &disturbance.removed_edges {
-            if !sigils.contains(&edge.a) { sigils.push(edge.a.clone()); }
-            if !sigils.contains(&edge.b) { sigils.push(edge.b.clone()); }
-        }
-        for wc in &disturbance.weight_changes {
-            if !sigils.contains(&wc.a) { sigils.push(wc.a.clone()); }
-            if !sigils.contains(&wc.b) { sigils.push(wc.b.clone()); }
-        }
-        for s in &disturbance.new_sigils {
-            if !sigils.contains(s) { sigils.push(s.clone()); }
-        }
-        for s in &disturbance.lost_sigils {
-            if !sigils.contains(s) { sigils.push(s.clone()); }
-        }
+        let sigils = disturbance.involved_sigils();
 
         // Build edge deltas
         let mut edge_deltas = Vec::new();
@@ -140,9 +122,9 @@ impl Experience {
         self.append_to_disk(&entry)?;
 
         // Append to buffer, evict oldest if over limit
-        self.buffer.push(entry);
+        self.buffer.push_back(entry);
         if self.buffer.len() > self.buffer_limit {
-            self.buffer.remove(0);
+            self.buffer.pop_front();
         }
 
         Ok(self.session_id)
@@ -166,7 +148,7 @@ impl Experience {
     }
 
     /// Get the in-memory buffer (most recent entries).
-    pub fn recent_entries(&self) -> &[ExperienceEntry] {
+    pub fn recent_entries(&self) -> &VecDeque<ExperienceEntry> {
         &self.buffer
     }
 

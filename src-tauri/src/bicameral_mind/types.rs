@@ -119,6 +119,30 @@ pub struct WeightChange {
 }
 
 impl Disturbance {
+    /// All sigils mentioned in this disturbance.
+    pub fn involved_sigils(&self) -> Vec<SigilId> {
+        let mut set = std::collections::HashSet::new();
+        for e in &self.added_edges {
+            set.insert(e.a.clone());
+            set.insert(e.b.clone());
+        }
+        for e in &self.removed_edges {
+            set.insert(e.a.clone());
+            set.insert(e.b.clone());
+        }
+        for wc in &self.weight_changes {
+            set.insert(wc.a.clone());
+            set.insert(wc.b.clone());
+        }
+        for s in &self.new_sigils {
+            set.insert(s.clone());
+        }
+        for s in &self.lost_sigils {
+            set.insert(s.clone());
+        }
+        set.into_iter().collect()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.added_edges.is_empty()
             && self.removed_edges.is_empty()
