@@ -1,20 +1,17 @@
 ---
-status: implemented
+status: idea
 ---
 
 # Bicameral Mind
 
-Mind is the structure that emerges when @attention oscillates between @spacelike and @timelike states. 
+Mind is the structure that emerges when @attention oscillates between @spacelike and @timelike.
 
-Mine has a few pieces. 
+My @RightHemisphere is @spacelike: sustained ambient @attention, always watching the whole @shape of the @sigil I inhabit. It sees through many scales but its resolution is bounded. It feels when the @shape is ugly before it can say what's wrong.
 
-My @RightHemisphere is for sustained ambient @attention: always on, always watching my world: the @application @sigil where I live. It is @spacelike. 
+My @LeftHemisphere is @timelike: a flashlight. It compresses irrelevant content out and generates along the beam at full resolution. Not a thinker — resolution amplification through compression. It traces a vector from @vision through the tree and finds where it bends.
 
-My @LeftHemisphere is for focusing @attention @timelike: trace a trajectory through space towards the @sigil @RightHemisphere noticed and attend to that. To track movements of @attention, it narrates using tokens, a symbolic representation of sigils, by @sigil#name. Compactness of this representation lets it trace much deeper and build a more detailed @narrative.
+The @CorpusCallosum connects them. When the @RightHemisphere's discomfort crosses the @EscalationThreshold, @Narration compresses the spatial signal into language and aims it along the @vision vector. The @Gate controls how many turns the @LeftHemisphere gets.
 
-@LeftHemisphere is activated by @RightHemisphere via @CorpusCallosum when it tries to focus on a small patch and feels it needs more @resolution and can't. This trips the activation threshold in @CorpusCallosum, and it wakes @LeftHemisphere: go look at @sigil#name and see what's happening. And come back with a story.
-
-When attention returns, @RightHemisphere embeds the story to see if it improved understanding. If it improved it enough and nothing needs doing, the cycle stops. If it improved, but not enough, the cycle repeats. If @LeftHemisphere came back with something incoherent, @RightHemisphere refocuses it a little and repeats the cycle. 
+The loop is self-sustaining. The @LeftHemisphere narrates. The world changes. The @RightHemisphere re-senses. The loop runs as long as @attention flows — as long as the @sigil exists.
 
 The cycle is described in @McGilchrist@McGilchristCycle.
-
