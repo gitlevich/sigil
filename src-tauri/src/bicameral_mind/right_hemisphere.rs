@@ -85,70 +85,6 @@ pub fn detect_disturbance(old: &ContrastSpace, new: &ContrastSpace) -> Disturban
     }
 }
 
-/// Relevance filter: shapes with no affordances are background noise.
-/// Returns true if the sigil is relevant (has affordances that could affect something).
-///
-/// This is the same filter used by both RightHemisphere (scope: live shapes)
-/// and Subconscious (scope: Experience segments). Single-mechanism invariant.
-pub fn is_relevant(sphere: &SigilSphere) -> bool {
-    sphere.has_affordances()
-}
-
-/// Filter a disturbance to only include signals involving relevant sigils.
-/// Removes edges and sigil events where neither endpoint has affordances.
-pub fn filter_disturbance(
-    disturbance: &Disturbance,
-    space: &ContrastSpace,
-) -> Disturbance {
-    let is_relevant_id = |id: &SigilId| -> bool {
-        space
-            .spheres
-            .get(id)
-            .map_or(false, |s| is_relevant(s))
-    };
-
-    let is_relevant_edge = |e: &CoOccurrenceEdge| -> bool {
-        is_relevant_id(&e.a) || is_relevant_id(&e.b)
-    };
-
-    Disturbance {
-        added_edges: disturbance
-            .added_edges
-            .iter()
-            .filter(|e| is_relevant_edge(e))
-            .cloned()
-            .collect(),
-        removed_edges: disturbance
-            .removed_edges
-            .iter()
-            .filter(|e| is_relevant_edge(e))
-            .cloned()
-            .collect(),
-        weight_changes: disturbance
-            .weight_changes
-            .iter()
-            .filter(|wc| is_relevant_id(&wc.a) || is_relevant_id(&wc.b))
-            .cloned()
-            .collect(),
-        new_sigils: disturbance
-            .new_sigils
-            .iter()
-            .filter(|id| is_relevant_id(id))
-            .cloned()
-            .collect(),
-        lost_sigils: disturbance
-            .lost_sigils
-            .iter()
-            .filter(|_id| {
-                // For lost sigils, we can't check the new space — they're gone.
-                // Always include: a lost sigil that had affordances is a significant event.
-                true
-            })
-            .cloned()
-            .collect(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,68 +188,6 @@ mod tests {
         assert!(
             structural.amplitude() > weight_only.amplitude(),
             "structural change should have higher amplitude than weight change"
-        );
-    }
-
-    #[test]
-    fn test_relevance_filter_no_affordances() {
-        let mut space = ContrastSpace::new();
-        space
-            .spheres
-            .insert(SigilId::new("A"), make_sphere("A", vec![], vec![]));
-        space
-            .spheres
-            .insert(SigilId::new("B"), make_sphere("B", vec![], vec![]));
-
-        let disturbance = Disturbance {
-            added_edges: vec![CoOccurrenceEdge {
-                a: SigilId::new("A"),
-                b: SigilId::new("B"),
-                weight: 1.0,
-                sources: Vec::new(),
-            }],
-            removed_edges: Vec::new(),
-            weight_changes: Vec::new(),
-            new_sigils: Vec::new(),
-            lost_sigils: Vec::new(),
-        };
-
-        let filtered = filter_disturbance(&disturbance, &space);
-        assert!(
-            filtered.added_edges.is_empty(),
-            "edges between sigils with no affordances should be filtered"
-        );
-    }
-
-    #[test]
-    fn test_relevance_filter_with_affordances() {
-        let mut space = ContrastSpace::new();
-        space.spheres.insert(
-            SigilId::new("A"),
-            make_sphere("A", vec!["do-something"], vec![]),
-        );
-        space
-            .spheres
-            .insert(SigilId::new("B"), make_sphere("B", vec![], vec![]));
-
-        let disturbance = Disturbance {
-            added_edges: vec![CoOccurrenceEdge {
-                a: SigilId::new("A"),
-                b: SigilId::new("B"),
-                weight: 1.0,
-                sources: Vec::new(),
-            }],
-            removed_edges: Vec::new(),
-            weight_changes: Vec::new(),
-            new_sigils: Vec::new(),
-            lost_sigils: Vec::new(),
-        };
-
-        let filtered = filter_disturbance(&disturbance, &space);
-        assert_eq!(
-            filtered.added_edges.len(),
-            1,
-            "edge with at least one affordance-bearing sigil should pass"
         );
     }
 

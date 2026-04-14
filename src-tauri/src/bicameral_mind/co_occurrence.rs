@@ -2,13 +2,15 @@ use crate::bicameral_mind::types::*;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use walkdir::WalkDir;
+
+static REF_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@(\w+)").unwrap());
 
 /// Extract @references from a single sentence.
 /// Returns the unique sigil names referenced (without the @ prefix).
 fn extract_refs(sentence: &str) -> Vec<String> {
-    let re = Regex::new(r"@(\w+)").unwrap();
-    let mut refs: Vec<String> = re
+    let mut refs: Vec<String> = REF_REGEX
         .captures_iter(sentence)
         .map(|c| c[1].to_string())
         .collect();
@@ -54,10 +56,7 @@ fn split_sentences(text: &str) -> Vec<(String, usize)> {
 /// Parse a single markdown file and extract co-occurrence edges.
 /// Returns pairs of (SigilId, SigilId, line_number) for every pair of
 /// @references co-occurring in the same sentence.
-pub fn extract_co_occurrences(
-    content: &str,
-    _file_path: &Path,
-) -> Vec<(SigilId, SigilId, usize)> {
+pub fn extract_co_occurrences(content: &str) -> Vec<(SigilId, SigilId, usize)> {
     let mut result = Vec::new();
     for (sentence, line_num) in split_sentences(content) {
         let refs = extract_refs(&sentence);
@@ -123,7 +122,7 @@ pub fn build_contrast_space(root: &Path) -> Result<ContrastSpace, BicameralError
 /// Add a single file's co-occurrences to the ContrastSpace.
 /// Tracks which edge indices belong to this file for incremental removal.
 pub fn add_file_to_space(space: &mut ContrastSpace, path: &Path, content: &str) {
-    let co_occurrences = extract_co_occurrences(content, path);
+    let co_occurrences = extract_co_occurrences(content);
 
     let mut file_edge_indices = Vec::new();
 
@@ -345,7 +344,6 @@ mod tests {
     fn test_sentence_co_occurrence() {
         let pairs = extract_co_occurrences(
             "@Alpha and @Beta in same sentence. @Gamma alone here.",
-            Path::new("test.md"),
         );
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].0, SigilId::new("Alpha"));
@@ -356,7 +354,6 @@ mod tests {
     fn test_paragraph_no_co_occurrence() {
         let pairs = extract_co_occurrences(
             "@Alpha in first sentence. @Beta in second sentence.",
-            Path::new("test.md"),
         );
         // Alpha and Beta are in different sentences — no co-occurrence
         assert!(pairs.is_empty());
@@ -366,7 +363,6 @@ mod tests {
     fn test_transitive_irrelevance() {
         let pairs = extract_co_occurrences(
             "@Alpha and @Beta together. @Beta and @Gamma together. @Alpha alone.",
-            Path::new("test.md"),
         );
         let has_alpha_beta = pairs.iter().any(|(a, b, _)| {
             (a.as_str() == "Alpha" && b.as_str() == "Beta")

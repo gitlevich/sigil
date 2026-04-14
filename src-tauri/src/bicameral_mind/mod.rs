@@ -36,10 +36,19 @@ pub struct BicameralState {
 ///    - Publishes new snapshot via watch channel
 ///
 /// Returns a BicameralState for Tauri commands to query.
-pub fn start(root: &Path) -> Result<BicameralState, BicameralError> {
-    let initial_space = co_occurrence::build_contrast_space(root)?;
-    let initial_arc = Arc::new(initial_space);
+/// Start the BicameralMind runtime asynchronously.
+/// The initial ContrastSpace build runs on a blocking thread to avoid
+/// stalling the tokio runtime with synchronous file I/O.
+pub async fn start(root: &Path) -> Result<BicameralState, BicameralError> {
+    let root_for_build = root.to_path_buf();
+    let initial_space = tokio::task::spawn_blocking(move || {
+        co_occurrence::build_contrast_space(&root_for_build)
+    })
+    .await
+    .map_err(|e| BicameralError::Parse(format!("spawn_blocking failed: {e}")))?
+    ?;
 
+    let initial_arc = Arc::new(initial_space);
     let (space_tx, space_rx) = watch::channel(initial_arc.clone());
     let (change_tx, change_rx) = mpsc::channel::<SpecChange>(256);
 
@@ -109,11 +118,19 @@ async fn run_attention_loop(
                     co_occurrence::remove_file_from_space(&mut current_space, path);
                 }
                 SpecChange::Modified(p) => {
-                    if let Ok(content) = std::fs::read_to_string(p) {
-                        co_occurrence::update_file_in_space(&mut current_space, p, &content);
-                    } else {
-                        // File disappeared between notification and read
-                        co_occurrence::remove_file_from_space(&mut current_space, path);
+                    let p_clone = p.clone();
+                    let content = tokio::task::spawn_blocking(move || {
+                        std::fs::read_to_string(&p_clone)
+                    })
+                    .await;
+                    match content {
+                        Ok(Ok(text)) => {
+                            co_occurrence::update_file_in_space(&mut current_space, p, &text);
+                        }
+                        _ => {
+                            // File disappeared between notification and read
+                            co_occurrence::remove_file_from_space(&mut current_space, path);
+                        }
                     }
                 }
             }
@@ -122,18 +139,14 @@ async fn run_attention_loop(
         // Detect disturbance
         let disturbance = right_hemisphere::detect_disturbance(&old_space, &current_space);
         if !disturbance.is_empty() {
-            let filtered =
-                right_hemisphere::filter_disturbance(&disturbance, &current_space);
-            if !filtered.is_empty() {
-                eprintln!(
-                    "BicameralMind: disturbance detected (amplitude={:.2}): {} added, {} removed, {} weight changes",
-                    filtered.amplitude(),
-                    filtered.added_edges.len(),
-                    filtered.removed_edges.len(),
-                    filtered.weight_changes.len(),
-                );
-                // Future: escalate through CorpusCallosum if amplitude > threshold
-            }
+            eprintln!(
+                "BicameralMind: disturbance (amplitude={:.2}): +{} -{} ~{} edges",
+                disturbance.amplitude(),
+                disturbance.added_edges.len(),
+                disturbance.removed_edges.len(),
+                disturbance.weight_changes.len(),
+            );
+            // Future: escalate through CorpusCallosum if amplitude > threshold
         }
 
         // Publish new snapshot

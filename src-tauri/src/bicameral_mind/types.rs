@@ -66,6 +66,16 @@ pub struct ContrastSpace {
     pub file_edges: HashMap<PathBuf, Vec<usize>>,
 }
 
+impl Default for ContrastSpace {
+    fn default() -> Self {
+        Self {
+            spheres: HashMap::new(),
+            edges: Vec::new(),
+            file_edges: HashMap::new(),
+        }
+    }
+}
+
 impl ContrastSpace {
     pub fn new() -> Self {
         Self {
@@ -83,24 +93,6 @@ impl ContrastSpace {
             .map(|e| 1.0 / e.weight)
     }
 
-    /// All neighbors of a sigil with their distances, sorted by distance (closest first).
-    pub fn neighbors(&self, id: &SigilId) -> Vec<(&SigilId, f32)> {
-        let mut result: Vec<_> = self
-            .edges
-            .iter()
-            .filter_map(|e| {
-                if &e.a == id {
-                    Some((&e.b, 1.0 / e.weight))
-                } else if &e.b == id {
-                    Some((&e.a, 1.0 / e.weight))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        result.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        result
-    }
 }
 
 /// What changed between two ContrastSpace snapshots.
@@ -153,7 +145,6 @@ impl Disturbance {
 #[derive(Debug)]
 pub enum BicameralError {
     Parse(String),
-    GraphInconsistency(String),
     Io(std::io::Error),
 }
 
@@ -161,7 +152,6 @@ impl fmt::Display for BicameralError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Parse(msg) => write!(f, "parse error: {msg}"),
-            Self::GraphInconsistency(msg) => write!(f, "graph inconsistency: {msg}"),
             Self::Io(e) => write!(f, "io error: {e}"),
         }
     }
