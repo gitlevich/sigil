@@ -283,7 +283,7 @@ export const api = {
     invoke<string[]>("memory_recall_for_sigil", { sigilPath }),
 
   memoryStatus: () =>
-    invoke<{ initialized: boolean; chunk_count: number; last_sleep_at: string | null }>("memory_status"),
+    invoke<{ initialized: boolean; node_count: number; edge_count: number }>("memory_status"),
 
   memoryTriggerReindex: (rootPath: string) =>
     invoke<string>("memory_trigger_reindex", { rootPath }),
@@ -291,8 +291,8 @@ export const api = {
   memoryTriggerSleep: () =>
     invoke<void>("memory_trigger_sleep"),
 
-  readMemories: (rootPath: string) =>
-    invoke<MemoryGraph>("read_memories", { rootPath }),
+  readMemories: () =>
+    invoke<MemoryGraph>("read_memories"),
 
   watchDirectory: (rootPath: string) =>
     invoke<void>("watch_directory", { rootPath }),

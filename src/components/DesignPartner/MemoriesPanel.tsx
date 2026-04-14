@@ -35,7 +35,7 @@ export function MemoriesPanel() {
 
   const loadGraph = useCallback(async () => {
     try {
-      const data: MemoryGraph = await api.readMemories(ws.spec.rootPath);
+      const data: MemoryGraph = await api.readMemories();
       setGraph({
         nodes: data.nodes.map((n) => ({ ...n })),
         links: data.edges.map((e) => ({ source: e.source, target: e.target, label: e.label })),

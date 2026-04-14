@@ -7,8 +7,8 @@ use crate::models::sigil::SigilFolder;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::tools;
-use crate::memory;
-use crate::{MemoryHandle, SleepSender, SleepRx};
+use crate::bicameral_mind;
+use crate::BicameralHandle;
 
 #[derive(Debug, serde::Deserialize)]
 struct ContextRelationship {
@@ -353,26 +353,52 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
     }
 }
 
-/// Ensure memory is initialized for the given sigil root. Lazy — first call loads the ONNX model.
-///
-/// DISABLED: Memory machinery runs without the Subconscious relevance filter
-/// (spec status: idea). Without that gatekeeper, the memorizer hoards
-/// indiscriminately and the recall injection distracts the DesignPartner.
-/// Re-enable when BicameralMind/RightHemisphere/Subconscious is implemented.
-async fn ensure_memory_initialized(
-    _memory_handle: &MemoryHandle,
-    _sleep_rx: &SleepRx,
-    _root_path: &str,
-) -> Result<(), String> {
-    eprintln!("[memory] Memory disabled — Subconscious filter not yet implemented");
-    Ok(())
+/// Recall vocabulary for the active sigil from the co-occurrence graph.
+/// Returns neighboring sigil names + their affordances as context strings.
+fn recall_from_graph(
+    space: &bicameral_mind::types::ContrastSpace,
+    sigil_name: &str,
+) -> String {
+    let sigil_id = bicameral_mind::types::SigilId::new(sigil_name);
+
+    // Find all neighbors (co-occurring sigils)
+    let mut neighbors: Vec<(&bicameral_mind::types::SigilId, f32)> = Vec::new();
+    for edge in &space.edges {
+        if edge.a == sigil_id {
+            neighbors.push((&edge.b, edge.weight));
+        } else if edge.b == sigil_id {
+            neighbors.push((&edge.a, edge.weight));
+        }
+    }
+
+    if neighbors.is_empty() {
+        return String::new();
+    }
+
+    // Sort by weight descending (strongest co-occurrences first)
+    neighbors.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut lines = Vec::new();
+    for (neighbor_id, weight) in neighbors.iter().take(10) {
+        let mut desc = format!("@{} (co-occurrence: {:.0})", neighbor_id.as_str(), weight);
+        if let Some(sphere) = space.spheres.get(neighbor_id) {
+            if !sphere.affordances.is_empty() {
+                desc.push_str(&format!(" — affordances: {}", sphere.affordances.join(", ")));
+            }
+            if !sphere.invariants.is_empty() {
+                desc.push_str(&format!(" — invariants: {}", sphere.invariants.join(", ")));
+            }
+        }
+        lines.push(desc);
+    }
+
+    lines.join("\n")
 }
 
 #[tauri::command]
 pub async fn send_chat_message(
     app: AppHandle,
-    memory_handle: tauri::State<'_, MemoryHandle>,
-    sleep_rx: tauri::State<'_, SleepRx>,
+    bicameral: tauri::State<'_, BicameralHandle>,
     root_path: String,
     chat_id: String,
     message: String,
@@ -380,22 +406,14 @@ pub async fn send_chat_message(
     system_prompt: String,
     current_path: Vec<String>,
 ) -> Result<(), String> {
-    // Initialize memory lazily on first chat message
-    if let Err(e) = ensure_memory_initialized(&memory_handle, &sleep_rx, &root_path).await {
-        eprintln!("[memory] Init failed (non-fatal): {}", e);
-    }
-
-    // #recall — query memory for relevant context
+    // #recall — query co-occurrence graph for vocabulary context
     let recall_context = {
-        let guard = memory_handle.0.lock().await;
+        let guard = bicameral.0.lock().await;
         if let Some(ref state) = *guard {
-            match memory::retriever::recall(&state.db, state.embedder.as_ref(), &message, 8) {
-                Ok(ctx) => ctx,
-                Err(e) => {
-                    eprintln!("[memory:recall] Error: {}", e);
-                    String::new()
-                }
-            }
+            let space = state.space_receiver.borrow();
+            // Use the last segment of current_path as the active sigil
+            let active_name = current_path.last().cloned().unwrap_or_default();
+            recall_from_graph(&space, &active_name)
         } else {
             String::new()
         }
@@ -458,36 +476,8 @@ pub async fn send_chat_message(
                 eprintln!("Failed to persist chat after stream: {}", e);
             }
 
-            // #memorize — extract facts and record experience (fire-and-forget)
-            if !assistant_text.is_empty() {
-                let mem_handle = memory_handle.0.clone();
-                let turn = memory::CompletedTurn {
-                    root_path: root_path.clone(),
-                    chat_id: chat.id,
-                    user_message: message,
-                    assistant_message: assistant_text.clone(),
-                    current_path,
-                };
-                let profile_clone = profile.clone();
-                tokio::spawn(async move {
-                    let guard = mem_handle.lock().await;
-                    if let Some(ref state) = *guard {
-                        // Record experience frame
-                        if let Err(e) = memory::experience::record_turn(state, &turn) {
-                            eprintln!("[memory:experience] Error: {}", e);
-                        }
-                        // Extract and persist facts
-                        match memory::memorizer::memorize_turn(state, &turn, &profile_clone).await {
-                            Ok(n) => {
-                                if n > 0 {
-                                    eprintln!("[memory:memorize] Extracted {} facts", n);
-                                }
-                            }
-                            Err(e) => eprintln!("[memory:memorize] Error: {}", e),
-                        }
-                    }
-                });
-            }
+            // Experience recording now happens through the BicameralMind
+            // disturbance pipeline (file-save events), not chat turns.
         }
         Err(err) => {
             let _ = app.emit("chat-error", err.clone());
@@ -744,95 +734,89 @@ async fn stream_openai(
     Ok(accumulated_text)
 }
 
-// ── Memory Commands ──
+// ── BicameralMind Commands ──
 
 #[derive(serde::Serialize)]
-pub struct MemoryStatusInfo {
+pub struct BicameralStatusInfo {
     pub initialized: bool,
-    pub chunk_count: usize,
-    pub last_sleep_at: Option<String>,
+    pub node_count: usize,
+    pub edge_count: usize,
 }
 
 #[tauri::command]
 pub async fn memory_recall_for_sigil(
-    memory_handle: tauri::State<'_, MemoryHandle>,
+    bicameral: tauri::State<'_, BicameralHandle>,
     sigil_path: String,
 ) -> Result<Vec<String>, String> {
-    let guard = memory_handle.0.lock().await;
-    let state = guard.as_ref().ok_or("Memory not initialized")?;
+    let guard = bicameral.0.lock().await;
+    let state = guard.as_ref().ok_or("BicameralMind not initialized")?;
+    let space = state.space_receiver.borrow();
 
-    // Use the sigil path as the query — find what the DP knows about this sigil
     let sigil_name = Path::new(&sigil_path)
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
 
-    let chunks = memory::retriever::recall_chunks(&state.db, state.embedder.as_ref(), &sigil_name, 5)
-        .map_err(|e| e.to_string())?;
-
-    Ok(chunks.into_iter()
-        .map(|sc| format!("[{:.2}] {}", sc.score, sc.chunk.text))
-        .collect())
+    let recall = recall_from_graph(&space, &sigil_name);
+    if recall.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(recall.lines().map(String::from).collect())
 }
 
 #[tauri::command]
 pub async fn memory_status(
-    memory_handle: tauri::State<'_, MemoryHandle>,
-) -> Result<MemoryStatusInfo, String> {
-    let guard = memory_handle.0.lock().await;
+    bicameral: tauri::State<'_, BicameralHandle>,
+) -> Result<BicameralStatusInfo, String> {
+    let guard = bicameral.0.lock().await;
     match guard.as_ref() {
         Some(state) => {
-            let chunk_count = state.db.chunk_count().map_err(|e| e.to_string())?;
-            let last_sleep = state.db.get_meta("last_sleep_at").map_err(|e| e.to_string())?;
-            Ok(MemoryStatusInfo {
+            let space = state.space_receiver.borrow();
+            Ok(BicameralStatusInfo {
                 initialized: true,
-                chunk_count,
-                last_sleep_at: last_sleep,
+                node_count: space.spheres.len(),
+                edge_count: space.edges.len(),
             })
         }
-        None => Ok(MemoryStatusInfo {
+        None => Ok(BicameralStatusInfo {
             initialized: false,
-            chunk_count: 0,
-            last_sleep_at: None,
+            node_count: 0,
+            edge_count: 0,
         }),
     }
 }
 
 #[tauri::command]
 pub async fn memory_trigger_reindex(
-    memory_handle: tauri::State<'_, MemoryHandle>,
-    sleep_rx: tauri::State<'_, SleepRx>,
+    bicameral: tauri::State<'_, BicameralHandle>,
     root_path: String,
 ) -> Result<String, String> {
-    if let Err(e) = ensure_memory_initialized(&memory_handle, &sleep_rx, &root_path).await {
-        return Err(e);
-    }
+    let root = std::path::Path::new(&root_path);
 
-    let guard = memory_handle.0.lock().await;
-    let state = guard.as_ref().ok_or("Memory not initialized")?;
-
-    let stats = memory::indexer::index_sigil_tree(Path::new(&root_path), &state.db, state.embedder.as_ref())
+    let new_state = bicameral_mind::start(root)
+        .await
         .map_err(|e| e.to_string())?;
 
-    Ok(format!("Indexed {} chunks, skipped {}, removed {}", stats.indexed, stats.skipped, stats.removed))
+    let msg = {
+        let space = new_state.space_receiver.borrow();
+        format!(
+            "Rebuilt graph: {} nodes, {} edges",
+            space.spheres.len(),
+            space.edges.len()
+        )
+    };
+
+    let mut guard = bicameral.0.lock().await;
+    *guard = Some(new_state);
+
+    Ok(msg)
 }
 
 #[tauri::command]
-pub async fn memory_trigger_sleep(
-    sleep_sender: tauri::State<'_, SleepSender>,
-) -> Result<(), String> {
-    let trigger = memory::sleeper::SleepTrigger {
-        reason: memory::sleeper::SleepReason::UserRequest,
-        profile: AiProfile {
-            id: String::new(),
-            name: String::new(),
-            provider: AiProvider::Anthropic,
-            api_key: String::new(),
-            model: String::new(),
-        },
-    };
-    sleep_sender.0.send(trigger).await.map_err(|e| e.to_string())
+pub async fn memory_trigger_sleep() -> Result<(), String> {
+    // Stub — consolidation deferred to Phase 5 (CorpusCallosum)
+    Ok(())
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -855,90 +839,34 @@ pub struct MemoryGraph {
     pub edges: Vec<MemoryEdge>,
 }
 
-/// Find concept sigils under .private/DesignPartnerState/memories/ and return as a graph.
+/// Build a MemoryGraph from the live ContrastSpace for Atlas visualization.
 #[tauri::command]
-pub fn read_memories(root_path: String) -> Result<MemoryGraph, String> {
-    let root = Path::new(&root_path);
+pub async fn read_memories(
+    bicameral: tauri::State<'_, BicameralHandle>,
+) -> Result<MemoryGraph, String> {
+    let guard = bicameral.0.lock().await;
+    let state = match guard.as_ref() {
+        Some(s) => s,
+        None => return Ok(MemoryGraph { nodes: vec![], edges: vec![] }),
+    };
+    let space = state.space_receiver.borrow();
 
-    let memories_dir = root.join(".private/DesignPartnerState/memories");
-    if !memories_dir.exists() {
-        return Ok(MemoryGraph { nodes: vec![], edges: vec![] });
-    }
+    let nodes: Vec<MemoryNode> = space.spheres.values().map(|s| MemoryNode {
+        id: s.id.as_str().to_string(),
+        name: s.id.as_str().to_string(),
+        language: format!(
+            "affordances: [{}], invariants: [{}], volume: {}",
+            s.affordances.join(", "),
+            s.invariants.join(", "),
+            s.content_volume,
+        ),
+    }).collect();
 
-    let ref_re = regex::Regex::new(r"@(\w+)").unwrap();
-    // Match sentences that contain at least one @reference
-    let sentence_re = regex::Regex::new(r"[^.!?\n]*@\w+[^.!?\n]*[.!?\n]?").unwrap();
-    let mut nodes = Vec::new();
-    let mut edges = Vec::new();
-
-    // Recursively walk the memories tree
-    fn walk_memories(
-        dir: &Path,
-        nodes: &mut Vec<MemoryNode>,
-        edges: &mut Vec<MemoryEdge>,
-        ref_re: &regex::Regex,
-        sentence_re: &regex::Regex,
-        parent_name: Option<&str>,
-    ) {
-        let entries = match fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(_) => return,
-        };
-        for entry in entries.filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-            let language_path = path.join("language.md");
-            if !language_path.exists() {
-                continue;
-            }
-            let language = fs::read_to_string(&language_path).unwrap_or_default();
-
-            // Extract @references with qualifying context per sentence
-            for sentence_cap in sentence_re.find_iter(&language) {
-                let sentence = sentence_cap.as_str().trim();
-                for ref_cap in ref_re.captures_iter(sentence) {
-                    let target = ref_cap[1].to_string();
-                    if target == name {
-                        continue;
-                    }
-                    let label = ref_re.replace_all(sentence, "").trim().to_string();
-                    let label = label.split_whitespace().collect::<Vec<_>>().join(" ");
-                    edges.push(MemoryEdge {
-                        source: name.clone(),
-                        target,
-                        label,
-                    });
-                }
-            }
-
-            // Add containment edge from parent
-            if let Some(parent) = parent_name {
-                edges.push(MemoryEdge {
-                    source: parent.to_string(),
-                    target: name.clone(),
-                    label: "contains".to_string(),
-                });
-            }
-
-            nodes.push(MemoryNode {
-                id: name.clone(),
-                name: name.clone(),
-                language,
-            });
-
-            // Recurse into child concepts
-            walk_memories(&path, nodes, edges, ref_re, sentence_re, Some(&name));
-        }
-    }
-
-    walk_memories(&memories_dir, &mut nodes, &mut edges, &ref_re, &sentence_re, None);
-
-    // Only keep edges where target is a known node
-    let node_ids: std::collections::HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
-    edges.retain(|e| node_ids.contains(e.target.as_str()));
+    let edges: Vec<MemoryEdge> = space.edges.iter().map(|e| MemoryEdge {
+        source: e.a.as_str().to_string(),
+        target: e.b.as_str().to_string(),
+        label: format!("co-occurrence (weight: {:.0})", e.weight),
+    }).collect();
 
     Ok(MemoryGraph { nodes, edges })
 }
@@ -1134,34 +1062,23 @@ mod tests {
     }
 
     #[test]
-    fn test_read_memories_empty() {
-        let tmp = TempDir::new().unwrap();
-        let graph = read_memories(tmp.path().to_string_lossy().to_string()).unwrap();
-        assert!(graph.nodes.is_empty());
-        assert!(graph.edges.is_empty());
+    fn test_recall_from_graph_empty() {
+        let space = crate::bicameral_mind::types::ContrastSpace::new();
+        let result = recall_from_graph(&space, "Nonexistent");
+        assert!(result.is_empty());
     }
 
     #[test]
-    fn test_read_memories_extracts_nodes_and_edges() {
-        let tmp = TempDir::new().unwrap();
-        let root = tmp.path();
-        let mem_dir = root.join(".private/DesignPartnerState/memories");
-
-        let concept_a = mem_dir.join("Alpha");
-        fs::create_dir_all(&concept_a).unwrap();
-        fs::write(concept_a.join("language.md"), "Alpha relates to @Beta in context.").unwrap();
-
-        let concept_b = mem_dir.join("Beta");
-        fs::create_dir_all(&concept_b).unwrap();
-        fs::write(concept_b.join("language.md"), "Beta stands alone.").unwrap();
-
-        let graph = read_memories(root.to_string_lossy().to_string()).unwrap();
-        assert_eq!(graph.nodes.len(), 2);
-        // Alpha -> Beta edge via @reference
-        let ref_edges: Vec<_> = graph.edges.iter()
-            .filter(|e| e.source == "Alpha" && e.target == "Beta" && e.label != "contains")
-            .collect();
-        assert!(!ref_edges.is_empty());
+    fn test_recall_from_graph_finds_neighbors() {
+        let mut space = crate::bicameral_mind::types::ContrastSpace::new();
+        crate::bicameral_mind::co_occurrence::add_file_to_space(
+            &mut space,
+            std::path::Path::new("test.md"),
+            "@Alpha and @Beta together. @Alpha and @Gamma too.",
+        );
+        let result = recall_from_graph(&space, "Alpha");
+        assert!(result.contains("Beta"));
+        assert!(result.contains("Gamma"));
     }
 
     #[test]

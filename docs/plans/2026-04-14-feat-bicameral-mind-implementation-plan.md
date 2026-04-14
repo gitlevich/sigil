@@ -1,7 +1,7 @@
 ---
 title: "Implement BicameralMind runtime from spec"
 type: feat
-status: active
+status: completed
 date: 2026-04-14
 ---
 
@@ -265,33 +265,33 @@ Build after CorpusCallosum. One HTTP call per turn via reqwest + Claude API. 30s
 ## Acceptance Criteria
 
 ### Phase 1: CoOccurrenceGeometry + Disturbance Detection
-- [ ] @reference co-occurrence extracted at sentence level from all spec .md files
-- [ ] Weighted edge graph built via petgraph
-- [ ] Per-file edge tracking for incremental add/remove/modify
-- [ ] Distance = 1/weight, no coordinate embedding
-- [ ] Event-driven: file-save → mpsc → debounce → geometry update → watch channel
-- [ ] Disturbance = edge set delta between snapshots
-- [ ] Rewording preserving @refs = zero disturbance
-- [ ] Structural edits (removing/adding @refs) = disturbance proportional to weight delta
-- [ ] Relevance filter: no affordances = noise
-- [ ] Empty project: empty graph, no crash
-- [ ] File deletion: edges removed gracefully
-- [ ] All processing non-blocking, no network
+- [x] @reference co-occurrence extracted at sentence level from all spec .md files
+- [x] Weighted edge graph built (HashMap + Vec, no petgraph needed at this scale)
+- [x] Per-file edge tracking for incremental add/remove/modify
+- [x] Distance = 1/weight, no coordinate embedding
+- [x] Event-driven: file-save → mpsc → debounce → geometry update → watch channel
+- [x] Disturbance = edge set delta between snapshots
+- [x] Rewording preserving @refs = zero disturbance
+- [x] Structural edits (removing/adding @refs) = disturbance proportional to weight delta
+- [x] Relevance filter: no affordances = noise
+- [x] Empty project: empty graph, no crash
+- [x] File deletion: edges removed gracefully
+- [x] All processing non-blocking, no network
 
 ### Phase 2: Experience + Subconscious
-- [ ] Append-only JSONL journal, one file per session
-- [ ] Session boundary: app close OR 30min idle
-- [ ] Causal ordering by timestamp
-- [ ] Single RelevanceFilter parameterized by scope
-- [ ] Children always relevant, parent = high relevance
-- [ ] Subconscious never escalates
+- [x] Append-only JSONL journal, one file per session
+- [x] Session boundary: app close OR 30min idle
+- [x] Causal ordering by timestamp
+- [x] Single RelevanceFilter parameterized by scope
+- [x] Children always relevant, parent = high relevance
+- [x] Subconscious never escalates
 
 ### Phase 3: Tauri Wiring + Old Module Deletion
-- [ ] All 6 old Tauri commands replaced with new ones
-- [ ] send_chat_message recall path updated
-- [ ] Old memory module deleted (8 files)
-- [ ] fastembed removed from Cargo.toml
-- [ ] Clean build, all existing tests pass
+- [x] All 6 old Tauri commands replaced with new ones
+- [x] send_chat_message recall path updated
+- [x] Old memory module deleted (8 files)
+- [x] fastembed removed from Cargo.toml
+- [x] Clean build, all existing tests pass
 
 ## Dependencies & Risks
 

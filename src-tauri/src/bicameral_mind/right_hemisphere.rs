@@ -131,7 +131,7 @@ pub struct RelevanceResult {
 /// Subconscious scope: never produces escalation signal.
 pub fn filter_relevance(
     sigil: &SigilId,
-    active_sigil: &SigilId,
+    _active_sigil: &SigilId,
     space: &ContrastSpace,
     relation: SigilRelation,
     scope: RelevanceScope,
