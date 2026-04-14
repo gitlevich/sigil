@@ -16,6 +16,10 @@ Before ANY destructive git operation (filter-repo, reset --hard, rebase, clean -
 
 This is non-negotiable. The user has memory difficulties and cannot reconstruct lost work.
 
+## Communication
+
+Respond in short, dense paragraphs. Every word must carry meaning — no filler, no decorative language. Do not use bullet lists, numbered lists, or imposed hierarchical structure. The user has ADHD and finds sparse, structured layouts harder to parse than compact prose.
+
 ## Project structure
 
 - `src/` — Tauri app: full editor with CodeMirror, auto-save, file watcher, state management
