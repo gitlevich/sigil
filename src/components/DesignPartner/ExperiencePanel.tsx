@@ -7,19 +7,50 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useExperience } from "../../state/ExperienceContext";
+import { useWorkspaceState } from "../../state/WorkspaceContext";
+import { api } from "../../tauri";
+import { parseSession, entryToSegment } from "sigil-core/experience";
 import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 import styles from "./ExperiencePanel.module.css";
 
 export function ExperiencePanel() {
   const { getExperience } = useExperience();
-  const [segments, setSegments] = useState<ExperienceSegment[]>([]);
+  const ws = useWorkspaceState();
+  const [pastSegments, setPastSegments] = useState<ExperienceSegment[]>([]);
+  const [liveSegments, setLiveSegments] = useState<ExperienceSegment[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
+  const loadedRef = useRef(false);
 
+  // Load past sessions from disk on first mount — !complete, !causal-ordering
   useEffect(() => {
-    setSegments(getExperience());
-    const interval = setInterval(() => setSegments(getExperience()), 1000);
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    api.listExperienceSessions(ws.spec.rootPath).then(contents => {
+      const past: ExperienceSegment[] = [];
+      for (const content of contents) {
+        const session = parseSession(content);
+        if (!session) continue;
+        for (const entry of session.entries) {
+          past.push(entryToSegment(entry) as ExperienceSegment);
+        }
+      }
+      setPastSegments(past);
+    }).catch(err => {
+      console.error("[Experience] failed to load past sessions:", err);
+    });
+  }, [ws.spec.rootPath]);
+
+  // Poll live experience
+  useEffect(() => {
+    setLiveSegments(getExperience());
+    const interval = setInterval(() => setLiveSegments(getExperience()), 1000);
     return () => clearInterval(interval);
   }, [getExperience]);
+
+  // Merge: past sessions first, then live (deduplicate by timestamp)
+  const liveTimestamps = new Set(liveSegments.map(s => s.timestamp));
+  const deduped = pastSegments.filter(s => !liveTimestamps.has(s.timestamp));
+  const segments = [...deduped, ...liveSegments];
 
   useEffect(() => {
     if (listRef.current) {

@@ -86,16 +86,37 @@ export function parseSession(content: string): Session | null {
   for (let i = 1; i < lines.length; i++) {
     const parsed = JSON.parse(lines[i]);
     if (parsed.type !== "entry") continue;
-    entries.push({
+    const entry: ExperienceEntry = {
       timestamp: parsed.timestamp,
       sigils: parsed.sigils,
       disturbance: parsed.disturbance,
       relevant: parsed.relevant,
       focus: parsed.focus,
-    });
+    };
+    if (parsed.message) entry.message = parsed.message;
+    entries.push(entry);
   }
 
   return { header, entries };
+}
+
+/** Convert an ExperienceEntry back to an ExperienceSegment shape for the UI. */
+export function entryToSegment(entry: ExperienceEntry): {
+  sigils: string[];
+  disturbance: { displaced: { name: string; magnitude: number }[]; total: number };
+  timestamp: number;
+  relevant: boolean;
+  resolution: null;
+  message?: { role: "user" | "assistant"; content: string };
+} {
+  return {
+    sigils: entry.sigils,
+    disturbance: entry.disturbance,
+    timestamp: entry.timestamp,
+    relevant: entry.relevant,
+    resolution: null, // resolutions aren't persisted — they're recomputed live
+    ...(entry.message ? { message: entry.message } : {}),
+  };
 }
 
 /** Generate a session ID. Simple: timestamp + random suffix. */
