@@ -94,3 +94,21 @@
   padding: 0.05rem 0.35rem;
   border-radius: 3px;
 }
+
+.chatEntry {
+  border-left-color: var(--text-tertiary);
+}
+
+.role {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chatMessage {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}

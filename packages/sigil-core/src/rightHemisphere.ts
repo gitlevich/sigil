@@ -40,6 +40,8 @@ export interface ExperienceSegment {
   relevant: boolean;
   /** Narration: what the disturbance means in language. */
   resolution: Resolution | null;
+  /** Chat message, if this segment is a conversation event. */
+  message?: { role: "user" | "assistant"; content: string };
 }
 
 /** Signal emitted when disturbance crosses the noise floor. */

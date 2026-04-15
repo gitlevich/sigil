@@ -3,6 +3,7 @@ import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import { useWorkspaceState } from "../state/WorkspaceContext";
 import { useChatState, useChatDispatch } from "../state/ChatContext";
+import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
 
 export function useChatStream() {
@@ -11,6 +12,9 @@ export function useChatStream() {
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
+  const { recordChat } = useExperience();
+  const recordChatRef = useRef(recordChat);
+  recordChatRef.current = recordChat;
   const accumulatorRef = useRef("");
   const workspaceRef = useRef(workspace);
   const chatRef = useRef(chat);
@@ -71,6 +75,9 @@ export function useChatStream() {
           name: conv.chats.find((c) => c.id === conv.activeChatId)?.name || "Chat",
           messages: msgs,
         }).catch(console.error);
+
+        // Record assistant response as experience — !complete
+        recordChatRef.current("assistant", accumulatorRef.current);
       }
       accumulatorRef.current = "";
     });
@@ -106,6 +113,9 @@ export function useChatStream() {
 
     chatDispatch({ type: "SET_MESSAGES", messages: newMessages });
     chatDispatch({ type: "SET_STREAMING", streaming: true });
+
+    // Record user message as experience — !complete
+    recordChatRef.current("user", message);
 
     const chatName = conv.chats.find((c) => c.id === chatId)?.name || `Chat ${conv.chats.length + 1}`;
     await api.writeChat(ws.spec.rootPath, {

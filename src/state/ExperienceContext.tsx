@@ -1,24 +1,30 @@
 /**
- * ExperienceContext — shares the live experience stream from the RightHemisphere.
+ * ExperienceContext — shares the live experience stream and recording functions.
  *
- * Provides a getter function (not state) so reading experience doesn't trigger
- * re-renders. The overlay polls on an interval when open.
+ * Provides a getter (no re-renders) and a recordChat function for
+ * conversation events to enter the experience stream.
  */
 import { createContext, useContext, ReactNode } from "react";
 import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 
-type ExperienceGetter = () => ExperienceSegment[];
+interface ExperienceHandle {
+  getExperience: () => ExperienceSegment[];
+  recordChat: (role: "user" | "assistant", content: string) => void;
+}
 
-const ExperienceContext = createContext<ExperienceGetter>(() => []);
+const ExperienceContext = createContext<ExperienceHandle>({
+  getExperience: () => [],
+  recordChat: () => {},
+});
 
-export function ExperienceProvider({ getExperience, children }: { getExperience: ExperienceGetter; children: ReactNode }) {
+export function ExperienceProvider({ handle, children }: { handle: ExperienceHandle; children: ReactNode }) {
   return (
-    <ExperienceContext.Provider value={getExperience}>
+    <ExperienceContext.Provider value={handle}>
       {children}
     </ExperienceContext.Provider>
   );
 }
 
-export function useExperience(): ExperienceGetter {
+export function useExperience(): ExperienceHandle {
   return useContext(ExperienceContext);
 }

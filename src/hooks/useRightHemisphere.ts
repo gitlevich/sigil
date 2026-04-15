@@ -32,6 +32,7 @@ import {
 export interface RightHemisphereHandle {
   perceive: (spec: ApplicationSpec, changedPaths: string[]) => Perception;
   getExperience: () => ExperienceSegment[];
+  recordChat: (role: "user" | "assistant", content: string) => void;
 }
 
 export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[]): RightHemisphereHandle {
@@ -120,7 +121,36 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[])
     return mindRef.current ? mindExperience(mindRef.current) : [];
   }, []);
 
-  return { perceive, getExperience };
+  const recordChat = useCallback((role: "user" | "assistant", content: string) => {
+    if (!mindRef.current) return;
+    const focus = mindRef.current.hemisphere.focus;
+    const segment: ExperienceSegment = {
+      sigils: focus ? [focus] : [],
+      disturbance: { displaced: [], total: 0 },
+      timestamp: Date.now(),
+      relevant: true,  // conversations are always relevant — !complete
+      resolution: null,
+      message: { role, content },
+    };
+    mindRef.current = {
+      ...mindRef.current,
+      hemisphere: {
+        ...mindRef.current.hemisphere,
+        experience: [...mindRef.current.hemisphere.experience, segment],
+      },
+    };
+
+    // Persist — !complete, !append-only
+    if (sessionIdRef.current) {
+      const entry = toEntry(segment, focus);
+      const line = serializeEntry(entry);
+      api.appendExperience(spec.rootPath, sessionIdRef.current, line).catch(err => {
+        console.error("[Experience] failed to append chat entry:", err);
+      });
+    }
+  }, [spec.rootPath]);
+
+  return { perceive, getExperience, recordChat };
 }
 
 function extractSigilNames(paths: string[], workspaceRoot: string, rootName: string): string[] {

@@ -33,6 +33,8 @@ export interface ExperienceEntry {
   relevant: boolean;
   /** The sigil that was focused when this event occurred. */
   focus: string | null;
+  /** Chat message, if this is a conversation event. */
+  message?: { role: "user" | "assistant"; content: string };
 }
 
 /** A session header — written once at the start of each session file. */
@@ -107,10 +109,10 @@ export function newSessionId(): string {
  * Convert a RightHemisphere ExperienceSegment into a persistable ExperienceEntry.
  */
 export function toEntry(
-  segment: { sigils: string[]; disturbance: Disturbance; timestamp: number; relevant: boolean },
+  segment: { sigils: string[]; disturbance: Disturbance; timestamp: number; relevant: boolean; message?: { role: "user" | "assistant"; content: string } },
   focus: string | null,
 ): ExperienceEntry {
-  return {
+  const entry: ExperienceEntry = {
     timestamp: segment.timestamp,
     sigils: segment.sigils,
     disturbance: {
@@ -120,4 +122,6 @@ export function toEntry(
     relevant: segment.relevant,
     focus,
   };
+  if (segment.message) entry.message = segment.message;
+  return entry;
 }

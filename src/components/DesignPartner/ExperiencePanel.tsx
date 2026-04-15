@@ -11,7 +11,7 @@ import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 import styles from "./ExperiencePanel.module.css";
 
 export function ExperiencePanel() {
-  const getExperience = useExperience();
+  const { getExperience } = useExperience();
   const [segments, setSegments] = useState<ExperienceSegment[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -27,8 +27,8 @@ export function ExperiencePanel() {
     }
   }, [segments.length]);
 
-  // Only show segments with actual disturbance
-  const meaningful = segments.filter(s => s.disturbance.total > 0 || s.resolution);
+  // Show segments with disturbance, resolution, or chat messages
+  const meaningful = segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
 
   return (
     <div className={styles.panel} ref={listRef}>
@@ -45,16 +45,20 @@ function Entry({ segment }: { segment: ExperienceSegment }) {
   const time = new Date(segment.timestamp);
   const timeStr = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const resolution = segment.resolution;
+  const message = segment.message;
 
   return (
-    <div className={`${styles.entry} ${segment.relevant ? styles.relevant : styles.muted}`}>
+    <div className={`${styles.entry} ${segment.relevant ? styles.relevant : styles.muted} ${message ? styles.chatEntry : ""}`}>
       <div className={styles.entryHeader}>
         <span className={styles.time}>{timeStr}</span>
+        {message && <span className={styles.role}>{message.role}</span>}
         {segment.disturbance.total > 0 && (
           <span className={styles.magnitude}>{segment.disturbance.total.toFixed(0)}</span>
         )}
       </div>
-      {resolution ? (
+      {message ? (
+        <div className={styles.chatMessage}>{message.content.slice(0, 200)}{message.content.length > 200 ? "..." : ""}</div>
+      ) : resolution ? (
         <div className={styles.narration}>
           {resolution.changes.slice(0, 4).map((c, i) => (
             <div key={i} className={`${styles.change} ${styles[c.kind] ?? ""}`}>

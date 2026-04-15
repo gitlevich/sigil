@@ -19,7 +19,7 @@ export function WorkspaceShell() {
   const layout = useLayoutState();
   const dispatch = useWorkspaceDispatch();
   const { reload } = useWorkspaceActions();
-  const { perceive, getExperience } = useRightHemisphere(ws.spec, ws.currentPath);
+  const { perceive, getExperience, recordChat } = useRightHemisphere(ws.spec, ws.currentPath);
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();
@@ -72,7 +72,7 @@ export function WorkspaceShell() {
   useSettingsPersistence(ws, layout);
 
   return (
-    <ExperienceProvider getExperience={getExperience}>
+    <ExperienceProvider handle={{ getExperience, recordChat }}>
       <Workspace />
     </ExperienceProvider>
   );
