@@ -29,11 +29,14 @@ import {
   serializeEntry,
   toEntry,
 } from "sigil-core/experience";
+import type { MemoryState } from "sigil-core/memory";
+import { memory as mindMemory } from "sigil-core/bicameralMind";
 
 export interface RightHemisphereHandle {
   perceive: (spec: ApplicationSpec, changedPaths: string[]) => Perception;
   getExperience: () => ExperienceSegment[];
   recordChat: (role: "user" | "assistant", content: string) => void;
+  getMemory: () => import("sigil-core/memory").MemoryState;
 }
 
 export interface BicameralCallbacks {
@@ -182,7 +185,11 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
     }
   }, [spec.rootPath]);
 
-  return { perceive, getExperience, recordChat };
+  const getMemory = useCallback((): MemoryState => {
+    return mindRef.current ? mindMemory(mindRef.current) : { sigils: new Map() };
+  }, []);
+
+  return { perceive, getExperience, recordChat, getMemory };
 }
 
 function extractSigilNames(paths: string[], workspaceRoot: string, rootName: string): string[] {

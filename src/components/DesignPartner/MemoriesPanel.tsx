@@ -1,19 +1,28 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+/**
+ * MemoriesPanel — visualizes the BicameralMind's remembered sigils.
+ *
+ * Reads from the live MemoryState via ExperienceContext.
+ * Shows remembered sigils as a force-directed graph: nodes are remembered
+ * sigils, edges are co-occurrence relationships from their stored positions.
+ */
+import { useState, useEffect, useRef } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import { useWorkspaceState } from "../../state/WorkspaceContext";
-import { api, MemoryGraph } from "../../tauri";
+import { useExperience } from "../../state/ExperienceContext";
+import { allRemembered } from "sigil-core/memory";
 import styles from "./MemoriesPanel.module.css";
 
 interface GraphNode {
   id: string;
   name: string;
-  language: string;
+  weight: number;
+  affordances: string[];
+  invariants: string[];
 }
 
 interface GraphLink {
   source: string;
   target: string;
-  label: string;
+  count: number;
 }
 
 interface GraphData {
@@ -26,28 +35,49 @@ type DetailItem =
   | { kind: "edge"; link: GraphLink };
 
 export function MemoriesPanel() {
-  const ws = useWorkspaceState();
+  const { getMemory } = useExperience();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], links: [] });
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 300, height: 400 });
 
-  const loadGraph = useCallback(async () => {
-    try {
-      const data: MemoryGraph = await api.readMemories(ws.spec.rootPath);
-      setGraph({
-        nodes: data.nodes.map((n) => ({ ...n })),
-        links: data.edges.map((e) => ({ source: e.source, target: e.target, label: e.label })),
-      });
-    } catch (e) {
-      console.error("Failed to load memories:", e);
-    }
-  }, [ws.spec.rootPath]);
-
+  // Poll the live memory state
   useEffect(() => {
-    loadGraph();
-  }, [loadGraph]);
+    const update = () => {
+      const mem = getMemory();
+      const remembered = allRemembered(mem);
+      const rememberedNames = new Set(remembered.map(r => r.name));
+
+      const nodes: GraphNode[] = remembered.map(r => ({
+        id: r.name,
+        name: r.name,
+        weight: r.weight,
+        affordances: r.vocabulary.affordances,
+        invariants: r.vocabulary.invariants,
+      }));
+
+      // Build edges from stored co-occurrence positions, only between remembered sigils
+      const edgeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
+      const edgeMap = new Map<string, { source: string; target: string; count: number }>();
+
+      for (const r of remembered) {
+        for (const e of r.edges) {
+          if (!rememberedNames.has(e.target)) continue;
+          const key = edgeKey(r.name, e.target);
+          if (!edgeMap.has(key)) {
+            edgeMap.set(key, { source: r.name, target: e.target, count: e.count });
+          }
+        }
+      }
+
+      setGraph({ nodes, links: [...edgeMap.values()] });
+    };
+
+    update();
+    const interval = setInterval(update, 2000);
+    return () => clearInterval(interval);
+  }, [getMemory]);
 
   useEffect(() => {
     if (graphRef.current) {
@@ -103,27 +133,30 @@ export function MemoriesPanel() {
     const tgt = typeof link.target === "object" ? link.target.id : link.target;
     setDetail({
       kind: "edge",
-      link: { source: src, target: tgt, label: link.label },
+      link: { source: src, target: tgt, count: link.count },
     });
   };
 
   const detailTitle = detail
     ? detail.kind === "node"
-      ? detail.node.name
-      : `${detail.link.source} \u2192 ${detail.link.target}`
+      ? `${detail.node.name} (${detail.node.weight.toFixed(2)})`
+      : `${detail.link.source} \u2194 ${detail.link.target}`
     : "";
 
   const detailBody = detail
     ? detail.kind === "node"
-      ? detail.node.language
-      : detail.link.label
+      ? [
+          detail.node.affordances.length > 0 ? `Affordances: ${detail.node.affordances.join(", ")}` : null,
+          detail.node.invariants.length > 0 ? `Invariants: ${detail.node.invariants.join(", ")}` : null,
+        ].filter(Boolean).join("\n") || "No vocabulary attached."
+      : `Co-occurrence count: ${detail.link.count}`
     : "";
 
   return (
     <div className={styles.container} ref={containerRef}>
       {graph.nodes.length === 0 ? (
         <div className={styles.empty}>
-          No memories yet. Start a conversation to build knowledge.
+          No memories yet. Edit sigils to build remembered positions.
         </div>
       ) : (
         <ForceGraph2D
@@ -136,8 +169,7 @@ export function MemoriesPanel() {
           nodeRelSize={6}
           linkColor={() => linkColor}
           linkWidth={1.5}
-          linkDirectionalArrowLength={4}
-          linkDirectionalArrowRelPos={1}
+          linkDirectionalArrowLength={0}
           linkCurvature={0.2}
           onNodeClick={handleNodeClick}
           onLinkClick={handleLinkClick}
@@ -150,12 +182,16 @@ export function MemoriesPanel() {
           nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const label = node.name;
             const fontSize = 13 / globalScale;
-            const radius = 6 / globalScale;
+            // Scale node radius by weight
+            const baseRadius = 6 / globalScale;
+            const radius = baseRadius * Math.sqrt(node.weight);
 
             ctx.fillStyle = nodeColor;
+            ctx.globalAlpha = Math.max(0.3, Math.min(1, node.weight));
             ctx.beginPath();
             ctx.arc(node.x!, node.y!, radius, 0, 2 * Math.PI);
             ctx.fill();
+            ctx.globalAlpha = 1;
 
             ctx.font = `bold ${fontSize}px sans-serif`;
             const metrics = ctx.measureText(label);
