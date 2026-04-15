@@ -140,9 +140,14 @@ function Entry({ segment }: { segment: ExperienceSegment }) {
         </div>
       ) : (
         <div className={styles.sigils}>
-          {segment.sigils.map(name => (
-            <span key={name} className={styles.sigilTag}>{name}</span>
-          ))}
+          {segment.disturbance.displaced.length > 0
+            ? segment.disturbance.displaced.map(d => (
+                <span key={d.name} className={styles.sigilTag}>{d.name} ({d.magnitude})</span>
+              ))
+            : segment.sigils.map(name => (
+                <span key={name} className={styles.sigilTag}>{name}</span>
+              ))
+          }
         </div>
       )}
     </div>
