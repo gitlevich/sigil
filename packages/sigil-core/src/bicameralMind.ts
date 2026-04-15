@@ -255,9 +255,15 @@ export function experience(mind: Mind): ExperienceSegment[] {
 }
 
 /** Get the current memory state. */
-export { type MemoryState, type RememberedSigil, type RecognitionResult, type ShortTermTrace } from "./memory";
+export { type MemoryState, type RememberedSigil, type RecognitionResult, type ShortTermTrace, type ConsolidationReport } from "./memory";
 export function memory(mind: Mind): MemoryState {
   return mind.memory;
+}
+
+/** The result of sleep — the mind rested, and the dream report. */
+export interface SleepResult {
+  mind: Mind;
+  report: import("./memory").ConsolidationReport;
 }
 
 /**
@@ -266,13 +272,14 @@ export function memory(mind: Mind): MemoryState {
  * Collects all sigil names the Subconscious attended to (relevant experience),
  * feeds them into Memory's consolidation. Reinforce → decay → merge → prune.
  *
- * Returns the mind with consolidated memory and cleared experience.
+ * Returns the mind with consolidated memory, cleared experience, and the
+ * consolidation report so the caller can record the dream in the experience stream.
  */
 export function sleep(
   mind: Mind,
   root: Sigil,
   importedOntologies?: Sigil | null,
-): Mind {
+): SleepResult {
   const currentSpace = build(root, importedOntologies);
 
   // Collect attended sigil names from relevant experience
@@ -285,7 +292,7 @@ export function sleep(
     }
   }
 
-  const nextMemory = consolidateMemory(
+  const [nextMemory, report] = consolidateMemory(
     mind.memory,
     [...attendedNames],
     currentSpace,
@@ -293,11 +300,14 @@ export function sleep(
   );
 
   return {
-    ...mind,
-    memory: nextMemory,
-    hemisphere: {
-      ...mind.hemisphere,
-      experience: [], // experience is consumed by sleep
+    mind: {
+      ...mind,
+      memory: nextMemory,
+      hemisphere: {
+        ...mind.hemisphere,
+        experience: [], // experience is consumed by sleep
+      },
     },
+    report,
   };
 }

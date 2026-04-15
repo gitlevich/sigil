@@ -56,6 +56,22 @@ export interface RecognitionResult {
   distance: number;
 }
 
+/** What consolidation did — the dream report. */
+export interface ConsolidationReport {
+  /** Sigils that were reinforced (attended or traced this session). */
+  reinforced: string[];
+  /** Sigils that decayed (not attended, weight reduced). */
+  decayed: string[];
+  /** Sigils that were pruned (weight below threshold, forgotten). */
+  pruned: string[];
+  /** Sigils that were merged (absorbed into a stronger sibling). */
+  merged: string[];
+  /** Short-term traces consumed. */
+  tracesConsumed: number;
+  /** Long-term entries after consolidation. */
+  longTermSize: number;
+}
+
 // ── Constants ──
 
 const RECOGNITION_THRESHOLD = 0.1;
@@ -209,8 +225,11 @@ export function consolidate(
   attendedNames: string[],
   currentSpace: SigilSpace,
   timestamp: number,
-): MemoryState {
+): [MemoryState, ConsolidationReport] {
   const attended = new Set(attendedNames);
+  const reinforcedNames: string[] = [];
+  const decayedNames: string[] = [];
+  const prunedNames: string[] = [];
 
   // Collect unique short-term names
   const stNames = new Set<string>();
@@ -232,6 +251,7 @@ export function consolidate(
         weight: Math.min(existing.weight + REINFORCEMENT_BOOST, MAX_WEIGHT),
         lastReinforced: timestamp,
       });
+      reinforcedNames.push(name);
     } else if (node) {
       next.set(name, {
         name: node.vocabulary.name,
@@ -241,6 +261,7 @@ export function consolidate(
         lastReinforced: timestamp,
         createdAt: timestamp,
       });
+      reinforcedNames.push(name);
     }
   }
 
@@ -258,28 +279,45 @@ export function consolidate(
           lastReinforced: timestamp,
           createdAt: timestamp,
         });
+        reinforcedNames.push(name);
       }
     }
   }
 
   // 2. Decay everything not reinforced this cycle
-  const reinforced = new Set([...stNames, ...attended]);
+  const reinforcedSet = new Set([...stNames, ...attended]);
   for (const [name, entry] of next) {
-    if (!reinforced.has(name)) {
+    if (!reinforcedSet.has(name)) {
       next.set(name, { ...entry, weight: entry.weight * DECAY_FACTOR });
+      decayedNames.push(name);
     }
   }
 
   // 3. Merge co-occurring. !co-occurrence-merge
+  const beforeMerge = new Set(next.keys());
   next = mergeCoOccurring(next, currentSpace);
+  const afterMerge = new Set(next.keys());
+  const mergedNames = [...beforeMerge].filter(n => !afterMerge.has(n));
 
   // 4. Prune. !lossy
   for (const [name, entry] of next) {
-    if (entry.weight < RECOGNITION_THRESHOLD) next.delete(name);
+    if (entry.weight < RECOGNITION_THRESHOLD) {
+      next.delete(name);
+      prunedNames.push(name);
+    }
   }
 
   // 5. Clear short-term — it's been absorbed
-  return { longTerm: next, shortTerm: [] };
+  const report: ConsolidationReport = {
+    reinforced: reinforcedNames,
+    decayed: decayedNames,
+    pruned: prunedNames,
+    merged: mergedNames,
+    tracesConsumed: memory.shortTerm.length,
+    longTermSize: next.size,
+  };
+
+  return [{ longTerm: next, shortTerm: [] }, report];
 }
 
 /**

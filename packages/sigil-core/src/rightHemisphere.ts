@@ -25,6 +25,8 @@ import type { Disturbance, Watch } from "./continuousAttention";
 import { init as initWatch, attend, noiseFloor, crosses } from "./continuousAttention";
 import type { Resolution } from "./narration";
 import { resolve } from "./narration";
+import type { ShapeReading, ShapeShift } from "./shapePerception";
+import { perceiveShape, diffShape } from "./shapePerception";
 
 // ── Types ──
 
@@ -40,6 +42,8 @@ export interface ExperienceSegment {
   relevant: boolean;
   /** Narration: what the disturbance means in language. */
   resolution: Resolution | null;
+  /** Shape changes detected by tree-native perception. */
+  shapeShifts?: ShapeShift[];
   /** Chat message, if this segment is a conversation event. */
   message?: { role: "user" | "assistant"; content: string };
   /** LeftHemisphere articulation, if the Gate passed and the LH responded. */
@@ -68,6 +72,8 @@ export interface Hemisphere {
   focus: string | null;
   /** Accumulated experience segments for the current session. */
   experience: ExperienceSegment[];
+  /** Previous shape reading — diffed on each perceive to detect shape changes. */
+  previousShape: ShapeReading | null;
 }
 
 // ── Relevance filter (Subconscious) ──
@@ -124,10 +130,12 @@ export function isRelevant(
  */
 export function open(root: Sigil, importedOntologies?: Sigil | null): Hemisphere {
   const space = build(root, importedOntologies);
+  const shape = perceiveShape(root, space);
   return {
     watch: initWatch(space),
     focus: null,
     experience: [],
+    previousShape: shape,
   };
 }
 
@@ -136,7 +144,7 @@ export function open(root: Sigil, importedOntologies?: Sigil | null): Hemisphere
  * This defines the Subconscious's relevance scope.
  */
 export function focusOn(hemisphere: Hemisphere, sigilName: string): Hemisphere {
-  return { ...hemisphere, focus: sigilName };
+  return { ...hemisphere, focus: sigilName, previousShape: hemisphere.previousShape };
 }
 
 /**
@@ -158,21 +166,71 @@ export function perceive(
 ): [Perception, Hemisphere] {
   const currentSpace = build(root, importedOntologies);
   const previousSpace = hemisphere.watch.previous;
-  const [disturbance, nextWatch] = attend(hemisphere.watch, currentSpace);
+  const [coOccurrenceDisturbance, nextWatch] = attend(hemisphere.watch, currentSpace);
+
+  // Shape perception: diff the tree-native shape reading
+  const currentShape = perceiveShape(root, currentSpace);
+  const shapeShifts = hemisphere.previousShape
+    ? diffShape(hemisphere.previousShape, currentShape)
+    : [];
+
+  // Merge signals: co-occurrence displacement + shape shifts.
+  // Shape shifts contribute to disturbance magnitude so the RH notices
+  // edits that don't change co-occurrence topology (new affordances,
+  // changed language, structural reorganization).
+  const shapeMagnitude = shapeShifts.reduce((sum, s) =>
+    sum + Math.abs(s.weaveChange) + Math.abs(s.leakageChange)
+    + Math.abs(s.groundingChange)
+    + (s.surfaceChange !== 0 ? 0.5 : 0)
+    + (s.volumeChange !== 0 ? Math.min(Math.abs(s.volumeChange) / 100, 1) : 0)
+    + s.newGaps.length * 0.5 + s.filledGaps.length * 0.5
+    + s.newOrphans.length * 0.5 + s.connectedOrphans.length * 0.5
+  , 0);
+
+  // Build combined disturbance — shape shifts produce displaced sigils too
+  const shapeDisplaced = shapeShifts
+    .map(s => ({
+      name: s.name,
+      magnitude: Math.abs(s.weaveChange) + Math.abs(s.leakageChange)
+        + Math.abs(s.groundingChange)
+        + (s.surfaceChange !== 0 ? 0.5 : 0)
+        + (s.volumeChange !== 0 ? Math.min(Math.abs(s.volumeChange) / 100, 1) : 0)
+        + s.newGaps.length * 0.5 + s.filledGaps.length * 0.5
+        + s.newOrphans.length * 0.5 + s.connectedOrphans.length * 0.5,
+    }))
+    .filter(s => s.magnitude > 0);
+
+  // Merge displaced lists — co-occurrence + shape, deduplicating by name
+  const displacedMap = new Map<string, number>();
+  for (const d of coOccurrenceDisturbance.displaced) {
+    displacedMap.set(d.name, (displacedMap.get(d.name) ?? 0) + d.magnitude);
+  }
+  for (const d of shapeDisplaced) {
+    displacedMap.set(d.name, (displacedMap.get(d.name) ?? 0) + d.magnitude);
+  }
+  const mergedDisplaced = [...displacedMap.entries()]
+    .map(([name, magnitude]) => ({ name, magnitude }))
+    .sort((a, b) => b.magnitude - a.magnitude);
+
+  const disturbance: Disturbance = {
+    displaced: mergedDisplaced,
+    total: coOccurrenceDisturbance.total + shapeMagnitude,
+  };
 
   const floor = noiseFloor(nextWatch);
   const escalation = crosses(disturbance, floor)
     ? { disturbance, floor }
     : null;
 
-  // Narration: resolve the disturbance into language
+  // Narration: resolve the disturbance into language — including shape shifts
   const resolution = disturbance.total > 0
-    ? resolve(previousSpace, currentSpace, disturbance, hemisphere.focus)
+    ? resolve(previousSpace, currentSpace, disturbance, hemisphere.focus, shapeShifts)
     : null;
 
   // Subconscious#filtering — is this burst relevant to what we're looking at?
   const relevant = hemisphere.focus !== null
-    && changedSigils.some(s => isRelevant(currentSpace, hemisphere.focus!, s));
+    && (changedSigils.some(s => isRelevant(currentSpace, hemisphere.focus!, s))
+      || shapeShifts.some(s => s.name === hemisphere.focus));
 
   const segment: ExperienceSegment = {
     sigils: changedSigils,
@@ -180,6 +238,7 @@ export function perceive(
     timestamp,
     relevant,
     resolution,
+    shapeShifts: shapeShifts.length > 0 ? shapeShifts : undefined,
   };
 
   const perception: Perception = { escalation, experience: segment };
@@ -188,6 +247,7 @@ export function perceive(
     watch: nextWatch,
     focus: hemisphere.focus,
     experience: [...hemisphere.experience, segment],
+    previousShape: currentShape,
   };
 
   return [perception, nextHemisphere];

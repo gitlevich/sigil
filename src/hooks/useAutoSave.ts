@@ -63,11 +63,19 @@ export function useAutoSave(delayMs = 500) {
 
     if (isAutoSavePaused(path)) return;
 
+    // Update base BEFORE the write so the conflict check never sees a stale base
+    // for our own auto-save. If the write fails, revert.
+    const prevBase = baseContent.get(path) ?? null;
+    baseContent.set(path, content);
+
     api.writeFile(path, content)
-      .then(() => {
-        baseContent.set(path, content);
-      })
       .catch((err) => {
+        // Revert base — disk still has the old content
+        if (prevBase !== null) {
+          baseContent.set(path, prevBase);
+        } else {
+          baseContent.delete(path);
+        }
         console.error("Auto-save failed:", err);
       });
   }, []);

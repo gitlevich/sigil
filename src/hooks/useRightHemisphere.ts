@@ -28,8 +28,10 @@ import {
   newSessionId,
   serializeHeader,
   serializeEntry,
+  serializeSleepEntry,
   toEntry,
 } from "sigil-core/experience";
+import type { SleepEntry } from "sigil-core/experience";
 import type { MemoryState } from "sigil-core/memory";
 import { serializeTrace, serializeLongTerm, parseLongTerm, initWithLongTerm } from "sigil-core/memory";
 import { memory as mindMemory } from "sigil-core/bicameralMind";
@@ -118,16 +120,39 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
   const doSleep = useCallback(() => {
     if (!mindRef.current) return;
     const s = specRef.current;
-    const before = mindRef.current.memory.shortTerm.length;
-    mindRef.current = mindSleep(mindRef.current, s.root, s.importedOntologies ?? null);
-    const after = mindRef.current.memory.longTerm.size;
-    console.info(`[BicameralMind] slept — ${before} short-term traces consolidated into ${after} long-term entries`);
+    const { mind: nextMind, report } = mindSleep(mindRef.current, s.root, s.importedOntologies ?? null);
+    mindRef.current = nextMind;
+
+    console.info(
+      `[BicameralMind] slept — ${report.tracesConsumed} traces → ${report.longTermSize} long-term entries`
+      + (report.reinforced.length > 0 ? `, reinforced: ${report.reinforced.join(", ")}` : "")
+      + (report.decayed.length > 0 ? `, decayed: ${report.decayed.join(", ")}` : "")
+      + (report.pruned.length > 0 ? `, pruned: ${report.pruned.join(", ")}` : "")
+      + (report.merged.length > 0 ? `, merged: ${report.merged.join(", ")}` : ""),
+    );
 
     // Persist long-term snapshot
     const json = serializeLongTerm(mindRef.current.memory);
     api.writeLongTermMemory(s.rootPath, json).catch(err => {
       console.error("[Memory] failed to persist long-term memory:", err);
     });
+
+    // Record the dream in the experience stream — !complete
+    if (sessionIdRef.current) {
+      const sleepEntry: SleepEntry = {
+        timestamp: Date.now(),
+        tracesConsumed: report.tracesConsumed,
+        longTermSize: report.longTermSize,
+        reinforced: report.reinforced,
+        decayed: report.decayed,
+        pruned: report.pruned,
+        merged: report.merged,
+      };
+      const line = serializeSleepEntry(sleepEntry);
+      api.appendExperience(s.rootPath, sessionIdRef.current, line).catch(err => {
+        console.error("[Experience] failed to append sleep entry:", err);
+      });
+    }
   }, []);
 
   const resetSleepTimer = useCallback(() => {
@@ -144,8 +169,12 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
     );
     mindRef.current = nextMind;
 
-    // Persist experience
-    if (sessionIdRef.current) {
+    // Persist experience — skip empty perceptions (no disturbance, no shape change)
+    const hasContent = result.perception.experience.disturbance.total > 0
+      || (result.perception.experience.shapeShifts && result.perception.experience.shapeShifts.length > 0)
+      || result.perception.experience.message
+      || result.perception.experience.articulation;
+    if (sessionIdRef.current && hasContent) {
       const entry = toEntry(result.perception.experience, m.hemisphere.focus);
       const line = serializeEntry(entry);
       api.appendExperience(newSpec.rootPath, sessionIdRef.current, line).catch(err => {

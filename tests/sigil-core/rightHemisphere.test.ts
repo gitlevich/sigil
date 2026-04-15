@@ -204,4 +204,102 @@ describe("RightHemisphere", () => {
       expect(perception.experience.sigils).toContain("Alpha");
     });
   });
+
+  describe("shape perception — sees edits that don't change co-occurrence", () => {
+    it("detects added affordance as nonzero disturbance", () => {
+      const before = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I exist." }),
+          sigil("Beta", { language: "I also exist." }),
+        ],
+      });
+      // After: Alpha gains an affordance — tree changed but no @refs changed
+      const after = sigil("Root", {
+        children: [
+          sigil("Alpha", {
+            language: "I exist.",
+            affordances: [{ name: "act", content: "I can do something now." }],
+          }),
+          sigil("Beta", { language: "I also exist." }),
+        ],
+      });
+
+      const h = focusOn(open(before), "Root");
+      const [perception] = perceive(h, after, ["Alpha"], 1);
+
+      // Co-occurrence disturbance would be 0 — no @refs changed.
+      // But shape disturbance should be nonzero — Root's grounding changed
+      // (Alpha gained an affordance, potentially changing shape properties).
+      // The key: disturbance.total should NOT be 0.
+      expect(perception.experience.disturbance.total).toBeGreaterThan(0);
+    });
+
+    it("detects new child sigil as shape disturbance", () => {
+      const before = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I exist alone." }),
+        ],
+      });
+      const after = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I exist alone." }),
+          sigil("Beta", { language: "I am new." }),
+        ],
+      });
+
+      const h = focusOn(open(before), "Root");
+      const [perception] = perceive(h, after, ["Root"], 1);
+
+      expect(perception.experience.disturbance.total).toBeGreaterThan(0);
+    });
+
+    it("attaches shapeShifts to the experience segment", () => {
+      const before = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "Alone." }),
+          sigil("Beta", { language: "Alone." }),
+        ],
+      });
+      const after = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I now mention @Beta." }),
+          sigil("Beta", { language: "I now mention @Alpha." }),
+        ],
+      });
+
+      const h = focusOn(open(before), "Root");
+      const [perception] = perceive(h, after, ["Alpha", "Beta"], 1);
+
+      // Root's weave should have changed (children became entangled)
+      expect(perception.experience.shapeShifts).toBeDefined();
+      expect(perception.experience.shapeShifts!.length).toBeGreaterThan(0);
+      const rootShift = perception.experience.shapeShifts!.find(s => s.name === "Root");
+      expect(rootShift).toBeDefined();
+      expect(rootShift!.weaveChange).toBeGreaterThan(0);
+    });
+
+    it("marks shape changes as relevant when they affect the focused sigil", () => {
+      const before = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I exist." }),
+        ],
+      });
+      const after = sigil("Root", {
+        children: [
+          sigil("Alpha", { language: "I exist." }),
+          sigil("Beta", { language: "I am new." }),
+        ],
+      });
+
+      // Focus is Root — Root's shape changed (gained a child)
+      const h = focusOn(open(before), "Root");
+      // changedSigils is empty — the watcher might not know what changed
+      const [perception] = perceive(h, after, [], 1);
+
+      // Even with empty changedSigils, the shape diff detects change
+      // and marks it relevant because Root is the focus and Root's shape shifted
+      expect(perception.experience.disturbance.total).toBeGreaterThan(0);
+      expect(perception.experience.relevant).toBe(true);
+    });
+  });
 });

@@ -154,7 +154,7 @@ describe("BicameralMind", () => {
       expect(memory(mind).longTerm.size).toBe(0);
 
       // Sleep — consolidates and clears
-      mind = sleep(mind, tree2);
+      mind = sleep(mind, tree2).mind;
       expect(experience(mind)).toHaveLength(0);
       expect(memory(mind).shortTerm).toHaveLength(0);
 
@@ -173,7 +173,7 @@ describe("BicameralMind", () => {
 
       // Sleep many times, only attending to Alpha
       for (let i = 0; i < 30; i++) {
-        mind = sleep(mind, tree);
+        mind = sleep(mind, tree).mind;
         // Re-perceive with only Alpha to keep experience flowing
         [r, mind] = perceive(mind, tree, ["Alpha"], 2000 + i * 1000);
       }

@@ -14,6 +14,7 @@
  */
 import type { SigilSpace } from "./sigilSpace";
 import type { Disturbance, DisplacedSigil } from "./continuousAttention";
+import type { ShapeShift } from "./shapePerception";
 
 // ── Types ──
 
@@ -63,16 +64,25 @@ export function resolve(
   newSpace: SigilSpace,
   disturbance: Disturbance,
   focus: string | null,
+  shapeShifts?: ShapeShift[],
 ): Resolution {
-  if (disturbance.displaced.length === 0) {
-    return { focus, changes: [], summary: "No structural change." };
-  }
-
   const changes: ResolvedChange[] = [];
 
+  // Co-occurrence changes
   for (const displaced of disturbance.displaced) {
     const resolved = resolveOne(oldSpace, newSpace, displaced);
     changes.push(...resolved);
+  }
+
+  // Shape changes — narrate structural shifts the co-occurrence engine can't see
+  if (shapeShifts) {
+    for (const shift of shapeShifts) {
+      changes.push(...narrateShapeShift(shift));
+    }
+  }
+
+  if (changes.length === 0) {
+    return { focus, changes: [], summary: "No structural change." };
   }
 
   // Sort by magnitude descending
@@ -153,6 +163,103 @@ function resolveOne(
         description: `${name} moved ${dir} ${target}.`,
       });
     }
+  }
+
+  return results;
+}
+
+/** Narrate a shape shift into resolved changes. */
+function narrateShapeShift(shift: ShapeShift): ResolvedChange[] {
+  const results: ResolvedChange[] = [];
+  const name = shift.name;
+
+  if (Math.abs(shift.weaveChange) > 0.01) {
+    const dir = shift.weaveChange > 0 ? "tightened" : "loosened";
+    results.push({
+      sigil: name,
+      magnitude: Math.abs(shift.weaveChange),
+      kind: "reference-shifted",
+      partners: [],
+      description: `${name}'s weave ${dir} — children ${shift.weaveChange > 0 ? "more" : "less"} entangled.`,
+    });
+  }
+
+  if (Math.abs(shift.leakageChange) > 0.01) {
+    const dir = shift.leakageChange > 0 ? "more porous" : "more contained";
+    results.push({
+      sigil: name,
+      magnitude: Math.abs(shift.leakageChange),
+      kind: "reference-shifted",
+      partners: [],
+      description: `${name}'s boundary became ${dir}.`,
+    });
+  }
+
+  if (Math.abs(shift.groundingChange) > 0.01) {
+    const dir = shift.groundingChange > 0 ? "better grounded" : "less grounded";
+    results.push({
+      sigil: name,
+      magnitude: Math.abs(shift.groundingChange),
+      kind: "reference-shifted",
+      partners: [],
+      description: `${name} is ${dir} in its children's vocabulary.`,
+    });
+  }
+
+  if (shift.surfaceChange !== 0) {
+    const dir = shift.surfaceChange > 0 ? "grew" : "shrank";
+    const what = Math.abs(shift.surfaceChange) === 1 ? "affordance/invariant" : "affordances/invariants";
+    results.push({
+      sigil: name,
+      magnitude: 0.5,
+      kind: shift.surfaceChange > 0 ? "sigil-appeared" : "sigil-disappeared",
+      partners: [],
+      description: `${name}'s surface ${dir} by ${Math.abs(shift.surfaceChange)} ${what}.`,
+    });
+  }
+
+  // Volume change alone is not narrated — "content expanded" is not perception.
+  // Volume contributes to disturbance magnitude (the RH notices *something* changed)
+  // but only structural changes (surface, weave, grounding, gaps, orphans) get words.
+
+  for (const gap of shift.newGaps) {
+    results.push({
+      sigil: name,
+      magnitude: 0.5,
+      kind: "sigil-disappeared",
+      partners: [gap],
+      description: `${name} references @${gap} but no such sigil exists — a gap in the shape.`,
+    });
+  }
+
+  for (const gap of shift.filledGaps) {
+    results.push({
+      sigil: name,
+      magnitude: 0.5,
+      kind: "sigil-appeared",
+      partners: [gap],
+      description: `@${gap} now exists — gap in ${name} filled.`,
+    });
+  }
+
+  for (const orphan of shift.newOrphans) {
+    results.push({
+      sigil: name,
+      magnitude: 0.5,
+      kind: "reference-removed",
+      partners: [orphan],
+      description: `${orphan} became orphaned inside ${name} — no sibling connections.`,
+    });
+  }
+
+  for (const connected of shift.connectedOrphans) {
+    results.push({
+      sigil: name,
+      magnitude: 0.5,
+      kind: "reference-added",
+      partners: [connected],
+      description: `${connected} connected with siblings inside ${name}.`,
+    });
   }
 
   return results;

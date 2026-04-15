@@ -259,8 +259,6 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
   const sigilDirRef = useRef(sigilDir);
   sigilDirRef.current = sigilDir;
   onChangeRef.current = onChange;
-  const localEditRef = useRef(false);
-  const lastLocalContentRef = useRef<string | null>(null);
   const prevPathRef = useRef<string>(currentPath.join("/"));
 
   useEffect(() => {
@@ -317,10 +315,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
         }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            const text = update.state.doc.toString();
-            localEditRef.current = true;
-            lastLocalContentRef.current = text;
-            onChangeRef.current(text);
+            onChangeRef.current(update.state.doc.toString());
           }
         }),
         EditorView.domEventHandlers({
@@ -570,9 +565,10 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     });
   }, [wordWrap]);
 
-  // Sync external content changes into CodeMirror.
-  // Two cases: (1) navigation to a different sigil, (2) echo of our own edits.
-  // Use currentPath to distinguish — path change always means navigation.
+  // Sync external content into CodeMirror.
+  // Navigation: replace doc and clear undo. Same-path: skip if CodeMirror is already current
+  // (debounced echo or watcher reload — the watcher grafts local content, so its updates
+  // match what CodeMirror has and get skipped here).
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
@@ -582,21 +578,12 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     prevPathRef.current = pathKey;
 
     const currentDoc = view.state.doc.toString();
+    if (currentDoc === content) return;
 
-    if (currentDoc === content) {
-      localEditRef.current = false;
-      lastLocalContentRef.current = null;
-      return;
-    }
+    // Same path, content differs: the 300ms debounce hasn't round-tripped yet. Skip.
+    if (!navigated) return;
 
-    // If we have local edits and did NOT navigate, this is a debounced echo — skip.
-    if (localEditRef.current && !navigated) {
-      return;
-    }
-
-    // Navigation to a different sigil, or external reload. Replace content and clear undo history.
-    localEditRef.current = false;
-    lastLocalContentRef.current = null;
+    // Navigation to a different sigil. Replace content and clear undo history.
     view.dispatch({
       changes: { from: 0, to: currentDoc.length, insert: content },
       annotations: [Transaction.addToHistory.of(false)],

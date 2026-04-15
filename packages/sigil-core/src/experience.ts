@@ -39,6 +39,26 @@ export interface ExperienceEntry {
   resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] };
   /** LeftHemisphere articulation, if the Gate passed and the LH responded. */
   articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
+  /** Shape shifts detected by tree-native perception. */
+  shapeShifts?: { name: string; weaveChange: number; leakageChange: number; groundingChange: number; surfaceChange: number; volumeChange: number; newGaps: string[]; filledGaps: string[]; newOrphans: string[]; connectedOrphans: string[] }[];
+}
+
+/** A sleep/consolidation event in the experience journal. */
+export interface SleepEntry {
+  /** Monotonic timestamp (ms since epoch). */
+  timestamp: number;
+  /** How many short-term traces were consumed. */
+  tracesConsumed: number;
+  /** How many long-term entries exist after consolidation. */
+  longTermSize: number;
+  /** Sigils that were reinforced (attended during this session). */
+  reinforced: string[];
+  /** Sigils that decayed (not attended, weight reduced). */
+  decayed: string[];
+  /** Sigils that were pruned (weight dropped below threshold). */
+  pruned: string[];
+  /** Sigils that were merged (co-occurrence merge). */
+  merged: string[];
 }
 
 /** A session header — written once at the start of each session file. */
@@ -70,6 +90,11 @@ export function serializeHeader(header: SessionHeader): string {
 /** Serialize an experience entry to a JSONL line. */
 export function serializeEntry(entry: ExperienceEntry): string {
   return JSON.stringify({ type: "entry", ...entry });
+}
+
+/** Serialize a sleep event to a JSONL line. */
+export function serializeSleepEntry(entry: SleepEntry): string {
+  return JSON.stringify({ type: "sleep", ...entry });
 }
 
 /** Parse a JSONL session file into a Session. */
@@ -146,6 +171,7 @@ export function toEntry(
     message?: { role: "user" | "assistant"; content: string };
     resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null;
     articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
+    shapeShifts?: { name: string; weaveChange: number; leakageChange: number; groundingChange: number; surfaceChange: number; volumeChange: number; newGaps: string[]; filledGaps: string[]; newOrphans: string[]; connectedOrphans: string[] }[];
   },
   focus: string | null,
 ): ExperienceEntry {
@@ -162,5 +188,6 @@ export function toEntry(
   if (segment.message) entry.message = segment.message;
   if (segment.resolution) entry.resolution = segment.resolution;
   if (segment.articulation) entry.articulation = segment.articulation;
+  if (segment.shapeShifts && segment.shapeShifts.length > 0) entry.shapeShifts = segment.shapeShifts;
   return entry;
 }

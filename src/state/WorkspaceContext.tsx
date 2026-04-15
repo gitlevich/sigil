@@ -153,11 +153,15 @@ export function useWorkspaceActions() {
     dispatch({ type: "BACK" });
   }, [dispatch]);
 
+  const readSpec = useCallback(async () => {
+    return api.readSigil(state.spec.rootPath);
+  }, [state.spec.rootPath]);
+
   const reload = useCallback(async () => {
-    const spec = await api.readSigil(state.spec.rootPath);
+    const spec = await readSpec();
     dispatch({ type: "UPDATE_SPEC", spec });
     return spec;
-  }, [state.spec.rootPath, dispatch]);
+  }, [readSpec, dispatch]);
 
-  return useMemo(() => ({ navigate, back, reload }), [navigate, back, reload]);
+  return useMemo(() => ({ navigate, back, reload, readSpec }), [navigate, back, reload, readSpec]);
 }

@@ -3,7 +3,7 @@
  * Wires hooks that need workspace and layout state.
  */
 import { useRef, useEffect, useMemo } from "react";
-import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch } from "./state/WorkspaceContext";
+import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch, scopeInfo } from "./state/WorkspaceContext";
 import { useLayoutState } from "./state/LayoutContext";
 import { useChatDispatch } from "./state/ChatContext";
 import { useFileWatcher } from "./hooks/useFileWatcher";
@@ -13,11 +13,40 @@ import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
-import { api, FsChangeEvent } from "./tauri";
+import { api, FsChangeEvent, SigilFolder, ApplicationSpec } from "./tauri";
 import { useChatStream } from "./hooks/useChatStream";
 import { Workspace } from "./components/Workspace/Workspace";
 import { ExperienceProvider } from "./state/ExperienceContext";
 import { ChatStreamProvider } from "./state/ChatStreamContext";
+import { findContext } from "sigil-core";
+import type { Sigil } from "sigil-core";
+import type { WorkspaceState } from "./state/WorkspaceContext";
+
+/** Patch a disk-read spec: replace the language of the node at `scopePath` with local content. */
+function graftLanguage(
+  diskSpec: ApplicationSpec,
+  currentWs: WorkspaceState,
+  scopePath: string[],
+  localLanguage: string,
+): ApplicationSpec {
+  const isImported = currentWs.currentPath[0] === "Imported Ontologies";
+  const tree = isImported ? diskSpec.importedOntologies : diskSpec.root;
+  if (!tree) return diskSpec;
+  const patched = patchNode(tree, scopePath, localLanguage);
+  if (isImported) return { ...diskSpec, importedOntologies: patched };
+  return { ...diskSpec, root: patched };
+}
+
+function patchNode(node: SigilFolder, path: string[], language: string): SigilFolder {
+  if (path.length === 0) return { ...node, language };
+  const [head, ...rest] = path;
+  return {
+    ...node,
+    children: node.children.map((child) =>
+      child.name === head ? patchNode(child, rest, language) : child
+    ),
+  };
+}
 
 export function WorkspaceShell() {
   const ws = useWorkspaceState();
@@ -25,7 +54,7 @@ export function WorkspaceShell() {
   const dispatch = useWorkspaceDispatch();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
-  const { reload } = useWorkspaceActions();
+  const { readSpec } = useWorkspaceActions();
 
   const bicameralCallbacks = useMemo<BicameralCallbacks>(() => ({
     onArticulation: (articulation) => {
@@ -52,10 +81,36 @@ export function WorkspaceShell() {
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();
 
-    const newSpec = await reload();
+    // Read fresh spec from disk, but do NOT dispatch yet.
+    const diskSpec = await readSpec();
+
+    // Graft: preserve the currently-edited node's language from the local spec tree.
+    // The local tree (ws.spec) has the user's latest content (via handleContentChange's
+    // 300ms debounce). The disk spec may have stale content for that node because
+    // auto-save hasn't caught up yet. We take structure from disk, content from local.
+    const currentWs = ws;
+    const { scopeRoot, scopePath } = scopeInfo(currentWs);
+    const localFolder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
+
+    let spec: ApplicationSpec;
+    if (localFolder && scopePath.length > 0) {
+      spec = graftLanguage(diskSpec, currentWs, scopePath, localFolder.language);
+    } else if (localFolder && scopePath.length === 0) {
+      // Editing the root — graft its language directly
+      const isImported = currentWs.currentPath[0] === "Imported Ontologies";
+      if (isImported && diskSpec.importedOntologies) {
+        spec = { ...diskSpec, importedOntologies: { ...diskSpec.importedOntologies, language: localFolder.language } };
+      } else {
+        spec = { ...diskSpec, root: { ...diskSpec.root, language: localFolder.language } };
+      }
+    } else {
+      spec = diskSpec;
+    }
+
+    dispatch({ type: "UPDATE_SPEC", spec });
 
     // RightHemisphere: sense disturbance in the shape.
-    perceive(newSpec, event.paths);
+    perceive(spec, event.paths);
 
     if (!pendingPath) return;
 

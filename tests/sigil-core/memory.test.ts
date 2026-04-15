@@ -73,7 +73,7 @@ describe("Memory", () => {
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
 
-      mem = consolidate(mem, ["A"], space, 2000);
+      [mem] = consolidate(mem, ["A"], space, 2000);
 
       expect(mem.shortTerm).toHaveLength(0);
       expect(mem.longTerm.size).toBe(1);
@@ -118,7 +118,7 @@ describe("Memory", () => {
       const root = makeRoot(makeSigil("A", ""));
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000);
+      [mem] = consolidate(mem, ["A"], space, 2000);
 
       const result = recognize(mem, "A");
       expect(result).not.toBeNull();
@@ -128,7 +128,7 @@ describe("Memory", () => {
       const root = makeRoot(makeSigil("A", ""));
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000);
+      [mem] = consolidate(mem, ["A"], space, 2000);
       // Add another short-term trace
       mem = rem(mem, nodeFrom(space, "A"), 3000);
 
@@ -148,11 +148,11 @@ describe("Memory", () => {
       const root = makeRoot(makeSigil("A", "uses @B"), makeSigil("B", ""));
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000); // A enters long-term
+      [mem] = consolidate(mem, ["A"], space, 2000); // A enters long-term
 
       // Consolidate many times without attending to A
       for (let i = 0; i < 30; i++) {
-        mem = consolidate(mem, [], space, 3000 + i * 1000);
+        [mem] = consolidate(mem, [], space, 3000 + i * 1000);
       }
 
       expect(recognize(mem, "A")).toBeNull();
@@ -163,10 +163,10 @@ describe("Memory", () => {
       const root = makeRoot(makeSigil("A", "uses @B"), makeSigil("B", ""));
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000);
+      [mem] = consolidate(mem, ["A"], space, 2000);
 
       for (let i = 0; i < 30; i++) {
-        mem = consolidate(mem, ["A"], space, 3000 + i * 1000);
+        [mem] = consolidate(mem, ["A"], space, 3000 + i * 1000);
       }
 
       expect(recognize(mem, "A")).not.toBeNull();
@@ -178,10 +178,10 @@ describe("Memory", () => {
       const root = makeRoot(makeSigil("A", ""), makeSigil("B", ""));
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000);
+      [mem] = consolidate(mem, ["A"], space, 2000);
       const w1 = mem.longTerm.get("A")!.weight;
 
-      mem = consolidate(mem, ["A"], space, 3000);
+      [mem] = consolidate(mem, ["A"], space, 3000);
       const w2 = mem.longTerm.get("A")!.weight;
 
       expect(w2).toBeGreaterThan(w1);
@@ -191,7 +191,7 @@ describe("Memory", () => {
       const root1 = makeRoot(makeSigil("A", ""), makeSigil("B", ""));
       const space1 = build(root1);
       let mem = rem(init(), nodeFrom(space1, "A"), 1000);
-      mem = consolidate(mem, ["A"], space1, 2000);
+      [mem] = consolidate(mem, ["A"], space1, 2000);
 
       const root2 = {
         ...makeRoot(makeSigil("A", ""), makeSigil("B", "")),
@@ -202,7 +202,7 @@ describe("Memory", () => {
         }, makeSigil("B", "")],
       };
       const space2 = build(root2);
-      mem = consolidate(mem, ["A"], space2, 3000);
+      [mem] = consolidate(mem, ["A"], space2, 3000);
 
       const result = recognize(mem, "A");
       expect(result!.remembered.vocabulary.affordances).toContain("fly");
@@ -219,7 +219,7 @@ describe("Memory", () => {
       const space = build(root);
 
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000); // A in long-term
+      [mem] = consolidate(mem, ["A"], space, 2000); // A in long-term
       mem = rem(mem, nodeFrom(space, "B"), 3000); // B in short-term
 
       const results = recall(mem, space, "A");
@@ -235,8 +235,8 @@ describe("Memory", () => {
       const space = build(root);
 
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
-      mem = consolidate(mem, ["A"], space, 2000); // A in long-term, reinforced
-      mem = consolidate(mem, ["A"], space, 3000); // reinforce again
+      [mem] = consolidate(mem, ["A"], space, 2000); // A in long-term, reinforced
+      [mem] = consolidate(mem, ["A"], space, 3000); // reinforce again
       mem = rem(mem, nodeFrom(space, "B"), 4000); // B in short-term
 
       const all = allRemembered(mem);
@@ -266,7 +266,7 @@ describe("Memory", () => {
       const space = build(root);
       let mem = rem(init(), nodeFrom(space, "A"), 1000);
       mem = rem(mem, nodeFrom(space, "B"), 2000);
-      mem = consolidate(mem, ["A", "B"], space, 3000);
+      [mem] = consolidate(mem, ["A", "B"], space, 3000);
 
       const json = serializeLongTerm(mem);
       const restored = parseLongTerm(json);
