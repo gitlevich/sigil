@@ -511,7 +511,7 @@ function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: bool
           onPointerOver={(e) => { e.stopPropagation(); onHoverLabel(label); document.body.style.cursor = "help"; }}
           onPointerOut={() => { onHoverLabel(null); document.body.style.cursor = "auto"; }}
         >
-          <sphereGeometry args={[pipeRadius * 3, 8, 8]} />
+          <sphereGeometry args={[Math.max(pipeRadius * 5, 0.012), 8, 8]} />
           <meshBasicMaterial color={dark ? "#88aadd" : "#5588cc"} />
         </mesh>
       )}

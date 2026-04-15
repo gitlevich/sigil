@@ -40,40 +40,49 @@ function stripLanguageFrontmatter(text: string): string {
  * Looks for #affordance references in language text where @otherSigil also appears
  * in the same sentence, plus any affordance names shared between both sigils.
  */
-function findSharedAffordances(sigil: Sigil, otherName: string): string[] {
+/**
+ * Find affordance names that connect two sigils.
+ * Scans the parent's language (and both sigils' language) for sentences
+ * where both @names appear, collecting any #affordance refs from those sentences.
+ */
+function findSharedAffordances(sigilName: string, otherName: string, parent: Sigil): string[] {
   const result = new Set<string>();
 
-  // Affordances whose names match the other sigil's affordances
-  // (shared surface — same corridor from both sides)
-  const otherChild = sigil.children.find(c => c.name === otherName);
-  if (otherChild) {
-    const myAffNames = new Set(sigil.affordances.map(a => a.name));
-    for (const a of otherChild.affordances) {
-      if (myAffNames.has(a.name)) result.add(a.name);
-    }
-  }
+  // Scan all text sources: parent language, parent affordances, both sigils' language
+  const texts: string[] = [];
+  texts.push(parent.language || "");
+  for (const a of parent.affordances) texts.push(a.content || "");
+  const selfChild = parent.children.find(c => c.name === sigilName);
+  const otherChild = parent.children.find(c => c.name === otherName);
+  if (selfChild) texts.push(selfChild.language || "");
+  if (otherChild) texts.push(otherChild.language || "");
 
-  // Scan language for sentences containing both @otherName and #affordance
-  const text = sigil.language || "";
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  for (const sentence of sentences) {
-    // Check if this sentence mentions the other sigil
-    let mentionsOther = false;
-    const refs: string[] = [];
-    allRefsPattern.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = allRefsPattern.exec(sentence)) !== null) {
-      if (isInCodeSpan(sentence, m.index)) continue;
-      const token = m[0];
-      if (token.startsWith("@") && token.slice(1).toLowerCase() === otherName.toLowerCase()) {
-        mentionsOther = true;
+  const nameA = sigilName.toLowerCase();
+  const nameB = otherName.toLowerCase();
+
+  for (const text of texts) {
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    for (const sentence of sentences) {
+      let mentionsA = false;
+      let mentionsB = false;
+      const affordances: string[] = [];
+      allRefsPattern.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = allRefsPattern.exec(sentence)) !== null) {
+        if (isInCodeSpan(sentence, m.index)) continue;
+        const token = m[0];
+        if (token.startsWith("@")) {
+          const name = token.slice(1).toLowerCase().replace(/@.*$/, "");
+          if (name === nameA) mentionsA = true;
+          if (name === nameB) mentionsB = true;
+        }
+        if (token.startsWith("#")) {
+          affordances.push(token.slice(1));
+        }
       }
-      if (token.startsWith("#")) {
-        refs.push(token.slice(1));
+      if (mentionsA && mentionsB) {
+        for (const a of affordances) result.add(a);
       }
-    }
-    if (mentionsOther) {
-      for (const r of refs) result.add(r);
     }
   }
 
@@ -134,6 +143,7 @@ function layoutSigil(
   parentRadius: number,
   depth: number,
   space: SigilSpace | null,
+  parentSigil: Sigil | null,
 ): SphereNode {
   const nonImportedChildren = sigil.children.filter(c => !c.isImported);
   const totalWeight = nonImportedChildren.reduce((sum, c) => sum + subtreeSize(c), 0);
@@ -154,7 +164,7 @@ function layoutSigil(
     const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(n, 1);
     const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.4 * Math.sqrt(fraction)));
     const childPath = [...path, child.name];
-    return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space);
+    return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space, sigil);
   });
 
   // Gather entanglements from the co-occurrence graph
@@ -163,7 +173,9 @@ function layoutSigil(
     const node = space.nodes.get(sigil.name);
     if (node) {
       for (const edge of node.edges) {
-        const shared = findSharedAffordances(sigil, edge.target);
+        const shared = parentSigil
+          ? findSharedAffordances(sigil.name, edge.target, parentSigil)
+          : [];
         entanglements.push({ target: edge.target, strength: edge.count, sharedAffordances: shared });
       }
     }
@@ -192,7 +204,7 @@ export function buildLayout(
   space: SigilSpace | null,
   rootRadius = 2,
 ): SphereNode {
-  return layoutSigil(root, [], [0, 0, 0], rootRadius, 0, space);
+  return layoutSigil(root, [], [0, 0, 0], rootRadius, 0, space, null);
 }
 
 /**
