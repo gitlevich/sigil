@@ -177,19 +177,22 @@ function layoutSigil(
 
   const radius = parentRadius;
 
-  // Dense space — children close to parent scale, breathing but not lost
+  // Foam-like: placement spreads with child count so neighbors breathe
   const n = nonImportedChildren.length;
-  const placementRadius = radius * 0.45;
+  // More children → wider spread. Few children → tight cluster.
+  const placementRadius = radius * (0.35 + 0.08 * Math.sqrt(n));
   const positions = fibonacciSphere(n, placementRadius, center);
 
-  // Children are large relative to parent — gentle scale compression
-  const minChildRadius = radius * 0.2;
-  const maxChildRadius = radius * 0.55;
+  // Child radius: gentle compression. Parent is only ~2x child, not 5x.
+  // Scale factor decreases with child count so each gets fair space.
+  const scaleFactor = n <= 3 ? 0.45 : n <= 6 ? 0.35 : 0.28;
+  const minChildRadius = radius * 0.15;
+  const maxChildRadius = radius * 0.5;
 
   const children: SphereNode[] = nonImportedChildren.map((child, i) => {
     const weight = subtreeSize(child);
     const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(n, 1);
-    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.4 * Math.sqrt(fraction)));
+    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * scaleFactor * Math.sqrt(fraction)));
     const childPath = [...path, child.name];
     return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space, rootSigil);
   });
