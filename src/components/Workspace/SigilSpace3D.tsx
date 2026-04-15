@@ -451,7 +451,7 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
 interface EntanglementLinesProps {
   nodes: SphereNode[];
   dark: boolean;
-  onHoverLabel: (label: string | null) => void;
+  onHoverLabel: (label: { text: string; x: number; y: number } | null) => void;
 }
 
 interface EntanglementEdge {
@@ -467,7 +467,7 @@ interface EntanglementEdge {
 }
 
 /** A single pipe connector between two entangled sigils. */
-function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: boolean; onHoverLabel: (label: string | null) => void }) {
+function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: boolean; onHoverLabel: (label: { text: string; x: number; y: number } | null) => void }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const dotRef = useRef<THREE.Mesh>(null);
 
@@ -513,11 +513,24 @@ function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: bool
       <mesh
         ref={dotRef}
         position={pipeMid}
-        onPointerOver={(e) => { e.stopPropagation(); onHoverLabel(hoverText); document.body.style.cursor = "help"; }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          const evt = e.nativeEvent as MouseEvent;
+          onHoverLabel({ text: hoverText, x: evt.clientX, y: evt.clientY });
+          document.body.style.cursor = "help";
+        }}
+        onPointerMove={(e) => {
+          const evt = e.nativeEvent as MouseEvent;
+          onHoverLabel({ text: hoverText, x: evt.clientX, y: evt.clientY });
+        }}
         onPointerOut={() => { onHoverLabel(null); document.body.style.cursor = "auto"; }}
       >
-        <sphereGeometry args={[Math.max(pipeRadius * 4, 0.01), 8, 8]} />
-        <meshBasicMaterial color={dark ? "#88aadd" : "#5588cc"} />
+        <sphereGeometry args={[Math.max(pipeRadius * 3, 0.006), 8, 8]} />
+        <meshBasicMaterial
+          color={dark ? "#556688" : "#667799"}
+          transparent
+          opacity={0.6}
+        />
       </mesh>
     </group>
   );
@@ -586,7 +599,7 @@ interface SceneProps {
   onNavigate: (path: string[]) => void;
   onHover: (node: SphereNode | null) => void;
   onSelect: (node: SphereNode) => void;
-  onPipeLabel: (label: string | null) => void;
+  onPipeLabel: (label: { text: string; x: number; y: number } | null) => void;
 }
 
 /** Tracks an in-progress fly-into animation. */
@@ -729,7 +742,8 @@ export function SigilSpace3D() {
 
   const [hoveredNode, setHoveredNode] = useState<SphereNode | null>(null);
   const [pinnedNode, setPinnedNode] = useState<SphereNode | null>(null);
-  const [pipeLabel, setPipeLabel] = useState<string | null>(null);
+  const [pipeLabel, setPipeLabel] = useState<{ text: string; x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [infoPanelVisible, setInfoPanelVisible] = useState(true);
 
   const handleNavigate = useCallback((path: string[]) => {
@@ -758,7 +772,7 @@ export function SigilSpace3D() {
   }, [ws.currentPath, navigate]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", background: dark ? "#0a0a14" : "#f0f0f8" }}>
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%", background: dark ? "#0a0a14" : "#f0f0f8" }}>
       <Canvas
         camera={{ position: [0, 0, 4], fov: 39, near: 0.001, far: 200 }}
         gl={{ antialias: true, alpha: false }}
@@ -783,25 +797,33 @@ export function SigilSpace3D() {
           onDismiss={() => setPinnedNode(null)}
         />
       )}
-      {pipeLabel && (
+      {pipeLabel && containerRef.current && (() => {
+        const rect = containerRef.current!.getBoundingClientRect();
+        const x = pipeLabel.x - rect.left + 12;
+        const y = pipeLabel.y - rect.top - 8;
+        return (
         <div style={{
           position: "absolute",
-          top: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: dark ? "rgba(12,12,30,0.9)" : "rgba(255,255,255,0.95)",
-          color: dark ? "#88aacc" : "#4466aa",
-          padding: "6px 12px",
+          left: x,
+          top: y,
+          transform: "translateY(-100%)",
+          background: dark ? "rgba(12,12,30,0.92)" : "rgba(255,255,255,0.96)",
+          color: dark ? "#b0c0dd" : "#3a4a6a",
+          padding: "8px 12px",
           borderRadius: 6,
-          fontSize: 13,
+          fontSize: 12,
+          lineHeight: 1.5,
           fontFamily: "system-ui, sans-serif",
-          border: `1px solid ${dark ? "rgba(100,100,160,0.25)" : "rgba(0,0,0,0.08)"}`,
+          border: `1px solid ${dark ? "rgba(100,100,160,0.2)" : "rgba(0,0,0,0.08)"}`,
+          boxShadow: dark ? "0 4px 16px rgba(0,0,0,0.5)" : "0 4px 16px rgba(0,0,0,0.1)",
+          maxWidth: 360,
           pointerEvents: "none",
           zIndex: 10,
         }}>
-          {pipeLabel}
+          {pipeLabel.text}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

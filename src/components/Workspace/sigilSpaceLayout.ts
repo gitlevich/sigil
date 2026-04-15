@@ -55,45 +55,60 @@ interface SharedContext {
  * Scans the parent's language and both sigils' language for sentences
  * where both @names appear.
  */
-function findSharedContext(sigilName: string, otherName: string, parent: Sigil): SharedContext {
+/** Collect all text blocks from a sigil tree recursively. */
+function collectAllText(sigil: Sigil): string[] {
+  const texts: string[] = [];
+  if (sigil.language) texts.push(sigil.language);
+  for (const a of sigil.affordances) if (a.content) texts.push(a.content);
+  for (const inv of sigil.invariants) if (inv.content) texts.push(inv.content);
+  for (const child of sigil.children) {
+    if (!child.isImported) texts.push(...collectAllText(child));
+  }
+  return texts;
+}
+
+/** Check if a sentence mentions a sigil name (handles @Name, @Scope@Name, plurals). */
+function sentionMentions(sentence: string, name: string): boolean {
+  const lower = name.toLowerCase();
+  allRefsPattern.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = allRefsPattern.exec(sentence)) !== null) {
+    if (isInCodeSpan(sentence, m.index)) continue;
+    const token = m[0];
+    if (!token.startsWith("@")) continue;
+    // Extract all sigil name parts from chains like @A@B
+    const parts = token.slice(1).split("@");
+    for (const part of parts) {
+      const p = part.toLowerCase().replace(/s$/, "");
+      const n = lower.replace(/s$/, "");
+      if (p === lower || p === n || part.toLowerCase() === lower) return true;
+    }
+  }
+  return false;
+}
+
+function findSharedContext(sigilName: string, otherName: string, root: Sigil): SharedContext {
   const affordances = new Set<string>();
   const sentences: string[] = [];
 
-  const texts: string[] = [];
-  texts.push(parent.language || "");
-  for (const a of parent.affordances) texts.push(a.content || "");
-  const selfChild = parent.children.find(c => c.name === sigilName);
-  const otherChild = parent.children.find(c => c.name === otherName);
-  if (selfChild) texts.push(selfChild.language || "");
-  if (otherChild) texts.push(otherChild.language || "");
+  const allTexts = collectAllText(root);
 
-  const nameA = sigilName.toLowerCase();
-  const nameB = otherName.toLowerCase();
-
-  for (const text of texts) {
+  for (const text of allTexts) {
     const splits = text.split(/(?<=[.!?])\s+/);
     for (const sentence of splits) {
-      let mentionsA = false;
-      let mentionsB = false;
+      if (!sentionMentions(sentence, sigilName)) continue;
+      if (!sentionMentions(sentence, otherName)) continue;
+
+      const trimmed = sentence.trim();
+      if (trimmed && !sentences.includes(trimmed)) {
+        sentences.push(trimmed);
+      }
+      // Also collect affordances from this sentence
       allRefsPattern.lastIndex = 0;
       let m: RegExpExecArray | null;
       while ((m = allRefsPattern.exec(sentence)) !== null) {
         if (isInCodeSpan(sentence, m.index)) continue;
-        const token = m[0];
-        if (token.startsWith("@")) {
-          const name = token.slice(1).toLowerCase().replace(/@.*$/, "");
-          if (name === nameA) mentionsA = true;
-          if (name === nameB) mentionsB = true;
-        }
-        if (token.startsWith("#")) {
-          affordances.add(token.slice(1));
-        }
-      }
-      if (mentionsA && mentionsB) {
-        const trimmed = sentence.trim();
-        if (trimmed && !sentences.includes(trimmed)) {
-          sentences.push(trimmed);
-        }
+        if (m[0].startsWith("#")) affordances.add(m[0].slice(1));
       }
     }
   }
@@ -155,7 +170,7 @@ function layoutSigil(
   parentRadius: number,
   depth: number,
   space: SigilSpace | null,
-  parentSigil: Sigil | null,
+  rootSigil: Sigil,
 ): SphereNode {
   const nonImportedChildren = sigil.children.filter(c => !c.isImported);
   const totalWeight = nonImportedChildren.reduce((sum, c) => sum + subtreeSize(c), 0);
@@ -176,7 +191,7 @@ function layoutSigil(
     const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(n, 1);
     const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.4 * Math.sqrt(fraction)));
     const childPath = [...path, child.name];
-    return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space, sigil);
+    return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space, rootSigil);
   });
 
   // Gather entanglements from the co-occurrence graph
@@ -185,9 +200,7 @@ function layoutSigil(
     const node = space.nodes.get(sigil.name);
     if (node) {
       for (const edge of node.edges) {
-        const ctx = parentSigil
-          ? findSharedContext(sigil.name, edge.target, parentSigil)
-          : { affordances: [], sentences: [] };
+        const ctx = findSharedContext(sigil.name, edge.target, rootSigil);
         entanglements.push({
           target: edge.target,
           strength: edge.count,
@@ -221,7 +234,7 @@ export function buildLayout(
   space: SigilSpace | null,
   rootRadius = 2,
 ): SphereNode {
-  return layoutSigil(root, [], [0, 0, 0], rootRadius, 0, space, null);
+  return layoutSigil(root, [], [0, 0, 0], rootRadius, 0, space, root);
 }
 
 /**
