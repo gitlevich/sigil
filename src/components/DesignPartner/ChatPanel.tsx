@@ -3,7 +3,7 @@ import { useAppState, useAppDispatch } from "../../state/AppContext";
 import { useWorkspaceState } from "../../state/WorkspaceContext";
 import { useLayoutState } from "../../state/LayoutContext";
 import { useChatState, useChatDispatch } from "../../state/ChatContext";
-import { useChatStream } from "../../hooks/useChatStream";
+import { useChatStreamContext } from "../../state/ChatStreamContext";
 import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
@@ -20,7 +20,7 @@ export function ChatPanel() {
   const layout = useLayoutState();
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
-  const { sendMessage } = useChatStream();
+  const { sendMessage } = useChatStreamContext();
   const [input, setInput] = useState(() => {
     try { return localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || ""; }
     catch { return ""; }

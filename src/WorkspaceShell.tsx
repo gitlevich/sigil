@@ -14,8 +14,10 @@ import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
 import { api, FsChangeEvent } from "./tauri";
+import { useChatStream } from "./hooks/useChatStream";
 import { Workspace } from "./components/Workspace/Workspace";
 import { ExperienceProvider } from "./state/ExperienceContext";
+import { ChatStreamProvider } from "./state/ChatStreamContext";
 
 export function WorkspaceShell() {
   const ws = useWorkspaceState();
@@ -45,6 +47,7 @@ export function WorkspaceShell() {
   }), [chatDispatch, addToast]);
 
   const { perceive, getExperience, recordChat, getMemory } = useRightHemisphere(ws.spec, ws.currentPath, bicameralCallbacks);
+  const { sendMessage } = useChatStream();
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();
@@ -98,7 +101,9 @@ export function WorkspaceShell() {
 
   return (
     <ExperienceProvider handle={{ getExperience, recordChat, getMemory }}>
-      <Workspace />
+      <ChatStreamProvider handle={{ sendMessage }}>
+        <Workspace />
+      </ChatStreamProvider>
     </ExperienceProvider>
   );
 }
