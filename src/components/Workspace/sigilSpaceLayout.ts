@@ -15,7 +15,7 @@ export interface SphereNode {
   position: [number, number, number];
   radius: number;
   children: SphereNode[];
-  entanglements: { target: string; strength: number; sharedAffordances: string[] }[];
+  entanglements: { target: string; strength: number; sharedAffordances: string[]; sentences: string[] }[];
   depth: number;
   affordanceNames: string[];
   invariantNames: string[];
@@ -45,10 +45,20 @@ function stripLanguageFrontmatter(text: string): string {
  * Scans the parent's language (and both sigils' language) for sentences
  * where both @names appear, collecting any #affordance refs from those sentences.
  */
-function findSharedAffordances(sigilName: string, otherName: string, parent: Sigil): string[] {
-  const result = new Set<string>();
+interface SharedContext {
+  affordances: string[];
+  sentences: string[];
+}
 
-  // Scan all text sources: parent language, parent affordances, both sigils' language
+/**
+ * Find affordance names and connecting sentences between two sigils.
+ * Scans the parent's language and both sigils' language for sentences
+ * where both @names appear.
+ */
+function findSharedContext(sigilName: string, otherName: string, parent: Sigil): SharedContext {
+  const affordances = new Set<string>();
+  const sentences: string[] = [];
+
   const texts: string[] = [];
   texts.push(parent.language || "");
   for (const a of parent.affordances) texts.push(a.content || "");
@@ -61,11 +71,10 @@ function findSharedAffordances(sigilName: string, otherName: string, parent: Sig
   const nameB = otherName.toLowerCase();
 
   for (const text of texts) {
-    const sentences = text.split(/(?<=[.!?])\s+/);
-    for (const sentence of sentences) {
+    const splits = text.split(/(?<=[.!?])\s+/);
+    for (const sentence of splits) {
       let mentionsA = false;
       let mentionsB = false;
-      const affordances: string[] = [];
       allRefsPattern.lastIndex = 0;
       let m: RegExpExecArray | null;
       while ((m = allRefsPattern.exec(sentence)) !== null) {
@@ -77,16 +86,19 @@ function findSharedAffordances(sigilName: string, otherName: string, parent: Sig
           if (name === nameB) mentionsB = true;
         }
         if (token.startsWith("#")) {
-          affordances.push(token.slice(1));
+          affordances.add(token.slice(1));
         }
       }
       if (mentionsA && mentionsB) {
-        for (const a of affordances) result.add(a);
+        const trimmed = sentence.trim();
+        if (trimmed && !sentences.includes(trimmed)) {
+          sentences.push(trimmed);
+        }
       }
     }
   }
 
-  return [...result];
+  return { affordances: [...affordances], sentences };
 }
 
 /** Golden angle in radians — irrational spacing that avoids clustering. */
@@ -168,15 +180,20 @@ function layoutSigil(
   });
 
   // Gather entanglements from the co-occurrence graph
-  const entanglements: { target: string; strength: number; sharedAffordances: string[] }[] = [];
+  const entanglements: SphereNode["entanglements"] = [];
   if (space) {
     const node = space.nodes.get(sigil.name);
     if (node) {
       for (const edge of node.edges) {
-        const shared = parentSigil
-          ? findSharedAffordances(sigil.name, edge.target, parentSigil)
-          : [];
-        entanglements.push({ target: edge.target, strength: edge.count, sharedAffordances: shared });
+        const ctx = parentSigil
+          ? findSharedContext(sigil.name, edge.target, parentSigil)
+          : { affordances: [], sentences: [] };
+        entanglements.push({
+          target: edge.target,
+          strength: edge.count,
+          sharedAffordances: ctx.affordances,
+          sentences: ctx.sentences,
+        });
       }
     }
   }

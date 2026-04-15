@@ -459,8 +459,11 @@ interface EntanglementEdge {
   to: THREE.Vector3;
   fromRadius: number;
   toRadius: number;
+  fromName: string;
+  toName: string;
   strength: number;
   labels: string[];
+  sentences: string[];
 }
 
 /** A single pipe connector between two entangled sigils. */
@@ -487,7 +490,10 @@ function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: bool
 
   const pipeRadius = 0.002 + edge.strength * 0.0005;
   const alpha = 0.3 + Math.min(edge.strength * 0.06, 0.35);
-  const label = edge.labels.length > 0 ? edge.labels.map(l => `#${l}`).join(" ") : null;
+  // Hover text: the sentences that connect these two sigils
+  const hoverText = edge.sentences.length > 0
+    ? edge.sentences.join(" \u2014 ")
+    : `${edge.fromName} \u2014 ${edge.toName}`;
 
   if (pipeLength <= 0) return null;
 
@@ -503,18 +509,16 @@ function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: bool
           metalness={0.05}
         />
       </mesh>
-      {/* Glowing dot at midpoint — hover to see affordance labels */}
-      {label && (
-        <mesh
-          ref={dotRef}
-          position={pipeMid}
-          onPointerOver={(e) => { e.stopPropagation(); onHoverLabel(label); document.body.style.cursor = "help"; }}
-          onPointerOut={() => { onHoverLabel(null); document.body.style.cursor = "auto"; }}
-        >
-          <sphereGeometry args={[Math.max(pipeRadius * 5, 0.012), 8, 8]} />
-          <meshBasicMaterial color={dark ? "#88aadd" : "#5588cc"} />
-        </mesh>
-      )}
+      {/* Dot at midpoint — always visible, hover shows connection info */}
+      <mesh
+        ref={dotRef}
+        position={pipeMid}
+        onPointerOver={(e) => { e.stopPropagation(); onHoverLabel(hoverText); document.body.style.cursor = "help"; }}
+        onPointerOut={() => { onHoverLabel(null); document.body.style.cursor = "auto"; }}
+      >
+        <sphereGeometry args={[Math.max(pipeRadius * 4, 0.01), 8, 8]} />
+        <meshBasicMaterial color={dark ? "#88aadd" : "#5588cc"} />
+      </mesh>
     </group>
   );
 }
@@ -549,8 +553,14 @@ function EntanglementLines({ nodes, dark, onHoverLabel }: EntanglementLinesProps
             from, to,
             fromRadius: node.radius,
             toRadius: target.radius,
+            fromName: node.name,
+            toName: target.name,
             strength: ent.strength,
             labels: [...labels],
+            sentences: [...new Set([
+              ...ent.sentences,
+              ...(reverse?.sentences ?? []),
+            ])],
           });
         }
       }
