@@ -6,7 +6,10 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./react/Atlas": "./src/react/Atlas.tsx"
+    "./react/Atlas": "./src/react/Atlas.tsx",
+    "./continuousAttention": "./src/continuousAttention.ts",
+    "./rightHemisphere": "./src/rightHemisphere.ts",
+    "./experience": "./src/experience.ts"
   },
   "devDependencies": {
     "vitest": "^4.1.2"

@@ -6,22 +6,28 @@ import { useRef, useEffect } from "react";
 import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch } from "./state/WorkspaceContext";
 import { useLayoutState } from "./state/LayoutContext";
 import { useFileWatcher } from "./hooks/useFileWatcher";
+import { useRightHemisphere } from "./hooks/useRightHemisphere";
 import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
 import { api, FsChangeEvent } from "./tauri";
 import { Workspace } from "./components/Workspace/Workspace";
+import { ExperienceProvider } from "./state/ExperienceContext";
 
 export function WorkspaceShell() {
   const ws = useWorkspaceState();
   const layout = useLayoutState();
   const dispatch = useWorkspaceDispatch();
   const { reload } = useWorkspaceActions();
+  const { perceive, getExperience } = useRightHemisphere(ws.spec, ws.currentPath);
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();
 
-    await reload();
+    const newSpec = await reload();
+
+    // RightHemisphere: sense disturbance in the shape.
+    perceive(newSpec, event.paths);
 
     if (!pendingPath) return;
 
@@ -65,5 +71,9 @@ export function WorkspaceShell() {
 
   useSettingsPersistence(ws, layout);
 
-  return <Workspace />;
+  return (
+    <ExperienceProvider getExperience={getExperience}>
+      <Workspace />
+    </ExperienceProvider>
+  );
 }

@@ -107,6 +107,8 @@ pub fn run() {
             commands::watcher::watch_directory,
             commands::watcher::stop_watching,
             commands::workspace_lock::close_workspace,
+            commands::experience::append_experience,
+            commands::experience::list_experience_sessions,
             take_pending_open_path,
         ])
         .build(tauri::generate_context!())

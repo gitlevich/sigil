@@ -299,6 +299,12 @@ export const api = {
 
   stopWatching: () =>
     invoke<void>("stop_watching"),
+
+  appendExperience: (workspacePath: string, sessionId: string, line: string) =>
+    invoke<void>("append_experience", { workspacePath, sessionId, line }),
+
+  listExperienceSessions: (workspacePath: string) =>
+    invoke<string[]>("list_experience_sessions", { workspacePath }),
 };
 
 export const events = {

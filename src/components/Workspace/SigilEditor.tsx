@@ -12,7 +12,6 @@ import type { ActionDeps } from "../../actions/workspace";
 import { LanguageEditor } from "./LanguageEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
-import { EditorToolbar } from "./EditorToolbar";
 import styles from "./Workspace.module.css";
 
 interface SigilEditorProps {
@@ -84,7 +83,6 @@ export function SigilEditor({
 
   return (
     <>
-      <EditorToolbar />
       <SigilPropertyEditor
         sigilPath={sigil.path}
         filePrefix="affordance"

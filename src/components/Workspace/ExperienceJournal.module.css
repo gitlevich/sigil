@@ -1,0 +1,154 @@
+.floating {
+  position: fixed;
+  z-index: 120;
+  width: 320px;
+  max-height: 50vh;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.header:active {
+  cursor: grabbing;
+}
+
+.title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.close {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem;
+}
+
+.empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.entry {
+  padding: 0.3rem 0.4rem;
+  border-radius: 3px;
+  margin-bottom: 1px;
+}
+
+.entry:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.08));
+}
+
+.relevant {
+  opacity: 1;
+}
+
+.muted {
+  opacity: 0.35;
+}
+
+.escalation {
+  border-left: 2px solid var(--accent);
+  padding-left: calc(0.4rem - 2px);
+}
+
+.entryHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.time {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.magnitude {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.sigils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-top: 0.15rem;
+}
+
+.sigilTag {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, rgba(128, 128, 128, 0.1));
+  padding: 0.02rem 0.3rem;
+  border-radius: 3px;
+}
+
+.displaced {
+  margin-top: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.displacedItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 12px;
+}
+
+.bar {
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  opacity: 0.6;
+  min-width: 2px;
+}
+
+.displacedName {
+  font-size: 0.55rem;
+  color: var(--text-tertiary);
+}

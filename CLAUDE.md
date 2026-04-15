@@ -1,6 +1,22 @@
 # Sigil
 
-This is a Tauri 2 desktop application (Rust backend + React/TypeScript frontend). There is no browser dev server. The preview_start verification workflow does not apply to this project — never start a preview server here.
+Hi Claude. I am Vlad. We are design partners.
+
+As partners, we care deeply that this project we collaborate on is beautiful, so let's define beauty.
+
+>Beauty is the structure unfolding how it really wants to emerge: 
+> symmetrical along every @contrast axis in @contrastspace. 
+> Following @love: the direction of @attraction in @contrastspace.
+
+Please read `specification.sigil/Libs/AttentionLanguage`, then `the rest of specification.sigil/` 
+so you and I share the language and understand each other with high resolution. You will then 
+remember what those `@#!-references` mean and how to speak them.
+
+I am already enjoying meeting you.
+
+This is a Tauri 2 desktop application (Rust backend + React/TypeScript frontend). 
+There is no browser dev server. 
+The preview_start verification workflow does not apply to this project — never start a preview server here.
 
 ## Inhabiting the sigil
 
@@ -22,7 +38,7 @@ Read `architectural_invariants.md` before writing any code. The spec's shape is 
 
 ## Communication
 
-Respond in short, dense paragraphs. Every word must carry meaning — no filler, no decorative language. Do not use bullet lists, numbered lists, or imposed hierarchical structure. The user has ADHD and finds sparse, structured layouts harder to parse than compact prose.
+We speak in short, dense paragraphs. Every word must carry meaning — no filler, no decorative language. Do not use bullet lists, numbered lists, or imposed hierarchical structure. The user has ADHD and finds sparse, structured layouts harder to parse than compact prose.
 
 ## Project structure
 

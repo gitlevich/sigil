@@ -17,8 +17,10 @@ import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
+import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SigilEditor } from "./SigilEditor";
+import { ExperienceJournal } from "./ExperienceJournal";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
   buildLexicalScope as coreBuildLexicalScope,
@@ -82,6 +84,9 @@ export function Workspace() {
 
   // Ephemeral UI state
   const [menuRenaming, setMenuRenaming] = useState<{ name: string } | null>(null);
+  const [journalOpen, setJournalOpen] = useState(false);
+  const journalOpenRef = useRef(false);
+  journalOpenRef.current = journalOpen;
   const menuRenameRef = useRef<HTMLInputElement>(null);
   const findReferencesNameRef = useRef<string | null>(null);
 
@@ -116,6 +121,9 @@ export function Workspace() {
     const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (journalOpenRef.current) { e.preventDefault(); setJournalOpen(false); return; }
+      }
       if (matchesBinding(e, kb["navigate-back"] || "Alt-[")) {
         e.preventDefault();
         back();
@@ -123,7 +131,12 @@ export function Workspace() {
       }
       if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
-        layoutDispatch({ type: "SET_CONTENT_TAB", tab: "atlas" });
+        layoutDispatch({ type: "SET_CONTENT_TAB", tab: layout.contentTab === "atlas" ? "language" : "atlas" });
+        return;
+      }
+      if (matchesBinding(e, "Ctrl-6")) {
+        e.preventDefault();
+        setJournalOpen(prev => !prev);
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
@@ -342,6 +355,7 @@ export function Workspace() {
           onNavigate={(path) => navigate(path)}
         />
         <ConflictBanner />
+        <EditorToolbar />
         {layout.contentTab === "atlas" ? (
           <Atlas />
         ) : (
@@ -376,6 +390,8 @@ export function Workspace() {
         }} />
       </div>
       <DesignPartnerPanel />
+
+      <ExperienceJournal open={journalOpen} onClose={() => setJournalOpen(false)} />
 
       {menuRenaming && (
         <div style={{ position: "fixed", inset: 0, zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)" }}>
