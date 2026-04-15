@@ -26,6 +26,20 @@ export function ChatPanel() {
     catch { return ""; }
   });
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
+  const chatsLoadedRef = useRef(false);
+
+  // Load chat list from disk on first mount
+  useEffect(() => {
+    if (chatsLoadedRef.current) return;
+    chatsLoadedRef.current = true;
+    api.listChats(ws.spec.rootPath).then(chats => {
+      if (chats.length > 0) {
+        chatDispatch({ type: "SET_CHATS", chats });
+      }
+    }).catch(err => {
+      console.error("Failed to load chats:", err);
+    });
+  }, [ws.spec.rootPath, chatDispatch]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevOpen = useRef(layout.designPartnerPanelOpen);

@@ -95,6 +95,21 @@
   border-radius: 3px;
 }
 
+.sessionHeader {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 0.5rem 0.2rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.4rem;
+}
+
+.sessionHeader:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
 .chatEntry {
   border-left-color: var(--text-tertiary);
 }

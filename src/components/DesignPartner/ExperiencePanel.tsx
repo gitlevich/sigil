@@ -1,9 +1,9 @@
 /**
- * ExperiencePanel — the time-like view of ContrastSpace, as a right-panel tab.
+ * ExperiencePanel — the time-like view, grouped by session.
  *
- * Shows the live stream of experience segments with narrated descriptions
- * of what changed structurally. No more raw numbers — the CorpusCallosum's
- * Narration resolves each disturbance into language.
+ * Shows the full causal record: past sessions loaded from disk,
+ * live session from the in-memory hemisphere. Each session is visually
+ * separated with a header showing when it started.
  */
 import { useState, useEffect, useRef } from "react";
 import { useExperience } from "../../state/ExperienceContext";
@@ -13,63 +13,101 @@ import { parseSession, entryToSegment } from "sigil-core/experience";
 import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 import styles from "./ExperiencePanel.module.css";
 
+interface SessionGroup {
+  label: string;
+  startedAt: number;
+  segments: ExperienceSegment[];
+}
+
 export function ExperiencePanel() {
   const { getExperience } = useExperience();
   const ws = useWorkspaceState();
-  const [pastSegments, setPastSegments] = useState<ExperienceSegment[]>([]);
+  const [pastSessions, setPastSessions] = useState<SessionGroup[]>([]);
   const [liveSegments, setLiveSegments] = useState<ExperienceSegment[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const loadedRef = useRef(false);
 
-  // Load past sessions from disk on first mount — !complete, !causal-ordering
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
     api.listExperienceSessions(ws.spec.rootPath).then(contents => {
-      const past: ExperienceSegment[] = [];
+      const groups: SessionGroup[] = [];
       for (const content of contents) {
         const session = parseSession(content);
-        if (!session) continue;
-        for (const entry of session.entries) {
-          past.push(entryToSegment(entry) as ExperienceSegment);
-        }
+        if (!session || session.entries.length === 0) continue;
+        groups.push({
+          label: formatSessionTime(session.header.startedAt),
+          startedAt: session.header.startedAt,
+          segments: session.entries.map(e => entryToSegment(e) as ExperienceSegment),
+        });
       }
-      setPastSegments(past);
+      setPastSessions(groups);
     }).catch(err => {
       console.error("[Experience] failed to load past sessions:", err);
     });
   }, [ws.spec.rootPath]);
 
-  // Poll live experience
   useEffect(() => {
     setLiveSegments(getExperience());
     const interval = setInterval(() => setLiveSegments(getExperience()), 1000);
     return () => clearInterval(interval);
   }, [getExperience]);
 
-  // Merge: past sessions first, then live (deduplicate by timestamp)
-  const liveTimestamps = new Set(liveSegments.map(s => s.timestamp));
-  const deduped = pastSegments.filter(s => !liveTimestamps.has(s.timestamp));
-  const segments = [...deduped, ...liveSegments];
-
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [segments.length]);
+  }, [liveSegments.length]);
 
-  // Show segments with disturbance, resolution, or chat messages
-  const meaningful = segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
+  // Filter past sessions to exclude the current live session (by timestamp overlap)
+  const liveTimestamps = new Set(liveSegments.map(s => s.timestamp));
+  const filteredPast = pastSessions.filter(g =>
+    !g.segments.some(s => liveTimestamps.has(s.timestamp))
+  );
+
+  const liveMeaningful = liveSegments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
+  const isEmpty = filteredPast.length === 0 && liveMeaningful.length === 0;
 
   return (
     <div className={styles.panel} ref={listRef}>
-      {meaningful.length === 0 ? (
-        <div className={styles.empty}>No structural changes yet. Edit a sigil.</div>
+      {isEmpty ? (
+        <div className={styles.empty}>No experience yet. Edit a sigil or start a conversation.</div>
       ) : (
-        meaningful.map((seg, i) => <Entry key={i} segment={seg} />)
+        <>
+          {filteredPast.map((group, gi) => {
+            const meaningful = group.segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
+            if (meaningful.length === 0) return null;
+            return (
+              <div key={gi}>
+                <div className={styles.sessionHeader}>{group.label}</div>
+                {meaningful.map((seg, i) => <Entry key={i} segment={seg} />)}
+              </div>
+            );
+          })}
+          {liveMeaningful.length > 0 && (
+            <div>
+              <div className={styles.sessionHeader}>Now</div>
+              {liveMeaningful.map((seg, i) => <Entry key={i} segment={seg} />)}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
+}
+
+function formatSessionTime(ms: number): string {
+  const d = new Date(ms);
+  const today = new Date();
+  const isToday = d.toDateString() === today.toDateString();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (isToday) return `Today ${time}`;
+  if (isYesterday) return `Yesterday ${time}`;
+  return d.toLocaleDateString([], { month: "short", day: "numeric" }) + ` ${time}`;
 }
 
 function Entry({ segment }: { segment: ExperienceSegment }) {
