@@ -9,7 +9,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
-import { Text, Line } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { useWorkspaceState, useWorkspaceActions } from "../../state/WorkspaceContext";
 import { buildSigilSpace } from "sigil-core";
@@ -364,7 +364,6 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
 
   const handleDoubleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    console.log("[SigilSphere] double-click on:", node.name, node.path);
     if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
     onEnter(node.path);
   }, [node.name, node.path, onEnter]);
@@ -454,6 +453,61 @@ interface EntanglementLinesProps {
   dark: boolean;
 }
 
+interface EntanglementEdge {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  mid: THREE.Vector3;
+  length: number;
+  strength: number;
+  labels: string[];
+}
+
+/** A single pipe connector between two entangled sigils. */
+function Pipe({ edge, dark }: { edge: EntanglementEdge; dark: boolean }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  // Orient cylinder from `from` to `to`
+  useEffect(() => {
+    if (!meshRef.current) return;
+    meshRef.current.position.copy(edge.mid);
+    // Cylinder is Y-axis aligned by default — rotate to match edge direction
+    const dir = new THREE.Vector3().subVectors(edge.to, edge.from).normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    meshRef.current.quaternion.copy(quat);
+  }, [edge]);
+
+  const pipeRadius = 0.012 + edge.strength * 0.004;
+  const alpha = 0.3 + Math.min(edge.strength * 0.08, 0.4);
+
+  return (
+    <group>
+      <mesh ref={meshRef}>
+        <cylinderGeometry args={[pipeRadius, pipeRadius, edge.length, 8]} />
+        <meshPhysicalMaterial
+          color={dark ? "#5577aa" : "#4466aa"}
+          transparent
+          opacity={alpha}
+          roughness={0.3}
+          metalness={0.1}
+        />
+      </mesh>
+      {/* Affordance labels along the pipe */}
+      {edge.labels.length > 0 && (
+        <Text
+          position={[edge.mid.x + pipeRadius + 0.02, edge.mid.y, edge.mid.z]}
+          fontSize={0.04}
+          color={dark ? "#7799cc" : "#4466aa"}
+          anchorX="left"
+          anchorY="middle"
+        >
+          {edge.labels.map(l => `#${l}`).join("  ")}
+        </Text>
+      )}
+    </group>
+  );
+}
+
 function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
   const nodeMap = useMemo(() => {
     const m = new Map<string, SphereNode>();
@@ -461,9 +515,9 @@ function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
     return m;
   }, [nodes]);
 
-  const lines = useMemo(() => {
+  const edges = useMemo(() => {
     const seen = new Set<string>();
-    const result: { from: [number, number, number]; to: [number, number, number]; strength: number }[] = [];
+    const result: EntanglementEdge[] = [];
     for (const node of nodes) {
       for (const ent of node.entanglements) {
         const key = [node.name, ent.target].sort().join("|");
@@ -471,33 +525,33 @@ function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
         seen.add(key);
         const target = nodeMap.get(ent.target);
         if (target) {
-          result.push({ from: node.position, to: target.position, strength: ent.strength });
+          const from = new THREE.Vector3(...node.position);
+          const to = new THREE.Vector3(...target.position);
+          const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
+          // Merge labels from both directions
+          const labels = new Set<string>();
+          for (const a of ent.sharedAffordances) labels.add(a);
+          const reverse = target.entanglements.find(e => e.target === node.name);
+          if (reverse) {
+            for (const a of reverse.sharedAffordances) labels.add(a);
+          }
+          result.push({
+            from, to, mid,
+            length: from.distanceTo(to),
+            strength: ent.strength,
+            labels: [...labels],
+          });
         }
       }
     }
     return result;
   }, [nodes, nodeMap]);
 
-  const maxStrength = useMemo(
-    () => Math.max(1, ...lines.map(l => l.strength)),
-    [lines],
-  );
-
   return (
     <>
-      {lines.map((line, i) => {
-        const alpha = 0.08 + (line.strength / maxStrength) * 0.3;
-        return (
-          <Line
-            key={i}
-            points={[line.from, line.to]}
-            color={dark ? "#6688cc" : "#4466aa"}
-            lineWidth={0.5 + (line.strength / maxStrength) * 1.5}
-            transparent
-            opacity={alpha}
-          />
-        );
-      })}
+      {edges.map((edge, i) => (
+        <Pipe key={i} edge={edge} dark={dark} />
+      ))}
     </>
   );
 }
@@ -553,9 +607,8 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
   const [dissolveProgress, setDissolveProgress] = useState(0);
 
   const handleEnter = useCallback((path: string[]) => {
-    console.log("[SigilSpace3D] handleEnter called with path:", path);
     const targetNode = findNode(root, path);
-    if (!targetNode) { console.log("[SigilSpace3D] target not found, direct navigate"); onNavigate(path); return; }
+    if (!targetNode) { onNavigate(path); return; }
     if (path.join("/") === inhabitedPath.join("/")) return;
 
     const camera = cameraRef.current;

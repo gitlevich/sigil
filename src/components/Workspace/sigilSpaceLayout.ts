@@ -7,6 +7,7 @@
  * pull entangled sigils closer together as a post-pass spring adjustment.
  */
 import type { Sigil, SigilSpace } from "sigil-core";
+import { allRefsPattern, isInCodeSpan } from "sigil-core";
 
 export interface SphereNode {
   name: string;
@@ -14,7 +15,7 @@ export interface SphereNode {
   position: [number, number, number];
   radius: number;
   children: SphereNode[];
-  entanglements: { target: string; strength: number }[];
+  entanglements: { target: string; strength: number; sharedAffordances: string[] }[];
   depth: number;
   affordanceNames: string[];
   invariantNames: string[];
@@ -32,6 +33,51 @@ function stripLanguageFrontmatter(text: string): string {
   // Strip leading heading line
   s = s.replace(/^\s*#[^\n]*\n/, "");
   return s.trim();
+}
+
+/**
+ * Find affordance names that connect two sigils.
+ * Looks for #affordance references in language text where @otherSigil also appears
+ * in the same sentence, plus any affordance names shared between both sigils.
+ */
+function findSharedAffordances(sigil: Sigil, otherName: string): string[] {
+  const result = new Set<string>();
+
+  // Affordances whose names match the other sigil's affordances
+  // (shared surface — same corridor from both sides)
+  const otherChild = sigil.children.find(c => c.name === otherName);
+  if (otherChild) {
+    const myAffNames = new Set(sigil.affordances.map(a => a.name));
+    for (const a of otherChild.affordances) {
+      if (myAffNames.has(a.name)) result.add(a.name);
+    }
+  }
+
+  // Scan language for sentences containing both @otherName and #affordance
+  const text = sigil.language || "";
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  for (const sentence of sentences) {
+    // Check if this sentence mentions the other sigil
+    let mentionsOther = false;
+    const refs: string[] = [];
+    allRefsPattern.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = allRefsPattern.exec(sentence)) !== null) {
+      if (isInCodeSpan(sentence, m.index)) continue;
+      const token = m[0];
+      if (token.startsWith("@") && token.slice(1).toLowerCase() === otherName.toLowerCase()) {
+        mentionsOther = true;
+      }
+      if (token.startsWith("#")) {
+        refs.push(token.slice(1));
+      }
+    }
+    if (mentionsOther) {
+      for (const r of refs) result.add(r);
+    }
+  }
+
+  return [...result];
 }
 
 /** Golden angle in radians — irrational spacing that avoids clustering. */
@@ -92,32 +138,33 @@ function layoutSigil(
   const nonImportedChildren = sigil.children.filter(c => !c.isImported);
   const totalWeight = nonImportedChildren.reduce((sum, c) => sum + subtreeSize(c), 0);
 
-  // This sphere's radius: at root it's parentRadius, otherwise proportional to subtree
   const radius = parentRadius;
 
-  // Place children tightly — dense structure, not cosmos
-  const placementRadius = radius * 0.18;
-  const positions = fibonacciSphere(nonImportedChildren.length, placementRadius, center);
+  // Dense space — children close to parent scale, breathing but not lost
+  const n = nonImportedChildren.length;
+  const placementRadius = radius * 0.45;
+  const positions = fibonacciSphere(n, placementRadius, center);
 
-  // Children fill most of the parent — almost touching
-  const minChildRadius = radius * 0.12;
-  const maxChildRadius = radius * 0.45;
+  // Children are large relative to parent — gentle scale compression
+  const minChildRadius = radius * 0.2;
+  const maxChildRadius = radius * 0.55;
 
   const children: SphereNode[] = nonImportedChildren.map((child, i) => {
     const weight = subtreeSize(child);
-    const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(nonImportedChildren.length, 1);
-    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.35 * Math.sqrt(fraction)));
+    const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(n, 1);
+    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.4 * Math.sqrt(fraction)));
     const childPath = [...path, child.name];
     return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space);
   });
 
   // Gather entanglements from the co-occurrence graph
-  const entanglements: { target: string; strength: number }[] = [];
+  const entanglements: { target: string; strength: number; sharedAffordances: string[] }[] = [];
   if (space) {
     const node = space.nodes.get(sigil.name);
     if (node) {
       for (const edge of node.edges) {
-        entanglements.push({ target: edge.target, strength: edge.count });
+        const shared = findSharedAffordances(sigil, edge.target);
+        entanglements.push({ target: edge.target, strength: edge.count, sharedAffordances: shared });
       }
     }
   }
