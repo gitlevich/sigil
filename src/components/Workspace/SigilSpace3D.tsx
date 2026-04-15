@@ -46,10 +46,23 @@ interface CameraHandlerProps {
   pivotRef: React.MutableRefObject<THREE.Vector3 | null>;
 }
 
+/** Camera viewing direction — below-right, looking up (Hollywood sign). */
+const CAMERA_DIR = new THREE.Vector3(0.3, -0.2, 1).normalize();
+
 function CameraHandler({ target, distance, inhabitedKey, cameraRef, pivotRef: externalPivotRef }: CameraHandlerProps) {
   const { camera, gl } = useThree();
   const pivotRef = useRef(new THREE.Vector3(...target));
   const prevTargetKey = useRef("");
+
+  // Animation state for smooth transitions
+  const animRef = useRef<{
+    startPos: THREE.Vector3;
+    endPos: THREE.Vector3;
+    startPivot: THREE.Vector3;
+    endPivot: THREE.Vector3;
+    startTime: number;
+    duration: number;
+  } | null>(null);
 
   // Expose camera and pivot to parent
   useEffect(() => {
@@ -57,18 +70,51 @@ function CameraHandler({ target, distance, inhabitedKey, cameraRef, pivotRef: ex
     externalPivotRef.current = pivotRef.current;
   }, [camera, cameraRef, externalPivotRef]);
 
-  // Snap to new sigil when inhabited path changes
+  // Start animated transition when inhabited path changes
   useEffect(() => {
     if (inhabitedKey === prevTargetKey.current) return;
+    const isFirst = prevTargetKey.current === "";
     prevTargetKey.current = inhabitedKey;
 
-    pivotRef.current.set(...target);
-    externalPivotRef.current = pivotRef.current;
-    const dir = camera.position.clone().sub(pivotRef.current).normalize();
-    if (dir.lengthSq() < 0.001) dir.set(0, 0.3, 1).normalize();
-    camera.position.copy(pivotRef.current).add(dir.multiplyScalar(distance));
-    camera.lookAt(pivotRef.current);
+    const endPivot = new THREE.Vector3(...target);
+    const endPos = endPivot.clone().add(CAMERA_DIR.clone().multiplyScalar(distance));
+
+    if (isFirst) {
+      // First mount — snap immediately, no animation
+      pivotRef.current.copy(endPivot);
+      externalPivotRef.current = pivotRef.current;
+      camera.position.copy(endPos);
+      camera.lookAt(pivotRef.current);
+    } else {
+      // Animate from current position
+      animRef.current = {
+        startPos: camera.position.clone(),
+        endPos,
+        startPivot: pivotRef.current.clone(),
+        endPivot,
+        startTime: performance.now(),
+        duration: 550,
+      };
+    }
   }, [target, distance, camera]);
+
+  // Drive the animation each frame
+  useFrame(() => {
+    const anim = animRef.current;
+    if (!anim) return;
+
+    const elapsed = performance.now() - anim.startTime;
+    let t = Math.min(1, elapsed / anim.duration);
+    // Ease-in-out cubic — slow start, fast middle, gentle landing
+    t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    camera.position.lerpVectors(anim.startPos, anim.endPos, t);
+    pivotRef.current.lerpVectors(anim.startPivot, anim.endPivot, t);
+    externalPivotRef.current = pivotRef.current;
+    camera.lookAt(pivotRef.current);
+
+    if (t >= 1) animRef.current = null;
+  });
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -630,7 +676,7 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect, onPip
     return nodes;
   }, [inhabited]);
 
-  const cameraDistance = inhabited.radius * 1.8;
+  const cameraDistance = inhabited.radius * 4.0;
 
   // Refs for camera/pivot — must be before callbacks that use them
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -774,7 +820,7 @@ export function SigilSpace3D() {
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%", height: "100%", background: dark ? "#0a0a14" : "#f0f0f8" }}>
       <Canvas
-        camera={{ position: [0, 0, 4], fov: 39, near: 0.001, far: 200 }}
+        camera={{ position: [1.8, -1.2, 6], fov: 39, near: 0.001, far: 200 }}
         gl={{ antialias: true, alpha: false }}
         style={{ width: "100%", height: "100%" }}
       >
