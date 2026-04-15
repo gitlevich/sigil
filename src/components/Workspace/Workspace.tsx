@@ -19,6 +19,7 @@ import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
+import { SigilSpace3D } from "./SigilSpace3D";
 import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
@@ -136,6 +137,11 @@ export function Workspace() {
       if (matchesBinding(e, "Ctrl-6")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "experience" });
+        return;
+      }
+      if (matchesBinding(e, "Ctrl-7")) {
+        e.preventDefault();
+        layoutDispatch({ type: "SET_CONTENT_TAB", tab: layout.contentTab === "space" ? "language" : "space" });
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
@@ -357,6 +363,8 @@ export function Workspace() {
         <EditorToolbar />
         {layout.contentTab === "atlas" ? (
           <Atlas />
+        ) : layout.contentTab === "space" ? (
+          <SigilSpace3D />
         ) : (
           <SigilEditor
             sigil={currentFolder}

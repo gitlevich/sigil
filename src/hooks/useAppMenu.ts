@@ -275,6 +275,14 @@ async function buildMenu(
     },
   });
 
+  const toggleInfoPanelItem = await MenuItem.new({
+    text: "Toggle Info Panel",
+    accelerator: "CmdOrCtrl+I",
+    action: () => {
+      window.dispatchEvent(new CustomEvent("sigil-toggle-info-panel"));
+    },
+  });
+
   const viewSubmenu = await Submenu.new({
     text: "View",
     items: [
@@ -283,6 +291,7 @@ async function buildMenu(
       zoomResetItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       wordWrapItem,
+      toggleInfoPanelItem,
     ],
   });
 

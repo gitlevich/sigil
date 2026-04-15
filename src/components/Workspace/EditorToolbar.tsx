@@ -67,9 +67,16 @@ export function EditorToolbar() {
         >
           Atlas
         </button>
+        <button
+          className={`${styles.contentTab} ${layout.contentTab === "space" ? styles.contentTabActive : ""}`}
+          onClick={() => layoutDispatch({ type: "SET_CONTENT_TAB", tab: "space" })}
+          title="Space — 3D sigil viewer (Ctrl+7)"
+        >
+          Space
+        </button>
       </div>
 
-      {layout.contentTab !== "atlas" && (
+      {layout.contentTab === "language" && (
         <div className={styles.viewModes}>
           <button
             className={`${styles.modeBtn} ${layout.editorMode === "edit" ? styles.active : ""}`}
