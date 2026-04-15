@@ -17,7 +17,7 @@ interface ExperienceHandle {
 const ExperienceContext = createContext<ExperienceHandle>({
   getExperience: () => [],
   recordChat: () => {},
-  getMemory: () => ({ sigils: new Map() }),
+  getMemory: () => ({ longTerm: new Map(), shortTerm: [] }),
 });
 
 export function ExperienceProvider({ handle, children }: { handle: ExperienceHandle; children: ReactNode }) {

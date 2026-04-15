@@ -23,7 +23,7 @@ import { init as initGate, evaluate, step, forceYield } from "./gate";
 import { buildInvocation, renderPrompt, parseResponse } from "./leftHemisphere";
 import type { Invocation, Articulation } from "./leftHemisphere";
 import { sense } from "./coherence";
-import type { MemoryState, RecognitionResult } from "./memory";
+import type { MemoryState, RecognitionResult, ShortTermTrace } from "./memory";
 import {
   init as initMemory,
   remember,
@@ -52,6 +52,8 @@ export interface CycleResult {
   suppressedReason: string | null;
   /** Remembered sigils recalled involuntarily near the focus. */
   recalled: RecognitionResult[];
+  /** Short-term traces produced by this perceive — caller persists these. */
+  traces: ShortTermTrace[];
 }
 
 /** What a LeftHemisphere turn produces. */
@@ -105,11 +107,16 @@ export function perceive(
   // #recall — involuntary recognition near the focus
   const recalled = recall(mind.memory, currentSpace, focusName);
 
-  // #remember — changed sigils get placed in memory
+  // #remember — changed sigils get placed in short-term memory
   let nextMemory = mind.memory;
+  const traces: ShortTermTrace[] = [];
   for (const name of changedSigils) {
     const node = currentSpace.nodes.get(name);
-    if (node) nextMemory = remember(nextMemory, node, timestamp);
+    if (node) {
+      const [mem, trace] = remember(nextMemory, node, timestamp);
+      nextMemory = mem;
+      traces.push(trace);
+    }
   }
 
   let nextMind: Mind = { hemisphere: nextHemisphere, gate: mind.gate, memory: nextMemory };
@@ -122,6 +129,7 @@ export function perceive(
       prompt: null,
       suppressedReason: perception.escalation ? null : "No disturbance.",
       recalled,
+      traces,
     }, nextMind];
   }
 
@@ -144,6 +152,7 @@ export function perceive(
       prompt: null,
       suppressedReason: decision.reason,
       recalled,
+      traces,
     }, nextMind];
   }
 
@@ -159,6 +168,7 @@ export function perceive(
       prompt: null,
       suppressedReason: "Could not build invocation — focus sigil not found.",
       recalled,
+      traces,
     }, nextMind];
   }
 
@@ -178,6 +188,7 @@ export function perceive(
     prompt,
     suppressedReason: null,
     recalled,
+    traces,
   }, nextMind];
 }
 
@@ -244,7 +255,7 @@ export function experience(mind: Mind): ExperienceSegment[] {
 }
 
 /** Get the current memory state. */
-export { type MemoryState, type RememberedSigil, type RecognitionResult } from "./memory";
+export { type MemoryState, type RememberedSigil, type RecognitionResult, type ShortTermTrace } from "./memory";
 export function memory(mind: Mind): MemoryState {
   return mind.memory;
 }

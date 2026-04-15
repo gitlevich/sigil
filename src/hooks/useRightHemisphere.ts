@@ -30,6 +30,7 @@ import {
   toEntry,
 } from "sigil-core/experience";
 import type { MemoryState } from "sigil-core/memory";
+import { serializeTrace } from "sigil-core/memory";
 import { memory as mindMemory } from "sigil-core/bicameralMind";
 
 export interface RightHemisphereHandle {
@@ -97,6 +98,14 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
       api.appendExperience(newSpec.rootPath, sessionIdRef.current, line).catch(err => {
         console.error("[Experience] failed to append entry:", err);
       });
+
+      // Persist short-term memory traces — survives crashes
+      for (const trace of result.traces) {
+        const traceLine = serializeTrace(trace);
+        api.appendExperience(newSpec.rootPath, sessionIdRef.current, traceLine).catch(err => {
+          console.error("[Memory] failed to append trace:", err);
+        });
+      }
     }
 
     // If the Gate passed — invoke the LeftHemisphere
@@ -186,7 +195,7 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
   }, [spec.rootPath]);
 
   const getMemory = useCallback((): MemoryState => {
-    return mindRef.current ? mindMemory(mindRef.current) : { sigils: new Map() };
+    return mindRef.current ? mindMemory(mindRef.current) : { longTerm: new Map(), shortTerm: [] };
   }, []);
 
   return { perceive, getExperience, recordChat, getMemory };

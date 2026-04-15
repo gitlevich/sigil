@@ -107,15 +107,23 @@ describe("BicameralMind", () => {
   });
 
   describe("Memory integration", () => {
-    it("perceive remembers changed sigils", () => {
+    it("perceive remembers changed sigils in short-term and returns traces", () => {
       const tree = makeTree("@Beta and @Gamma together.");
       let mind = focus(open(tree), "Alpha");
       let r;
       [r, mind] = perceive(mind, tree, ["Alpha"], 1000);
 
+      // Traces returned for persistence
+      expect(r.traces.length).toBeGreaterThan(0);
+      expect(r.traces[0].name).toBe("Alpha");
+
+      // Recognizable from short-term
       const mem = memory(mind);
       expect(recognize(mem, "Alpha")).not.toBeNull();
       expect(recognize(mem, "Alpha")!.remembered.vocabulary.affordances).toContain("do-alpha");
+
+      // Not in long-term yet
+      expect(mem.longTerm.size).toBe(0);
     });
 
     it("perceive recalls remembered sigils near focus", () => {
@@ -133,7 +141,7 @@ describe("BicameralMind", () => {
       expect(recalledNames).toContain("Alpha");
     });
 
-    it("sleep consolidates memory from experience", () => {
+    it("sleep consolidates short-term into long-term", () => {
       const tree1 = makeTree("@Beta and @Gamma together.");
       const tree2 = makeTree("@Beta and @Gamma and @Delta together.");
       let mind = focus(open(tree1), "Alpha");
@@ -141,14 +149,17 @@ describe("BicameralMind", () => {
       [r, mind] = perceive(mind, tree1, ["Alpha"], 1000);
       [r, mind] = perceive(mind, tree2, ["Alpha"], 2000);
 
-      // Experience should have segments
-      expect(experience(mind).length).toBeGreaterThan(0);
+      // Short-term has traces, long-term is empty
+      expect(memory(mind).shortTerm.length).toBeGreaterThan(0);
+      expect(memory(mind).longTerm.size).toBe(0);
 
-      // Sleep — consolidates and clears experience
+      // Sleep — consolidates and clears
       mind = sleep(mind, tree2);
       expect(experience(mind)).toHaveLength(0);
+      expect(memory(mind).shortTerm).toHaveLength(0);
 
-      // Memory should still have Alpha (it was attended to)
+      // Alpha moved to long-term
+      expect(memory(mind).longTerm.size).toBeGreaterThan(0);
       expect(recognize(memory(mind), "Alpha")).not.toBeNull();
     });
 

@@ -3,16 +3,15 @@
  *
  * Spec path: DesignPartner/BicameralMind/Memory
  *
- * A remembered sigil is a position in ContrastSpace with vocabulary
- * attached. The position is defined by co-occurrence edges — a shape
- * that deforms as the living text evolves around it. The RightHemisphere
- * sees the deformation; the LeftHemisphere uses the vocabulary.
+ * Two layers:
+ *   Short-term — raw traces accumulated in real time during perceive.
+ *     Persisted incrementally (JSONL), survives crashes. Cheap, append-only.
+ *   Long-term — consolidated residue of many sessions.
+ *     Produced by #sleep (consolidation). Reinforced, merged, decayed, pruned.
+ *     Persisted as a snapshot on sleep. Loaded on startup.
  *
- * Four sub-mechanisms:
- *   Recognition — find nearest remembered sigil to a shape, retrieve vocabulary
- *   Consolidation — reinforce attended traces, merge co-occurring remembered sigils
- *   Decay — unreinforced remembered sigils lose weight until recognition fails
- *   Relevance — determines what persists vs what fades
+ * Recognition searches both: long-term first (stronger, more refined),
+ * short-term supplements (recent, not yet consolidated).
  *
  * Invariants:
  *   !geometric-storage — every remembered sigil has a position and vocabulary
@@ -27,27 +26,31 @@ import type { SigilSpace, SigilNode, Vocabulary, CoOccurrence } from "./sigilSpa
 
 /** A remembered sigil — a position in ContrastSpace. !geometric-storage */
 export interface RememberedSigil {
-  /** The sigil's canonical name. */
   name: string;
-  /** Vocabulary attached to this position — what the LH uses. */
   vocabulary: Vocabulary;
-  /** Co-occurrence edges at the time of remembering — the position. */
   edges: CoOccurrence[];
-  /** Reinforcement weight. Starts at 1.0, grows with consolidation, decays over time. */
   weight: number;
-  /** When this was last reinforced (ms since epoch). */
   lastReinforced: number;
-  /** When this was first remembered (ms since epoch). */
   createdAt: number;
 }
 
-/** The full memory state. Held by the caller, threaded through. */
-export interface MemoryState {
-  /** All remembered sigils, keyed by name. */
-  sigils: Map<string, RememberedSigil>;
+/** A short-term trace — one remember event, serializable to JSONL. */
+export interface ShortTermTrace {
+  name: string;
+  vocabulary: Vocabulary;
+  edges: CoOccurrence[];
+  timestamp: number;
 }
 
-/** What recognition returns — the remembered sigil and its distance to the query. */
+/** The full memory state. */
+export interface MemoryState {
+  /** Long-term: consolidated, persists across sessions. */
+  longTerm: Map<string, RememberedSigil>;
+  /** Short-term: raw traces from the current session. */
+  shortTerm: ShortTermTrace[];
+}
+
+/** What recognition returns. */
 export interface RecognitionResult {
   remembered: RememberedSigil;
   distance: number;
@@ -55,80 +58,88 @@ export interface RecognitionResult {
 
 // ── Constants ──
 
-/** Below this weight, recognition fails. */
 const RECOGNITION_THRESHOLD = 0.1;
-
-/** Multiplicative decay per consolidation cycle. */
 const DECAY_FACTOR = 0.8;
-
-/** Additive boost on reinforcement. */
 const REINFORCEMENT_BOOST = 0.3;
-
-/** Max weight cap — prevents runaway reinforcement. */
 const MAX_WEIGHT = 3.0;
-
-/** Co-occurrence ratio above which two remembered sigils get merged. */
 const MERGE_CO_OCCURRENCE_THRESHOLD = 0.8;
 
 // ── Public API ──
 
 /** Create an empty memory. */
 export function init(): MemoryState {
-  return { sigils: new Map() };
+  return { longTerm: new Map(), shortTerm: [] };
+}
+
+/** Create memory with pre-loaded long-term state (from disk on startup). */
+export function initWithLongTerm(longTerm: Map<string, RememberedSigil>): MemoryState {
+  return { longTerm, shortTerm: [] };
 }
 
 /**
- * #remember-a-sigil — place a new position in memory from a live SigilSpace node.
+ * #remember-a-sigil — record a short-term trace.
  *
- * If already remembered, reinforces it instead.
- * !geometric-storage: stores position (edges) and vocabulary.
+ * Returns [nextMemory, trace] — caller persists the trace to JSONL.
  */
 export function remember(
   memory: MemoryState,
   node: SigilNode,
   timestamp: number,
-): MemoryState {
-  const existing = memory.sigils.get(node.vocabulary.name);
-  if (existing) {
-    return reinforce(memory, node.vocabulary.name, node, timestamp);
-  }
-
-  const entry: RememberedSigil = {
+): [MemoryState, ShortTermTrace] {
+  const trace: ShortTermTrace = {
     name: node.vocabulary.name,
     vocabulary: { ...node.vocabulary },
     edges: [...node.edges],
-    weight: 1.0,
-    lastReinforced: timestamp,
-    createdAt: timestamp,
+    timestamp,
   };
 
-  const next = new Map(memory.sigils);
-  next.set(entry.name, entry);
-  return { sigils: next };
+  return [
+    { ...memory, shortTerm: [...memory.shortTerm, trace] },
+    trace,
+  ];
 }
 
 /**
  * #recognize-familiar-sigil — find a remembered sigil by name.
  *
- * !vocabulary-retrieval: returns the full vocabulary, not just the name.
- * Returns null if not found or below weight threshold.
+ * Searches long-term first, then short-term.
+ * !vocabulary-retrieval: returns the full vocabulary.
  */
 export function recognize(
   memory: MemoryState,
   name: string,
 ): RecognitionResult | null {
-  const entry = memory.sigils.get(name);
-  if (!entry) return null;
-  if (entry.weight < RECOGNITION_THRESHOLD) return null;
-  return { remembered: entry, distance: 0 };
+  // Long-term: direct lookup
+  const lt = memory.longTerm.get(name);
+  if (lt && lt.weight >= RECOGNITION_THRESHOLD) {
+    return { remembered: lt, distance: 0 };
+  }
+
+  // Short-term: find most recent trace with this name
+  for (let i = memory.shortTerm.length - 1; i >= 0; i--) {
+    const trace = memory.shortTerm[i];
+    if (trace.name === name) {
+      return {
+        remembered: {
+          name: trace.name,
+          vocabulary: trace.vocabulary,
+          edges: trace.edges,
+          weight: 1.0,
+          lastReinforced: trace.timestamp,
+          createdAt: trace.timestamp,
+        },
+        distance: 0,
+      };
+    }
+  }
+
+  return null;
 }
 
 /**
  * #recall — involuntary recognition near a focus point.
  *
- * Given the current space and a focus, find all remembered sigils whose
- * positions overlap with the focus neighborhood. Returns them sorted by
- * relevance (weight * closeness).
+ * Searches both long-term and short-term. Long-term results rank higher.
  */
 export function recall(
   memory: MemoryState,
@@ -142,17 +153,39 @@ export function recall(
   focusNeighbors.add(focus);
 
   const results: RecognitionResult[] = [];
+  const seen = new Set<string>();
 
-  for (const entry of memory.sigils.values()) {
+  // Long-term first
+  for (const entry of memory.longTerm.values()) {
     if (entry.weight < RECOGNITION_THRESHOLD) continue;
-
-    // Overlap: how many of this remembered sigil's names touch the focus neighborhood?
     const entryNames = new Set([entry.name, ...entry.edges.map(e => e.target)]);
     const overlap = [...entryNames].filter(n => focusNeighbors.has(n)).length;
     if (overlap === 0) continue;
+    results.push({ remembered: entry, distance: 1 / (overlap + 1) });
+    seen.add(entry.name);
+  }
 
-    const distance = 1 / (overlap + 1);
-    results.push({ remembered: entry, distance });
+  // Short-term: most recent trace per name, skip if already in long-term results
+  const stByName = new Map<string, ShortTermTrace>();
+  for (const trace of memory.shortTerm) {
+    stByName.set(trace.name, trace); // last write wins = most recent
+  }
+  for (const trace of stByName.values()) {
+    if (seen.has(trace.name)) continue;
+    const entryNames = new Set([trace.name, ...trace.edges.map(e => e.target)]);
+    const overlap = [...entryNames].filter(n => focusNeighbors.has(n)).length;
+    if (overlap === 0) continue;
+    results.push({
+      remembered: {
+        name: trace.name,
+        vocabulary: trace.vocabulary,
+        edges: trace.edges,
+        weight: 1.0,
+        lastReinforced: trace.timestamp,
+        createdAt: trace.timestamp,
+      },
+      distance: 1 / (overlap + 1),
+    });
   }
 
   results.sort((a, b) => (b.remembered.weight / b.distance) - (a.remembered.weight / a.distance));
@@ -162,11 +195,14 @@ export function recall(
 /**
  * #consolidate — what #sleep does to memory.
  *
- * 1. Reinforce sigils the Subconscious attended to.
- * 2. Decay all others. !passive-decay.
- * 3. Remember new attended sigils not yet in memory.
- * 4. Merge sigils that always co-occur. !co-occurrence-merge.
- * 5. Prune below recognition threshold. !lossy.
+ * Merges short-term traces into long-term:
+ * 1. Each short-term trace reinforces or creates a long-term entry.
+ * 2. Decay all long-term entries not touched by short-term.
+ * 3. Merge co-occurring entries. !co-occurrence-merge.
+ * 4. Prune below threshold. !lossy.
+ * 5. Clear short-term.
+ *
+ * attendedNames: sigils the Subconscious judged relevant (from experience).
  */
 export function consolidate(
   memory: MemoryState,
@@ -175,37 +211,42 @@ export function consolidate(
   timestamp: number,
 ): MemoryState {
   const attended = new Set(attendedNames);
-  let next = new Map(memory.sigils);
 
-  // 1 + 2. Reinforce attended, decay others
-  for (const [name, entry] of next) {
-    if (attended.has(name)) {
-      const node = currentSpace.nodes.get(name);
-      if (node) {
-        next.set(name, {
-          ...entry,
-          vocabulary: { ...node.vocabulary },
-          edges: [...node.edges],
-          weight: Math.min(entry.weight + REINFORCEMENT_BOOST, MAX_WEIGHT),
-          lastReinforced: timestamp,
-        });
-      } else {
-        next.set(name, {
-          ...entry,
-          weight: Math.min(entry.weight + REINFORCEMENT_BOOST, MAX_WEIGHT),
-          lastReinforced: timestamp,
-        });
-      }
-    } else {
+  // Collect unique short-term names
+  const stNames = new Set<string>();
+  for (const trace of memory.shortTerm) {
+    stNames.add(trace.name);
+  }
+
+  let next = new Map(memory.longTerm);
+
+  // 1. Reinforce all attended names (from short-term traces or experience)
+  for (const name of attended) {
+    const node = currentSpace.nodes.get(name);
+    const existing = next.get(name);
+    if (existing) {
       next.set(name, {
-        ...entry,
-        weight: entry.weight * DECAY_FACTOR,
+        ...existing,
+        vocabulary: node ? { ...node.vocabulary } : existing.vocabulary,
+        edges: node ? [...node.edges] : existing.edges,
+        weight: Math.min(existing.weight + REINFORCEMENT_BOOST, MAX_WEIGHT),
+        lastReinforced: timestamp,
+      });
+    } else if (node) {
+      next.set(name, {
+        name: node.vocabulary.name,
+        vocabulary: { ...node.vocabulary },
+        edges: [...node.edges],
+        weight: 1.0,
+        lastReinforced: timestamp,
+        createdAt: timestamp,
       });
     }
   }
 
-  // 3. Remember new attended sigils not yet in memory
-  for (const name of attended) {
+  // Also bring in short-term traces not in attended (still worth remembering)
+  for (const name of stNames) {
+    if (attended.has(name)) continue;
     if (!next.has(name)) {
       const node = currentSpace.nodes.get(name);
       if (node) {
@@ -221,58 +262,88 @@ export function consolidate(
     }
   }
 
-  // 4. Merge co-occurring sigils. !co-occurrence-merge
-  next = mergeCoOccurring(next, currentSpace);
-
-  // 5. Prune below threshold. !lossy
+  // 2. Decay everything not reinforced this cycle
+  const reinforced = new Set([...stNames, ...attended]);
   for (const [name, entry] of next) {
-    if (entry.weight < RECOGNITION_THRESHOLD) {
-      next.delete(name);
+    if (!reinforced.has(name)) {
+      next.set(name, { ...entry, weight: entry.weight * DECAY_FACTOR });
     }
   }
 
-  return { sigils: next };
+  // 3. Merge co-occurring. !co-occurrence-merge
+  next = mergeCoOccurring(next, currentSpace);
+
+  // 4. Prune. !lossy
+  for (const [name, entry] of next) {
+    if (entry.weight < RECOGNITION_THRESHOLD) next.delete(name);
+  }
+
+  // 5. Clear short-term — it's been absorbed
+  return { longTerm: next, shortTerm: [] };
 }
 
 /**
- * Get all recognizable remembered sigils, sorted by weight descending.
+ * Get all recognizable remembered sigils from both layers.
  */
 export function allRemembered(memory: MemoryState): RememberedSigil[] {
-  return [...memory.sigils.values()]
-    .filter(s => s.weight >= RECOGNITION_THRESHOLD)
-    .sort((a, b) => b.weight - a.weight);
+  const byName = new Map<string, RememberedSigil>();
+
+  // Long-term
+  for (const entry of memory.longTerm.values()) {
+    if (entry.weight >= RECOGNITION_THRESHOLD) byName.set(entry.name, entry);
+  }
+
+  // Short-term: most recent trace per name, only if not already in long-term
+  for (const trace of memory.shortTerm) {
+    if (byName.has(trace.name)) continue;
+    byName.set(trace.name, {
+      name: trace.name,
+      vocabulary: trace.vocabulary,
+      edges: trace.edges,
+      weight: 1.0,
+      lastReinforced: trace.timestamp,
+      createdAt: trace.timestamp,
+    });
+  }
+
+  return [...byName.values()].sort((a, b) => b.weight - a.weight);
+}
+
+// ── Serialization ──
+
+/** Serialize a short-term trace to a JSONL line. */
+export function serializeTrace(trace: ShortTermTrace): string {
+  return JSON.stringify({ type: "memory-trace", ...trace });
+}
+
+/** Parse a JSONL line back to a ShortTermTrace, or null if not a trace. */
+export function parseTrace(line: string): ShortTermTrace | null {
+  const parsed = JSON.parse(line);
+  if (parsed.type !== "memory-trace") return null;
+  return {
+    name: parsed.name,
+    vocabulary: parsed.vocabulary,
+    edges: parsed.edges,
+    timestamp: parsed.timestamp,
+  };
+}
+
+/** Serialize long-term memory as a JSON snapshot. */
+export function serializeLongTerm(memory: MemoryState): string {
+  const entries = [...memory.longTerm.values()];
+  return JSON.stringify(entries);
+}
+
+/** Parse a long-term memory snapshot. */
+export function parseLongTerm(json: string): Map<string, RememberedSigil> {
+  const entries: RememberedSigil[] = JSON.parse(json);
+  const map = new Map<string, RememberedSigil>();
+  for (const entry of entries) map.set(entry.name, entry);
+  return map;
 }
 
 // ── Internal ──
 
-/** Reinforce an existing remembered sigil with fresh position and vocabulary. */
-function reinforce(
-  memory: MemoryState,
-  name: string,
-  node: SigilNode,
-  timestamp: number,
-): MemoryState {
-  const entry = memory.sigils.get(name);
-  if (!entry) return memory;
-
-  const next = new Map(memory.sigils);
-  next.set(name, {
-    ...entry,
-    vocabulary: { ...node.vocabulary },
-    edges: [...node.edges],
-    weight: Math.min(entry.weight + REINFORCEMENT_BOOST, MAX_WEIGHT),
-    lastReinforced: timestamp,
-  });
-  return { sigils: next };
-}
-
-/**
- * !co-occurrence-merge: remembered sigils that always appear together get merged.
- *
- * Two entries A and B merge when each is the other's strongest co-occurrence
- * edge and that edge accounts for > threshold of their total edge weight.
- * The higher-weighted one absorbs the other's vocabulary.
- */
 function mergeCoOccurring(
   sigils: Map<string, RememberedSigil>,
   currentSpace: SigilSpace,
