@@ -451,64 +451,75 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
 interface EntanglementLinesProps {
   nodes: SphereNode[];
   dark: boolean;
+  onHoverLabel: (label: string | null) => void;
 }
 
 interface EntanglementEdge {
   from: THREE.Vector3;
   to: THREE.Vector3;
-  mid: THREE.Vector3;
-  length: number;
+  fromRadius: number;
+  toRadius: number;
   strength: number;
   labels: string[];
 }
 
 /** A single pipe connector between two entangled sigils. */
-function Pipe({ edge, dark }: { edge: EntanglementEdge; dark: boolean }) {
+function Pipe({ edge, dark, onHoverLabel }: { edge: EntanglementEdge; dark: boolean; onHoverLabel: (label: string | null) => void }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const dotRef = useRef<THREE.Mesh>(null);
 
-  // Orient cylinder from `from` to `to`
+  // Shorten pipe to end at sphere edges, not centers
+  const dir = new THREE.Vector3().subVectors(edge.to, edge.from);
+  const fullLength = dir.length();
+  dir.normalize();
+  const shortenedFrom = edge.from.clone().add(dir.clone().multiplyScalar(edge.fromRadius));
+  const shortenedTo = edge.to.clone().add(dir.clone().multiplyScalar(-edge.toRadius));
+  const pipeLength = Math.max(0, fullLength - edge.fromRadius - edge.toRadius);
+  const pipeMid = new THREE.Vector3().addVectors(shortenedFrom, shortenedTo).multiplyScalar(0.5);
+
   useEffect(() => {
     if (!meshRef.current) return;
-    meshRef.current.position.copy(edge.mid);
-    // Cylinder is Y-axis aligned by default — rotate to match edge direction
-    const dir = new THREE.Vector3().subVectors(edge.to, edge.from).normalize();
+    meshRef.current.position.copy(pipeMid);
     const up = new THREE.Vector3(0, 1, 0);
     const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
     meshRef.current.quaternion.copy(quat);
   }, [edge]);
 
-  const pipeRadius = 0.012 + edge.strength * 0.004;
-  const alpha = 0.3 + Math.min(edge.strength * 0.08, 0.4);
+  const pipeRadius = 0.002 + edge.strength * 0.0005;
+  const alpha = 0.3 + Math.min(edge.strength * 0.06, 0.35);
+  const label = edge.labels.length > 0 ? edge.labels.map(l => `#${l}`).join(" ") : null;
+
+  if (pipeLength <= 0) return null;
 
   return (
     <group>
       <mesh ref={meshRef}>
-        <cylinderGeometry args={[pipeRadius, pipeRadius, edge.length, 8]} />
+        <cylinderGeometry args={[pipeRadius, pipeRadius, pipeLength, 6]} />
         <meshPhysicalMaterial
-          color={dark ? "#5577aa" : "#4466aa"}
+          color={dark ? "#446688" : "#4466aa"}
           transparent
           opacity={alpha}
-          roughness={0.3}
-          metalness={0.1}
+          roughness={0.4}
+          metalness={0.05}
         />
       </mesh>
-      {/* Affordance labels along the pipe */}
-      {edge.labels.length > 0 && (
-        <Text
-          position={[edge.mid.x + pipeRadius + 0.02, edge.mid.y, edge.mid.z]}
-          fontSize={0.04}
-          color={dark ? "#7799cc" : "#4466aa"}
-          anchorX="left"
-          anchorY="middle"
+      {/* Glowing dot at midpoint — hover to see affordance labels */}
+      {label && (
+        <mesh
+          ref={dotRef}
+          position={pipeMid}
+          onPointerOver={(e) => { e.stopPropagation(); onHoverLabel(label); document.body.style.cursor = "help"; }}
+          onPointerOut={() => { onHoverLabel(null); document.body.style.cursor = "auto"; }}
         >
-          {edge.labels.map(l => `#${l}`).join("  ")}
-        </Text>
+          <sphereGeometry args={[pipeRadius * 3, 8, 8]} />
+          <meshBasicMaterial color={dark ? "#88aadd" : "#5588cc"} />
+        </mesh>
       )}
     </group>
   );
 }
 
-function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
+function EntanglementLines({ nodes, dark, onHoverLabel }: EntanglementLinesProps) {
   const nodeMap = useMemo(() => {
     const m = new Map<string, SphereNode>();
     for (const n of nodes) m.set(n.name, n);
@@ -527,7 +538,6 @@ function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
         if (target) {
           const from = new THREE.Vector3(...node.position);
           const to = new THREE.Vector3(...target.position);
-          const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
           // Merge labels from both directions
           const labels = new Set<string>();
           for (const a of ent.sharedAffordances) labels.add(a);
@@ -536,8 +546,9 @@ function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
             for (const a of reverse.sharedAffordances) labels.add(a);
           }
           result.push({
-            from, to, mid,
-            length: from.distanceTo(to),
+            from, to,
+            fromRadius: node.radius,
+            toRadius: target.radius,
             strength: ent.strength,
             labels: [...labels],
           });
@@ -550,7 +561,7 @@ function EntanglementLines({ nodes, dark }: EntanglementLinesProps) {
   return (
     <>
       {edges.map((edge, i) => (
-        <Pipe key={i} edge={edge} dark={dark} />
+        <Pipe key={i} edge={edge} dark={dark} onHoverLabel={onHoverLabel} />
       ))}
     </>
   );
@@ -565,6 +576,7 @@ interface SceneProps {
   onNavigate: (path: string[]) => void;
   onHover: (node: SphereNode | null) => void;
   onSelect: (node: SphereNode) => void;
+  onPipeLabel: (label: string | null) => void;
 }
 
 /** Tracks an in-progress fly-into animation. */
@@ -577,7 +589,7 @@ interface TransitionState {
   duration: number;
 }
 
-function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: SceneProps) {
+function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect, onPipeLabel }: SceneProps) {
   const inhabited = useMemo(
     () => findNode(root, inhabitedPath) ?? root,
     [root, inhabitedPath],
@@ -668,7 +680,7 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
         );
       })}
 
-      <EntanglementLines nodes={visibleNodes} dark={dark} />
+      <EntanglementLines nodes={visibleNodes} dark={dark} onHoverLabel={onPipeLabel} />
 
       <CameraHandler
         target={inhabited.position}
@@ -707,6 +719,7 @@ export function SigilSpace3D() {
 
   const [hoveredNode, setHoveredNode] = useState<SphereNode | null>(null);
   const [pinnedNode, setPinnedNode] = useState<SphereNode | null>(null);
+  const [pipeLabel, setPipeLabel] = useState<string | null>(null);
   const [infoPanelVisible, setInfoPanelVisible] = useState(true);
 
   const handleNavigate = useCallback((path: string[]) => {
@@ -749,6 +762,7 @@ export function SigilSpace3D() {
           onNavigate={handleNavigate}
           onHover={setHoveredNode}
           onSelect={setPinnedNode}
+          onPipeLabel={setPipeLabel}
         />
       </Canvas>
       {infoPanelVisible && (
@@ -758,6 +772,25 @@ export function SigilSpace3D() {
           dark={dark}
           onDismiss={() => setPinnedNode(null)}
         />
+      )}
+      {pipeLabel && (
+        <div style={{
+          position: "absolute",
+          top: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: dark ? "rgba(12,12,30,0.9)" : "rgba(255,255,255,0.95)",
+          color: dark ? "#88aacc" : "#4466aa",
+          padding: "6px 12px",
+          borderRadius: 6,
+          fontSize: 13,
+          fontFamily: "system-ui, sans-serif",
+          border: `1px solid ${dark ? "rgba(100,100,160,0.25)" : "rgba(0,0,0,0.08)"}`,
+          pointerEvents: "none",
+          zIndex: 10,
+        }}>
+          {pipeLabel}
+        </div>
       )}
     </div>
   );
