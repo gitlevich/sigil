@@ -37,6 +37,8 @@ export interface ExperienceEntry {
   message?: { role: "user" | "assistant"; content: string };
   /** Narration resolution, if this event had structural change. */
   resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] };
+  /** LeftHemisphere articulation, if the Gate passed and the LH responded. */
+  articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
 }
 
 /** A session header — written once at the start of each session file. */
@@ -97,6 +99,7 @@ export function parseSession(content: string): Session | null {
     };
     if (parsed.message) entry.message = parsed.message;
     if (parsed.resolution) entry.resolution = parsed.resolution;
+    if (parsed.articulation) entry.articulation = parsed.articulation;
     entries.push(entry);
   }
 
@@ -111,6 +114,7 @@ export function entryToSegment(entry: ExperienceEntry): {
   relevant: boolean;
   resolution: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null;
   message?: { role: "user" | "assistant"; content: string };
+  articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
 } {
   return {
     sigils: entry.sigils,
@@ -119,6 +123,7 @@ export function entryToSegment(entry: ExperienceEntry): {
     relevant: entry.relevant,
     resolution: entry.resolution ?? null,
     ...(entry.message ? { message: entry.message } : {}),
+    ...(entry.articulation ? { articulation: entry.articulation } : {}),
   };
 }
 
@@ -133,7 +138,15 @@ export function newSessionId(): string {
  * Convert a RightHemisphere ExperienceSegment into a persistable ExperienceEntry.
  */
 export function toEntry(
-  segment: { sigils: string[]; disturbance: Disturbance; timestamp: number; relevant: boolean; message?: { role: "user" | "assistant"; content: string }; resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null },
+  segment: {
+    sigils: string[];
+    disturbance: Disturbance;
+    timestamp: number;
+    relevant: boolean;
+    message?: { role: "user" | "assistant"; content: string };
+    resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null;
+    articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
+  },
   focus: string | null,
 ): ExperienceEntry {
   const entry: ExperienceEntry = {
@@ -148,5 +161,6 @@ export function toEntry(
   };
   if (segment.message) entry.message = segment.message;
   if (segment.resolution) entry.resolution = segment.resolution;
+  if (segment.articulation) entry.articulation = segment.articulation;
   return entry;
 }

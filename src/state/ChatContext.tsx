@@ -18,6 +18,7 @@ type ChatAction =
   | { type: "SET_CHATS"; chats: ChatInfo[] }
   | { type: "SET_ACTIVE_CHAT"; chatId: string; messages: ChatMessage[] }
   | { type: "SET_MESSAGES"; messages: ChatMessage[] }
+  | { type: "SET_MESSAGES_APPEND"; message: ChatMessage }
   | { type: "APPEND_TOKEN"; token: string }
   | { type: "SET_STREAMING"; streaming: boolean };
 
@@ -29,6 +30,8 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, activeChatId: action.chatId, chatMessages: action.messages };
     case "SET_MESSAGES":
       return { ...state, chatMessages: action.messages };
+    case "SET_MESSAGES_APPEND":
+      return { ...state, chatMessages: [...state.chatMessages, action.message] };
     case "APPEND_TOKEN": {
       const messages = [...state.chatMessages];
       const last = messages[messages.length - 1];

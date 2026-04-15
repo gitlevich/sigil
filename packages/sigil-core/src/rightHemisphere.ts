@@ -42,6 +42,8 @@ export interface ExperienceSegment {
   resolution: Resolution | null;
   /** Chat message, if this segment is a conversation event. */
   message?: { role: "user" | "assistant"; content: string };
+  /** LeftHemisphere articulation, if the Gate passed and the LH responded. */
+  articulation?: { observation: string; suggestions: string[]; needsAttention: boolean };
 }
 
 /** Signal emitted when disturbance crosses the noise floor. */

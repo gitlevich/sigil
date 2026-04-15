@@ -2,13 +2,16 @@
  * WorkspaceShell — lives inside all three providers.
  * Wires hooks that need workspace and layout state.
  */
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch } from "./state/WorkspaceContext";
 import { useLayoutState } from "./state/LayoutContext";
+import { useChatDispatch } from "./state/ChatContext";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useRightHemisphere } from "./hooks/useRightHemisphere";
+import type { BicameralCallbacks } from "./hooks/useRightHemisphere";
 import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
+import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
 import { api, FsChangeEvent } from "./tauri";
 import { Workspace } from "./components/Workspace/Workspace";
@@ -18,8 +21,30 @@ export function WorkspaceShell() {
   const ws = useWorkspaceState();
   const layout = useLayoutState();
   const dispatch = useWorkspaceDispatch();
+  const chatDispatch = useChatDispatch();
+  const { addToast } = useToast();
   const { reload } = useWorkspaceActions();
-  const { perceive, getExperience, recordChat } = useRightHemisphere(ws.spec, ws.currentPath);
+
+  const bicameralCallbacks = useMemo<BicameralCallbacks>(() => ({
+    onArticulation: (articulation) => {
+      // #address-user — partner message in chat
+      chatDispatch({ type: "SET_MESSAGES_APPEND", message: {
+        role: "assistant",
+        content: articulation.observation +
+          (articulation.suggestions.length > 0
+            ? "\n\n" + articulation.suggestions.join("\n")
+            : ""),
+      }});
+
+      // Notification — visible wherever the user is
+      const preview = articulation.observation.length > 80
+        ? articulation.observation.slice(0, 80) + "..."
+        : articulation.observation;
+      addToast(preview, "info");
+    },
+  }), [chatDispatch, addToast]);
+
+  const { perceive, getExperience, recordChat } = useRightHemisphere(ws.spec, ws.currentPath, bicameralCallbacks);
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();

@@ -14,7 +14,10 @@
     "./gate": "./src/gate.ts",
     "./leftHemisphere": "./src/leftHemisphere.ts",
     "./bicameralMind": "./src/bicameralMind.ts",
-    "./coherence": "./src/coherence.ts"
+    "./coherence": "./src/coherence.ts",
+    "./memory": "./src/memory.ts",
+    "./sigilSpace": "./src/sigilSpace.ts",
+    "./types": "./src/types.ts"
   },
   "devDependencies": {
     "vitest": "^4.1.2"

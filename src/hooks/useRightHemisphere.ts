@@ -22,6 +22,7 @@ import {
 } from "sigil-core/bicameralMind";
 import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 import type { Perception } from "sigil-core/rightHemisphere";
+import type { Articulation } from "sigil-core/leftHemisphere";
 import {
   newSessionId,
   serializeHeader,
@@ -35,10 +36,16 @@ export interface RightHemisphereHandle {
   recordChat: (role: "user" | "assistant", content: string) => void;
 }
 
-export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[]): RightHemisphereHandle {
+export interface BicameralCallbacks {
+  onArticulation?: (articulation: Articulation, sigils: string[]) => void;
+}
+
+export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[], callbacks?: BicameralCallbacks): RightHemisphereHandle {
   const appState = useAppState();
   const settingsRef = useRef(appState.settings);
   settingsRef.current = appState.settings;
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
   const mindRef = useRef<Mind | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const sessionStartedRef = useRef(false);
@@ -99,10 +106,35 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[])
             mindRef.current!, response, newSpec.root, newSpec.importedOntologies ?? null,
           );
           mindRef.current = afterTurn;
-          console.info("[BicameralMind] LeftHemisphere:", turnResult.articulation.observation);
-          if (turnResult.articulation.suggestions.length > 0) {
-            console.info("[BicameralMind] suggestions:", turnResult.articulation.suggestions.join("; "));
+
+          // Record the LH articulation as an experience segment
+          const articulationSegment: ExperienceSegment = {
+            sigils: result.perception.experience.sigils,
+            disturbance: { displaced: [], total: 0 },
+            timestamp: Date.now(),
+            relevant: true,
+            resolution: null,
+            articulation: turnResult.articulation,
+          };
+          mindRef.current = {
+            ...mindRef.current,
+            hemisphere: {
+              ...mindRef.current.hemisphere,
+              experience: [...mindRef.current.hemisphere.experience, articulationSegment],
+            },
+          };
+
+          // Persist — !complete, !append-only
+          if (sessionIdRef.current) {
+            const entry = toEntry(articulationSegment, mindRef.current.hemisphere.focus);
+            const line = serializeEntry(entry);
+            api.appendExperience(newSpec.rootPath, sessionIdRef.current, line).catch(err2 => {
+              console.error("[Experience] failed to append articulation entry:", err2);
+            });
           }
+
+          // #address-user — surface the articulation
+          callbacksRef.current?.onArticulation?.(turnResult.articulation, result.perception.experience.sigils);
         }).catch(err => {
           console.error("[BicameralMind] LeftHemisphere invocation failed:", err);
         });

@@ -65,7 +65,7 @@ export function ExperiencePanel() {
     !g.segments.some(s => liveTimestamps.has(s.timestamp))
   );
 
-  const liveMeaningful = liveSegments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
+  const liveMeaningful = liveSegments.filter(s => s.disturbance.total > 0 || s.resolution || s.message || s.articulation);
   const isEmpty = filteredPast.length === 0 && liveMeaningful.length === 0;
 
   return (
@@ -75,7 +75,7 @@ export function ExperiencePanel() {
       ) : (
         <>
           {filteredPast.map((group, gi) => {
-            const meaningful = group.segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message);
+            const meaningful = group.segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message || s.articulation);
             if (meaningful.length === 0) return null;
             return (
               <div key={gi}>
@@ -113,20 +113,31 @@ function formatSessionTime(ms: number): string {
 function Entry({ segment }: { segment: ExperienceSegment }) {
   const time = new Date(segment.timestamp);
   const timeStr = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const resolution = segment.resolution;
-  const message = segment.message;
+  const { resolution, message, articulation } = segment;
 
   return (
-    <div className={`${styles.entry} ${segment.relevant ? styles.relevant : styles.muted} ${message ? styles.chatEntry : ""}`}>
+    <div className={`${styles.entry} ${segment.relevant ? styles.relevant : styles.muted} ${message ? styles.chatEntry : ""} ${articulation ? styles.articulationEntry : ""}`}>
       <div className={styles.entryHeader}>
         <span className={styles.time}>{timeStr}</span>
         {message && <span className={styles.role}>{message.role}</span>}
+        {articulation && <span className={styles.role}>partner</span>}
         {segment.disturbance.total > 0 && (
           <span className={styles.magnitude}>{segment.disturbance.total.toFixed(0)}</span>
         )}
       </div>
       {message ? (
         <div className={styles.chatMessage}>{message.content.slice(0, 200)}{message.content.length > 200 ? "..." : ""}</div>
+      ) : articulation ? (
+        <div className={styles.articulation}>
+          <div className={styles.observation}>{articulation.observation}</div>
+          {articulation.suggestions.length > 0 && (
+            <div className={styles.suggestions}>
+              {articulation.suggestions.map((s, i) => (
+                <div key={i} className={styles.suggestion}>{s}</div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : resolution ? (
         <div className={styles.narration}>
           {resolution.changes.slice(0, 4).map((c, i) => (

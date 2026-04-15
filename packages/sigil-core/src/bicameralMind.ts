@@ -23,6 +23,13 @@ import { init as initGate, evaluate, step, forceYield } from "./gate";
 import { buildInvocation, renderPrompt, parseResponse } from "./leftHemisphere";
 import type { Invocation, Articulation } from "./leftHemisphere";
 import { sense } from "./coherence";
+import type { MemoryState, RecognitionResult } from "./memory";
+import {
+  init as initMemory,
+  remember,
+  recall,
+  consolidate as consolidateMemory,
+} from "./memory";
 
 // ── Types ──
 
@@ -30,6 +37,7 @@ import { sense } from "./coherence";
 export interface Mind {
   hemisphere: Hemisphere;
   gate: GateState;
+  memory: MemoryState;
 }
 
 /** What the cycle produces after perceiving a change. */
@@ -42,6 +50,8 @@ export interface CycleResult {
   prompt: string | null;
   /** If the Gate suppressed: the reason. */
   suppressedReason: string | null;
+  /** Remembered sigils recalled involuntarily near the focus. */
+  recalled: RecognitionResult[];
 }
 
 /** What a LeftHemisphere turn produces. */
@@ -60,6 +70,7 @@ export function open(root: Sigil, importedOntologies?: Sigil | null): Mind {
   return {
     hemisphere: openHemisphere(root, importedOntologies),
     gate: initGate(),
+    memory: initMemory(),
   };
 }
 
@@ -88,7 +99,20 @@ export function perceive(
     mind.hemisphere, root, changedSigils, timestamp, importedOntologies,
   );
 
-  let nextMind: Mind = { hemisphere: nextHemisphere, gate: mind.gate };
+  const currentSpace = build(root, importedOntologies);
+  const focusName = nextHemisphere.focus ?? root.name;
+
+  // #recall — involuntary recognition near the focus
+  const recalled = recall(mind.memory, currentSpace, focusName);
+
+  // #remember — changed sigils get placed in memory
+  let nextMemory = mind.memory;
+  for (const name of changedSigils) {
+    const node = currentSpace.nodes.get(name);
+    if (node) nextMemory = remember(nextMemory, node, timestamp);
+  }
+
+  let nextMind: Mind = { hemisphere: nextHemisphere, gate: mind.gate, memory: nextMemory };
 
   // No disturbance — no escalation path
   if (!perception.escalation || !perception.experience.resolution) {
@@ -97,12 +121,11 @@ export function perceive(
       invocation: null,
       prompt: null,
       suppressedReason: perception.escalation ? null : "No disturbance.",
+      recalled,
     }, nextMind];
   }
 
   // Gate evaluation — !coherence-precedence: sense the shape before escalating
-  const currentSpace = build(root, importedOntologies);
-  const focusName = nextHemisphere.focus ?? root.name;
   const displacedNames = perception.experience.resolution.changes.map(c => c.sigil);
   const coherenceReading = sense(currentSpace, focusName, displacedNames);
   const coherenceOk = coherenceReading.ok;
@@ -120,10 +143,12 @@ export function perceive(
       invocation: null,
       prompt: null,
       suppressedReason: decision.reason,
+      recalled,
     }, nextMind];
   }
 
-  // Gate passed — build the LeftHemisphere invocation (reuse currentSpace from coherence check)
+  // Gate passed — build the LeftHemisphere invocation
+  // Feed recalled vocabulary into the scope so the LH knows what Memory knows
   const invocation = buildInvocation(root, currentSpace, perception.experience.resolution, focusName);
 
   if (!invocation) {
@@ -133,7 +158,16 @@ export function perceive(
       invocation: null,
       prompt: null,
       suppressedReason: "Could not build invocation — focus sigil not found.",
+      recalled,
     }, nextMind];
+  }
+
+  // Enrich the LH's scope with recalled vocabulary from Memory
+  for (const r of recalled) {
+    const alreadyInScope = invocation.scope.some(v => v.name === r.remembered.name);
+    if (!alreadyInScope) {
+      invocation.scope.push(r.remembered.vocabulary);
+    }
   }
 
   const prompt = renderPrompt(invocation);
@@ -143,6 +177,7 @@ export function perceive(
     invocation,
     prompt,
     suppressedReason: null,
+    recalled,
   }, nextMind];
 }
 
@@ -206,4 +241,52 @@ export function completeTurn(
 /** Get the experience stream. */
 export function experience(mind: Mind): ExperienceSegment[] {
   return mind.hemisphere.experience;
+}
+
+/** Get the current memory state. */
+export { type MemoryState, type RememberedSigil, type RecognitionResult } from "./memory";
+export function memory(mind: Mind): MemoryState {
+  return mind.memory;
+}
+
+/**
+ * #sleep — consolidate memory from accumulated experience.
+ *
+ * Collects all sigil names the Subconscious attended to (relevant experience),
+ * feeds them into Memory's consolidation. Reinforce → decay → merge → prune.
+ *
+ * Returns the mind with consolidated memory and cleared experience.
+ */
+export function sleep(
+  mind: Mind,
+  root: Sigil,
+  importedOntologies?: Sigil | null,
+): Mind {
+  const currentSpace = build(root, importedOntologies);
+
+  // Collect attended sigil names from relevant experience
+  const attendedNames = new Set<string>();
+  for (const seg of mind.hemisphere.experience) {
+    if (!seg.relevant) continue;
+    for (const name of seg.sigils) attendedNames.add(name);
+    if (seg.resolution) {
+      for (const c of seg.resolution.changes) attendedNames.add(c.sigil);
+    }
+  }
+
+  const nextMemory = consolidateMemory(
+    mind.memory,
+    [...attendedNames],
+    currentSpace,
+    Date.now(),
+  );
+
+  return {
+    ...mind,
+    memory: nextMemory,
+    hemisphere: {
+      ...mind.hemisphere,
+      experience: [], // experience is consumed by sleep
+    },
+  };
 }

@@ -127,3 +127,33 @@
   color: var(--text-secondary);
   line-height: 1.35;
 }
+
+.articulationEntry {
+  border-left-color: var(--accent-secondary, #7c6dd8);
+}
+
+.articulation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.observation {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--accent-secondary, #7c6dd8);
+}

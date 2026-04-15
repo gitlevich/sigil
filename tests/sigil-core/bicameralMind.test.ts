@@ -6,7 +6,10 @@ import {
   perceive,
   completeTurn,
   experience,
+  memory,
+  sleep,
 } from "../../packages/sigil-core/src/bicameralMind";
+import { recognize, allRemembered } from "../../packages/sigil-core/src/memory";
 
 function sigil(name: string, opts?: {
   language?: string;
@@ -100,6 +103,73 @@ describe("BicameralMind", () => {
       [r, mind] = perceive(mind, tree1, ["Alpha"], 1000);
       [r, mind] = perceive(mind, tree2, ["Alpha"], 2000);
       expect(experience(mind)).toHaveLength(2);
+    });
+  });
+
+  describe("Memory integration", () => {
+    it("perceive remembers changed sigils", () => {
+      const tree = makeTree("@Beta and @Gamma together.");
+      let mind = focus(open(tree), "Alpha");
+      let r;
+      [r, mind] = perceive(mind, tree, ["Alpha"], 1000);
+
+      const mem = memory(mind);
+      expect(recognize(mem, "Alpha")).not.toBeNull();
+      expect(recognize(mem, "Alpha")!.remembered.vocabulary.affordances).toContain("do-alpha");
+    });
+
+    it("perceive recalls remembered sigils near focus", () => {
+      const tree1 = makeTree("@Beta and @Gamma together.");
+      const tree2 = makeTree("@Beta and @Gamma and @Delta together.");
+      let mind = focus(open(tree1), "Alpha");
+      let r;
+
+      // First perceive — Alpha gets remembered
+      [r, mind] = perceive(mind, tree1, ["Alpha"], 1000);
+
+      // Second perceive — Alpha should be recalled (it's the focus)
+      [r, mind] = perceive(mind, tree2, ["Alpha"], 2000);
+      const recalledNames = r.recalled.map(rc => rc.remembered.name);
+      expect(recalledNames).toContain("Alpha");
+    });
+
+    it("sleep consolidates memory from experience", () => {
+      const tree1 = makeTree("@Beta and @Gamma together.");
+      const tree2 = makeTree("@Beta and @Gamma and @Delta together.");
+      let mind = focus(open(tree1), "Alpha");
+      let r;
+      [r, mind] = perceive(mind, tree1, ["Alpha"], 1000);
+      [r, mind] = perceive(mind, tree2, ["Alpha"], 2000);
+
+      // Experience should have segments
+      expect(experience(mind).length).toBeGreaterThan(0);
+
+      // Sleep — consolidates and clears experience
+      mind = sleep(mind, tree2);
+      expect(experience(mind)).toHaveLength(0);
+
+      // Memory should still have Alpha (it was attended to)
+      expect(recognize(memory(mind), "Alpha")).not.toBeNull();
+    });
+
+    it("sleep decays unattended sigils", () => {
+      const tree = makeTree("@Beta and @Gamma together.");
+      let mind = focus(open(tree), "Alpha");
+      let r;
+
+      // Remember both Alpha and Beta
+      [r, mind] = perceive(mind, tree, ["Alpha", "Beta"], 1000);
+
+      // Sleep many times, only attending to Alpha
+      for (let i = 0; i < 30; i++) {
+        mind = sleep(mind, tree);
+        // Re-perceive with only Alpha to keep experience flowing
+        [r, mind] = perceive(mind, tree, ["Alpha"], 2000 + i * 1000);
+      }
+
+      // Alpha should survive, Beta should have decayed
+      expect(recognize(memory(mind), "Alpha")).not.toBeNull();
+      // Beta was never re-attended, should eventually decay
     });
   });
 
