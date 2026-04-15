@@ -35,6 +35,8 @@ export interface ExperienceEntry {
   focus: string | null;
   /** Chat message, if this is a conversation event. */
   message?: { role: "user" | "assistant"; content: string };
+  /** Narration resolution, if this event had structural change. */
+  resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] };
 }
 
 /** A session header — written once at the start of each session file. */
@@ -94,6 +96,7 @@ export function parseSession(content: string): Session | null {
       focus: parsed.focus,
     };
     if (parsed.message) entry.message = parsed.message;
+    if (parsed.resolution) entry.resolution = parsed.resolution;
     entries.push(entry);
   }
 
@@ -106,7 +109,7 @@ export function entryToSegment(entry: ExperienceEntry): {
   disturbance: { displaced: { name: string; magnitude: number }[]; total: number };
   timestamp: number;
   relevant: boolean;
-  resolution: null;
+  resolution: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null;
   message?: { role: "user" | "assistant"; content: string };
 } {
   return {
@@ -114,7 +117,7 @@ export function entryToSegment(entry: ExperienceEntry): {
     disturbance: entry.disturbance,
     timestamp: entry.timestamp,
     relevant: entry.relevant,
-    resolution: null, // resolutions aren't persisted — they're recomputed live
+    resolution: entry.resolution ?? null,
     ...(entry.message ? { message: entry.message } : {}),
   };
 }
@@ -130,7 +133,7 @@ export function newSessionId(): string {
  * Convert a RightHemisphere ExperienceSegment into a persistable ExperienceEntry.
  */
 export function toEntry(
-  segment: { sigils: string[]; disturbance: Disturbance; timestamp: number; relevant: boolean; message?: { role: "user" | "assistant"; content: string } },
+  segment: { sigils: string[]; disturbance: Disturbance; timestamp: number; relevant: boolean; message?: { role: "user" | "assistant"; content: string }; resolution?: { summary: string; changes: { sigil: string; magnitude: number; kind: string; partners: string[]; description: string }[] } | null },
   focus: string | null,
 ): ExperienceEntry {
   const entry: ExperienceEntry = {
@@ -144,5 +147,6 @@ export function toEntry(
     focus,
   };
   if (segment.message) entry.message = segment.message;
+  if (segment.resolution) entry.resolution = segment.resolution;
   return entry;
 }
