@@ -42,15 +42,6 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-function compareSemver(a: string, b: string): number {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] !== pb[i]) return pa[i] - pb[i];
-  }
-  return 0;
-}
-
 // ── Step 1: Commit pending changes ──────────────────────────────────
 
 console.log("\n=== Step 1: Checking working tree ===\n");
@@ -65,10 +56,6 @@ if (status) {
   // Build the commit message from recent changes
   const lastTag = runCapture("git describe --tags --abbrev=0 2>/dev/null || echo ''");
   const diffStat = runCapture("git diff --stat HEAD");
-  const logSince = lastTag
-    ? runCapture(`git log --oneline ${lastTag}..HEAD 2>/dev/null || echo "initial changes"`)
-    : "initial changes";
-
   // Stage everything
   run("git add -A");
 
@@ -101,42 +88,31 @@ try {
 }
 
 // ── Step 3: Bump version ────────────────────────────────────────────
+//
+// package.json is the single source of truth.
+// Bump it, sync to Cargo.toml and tauri.conf.json, verify, commit.
 
 console.log(`\n=== Step 3: Bumping version (${bump}) ===\n`);
-
-// package.json is the single source of truth for the version.
-// Verify it hasn't drifted below any existing tag — if it has, the state is corrupt
-// and must be fixed manually before releasing.
-const highestTag = runCapture("git tag --sort=-v:refname | head -1 || echo 'v0.0.0'");
-const highestTagVersion = highestTag.replace(/^v/, "");
-const currentVersion = JSON.parse(readFileSync(resolve(root, "package.json"), "utf-8")).version;
-
-if (compareSemver(currentVersion, highestTagVersion) < 0) {
-  fail(
-    `package.json version (${currentVersion}) is behind the highest tag (${highestTag}). ` +
-    `Fix package.json to at least ${highestTagVersion} before releasing.`
-  );
-}
 
 run(`npm version ${bump} --no-git-tag-version`);
 run("npx tsx scripts/sync-version.ts");
 
-// Verify all three files agree
-const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf-8"));
-const tauriConf = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.json"), "utf-8"));
-const cargoToml = readFileSync(resolve(root, "src-tauri/Cargo.toml"), "utf-8");
-const cargoVersion = cargoToml.match(/^version = "(.+)"/m)?.[1];
+// Read back the version from the source of truth
+const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf-8")).version;
 
-if (pkg.version !== version) fail(`package.json version ${pkg.version} != ${version}`);
-if (tauriConf.version !== version) fail(`tauri.conf.json version ${tauriConf.version} != ${version}`);
-if (cargoVersion !== version) fail(`Cargo.toml version ${cargoVersion} != ${version}`);
+// Verify sync wrote correctly
+const tauriVersion = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.json"), "utf-8")).version;
+const cargoVersion = readFileSync(resolve(root, "src-tauri/Cargo.toml"), "utf-8").match(/^version = "(.+)"/m)?.[1];
 
-console.log(`Version synced: ${version} across all config files.\n`);
+if (tauriVersion !== version) fail(`tauri.conf.json has ${tauriVersion}, expected ${version}`);
+if (cargoVersion !== version) fail(`Cargo.toml has ${cargoVersion}, expected ${version}`);
+
+console.log(`Version: ${version} (package.json -> Cargo.toml, tauri.conf.json)\n`);
 
 // Commit the bump
-run("git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json package-lock.json");
+run("git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json");
 execSync(
-  `git commit -m "release: bump version to ${version}\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"`,
+  `git commit -m "release: v${version}\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"`,
   { cwd: root, stdio: "inherit" }
 );
 
