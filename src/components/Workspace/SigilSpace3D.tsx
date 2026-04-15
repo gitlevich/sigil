@@ -40,12 +40,20 @@ function findNode(root: SphereNode, path: string[]): SphereNode | null {
 interface CameraHandlerProps {
   target: [number, number, number];
   distance: number;
+  cameraRef: React.MutableRefObject<THREE.Camera | null>;
+  pivotRef: React.MutableRefObject<THREE.Vector3 | null>;
 }
 
-function CameraHandler({ target, distance }: CameraHandlerProps) {
+function CameraHandler({ target, distance, cameraRef, pivotRef: externalPivotRef }: CameraHandlerProps) {
   const { camera, gl } = useThree();
   const pivotRef = useRef(new THREE.Vector3(...target));
   const prevTargetKey = useRef("");
+
+  // Expose camera and pivot to parent
+  useEffect(() => {
+    cameraRef.current = camera;
+    externalPivotRef.current = pivotRef.current;
+  }, [camera, cameraRef, externalPivotRef]);
 
   // Snap to new sigil when inhabited path changes
   useEffect(() => {
@@ -54,6 +62,7 @@ function CameraHandler({ target, distance }: CameraHandlerProps) {
     prevTargetKey.current = key;
 
     pivotRef.current.set(...target);
+    externalPivotRef.current = pivotRef.current;
     const dir = camera.position.clone().sub(pivotRef.current).normalize();
     if (dir.lengthSq() < 0.001) dir.set(0, 0.3, 1).normalize();
     camera.position.copy(pivotRef.current).add(dir.multiplyScalar(distance));
@@ -153,6 +162,47 @@ function CameraHandler({ target, distance }: CameraHandlerProps) {
       canvas.removeEventListener("wheel", onWheel);
     };
   }, [camera, gl]);
+
+  return null;
+}
+
+// ── Transition animator — flies camera into a sigil, dissolves its walls ──
+
+interface TransitionAnimatorProps {
+  transitionRef: React.RefObject<TransitionState | null>;
+  cameraRef: React.RefObject<THREE.Camera | null>;
+  pivotRef: React.RefObject<THREE.Vector3 | null>;
+  onProgress: (t: number) => void;
+  onComplete: (path: string[]) => void;
+}
+
+function TransitionAnimator({ transitionRef, cameraRef, pivotRef, onProgress, onComplete }: TransitionAnimatorProps) {
+  useFrame(() => {
+    const tr = transitionRef.current;
+    if (!tr) return;
+    const camera = cameraRef.current;
+    const pivot = pivotRef.current;
+    if (!camera || !pivot) return;
+
+    const elapsed = performance.now() - tr.startTime;
+    // Ease-in-out cubic
+    let t = Math.min(1, elapsed / tr.duration);
+    t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    // Lerp camera position toward the target center
+    camera.position.lerpVectors(tr.startPos, tr.targetPos, t);
+    // Lerp pivot
+    pivot.lerpVectors(tr.startPivot, tr.targetPos, t);
+    camera.lookAt(pivot);
+
+    onProgress(t);
+
+    if (elapsed >= tr.duration) {
+      const path = tr.targetPath;
+      transitionRef.current = null;
+      onComplete(path);
+    }
+  });
 
   return null;
 }
@@ -262,14 +312,17 @@ interface SigilSphereProps {
   onEnter: (path: string[]) => void;
   onHover: (node: SphereNode | null) => void;
   onSelect: (node: SphereNode) => void;
+  /** 0 = solid, 1 = fully dissolved. Used during fly-in transition. */
+  dissolve?: number;
 }
 
-function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSelect }: SigilSphereProps) {
+function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSelect, dissolve = 0 }: SigilSphereProps) {
   const meshRef = useRef<THREE.Mesh>(null);
 
   // Children of inhabited sigil are more opaque and vivid
   const baseOpacity = isChild ? 0.25 : isInhabited ? 0.06 : Math.min(0.10 + node.depth * 0.04, 0.35);
-  const opacity = baseOpacity;
+  // Dissolve: fade to zero as the camera flies through the wall
+  const opacity = baseOpacity * (1 - dissolve);
 
   // Color: hue shifts by depth, saturation by invariant count
   const hue = (node.depth * 0.15 + 0.55) % 1;
@@ -342,9 +395,9 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
           color={color}
           wireframe
           transparent
-          opacity={isChild
+          opacity={(isChild
             ? Math.min(0.1 + node.invariantNames.length * 0.05, 0.35)
-            : Math.min(0.05 + node.invariantNames.length * 0.02, 0.15)}
+            : Math.min(0.05 + node.invariantNames.length * 0.02, 0.15)) * (1 - dissolve)}
           depthWrite={false}
         />
       </mesh>
@@ -432,8 +485,17 @@ interface SceneProps {
   onSelect: (node: SphereNode) => void;
 }
 
+/** Tracks an in-progress fly-into animation. */
+interface TransitionState {
+  targetPath: string[];
+  targetPos: THREE.Vector3;
+  startPos: THREE.Vector3;
+  startPivot: THREE.Vector3;
+  startTime: number;
+  duration: number;
+}
+
 function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: SceneProps) {
-  // Find the currently inhabited sigil
   const inhabited = useMemo(
     () => findNode(root, inhabitedPath) ?? root,
     [root, inhabitedPath],
@@ -453,11 +515,43 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
 
   const cameraDistance = inhabited.radius * 1.8;
 
+  // Transition animation state
+  const transitionRef = useRef<TransitionState | null>(null);
+  const [dissolveKey, setDissolveKey] = useState<string | null>(null);
+  const [dissolveProgress, setDissolveProgress] = useState(0);
+
+  const handleEnter = useCallback((path: string[]) => {
+    const targetNode = findNode(root, path);
+    if (!targetNode) { onNavigate(path); return; }
+    // Don't animate if entering the currently inhabited sigil
+    if (path.join("/") === inhabitedPath.join("/")) return;
+
+    const camera = cameraRef.current;
+    const pivot = pivotRef.current;
+    if (!camera || !pivot) { onNavigate(path); return; }
+
+    setDissolveKey(path.join("/"));
+    setDissolveProgress(0);
+
+    transitionRef.current = {
+      targetPath: path,
+      targetPos: new THREE.Vector3(...targetNode.position),
+      startPos: camera.position.clone(),
+      startPivot: pivot.clone(),
+      startTime: performance.now(),
+      duration: 600,
+    };
+  }, [root, inhabitedPath, onNavigate]);
+
   const handleBackgroundClick = useCallback(() => {
     if (inhabitedPath.length > 0) {
       onNavigate(inhabitedPath.slice(0, -1));
     }
   }, [inhabitedPath, onNavigate]);
+
+  // Refs for camera/pivot so the transition can read them
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const pivotRef = useRef<THREE.Vector3 | null>(null);
 
   const inhabitedKey = inhabitedPath.join("/");
 
@@ -477,6 +571,7 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
         const isInhabited = nodeKey === inhabitedKey;
         const isChild = node.path.length === inhabitedPath.length + 1
           && nodeKey.startsWith(inhabitedKey);
+        const isDissolvingTarget = nodeKey === dissolveKey;
         return (
           <SigilSphere
             key={nodeKey || "__root__"}
@@ -484,9 +579,10 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
             isInhabited={isInhabited}
             isChild={isChild}
             dark={dark}
-            onEnter={onNavigate}
+            onEnter={handleEnter}
             onHover={onHover}
             onSelect={onSelect}
+            dissolve={isDissolvingTarget ? dissolveProgress : 0}
           />
         );
       })}
@@ -496,6 +592,19 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
       <CameraHandler
         target={inhabited.position}
         distance={cameraDistance}
+        cameraRef={cameraRef}
+        pivotRef={pivotRef}
+      />
+      <TransitionAnimator
+        transitionRef={transitionRef}
+        cameraRef={cameraRef}
+        pivotRef={pivotRef}
+        onProgress={setDissolveProgress}
+        onComplete={(path) => {
+          setDissolveKey(null);
+          setDissolveProgress(0);
+          onNavigate(path);
+        }}
       />
     </>
   );
