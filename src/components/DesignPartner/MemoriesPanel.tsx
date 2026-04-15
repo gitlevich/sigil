@@ -128,16 +128,12 @@ function TraceEntry({ trace }: { trace: ShortTermTrace }) {
 
 function RememberedEntry({ entry }: { entry: RememberedSigil }) {
   const [expanded, setExpanded] = useState(false);
-  const weightPct = Math.min(100, Math.round((entry.weight / 3.0) * 100));
 
   return (
     <div className={`${styles.entry} ${styles.longEntry}`}>
       <div className={styles.entryRow} onClick={() => setExpanded(!expanded)}>
         <span className={styles.expandIcon}>{expanded ? "\u25BC" : "\u25B6"}</span>
         <span className={styles.entryName}>{entry.name}</span>
-        <span className={styles.weightBar}>
-          <span className={styles.weightFill} style={{ width: `${weightPct}%` }} />
-        </span>
         <span className={styles.weightLabel}>{entry.weight.toFixed(1)}</span>
         <VocabIcons affordances={entry.vocabulary.affordances} invariants={entry.vocabulary.invariants} />
       </div>
