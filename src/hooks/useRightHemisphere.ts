@@ -68,7 +68,7 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[])
 
   const perceive = useCallback((newSpec: ApplicationSpec, changedPaths: string[]): Perception => {
     const h = hemisphereRef.current!;
-    const changedSigils = extractSigilNames(changedPaths);
+    const changedSigils = extractSigilNames(changedPaths, newSpec.rootPath, newSpec.root.name);
 
     const [perception, nextH] = corePerceive(
       h,
@@ -108,20 +108,33 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[])
 }
 
 /**
- * Extract sigil names from filesystem paths.
- * A changed path like "/Users/.../Alpha/language.md" means sigil "Alpha" changed.
- * For paths like "/Users/.../Alpha/affordance-foo.md", same thing — "Alpha".
+ * Extract sigil names from filesystem paths, scoped to a workspace root.
+ *
+ * A sigil file is language.md, affordance-*.md, or invariant-*.md.
+ * The parent directory of that file is the sigil. If the parent directory
+ * IS the workspace root, the sigil is the root sigil (use rootName).
  */
-function extractSigilNames(paths: string[]): string[] {
+function extractSigilNames(paths: string[], workspaceRoot: string, rootName: string): string[] {
   const names = new Set<string>();
+  const normalizedRoot = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
+
   for (const p of paths) {
-    const segments = p.split("/");
-    const fileName = segments[segments.length - 1];
-    if (fileName.includes(".")) {
-      const sigilName = segments[segments.length - 2];
-      if (sigilName) names.add(sigilName);
-    } else {
-      names.add(fileName);
+    // Only consider sigil content files
+    const fileName = p.split("/").pop() ?? "";
+    const isSigilFile = fileName === "language.md"
+      || fileName.startsWith("affordance-")
+      || fileName.startsWith("invariant-");
+    if (!isSigilFile) continue;
+
+    // The sigil is the parent directory of this file
+    const dir = p.substring(0, p.lastIndexOf("/"));
+    const dirName = dir.split("/").pop() ?? "";
+
+    // If the directory is the workspace root, use the root sigil name
+    if (dir === workspaceRoot || dir + "/" === normalizedRoot) {
+      names.add(rootName);
+    } else if (dir.startsWith(normalizedRoot)) {
+      names.add(dirName);
     }
   }
   return [...names];

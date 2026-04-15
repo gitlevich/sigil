@@ -20,7 +20,6 @@ import * as actions from "../../actions/workspace";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SigilEditor } from "./SigilEditor";
-import { ExperienceJournal } from "./ExperienceJournal";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
   buildLexicalScope as coreBuildLexicalScope,
@@ -51,7 +50,13 @@ function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
   if (needsShift && !e.shiftKey) return false;
   if (!needsShift && e.shiftKey) return false;
 
-  return e.key.toLowerCase() === keyChar;
+  // On macOS, Alt changes e.key to a special character (e.g. Alt+[ → "å").
+  // Fall back to e.code for physical key identity.
+  const codeKey = e.code.replace(/^(Key|Digit)/, "").toLowerCase();
+  const bracket = keyChar === "[" ? "bracketleft" : keyChar === "]" ? "bracketright" : null;
+  return e.key.toLowerCase() === keyChar
+    || codeKey === keyChar
+    || (bracket !== null && e.code.toLowerCase() === bracket);
 }
 
 function updateFolderInTree(
@@ -84,9 +89,6 @@ export function Workspace() {
 
   // Ephemeral UI state
   const [menuRenaming, setMenuRenaming] = useState<{ name: string } | null>(null);
-  const [journalOpen, setJournalOpen] = useState(false);
-  const journalOpenRef = useRef(false);
-  journalOpenRef.current = journalOpen;
   const menuRenameRef = useRef<HTMLInputElement>(null);
   const findReferencesNameRef = useRef<string | null>(null);
 
@@ -121,9 +123,6 @@ export function Workspace() {
     const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (journalOpenRef.current) { e.preventDefault(); setJournalOpen(false); return; }
-      }
       if (matchesBinding(e, kb["navigate-back"] || "Alt-[")) {
         e.preventDefault();
         back();
@@ -136,7 +135,7 @@ export function Workspace() {
       }
       if (matchesBinding(e, "Ctrl-6")) {
         e.preventDefault();
-        setJournalOpen(prev => !prev);
+        layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "experience" });
         return;
       }
       if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
@@ -390,8 +389,6 @@ export function Workspace() {
         }} />
       </div>
       <DesignPartnerPanel />
-
-      <ExperienceJournal open={journalOpen} onClose={() => setJournalOpen(false)} />
 
       {menuRenaming && (
         <div style={{ position: "fixed", inset: 0, zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)" }}>

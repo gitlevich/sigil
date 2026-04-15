@@ -13,7 +13,7 @@ interface PersistedDocState {
   ontologyPanelOpen: boolean;
   ontologyPanelTab: "vision" | "ontology";
   designPartnerPanelOpen: boolean;
-  designPartnerPanelTab: "chat" | "memories";
+  designPartnerPanelTab: "chat" | "memories" | "experience";
   editorMode: "edit" | "split" | "preview";
   contentTab: "language" | "atlas";
   activeChatId: string;

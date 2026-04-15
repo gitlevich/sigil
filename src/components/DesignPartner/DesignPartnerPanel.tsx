@@ -3,6 +3,7 @@ import { useAppState, useAppDispatch } from "../../state/AppContext";
 import { useLayoutState, useLayoutDispatch } from "../../state/LayoutContext";
 import { ChatPanel } from "./ChatPanel";
 import { MemoriesPanel } from "./MemoriesPanel";
+import { ExperiencePanel } from "./ExperiencePanel";
 import { ResizeHandle } from "../shared/ResizeHandle";
 import styles from "./DesignPartnerPanel.module.css";
 
@@ -66,6 +67,12 @@ export function DesignPartnerPanel() {
             >
               Memories
             </button>
+            <button
+              className={`${styles.tab} ${tab === "experience" ? styles.active : ""}`}
+              onClick={() => layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "experience" })}
+            >
+              Experience
+            </button>
           </div>
           <button
             className={styles.collapseBtn}
@@ -77,6 +84,7 @@ export function DesignPartnerPanel() {
         <div className={styles.content}>
           {tab === "chat" && <ChatPanel />}
           {tab === "memories" && <MemoriesPanel />}
+          {tab === "experience" && <ExperiencePanel />}
         </div>
       </div>
     </>

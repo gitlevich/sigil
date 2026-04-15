@@ -14,7 +14,7 @@ export interface LayoutState {
   ontologyPanelOpen: boolean;
   ontologyPanelTab: "vision" | "ontology";
   designPartnerPanelOpen: boolean;
-  designPartnerPanelTab: "chat" | "memories";
+  designPartnerPanelTab: "chat" | "memories" | "experience";
 }
 
 type LayoutAction =
@@ -22,7 +22,7 @@ type LayoutAction =
   | { type: "SET_CONTENT_TAB"; tab: "language" | "atlas" }
   | { type: "SET_WORD_WRAP"; wrap: boolean }
   | { type: "SET_ONTOLOGY_PANEL"; open: boolean; tab?: "vision" | "ontology" }
-  | { type: "SET_DESIGN_PARTNER_PANEL"; open: boolean; tab?: "chat" | "memories" };
+  | { type: "SET_DESIGN_PARTNER_PANEL"; open: boolean; tab?: "chat" | "memories" | "experience" };
 
 function reducer(state: LayoutState, action: LayoutAction): LayoutState {
   switch (action.type) {

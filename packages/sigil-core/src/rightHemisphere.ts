@@ -23,6 +23,8 @@ import type { SigilSpace } from "./sigilSpace";
 import { build } from "./sigilSpace";
 import type { Disturbance, Watch } from "./continuousAttention";
 import { init as initWatch, attend, noiseFloor, crosses } from "./continuousAttention";
+import type { Resolution } from "./narration";
+import { resolve } from "./narration";
 
 // ── Types ──
 
@@ -36,6 +38,8 @@ export interface ExperienceSegment {
   timestamp: number;
   /** Whether Subconscious filtering judged this relevant to active scope. */
   relevant: boolean;
+  /** Narration: what the disturbance means in language. */
+  resolution: Resolution | null;
 }
 
 /** Signal emitted when disturbance crosses the noise floor. */
@@ -149,11 +153,17 @@ export function perceive(
   importedOntologies?: Sigil | null,
 ): [Perception, Hemisphere] {
   const currentSpace = build(root, importedOntologies);
+  const previousSpace = hemisphere.watch.previous;
   const [disturbance, nextWatch] = attend(hemisphere.watch, currentSpace);
 
   const floor = noiseFloor(nextWatch);
   const escalation = crosses(disturbance, floor)
     ? { disturbance, floor }
+    : null;
+
+  // Narration: resolve the disturbance into language
+  const resolution = disturbance.total > 0
+    ? resolve(previousSpace, currentSpace, disturbance, hemisphere.focus)
     : null;
 
   // Subconscious#filtering — is this burst relevant to what we're looking at?
@@ -165,6 +175,7 @@ export function perceive(
     disturbance,
     timestamp,
     relevant,
+    resolution,
   };
 
   const perception: Perception = { escalation, experience: segment };

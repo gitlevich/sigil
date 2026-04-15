@@ -9,7 +9,9 @@
     "./react/Atlas": "./src/react/Atlas.tsx",
     "./continuousAttention": "./src/continuousAttention.ts",
     "./rightHemisphere": "./src/rightHemisphere.ts",
-    "./experience": "./src/experience.ts"
+    "./experience": "./src/experience.ts",
+    "./narration": "./src/narration.ts",
+    "./gate": "./src/gate.ts"
   },
   "devDependencies": {
     "vitest": "^4.1.2"
