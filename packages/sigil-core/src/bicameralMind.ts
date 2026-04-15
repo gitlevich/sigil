@@ -22,6 +22,7 @@ import type { GateState } from "./gate";
 import { init as initGate, evaluate, step, forceYield } from "./gate";
 import { buildInvocation, renderPrompt, parseResponse } from "./leftHemisphere";
 import type { Invocation, Articulation } from "./leftHemisphere";
+import { sense } from "./coherence";
 
 // ── Types ──
 
@@ -99,9 +100,12 @@ export function perceive(
     }, nextMind];
   }
 
-  // Gate evaluation — coherence check placeholder (always false = shape is broken)
-  // TODO: real coherence sensing from RightHemisphere/Coherence
-  const coherenceOk = false;
+  // Gate evaluation — !coherence-precedence: sense the shape before escalating
+  const currentSpace = build(root, importedOntologies);
+  const focusName = nextHemisphere.focus ?? root.name;
+  const displacedNames = perception.experience.resolution.changes.map(c => c.sigil);
+  const coherenceReading = sense(currentSpace, focusName, displacedNames);
+  const coherenceOk = coherenceReading.ok;
   const [decision, nextGate] = evaluate(
     mind.gate,
     perception.experience.resolution,
@@ -119,9 +123,7 @@ export function perceive(
     }, nextMind];
   }
 
-  // Gate passed — build the LeftHemisphere invocation
-  const currentSpace = build(root, importedOntologies);
-  const focusName = nextHemisphere.focus ?? root.name;
+  // Gate passed — build the LeftHemisphere invocation (reuse currentSpace from coherence check)
   const invocation = buildInvocation(root, currentSpace, perception.experience.resolution, focusName);
 
   if (!invocation) {
@@ -161,10 +163,15 @@ export function completeTurn(
 ): [TurnResult, Mind] {
   const articulation = parseResponse(llmResponse);
 
-  // Map-check: did the shape improve?
-  // For now, use the LH's own assessment (!needsAttention means shape improved).
-  // TODO: real map-check via RightHemisphere re-sensing
-  const coherenceImproved = !articulation.needsAttention;
+  // !map-check: RightHemisphere re-senses the shape after the LH's output.
+  // The caller has already applied the LH's changes to the tree (root).
+  // We sense coherence of the current shape to decide if it improved.
+  const currentSpace = build(root, importedOntologies);
+  const focusName = mind.hemisphere.focus ?? root.name;
+  const lastExp = mind.hemisphere.experience[mind.hemisphere.experience.length - 1];
+  const displacedNames = lastExp?.resolution?.changes.map(c => c.sigil) ?? [];
+  const reading = sense(currentSpace, focusName, displacedNames);
+  const coherenceImproved = reading.ok;
 
   const [turnDecision, nextGate] = step(mind.gate, coherenceImproved);
   const nextMind: Mind = { ...mind, gate: nextGate };
@@ -177,11 +184,7 @@ export function completeTurn(
     }, nextMind];
   }
 
-  // Gate granted another step — rebuild prompt with current state
-  const currentSpace = build(root, importedOntologies);
-  const focusName = mind.hemisphere.focus ?? root.name;
-  // Re-use the last resolution for continuation
-  const lastExp = mind.hemisphere.experience[mind.hemisphere.experience.length - 1];
+  // Gate granted another step — reuse currentSpace and lastExp from map-check
   if (!lastExp?.resolution) {
     return [{
       articulation,
