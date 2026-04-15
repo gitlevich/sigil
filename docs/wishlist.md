@@ -11,3 +11,6 @@ able to zoom in and out. And the time-like view is not what Sigil was touched, b
 something changed in that. I mean, specifically, I typed some nonsensical statement and introduced a really stupid
 dependency, and I want to see how it thinks about this or whether it actually tripped up into...
 Ah, okay, so we just don't have corpus callosum yet. I see. So, or left hemisphere. Got it. That's okay.
+
+
+Change bang everywhere for another character because I keep reading not something instead of it being an invariant. Maybe use two bangs!!

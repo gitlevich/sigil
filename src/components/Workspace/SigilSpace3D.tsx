@@ -40,11 +40,13 @@ function findNode(root: SphereNode, path: string[]): SphereNode | null {
 interface CameraHandlerProps {
   target: [number, number, number];
   distance: number;
+  /** Used to detect when we've entered a new sigil, even if the position is the same. */
+  inhabitedKey: string;
   cameraRef: React.MutableRefObject<THREE.Camera | null>;
   pivotRef: React.MutableRefObject<THREE.Vector3 | null>;
 }
 
-function CameraHandler({ target, distance, cameraRef, pivotRef: externalPivotRef }: CameraHandlerProps) {
+function CameraHandler({ target, distance, inhabitedKey, cameraRef, pivotRef: externalPivotRef }: CameraHandlerProps) {
   const { camera, gl } = useThree();
   const pivotRef = useRef(new THREE.Vector3(...target));
   const prevTargetKey = useRef("");
@@ -57,9 +59,8 @@ function CameraHandler({ target, distance, cameraRef, pivotRef: externalPivotRef
 
   // Snap to new sigil when inhabited path changes
   useEffect(() => {
-    const key = target.join(",");
-    if (key === prevTargetKey.current) return;
-    prevTargetKey.current = key;
+    if (inhabitedKey === prevTargetKey.current) return;
+    prevTargetKey.current = inhabitedKey;
 
     pivotRef.current.set(...target);
     externalPivotRef.current = pivotRef.current;
@@ -71,36 +72,51 @@ function CameraHandler({ target, distance, cameraRef, pivotRef: externalPivotRef
 
   useEffect(() => {
     const canvas = gl.domElement;
+    let pointerDown = false;
     let dragging = false;
     let shiftDrag = false;
+    let startX = 0;
+    let startY = 0;
     let lastX = 0;
     let lastY = 0;
+    let pointerId = -1;
+    const DRAG_THRESHOLD = 4; // pixels before we consider it a drag
 
-    // ── Pointer: single-finger drag = pan, shift+drag = dolly ──
+    // ── Pointer: single-finger drag = pan, shift+drag = Z-axis ──
+    // Only capture after the pointer moves past threshold, so clicks reach R3F meshes.
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      dragging = true;
+      pointerDown = true;
+      dragging = false;
       shiftDrag = e.shiftKey;
+      startX = e.clientX;
+      startY = e.clientY;
       lastX = e.clientX;
       lastY = e.clientY;
-      canvas.setPointerCapture(e.pointerId);
+      pointerId = e.pointerId;
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!dragging) return;
+      if (!pointerDown) return;
+
+      if (!dragging) {
+        const dist = Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY);
+        if (dist < DRAG_THRESHOLD) return;
+        dragging = true;
+        canvas.setPointerCapture(pointerId);
+      }
+
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
       lastX = e.clientX;
       lastY = e.clientY;
 
       if (shiftDrag || e.shiftKey) {
-        // Shift+drag vertical = move along world Z axis
         const zOffset = new THREE.Vector3(0, 0, dy * 0.01);
         camera.position.add(zOffset);
         pivotRef.current.add(zOffset);
       } else {
-        // Plain drag = pan in screen plane
         const right = new THREE.Vector3();
         const up = new THREE.Vector3();
         right.setFromMatrixColumn(camera.matrix, 0);
@@ -113,9 +129,12 @@ function CameraHandler({ target, distance, cameraRef, pivotRef: externalPivotRef
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      if (dragging) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+      pointerDown = false;
       dragging = false;
       shiftDrag = false;
-      canvas.releasePointerCapture(e.pointerId);
     };
 
     // ── Wheel: two-finger swipe = rotate, pinch (ctrlKey) = dolly ──
@@ -335,15 +354,20 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
 
   const [hovered, setHovered] = useState(false);
 
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    onSelect(node);
+    // Delay single-click so double-click can cancel it
+    clickTimer.current = setTimeout(() => onSelect(node), 250);
   }, [node, onSelect]);
 
   const handleDoubleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    console.log("[SigilSphere] double-click on:", node.name, node.path);
+    if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
     onEnter(node.path);
-  }, [node.path, onEnter]);
+  }, [node.name, node.path, onEnter]);
 
   // Subtle breathing for children of inhabited sigil
   useFrame(() => {
@@ -356,19 +380,23 @@ function SigilSphere({ node, isInhabited, isChild, dark, onEnter, onHover, onSel
     }
   });
 
+  // Inhabited sphere: no raycasting, clicks pass through to children
+  const noRaycast = useCallback(() => {}, []);
+
   return (
     <group position={node.position}>
       <mesh
         ref={meshRef}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        onPointerOver={(e) => {
+        raycast={isInhabited ? noRaycast : undefined}
+        onClick={isInhabited ? undefined : handleClick}
+        onDoubleClick={isInhabited ? undefined : handleDoubleClick}
+        onPointerOver={isInhabited ? undefined : (e) => {
           e.stopPropagation();
           setHovered(true);
           onHover(node);
           document.body.style.cursor = "pointer";
         }}
-        onPointerOut={() => {
+        onPointerOut={isInhabited ? undefined : () => {
           setHovered(false);
           onHover(null);
           document.body.style.cursor = "auto";
@@ -515,15 +543,19 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
 
   const cameraDistance = inhabited.radius * 1.8;
 
+  // Refs for camera/pivot — must be before callbacks that use them
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const pivotRef = useRef<THREE.Vector3 | null>(null);
+
   // Transition animation state
   const transitionRef = useRef<TransitionState | null>(null);
   const [dissolveKey, setDissolveKey] = useState<string | null>(null);
   const [dissolveProgress, setDissolveProgress] = useState(0);
 
   const handleEnter = useCallback((path: string[]) => {
+    console.log("[SigilSpace3D] handleEnter called with path:", path);
     const targetNode = findNode(root, path);
-    if (!targetNode) { onNavigate(path); return; }
-    // Don't animate if entering the currently inhabited sigil
+    if (!targetNode) { console.log("[SigilSpace3D] target not found, direct navigate"); onNavigate(path); return; }
     if (path.join("/") === inhabitedPath.join("/")) return;
 
     const camera = cameraRef.current;
@@ -548,10 +580,6 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
       onNavigate(inhabitedPath.slice(0, -1));
     }
   }, [inhabitedPath, onNavigate]);
-
-  // Refs for camera/pivot so the transition can read them
-  const cameraRef = useRef<THREE.Camera | null>(null);
-  const pivotRef = useRef<THREE.Vector3 | null>(null);
 
   const inhabitedKey = inhabitedPath.join("/");
 
@@ -592,6 +620,7 @@ function Scene({ root, inhabitedPath, dark, onNavigate, onHover, onSelect }: Sce
       <CameraHandler
         target={inhabited.position}
         distance={cameraDistance}
+        inhabitedKey={inhabitedKey}
         cameraRef={cameraRef}
         pivotRef={pivotRef}
       />
@@ -638,6 +667,19 @@ export function SigilSpace3D() {
     window.addEventListener("sigil-toggle-info-panel", toggle);
     return () => window.removeEventListener("sigil-toggle-info-panel", toggle);
   }, []);
+
+  // Escape goes up one level
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && ws.currentPath.length > 0) {
+        e.preventDefault();
+        setPinnedNode(null);
+        navigate(ws.currentPath.slice(0, -1));
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [ws.currentPath, navigate]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", background: dark ? "#0a0a14" : "#f0f0f8" }}>

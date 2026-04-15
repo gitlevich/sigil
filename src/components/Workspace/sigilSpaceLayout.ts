@@ -95,18 +95,18 @@ function layoutSigil(
   // This sphere's radius: at root it's parentRadius, otherwise proportional to subtree
   const radius = parentRadius;
 
-  // Place children packed tightly inside
-  const placementRadius = radius * 0.25;
+  // Place children tightly — dense structure, not cosmos
+  const placementRadius = radius * 0.18;
   const positions = fibonacciSphere(nonImportedChildren.length, placementRadius, center);
 
-  // Each child's radius is proportional to its share of the subtree, but capped
-  const minChildRadius = radius * 0.08;
-  const maxChildRadius = radius * 0.35;
+  // Children fill most of the parent — almost touching
+  const minChildRadius = radius * 0.12;
+  const maxChildRadius = radius * 0.45;
 
   const children: SphereNode[] = nonImportedChildren.map((child, i) => {
     const weight = subtreeSize(child);
     const fraction = totalWeight > 0 ? weight / totalWeight : 1 / Math.max(nonImportedChildren.length, 1);
-    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.28 * Math.sqrt(fraction)));
+    const childRadius = Math.max(minChildRadius, Math.min(maxChildRadius, radius * 0.35 * Math.sqrt(fraction)));
     const childPath = [...path, child.name];
     return layoutSigil(child, childPath, positions[i], childRadius, depth + 1, space);
   });
