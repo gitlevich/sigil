@@ -42,6 +42,15 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+function compareSemver(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  }
+  return 0;
+}
+
 // ── Step 1: Commit pending changes ──────────────────────────────────
 
 console.log("\n=== Step 1: Checking working tree ===\n");
@@ -95,6 +104,20 @@ try {
 
 console.log(`\n=== Step 3: Bumping version (${bump}) ===\n`);
 
+// package.json is the single source of truth for the version.
+// Verify it hasn't drifted below any existing tag — if it has, the state is corrupt
+// and must be fixed manually before releasing.
+const highestTag = runCapture("git tag --sort=-v:refname | head -1 || echo 'v0.0.0'");
+const highestTagVersion = highestTag.replace(/^v/, "");
+const currentVersion = JSON.parse(readFileSync(resolve(root, "package.json"), "utf-8")).version;
+
+if (compareSemver(currentVersion, highestTagVersion) < 0) {
+  fail(
+    `package.json version (${currentVersion}) is behind the highest tag (${highestTag}). ` +
+    `Fix package.json to at least ${highestTagVersion} before releasing.`
+  );
+}
+
 run(`npm version ${bump} --no-git-tag-version`);
 run("npx tsx scripts/sync-version.ts");
 
@@ -104,11 +127,11 @@ const tauriConf = JSON.parse(readFileSync(resolve(root, "src-tauri/tauri.conf.js
 const cargoToml = readFileSync(resolve(root, "src-tauri/Cargo.toml"), "utf-8");
 const cargoVersion = cargoToml.match(/^version = "(.+)"/m)?.[1];
 
-const version = pkg.version;
+if (pkg.version !== version) fail(`package.json version ${pkg.version} != ${version}`);
 if (tauriConf.version !== version) fail(`tauri.conf.json version ${tauriConf.version} != ${version}`);
 if (cargoVersion !== version) fail(`Cargo.toml version ${cargoVersion} != ${version}`);
 
-console.log(`\nVersion synced: ${version} across all config files.\n`);
+console.log(`Version synced: ${version} across all config files.\n`);
 
 // Commit the bump
 run("git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json package-lock.json");
