@@ -308,6 +308,12 @@ export const api = {
 
   invokeLeftHemisphere: (prompt: string, profile: AiProvider) =>
     invoke<string>("invoke_left_hemisphere", { prompt, profile }),
+
+  writeLongTermMemory: (workspacePath: string, json: string) =>
+    invoke<void>("write_long_term_memory", { workspacePath, json }),
+
+  readLongTermMemory: (workspacePath: string) =>
+    invoke<string>("read_long_term_memory", { workspacePath }),
 };
 
 export const events = {

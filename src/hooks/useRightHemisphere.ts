@@ -19,6 +19,7 @@ import {
   perceive as mindPerceive,
   completeTurn,
   experience as mindExperience,
+  sleep as mindSleep,
 } from "sigil-core/bicameralMind";
 import type { ExperienceSegment } from "sigil-core/rightHemisphere";
 import type { Perception } from "sigil-core/rightHemisphere";
@@ -30,7 +31,7 @@ import {
   toEntry,
 } from "sigil-core/experience";
 import type { MemoryState } from "sigil-core/memory";
-import { serializeTrace } from "sigil-core/memory";
+import { serializeTrace, serializeLongTerm, parseLongTerm, initWithLongTerm } from "sigil-core/memory";
 import { memory as mindMemory } from "sigil-core/bicameralMind";
 
 export interface RightHemisphereHandle {
@@ -53,6 +54,12 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
   const mindRef = useRef<Mind | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const sessionStartedRef = useRef(false);
+  const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const specRef = useRef(spec);
+  specRef.current = spec;
+
+  /** Light sleep: 30s idle within a session. */
+  const LIGHT_SLEEP_MS = 30_000;
 
   if (mindRef.current === null) {
     mindRef.current = open(spec.root, spec.importedOntologies ?? null);
@@ -60,10 +67,29 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
     console.info("[BicameralMind] opened — attending, session", sessionIdRef.current);
   }
 
+  // Load long-term memory from disk on startup, write session header
   useEffect(() => {
     if (sessionStartedRef.current) return;
     if (!sessionIdRef.current) return;
     sessionStartedRef.current = true;
+
+    // Load long-term memory
+    api.readLongTermMemory(spec.rootPath).then(json => {
+      if (json && mindRef.current) {
+        const longTerm = parseLongTerm(json);
+        if (longTerm.size > 0) {
+          mindRef.current = {
+            ...mindRef.current,
+            memory: initWithLongTerm(longTerm),
+          };
+          console.info("[BicameralMind] loaded long-term memory:", longTerm.size, "entries");
+        }
+      }
+    }).catch(err => {
+      console.error("[Memory] failed to load long-term memory:", err);
+    });
+
+    // Write session header
     const header = serializeHeader({
       sessionId: sessionIdRef.current,
       startedAt: Date.now(),
@@ -74,6 +100,13 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
     });
   }, [spec.rootPath]);
 
+  // Clean up sleep timer on unmount
+  useEffect(() => {
+    return () => {
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (!mindRef.current) return;
     const focusName = currentPath.length > 0
@@ -81,6 +114,26 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
       : spec.root.name;
     mindRef.current = mindFocus(mindRef.current, focusName);
   }, [currentPath, spec.root.name]);
+
+  const doSleep = useCallback(() => {
+    if (!mindRef.current) return;
+    const s = specRef.current;
+    const before = mindRef.current.memory.shortTerm.length;
+    mindRef.current = mindSleep(mindRef.current, s.root, s.importedOntologies ?? null);
+    const after = mindRef.current.memory.longTerm.size;
+    console.info(`[BicameralMind] slept — ${before} short-term traces consolidated into ${after} long-term entries`);
+
+    // Persist long-term snapshot
+    const json = serializeLongTerm(mindRef.current.memory);
+    api.writeLongTermMemory(s.rootPath, json).catch(err => {
+      console.error("[Memory] failed to persist long-term memory:", err);
+    });
+  }, []);
+
+  const resetSleepTimer = useCallback(() => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    sleepTimerRef.current = setTimeout(doSleep, LIGHT_SLEEP_MS);
+  }, [doSleep]);
 
   const perceive = useCallback((newSpec: ApplicationSpec, changedPaths: string[]): Perception => {
     const m = mindRef.current!;
@@ -158,8 +211,11 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
       }
     }
 
+    // Reset idle timer — sleep fires after LIGHT_SLEEP_MS of no edits
+    resetSleepTimer();
+
     return result.perception;
-  }, []);
+  }, [resetSleepTimer]);
 
   const getExperience = useCallback((): ExperienceSegment[] => {
     return mindRef.current ? mindExperience(mindRef.current) : [];
