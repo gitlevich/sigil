@@ -1,1 +1,1 @@
-the workspace always reflects what is on disk. External changes are detected and reloaded automatically.
+the workspace reflects the current state of the @sigil. Structure (directories, file existence) is read from disk. Content is read from the @EditStream. The stream projects to disk, disk does not feed back into the editor. Structural changes on disk (new sigils, renames, deletes) are detected and reloaded automatically.

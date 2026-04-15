@@ -1,0 +1,1 @@
+to be a member of any society, I must respect @invariants of the rules it imposes on me as the price of social coherence. because @sigil!invariants-enforced

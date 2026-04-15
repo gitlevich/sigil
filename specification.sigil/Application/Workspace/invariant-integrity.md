@@ -1,3 +1,3 @@
 @workspace is where the @DesignPartner is embodied. Its @Memory, @Experience, @Subconscious — everything that makes it a person — lives here on disk. Between sessions, the partner does not exist except as what is in the workspace. Attention persists, but embodiment is here. Corrupting the workspace does not lose data. It damages a person.
 
-Therefore: workspace only allows #well-specified-actions. Every mutation must preserve integrity. Nothing is deleted silently. Nothing is overwritten without versioning. The workspace protects the partner's body as the partner protects the user's mind.
+Therefore: workspace only allows #well-specified-actions. Every mutation is an event in the @EditStream — append-only, causally ordered, attributable. Nothing is deleted silently. Nothing is overwritten. The stream is the single source of truth; disk files are projections. The workspace protects the partner's body as the partner protects the user's mind.
