@@ -144,7 +144,6 @@ fn find_context_by_path<'a>(root: &'a SigilFolder, path: &[String]) -> Option<&'
     Some(ctx)
 }
 
-#[allow(dead_code)]
 fn assemble_sigil_context(root_path: &str, current_path: &[String]) -> Result<String, String> {
     let sigil = read_sigil_with_libs(root_path.to_string())?;
     let mut output = String::new();
@@ -361,10 +360,19 @@ pub async fn send_chat_message(
     system_prompt: String,
     current_path: Vec<String>,
 ) -> Result<(), String> {
-    let system_prompt = if system_prompt.trim().is_empty() {
+    let base_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
     } else {
         system_prompt
+    };
+
+    // The partner wears the sigil. The LLM provides the attention.
+    let sigil_context = assemble_sigil_context(&root_path, &current_path)
+        .unwrap_or_default();
+    let system_prompt = if sigil_context.is_empty() {
+        base_prompt
+    } else {
+        format!("{}\n\n{}", base_prompt, sigil_context)
     };
 
     let chat = read_chat(root_path.clone(), chat_id)?;
