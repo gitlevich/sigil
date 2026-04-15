@@ -198,6 +198,20 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[],
             });
           }
 
+          // !output-in-world — write the observation into the sigil's memory
+          const focus = mindRef.current!.hemisphere.focus;
+          if (focus && turnResult.articulation.observation) {
+            const memoriesDir = `${newSpec.rootPath}/.private/DesignPartnerState/memories`;
+            const memoryPath = `${memoriesDir}/${focus}/language.md`;
+            const content = turnResult.articulation.observation
+              + (turnResult.articulation.suggestions.length > 0
+                ? "\n\n" + turnResult.articulation.suggestions.join("\n")
+                : "");
+            api.writeFile(memoryPath, content).catch(err2 => {
+              console.error("[BicameralMind] failed to write memory sigil:", err2);
+            });
+          }
+
           // #address-user — surface the articulation
           callbacksRef.current?.onArticulation?.(turnResult.articulation, result.perception.experience.sigils);
         }).catch(err => {
