@@ -305,6 +305,9 @@ export const api = {
 
   listExperienceSessions: (workspacePath: string) =>
     invoke<string[]>("list_experience_sessions", { workspacePath }),
+
+  invokeLeftHemisphere: (prompt: string, profile: AiProvider) =>
+    invoke<string>("invoke_left_hemisphere", { prompt, profile }),
 };
 
 export const events = {

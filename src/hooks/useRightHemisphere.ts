@@ -1,22 +1,27 @@
 /**
- * useRightHemisphere — wires the pure RightHemisphere to the workspace.
+ * useBicameralMind — wires the full McGilchrist cycle to the workspace.
  *
- * Holds Hemisphere state in a ref (survives renders without triggering them).
- * Exposes `perceive` for the file watcher to call after reload, and
- * syncs focus from the workspace's currentPath.
+ * Holds Mind state in a ref. On each file change: perceive → Gate decides →
+ * if escalated, calls the LLM via Tauri → feeds response through completeTurn.
+ * Persists experience to disk. Shows articulations in the Experience panel.
  *
- * Persists every experience segment to disk via Tauri commands.
- * One JSONL file per session. !append-only, !causal-ordering, !session-bounded.
+ * The hook name stays useRightHemisphere for backward compatibility with
+ * WorkspaceShell — the interface is the same, the internals are now bicameral.
  */
 import { useRef, useEffect, useCallback } from "react";
-import { api } from "../tauri";
+import { api, selectedProvider } from "../tauri";
 import type { ApplicationSpec } from "../tauri";
-import type { Hemisphere, Perception, ExperienceSegment } from "sigil-core/rightHemisphere";
+import { useAppState } from "../state/AppContext";
+import type { Mind } from "sigil-core/bicameralMind";
 import {
   open,
-  focusOn,
-  perceive as corePerceive,
-} from "sigil-core/rightHemisphere";
+  focus as mindFocus,
+  perceive as mindPerceive,
+  completeTurn,
+  experience as mindExperience,
+} from "sigil-core/bicameralMind";
+import type { ExperienceSegment } from "sigil-core/rightHemisphere";
+import type { Perception } from "sigil-core/rightHemisphere";
 import {
   newSessionId,
   serializeHeader,
@@ -26,23 +31,23 @@ import {
 
 export interface RightHemisphereHandle {
   perceive: (spec: ApplicationSpec, changedPaths: string[]) => Perception;
-  /** Live experience segments for the current session. Read from the hemisphere ref. */
   getExperience: () => ExperienceSegment[];
 }
 
 export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[]): RightHemisphereHandle {
-  const hemisphereRef = useRef<Hemisphere | null>(null);
+  const appState = useAppState();
+  const settingsRef = useRef(appState.settings);
+  settingsRef.current = appState.settings;
+  const mindRef = useRef<Mind | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const sessionStartedRef = useRef(false);
 
-  // Initialize on first spec — !always-on, no cold start.
-  if (hemisphereRef.current === null) {
-    hemisphereRef.current = open(spec.root, spec.importedOntologies ?? null);
+  if (mindRef.current === null) {
+    mindRef.current = open(spec.root, spec.importedOntologies ?? null);
     sessionIdRef.current = newSessionId();
-    console.info("[RightHemisphere] opened — attending, session", sessionIdRef.current);
+    console.info("[BicameralMind] opened — attending, session", sessionIdRef.current);
   }
 
-  // Write session header on first mount. !session-bounded.
   useEffect(() => {
     if (sessionStartedRef.current) return;
     if (!sessionIdRef.current) return;
@@ -57,80 +62,81 @@ export function useRightHemisphere(spec: ApplicationSpec, currentPath: string[])
     });
   }, [spec.rootPath]);
 
-  // Sync focus when navigation changes.
   useEffect(() => {
-    if (!hemisphereRef.current) return;
+    if (!mindRef.current) return;
     const focusName = currentPath.length > 0
       ? currentPath[currentPath.length - 1]
       : spec.root.name;
-    hemisphereRef.current = focusOn(hemisphereRef.current, focusName);
+    mindRef.current = mindFocus(mindRef.current, focusName);
   }, [currentPath, spec.root.name]);
 
   const perceive = useCallback((newSpec: ApplicationSpec, changedPaths: string[]): Perception => {
-    const h = hemisphereRef.current!;
+    const m = mindRef.current!;
     const changedSigils = extractSigilNames(changedPaths, newSpec.rootPath, newSpec.root.name);
 
-    const [perception, nextH] = corePerceive(
-      h,
-      newSpec.root,
-      changedSigils,
-      Date.now(),
-      newSpec.importedOntologies ?? null,
+    const [result, nextMind] = mindPerceive(
+      m, newSpec.root, changedSigils, Date.now(), newSpec.importedOntologies ?? null,
     );
+    mindRef.current = nextMind;
 
-    hemisphereRef.current = nextH;
-
-    // Persist experience — !complete, !append-only.
+    // Persist experience
     if (sessionIdRef.current) {
-      const entry = toEntry(perception.experience, h.focus);
+      const entry = toEntry(result.perception.experience, m.hemisphere.focus);
       const line = serializeEntry(entry);
       api.appendExperience(newSpec.rootPath, sessionIdRef.current, line).catch(err => {
         console.error("[Experience] failed to append entry:", err);
       });
     }
 
-    if (perception.escalation) {
-      const { floor, disturbance } = perception.escalation;
-      const top = disturbance.displaced.slice(0, 3).map(d => d.name);
-      console.info(
-        `[RightHemisphere] escalation — total ${disturbance.total} (floor ${floor}), displaced: ${top.join(", ")}`,
-      );
+    // If the Gate passed — invoke the LeftHemisphere
+    if (result.prompt && settingsRef.current) {
+      const provider = selectedProvider(settingsRef.current);
+      if (provider) {
+        console.info("[BicameralMind] Gate passed — invoking LeftHemisphere");
+        api.invokeLeftHemisphere(result.prompt, provider).then(response => {
+          const [turnResult, afterTurn] = completeTurn(
+            mindRef.current!, response, newSpec.root, newSpec.importedOntologies ?? null,
+          );
+          mindRef.current = afterTurn;
+          console.info("[BicameralMind] LeftHemisphere:", turnResult.articulation.observation);
+          if (turnResult.articulation.suggestions.length > 0) {
+            console.info("[BicameralMind] suggestions:", turnResult.articulation.suggestions.join("; "));
+          }
+        }).catch(err => {
+          console.error("[BicameralMind] LeftHemisphere invocation failed:", err);
+        });
+      } else {
+        console.info("[BicameralMind] Gate passed but no AI provider configured");
+        if (result.suppressedReason) {
+          console.info("[BicameralMind] suppressed:", result.suppressedReason);
+        }
+      }
     }
 
-    return perception;
+    return result.perception;
   }, []);
 
   const getExperience = useCallback((): ExperienceSegment[] => {
-    return hemisphereRef.current?.experience ?? [];
+    return mindRef.current ? mindExperience(mindRef.current) : [];
   }, []);
 
   return { perceive, getExperience };
 }
 
-/**
- * Extract sigil names from filesystem paths, scoped to a workspace root.
- *
- * A sigil file is language.md, affordance-*.md, or invariant-*.md.
- * The parent directory of that file is the sigil. If the parent directory
- * IS the workspace root, the sigil is the root sigil (use rootName).
- */
 function extractSigilNames(paths: string[], workspaceRoot: string, rootName: string): string[] {
   const names = new Set<string>();
   const normalizedRoot = workspaceRoot.endsWith("/") ? workspaceRoot : workspaceRoot + "/";
 
   for (const p of paths) {
-    // Only consider sigil content files
     const fileName = p.split("/").pop() ?? "";
     const isSigilFile = fileName === "language.md"
       || fileName.startsWith("affordance-")
       || fileName.startsWith("invariant-");
     if (!isSigilFile) continue;
 
-    // The sigil is the parent directory of this file
     const dir = p.substring(0, p.lastIndexOf("/"));
     const dirName = dir.split("/").pop() ?? "";
 
-    // If the directory is the workspace root, use the root sigil name
     if (dir === workspaceRoot || dir + "/" === normalizedRoot) {
       names.add(rootName);
     } else if (dir.startsWith(normalizedRoot)) {

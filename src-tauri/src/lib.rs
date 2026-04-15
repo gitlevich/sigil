@@ -109,6 +109,7 @@ pub fn run() {
             commands::workspace_lock::close_workspace,
             commands::experience::append_experience,
             commands::experience::list_experience_sessions,
+            commands::left_hemisphere::invoke_left_hemisphere,
             take_pending_open_path,
         ])
         .build(tauri::generate_context!())

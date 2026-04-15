@@ -17,7 +17,6 @@
  *
  * Pure state machine. The caller drives the cycle.
  */
-import type { Disturbance } from "./continuousAttention";
 import type { Resolution } from "./narration";
 
 // ── Types ──
