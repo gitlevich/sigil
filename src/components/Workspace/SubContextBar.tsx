@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { SigilFolder } from "../../tauri";
 import {
   useWorkspaceState, useWorkspaceActions,
@@ -17,7 +16,9 @@ export function SubContextBar({ context }: SubContextBarProps) {
   const [renamingChild, setRenamingChild] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; childName: string } | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
   const ws = useWorkspaceState();
   const { navigate } = useWorkspaceActions();
   const layoutDispatch = useLayoutDispatch();
@@ -39,6 +40,10 @@ export function SubContextBar({ context }: SubContextBarProps) {
     }
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (deleting && deleteConfirmRef.current) deleteConfirmRef.current.focus();
+  }, [deleting]);
+
   const handleNavigate = (childName: string) => {
     navigate([...ws.currentPath, childName]);
     layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
@@ -55,11 +60,14 @@ export function SubContextBar({ context }: SubContextBarProps) {
     setRenamingChild(null);
   };
 
-  const handleDelete = async (childName: string) => {
-    const childPath = `${context.path}/${childName}`;
-    if (!await confirm(`Delete "${childName}" and all its contents? This cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (childName: string) => {
+    setDeleting(childName);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const childPath = `${context.path}/${deleting}`;
+    setDeleting(null);
     await actions.deleteSigil(childPath, actionDeps);
   };
 
@@ -119,6 +127,27 @@ export function SubContextBar({ context }: SubContextBarProps) {
           >
             Delete
           </button>
+        </div>
+      )}
+
+      {deleting && (
+        <div className={styles.deleteOverlay} onClick={() => setDeleting(null)}>
+          <div
+            className={styles.deleteDialog}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { e.preventDefault(); setDeleting(null); }
+              if (e.key === "Enter") { e.preventDefault(); confirmDelete(); }
+            }}
+          >
+            <label className={styles.deleteLabel}>
+              Delete "{deleting}" and all its contents? This cannot be undone.
+            </label>
+            <div className={styles.deleteActions}>
+              <button className={styles.deleteCancelBtn} onClick={() => setDeleting(null)}>Cancel</button>
+              <button ref={deleteConfirmRef} className={styles.deleteConfirmBtn} onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

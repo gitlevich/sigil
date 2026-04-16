@@ -237,6 +237,43 @@
   box-sizing: border-box;
 }
 
+.deleteActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.deleteCancelBtn,
+.deleteConfirmBtn {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.deleteCancelBtn:hover {
+  background: var(--bg-hover);
+}
+
+.deleteConfirmBtn {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.deleteConfirmBtn:hover {
+  background: var(--danger);
+  color: var(--bg-primary);
+}
+
+.deleteConfirmBtn:focus {
+  box-shadow: 0 0 0 2px var(--danger);
+}
+
 .count {
   font-size: 0.72em;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;

@@ -487,9 +487,11 @@ describe("OntologyTree component", () => {
     }
   });
 
-  it("context menu Delete calls confirm and delete", async () => {
+  it("context menu Delete opens in-app confirmation dialog, not native confirm", async () => {
     const { confirm } = await import("@tauri-apps/plugin-dialog");
+    (confirm as unknown as { mockClear: () => void }).mockClear();
     const { api } = await import("../../../src/tauri");
+    (api.deleteContext as unknown as { mockClear: () => void }).mockClear();
     const root = makeFolder("App", { children: [makeFolder("Child", { path: "/mock/App/Child" })], path: "/mock/App" });
     let container: HTMLElement;
     await act(async () => {
@@ -499,13 +501,18 @@ describe("OntologyTree component", () => {
     const nameSpans = container!.querySelectorAll("[class*='term']");
     const childSpan = Array.from(nameSpans).find(el => el.textContent === "Child");
     const row = childSpan!.closest("[class*='row']") as HTMLElement;
-    expect(row).toBeTruthy();
     await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
-    const deleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
-    expect(deleteBtn).toBeTruthy();
-    await act(async () => { fireEvent.click(deleteBtn); });
-    expect(confirm).toHaveBeenCalled();
-    expect(api.deleteContext).toHaveBeenCalled();
+    const menuDeleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
+    expect(menuDeleteBtn).toBeTruthy();
+    await act(async () => { fireEvent.click(menuDeleteBtn); });
+    // The native confirm must NOT be used — it's broken on macOS 26 Tauri runtime
+    expect(confirm).not.toHaveBeenCalled();
+    // In-app dialog should be rendered, with its own Delete button
+    const dialogText = container!.textContent || "";
+    expect(dialogText).toContain('Delete "Child"');
+    const confirmBtn = Array.from(container!.querySelectorAll("button")).filter(b => b.textContent === "Delete").pop() as HTMLButtonElement;
+    await act(async () => { fireEvent.click(confirmBtn); });
+    expect(api.deleteContext).toHaveBeenCalledWith("/mock/App/Child");
   });
 
   it("right-click on a row does not trigger any file operations", async () => {
@@ -535,10 +542,8 @@ describe("OntologyTree component", () => {
     expect(api.deleteContext).not.toHaveBeenCalled();
   });
 
-  it("context menu Delete works on an empty leaf node", async () => {
-    const { confirm } = await import("@tauri-apps/plugin-dialog");
+  it("context menu Delete works on an empty leaf node (in-app dialog)", async () => {
     const { api } = await import("../../../src/tauri");
-    (confirm as unknown as { mockClear: () => void }).mockClear();
     (api.deleteContext as unknown as { mockClear: () => void }).mockClear();
     const leaf = makeFolder("Leaf", { path: "/mock/App/Leaf", children: [] });
     const root = makeFolder("App", { children: [leaf], path: "/mock/App" });
@@ -550,13 +555,35 @@ describe("OntologyTree component", () => {
     const nameSpans = container!.querySelectorAll("[class*='term']");
     const leafSpan = Array.from(nameSpans).find(el => el.textContent === "Leaf");
     const row = leafSpan!.closest("[class*='row']") as HTMLElement;
-    expect(row).toBeTruthy();
     await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
-    const deleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
-    expect(deleteBtn).toBeTruthy();
-    await act(async () => { fireEvent.click(deleteBtn); });
-    expect(confirm).toHaveBeenCalled();
+    const menuDeleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
+    await act(async () => { fireEvent.click(menuDeleteBtn); });
+    const confirmBtn = Array.from(container!.querySelectorAll("button")).filter(b => b.textContent === "Delete").pop() as HTMLButtonElement;
+    await act(async () => { fireEvent.click(confirmBtn); });
     expect(api.deleteContext).toHaveBeenCalledWith("/mock/App/Leaf");
+  });
+
+  it("Escape cancels the delete dialog", async () => {
+    const { api } = await import("../../../src/tauri");
+    (api.deleteContext as unknown as { mockClear: () => void }).mockClear();
+    const leaf = makeFolder("Leaf", { path: "/mock/App/Leaf", children: [] });
+    const root = makeFolder("App", { children: [leaf], path: "/mock/App" });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<Wrapper spec={makeSpec(root)}><OntologyTree /></Wrapper>);
+      container = result.container;
+    });
+    const nameSpans = container!.querySelectorAll("[class*='term']");
+    const leafSpan = Array.from(nameSpans).find(el => el.textContent === "Leaf");
+    const row = leafSpan!.closest("[class*='row']") as HTMLElement;
+    await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
+    const menuDeleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
+    await act(async () => { fireEvent.click(menuDeleteBtn); });
+    const dialog = container!.querySelector("[class*='renameDialog']") as HTMLElement;
+    expect(dialog).toBeTruthy();
+    await act(async () => { fireEvent.keyDown(dialog, { key: "Escape" }); });
+    expect(api.deleteContext).not.toHaveBeenCalled();
+    expect(container!.querySelector("[class*='renameDialog']")).toBeNull();
   });
 
   it("definition toggle shows textarea", async () => {

@@ -1,5 +1,4 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
@@ -371,8 +370,10 @@ export function OntologyTree() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [refsState, setRefsState] = useState<{ hits: RefHit[]; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ fsPath: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState<{ fsPath: string; name: string } | null>(null);
   const [addingPeerOf, setAddingPeerOf] = useState<string[] | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -408,6 +409,12 @@ export function OntologyTree() {
       renameInputRef.current.select();
     }
   }, [renaming]);
+
+  useEffect(() => {
+    if (deleting && deleteConfirmRef.current) {
+      deleteConfirmRef.current.focus();
+    }
+  }, [deleting]);
 
   const handleDefinitionChange = useCallback((fsPath: string, value: string) => {
     setDefinitions((prev) => ({ ...prev, [fsPath]: value }));
@@ -457,9 +464,15 @@ export function OntologyTree() {
     setRenaming(null);
   };
 
-  const handleDelete = async (node: OntologyNode) => {
-    if (!await confirm(`Delete "${node.name}" and all its contents? This cannot be undone.`)) return;
-    await actions.deleteSigil(node.fsPath, actionDeps);
+  const handleDelete = (node: OntologyNode) => {
+    setDeleting({ fsPath: node.fsPath, name: node.name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const target = deleting;
+    setDeleting(null);
+    await actions.deleteSigil(target.fsPath, actionDeps);
   };
 
   const handlePeerSubmit = async () => {
@@ -603,6 +616,27 @@ export function OntologyTree() {
               }}
               onBlur={(e) => handleRename(renaming.fsPath, renaming.name, e.currentTarget.value)}
             />
+          </div>
+        </div>
+      )}
+
+      {deleting && (
+        <div className={styles.renameOverlay} onClick={() => setDeleting(null)}>
+          <div
+            className={styles.renameDialog}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { e.preventDefault(); setDeleting(null); }
+              if (e.key === "Enter") { e.preventDefault(); confirmDelete(); }
+            }}
+          >
+            <label className={styles.renameLabel}>
+              Delete "{deleting.name}" and all its contents? This cannot be undone.
+            </label>
+            <div className={styles.deleteActions}>
+              <button className={styles.deleteCancelBtn} onClick={() => setDeleting(null)}>Cancel</button>
+              <button ref={deleteConfirmRef} className={styles.deleteConfirmBtn} onClick={confirmDelete}>Delete</button>
+            </div>
           </div>
         </div>
       )}

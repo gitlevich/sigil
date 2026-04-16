@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { useState, useEffect, useRef } from "react";
 import {
   useWorkspaceState, useWorkspaceActions, resolveCurrentFolder,
 } from "../../state/WorkspaceContext";
@@ -17,6 +16,8 @@ export function Atlas() {
   const actionDeps = useActionDeps();
 
   const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; ctx: SigilFolder } | null>(null);
+  const [deleting, setDeleting] = useState<{ path: string; name: string } | null>(null);
+  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
 
   const currentFolder = resolveCurrentFolder(ws);
 
@@ -26,6 +27,17 @@ export function Atlas() {
     document.addEventListener("click", hide);
     return () => document.removeEventListener("click", hide);
   }, [nodeMenu]);
+
+  useEffect(() => {
+    if (deleting && deleteConfirmRef.current) deleteConfirmRef.current.focus();
+  }, [deleting]);
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const target = deleting;
+    setDeleting(null);
+    await actions.deleteSigil(target.path, actionDeps);
+  };
 
   const handleNavigate = (ctx: CoreContext) => {
     const path = buildPath(ws.spec.root, ctx.name, []);
@@ -84,14 +96,34 @@ export function Atlas() {
             </button>
             <button
               className={styles.menuItemDanger}
-              onClick={async () => {
-                if (!await confirm(`Delete "${nodeMenu.ctx.name}" and all its contents?`)) { setNodeMenu(null); return; }
-                await actions.deleteSigil(nodeMenu.ctx.path, actionDeps);
+              onClick={() => {
+                setDeleting({ path: nodeMenu.ctx.path, name: nodeMenu.ctx.name });
                 setNodeMenu(null);
               }}
             >
               Delete
             </button>
+          </div>
+        </div>
+      )}
+
+      {deleting && (
+        <div className={styles.deleteOverlay} onClick={() => setDeleting(null)}>
+          <div
+            className={styles.deleteDialog}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { e.preventDefault(); setDeleting(null); }
+              if (e.key === "Enter") { e.preventDefault(); confirmDelete(); }
+            }}
+          >
+            <label className={styles.deleteLabel}>
+              Delete "{deleting.name}" and all its contents? This cannot be undone.
+            </label>
+            <div className={styles.deleteActions}>
+              <button className={styles.deleteCancelBtn} onClick={() => setDeleting(null)}>Cancel</button>
+              <button ref={deleteConfirmRef} className={styles.deleteConfirmBtn} onClick={confirmDelete}>Delete</button>
+            </div>
           </div>
         </div>
       )}
