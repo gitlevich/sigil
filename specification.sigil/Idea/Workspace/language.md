@@ -14,6 +14,4 @@ I #navigate to any @sigil and all views sync. I see my path via #breadcrumb. I #
 
 When ready, I #export or #publish.
 
-Once @workspace is opened, it is !locked-for-concurrent-modification by other instances of the @application to ensure its !integrity.
-
-As any 
+Once @workspace is opened, it is !locked-for-concurrent-modification by other instances of the application to ensure its !integrity.

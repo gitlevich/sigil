@@ -1,1 +1,1 @@
-@Libs sigil is a part of @Application's standard distribution and available for any open sigil. 
+@Libs sigil is a part of the application's standard distribution and available for any open sigil.

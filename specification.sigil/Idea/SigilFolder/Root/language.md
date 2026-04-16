@@ -4,7 +4,7 @@ status: implemented
 
 # Root
 
-The top of a @SigilFolder hierarchy, like @Application is for this @sigil.
+The top of a @SigilFolder hierarchy, like @Idea is for this @sigil.
 
 It has a #path on the file system that uniquely identifies its location. 
 

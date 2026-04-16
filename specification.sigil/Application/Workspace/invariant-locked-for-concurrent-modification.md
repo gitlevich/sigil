@@ -1,1 +1,0 @@
-only one instance of the @application is allowed to keep the @workspace open to ensure !integrity.

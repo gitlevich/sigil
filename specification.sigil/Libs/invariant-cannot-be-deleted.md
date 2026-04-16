@@ -1,1 +1,1 @@
-not user-deletable via @Application's UI.
+not user-deletable via the application's UI.
