@@ -498,16 +498,65 @@ describe("OntologyTree component", () => {
     });
     const nameSpans = container!.querySelectorAll("[class*='term']");
     const childSpan = Array.from(nameSpans).find(el => el.textContent === "Child");
-    const row = childSpan?.closest("[class*='row']") || childSpan?.parentElement;
-    if (row) {
-      await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
-      const deleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete");
-      if (deleteBtn) {
-        await act(async () => { fireEvent.click(deleteBtn); });
-        expect(confirm).toHaveBeenCalled();
-        expect(api.deleteContext).toHaveBeenCalled();
-      }
-    }
+    const row = childSpan!.closest("[class*='row']") as HTMLElement;
+    expect(row).toBeTruthy();
+    await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
+    const deleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
+    expect(deleteBtn).toBeTruthy();
+    await act(async () => { fireEvent.click(deleteBtn); });
+    expect(confirm).toHaveBeenCalled();
+    expect(api.deleteContext).toHaveBeenCalled();
+  });
+
+  it("right-click on a row does not trigger any file operations", async () => {
+    const { api } = await import("../../../src/tauri");
+    (api.writeFile as unknown as { mockClear: () => void }).mockClear();
+    (api.deleteFile as unknown as { mockClear: () => void }).mockClear();
+    (api.deleteContext as unknown as { mockClear: () => void }).mockClear();
+    const leaf = makeFolder("Leaf", { path: "/mock/App/Leaf", children: [] });
+    const root = makeFolder("App", { children: [leaf], path: "/mock/App" });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<Wrapper spec={makeSpec(root)}><OntologyTree /></Wrapper>);
+      container = result.container;
+    });
+    const nameSpans = container!.querySelectorAll("[class*='term']");
+    const leafSpan = Array.from(nameSpans).find(el => el.textContent === "Leaf");
+    const row = leafSpan!.closest("[class*='row']") as HTMLElement;
+    // Full right-click sequence: mousedown + contextmenu + mouseup, all with button 2
+    await act(async () => {
+      fireEvent.mouseDown(row, { button: 2 });
+      fireEvent.contextMenu(row, { button: 2, clientX: 50, clientY: 50 });
+      fireEvent.mouseUp(row, { button: 2 });
+    });
+    // Right-click must not trigger any write/delete side effects
+    expect(api.writeFile).not.toHaveBeenCalled();
+    expect(api.deleteFile).not.toHaveBeenCalled();
+    expect(api.deleteContext).not.toHaveBeenCalled();
+  });
+
+  it("context menu Delete works on an empty leaf node", async () => {
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    const { api } = await import("../../../src/tauri");
+    (confirm as unknown as { mockClear: () => void }).mockClear();
+    (api.deleteContext as unknown as { mockClear: () => void }).mockClear();
+    const leaf = makeFolder("Leaf", { path: "/mock/App/Leaf", children: [] });
+    const root = makeFolder("App", { children: [leaf], path: "/mock/App" });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<Wrapper spec={makeSpec(root)}><OntologyTree /></Wrapper>);
+      container = result.container;
+    });
+    const nameSpans = container!.querySelectorAll("[class*='term']");
+    const leafSpan = Array.from(nameSpans).find(el => el.textContent === "Leaf");
+    const row = leafSpan!.closest("[class*='row']") as HTMLElement;
+    expect(row).toBeTruthy();
+    await act(async () => { fireEvent.contextMenu(row, { clientX: 50, clientY: 50 }); });
+    const deleteBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Delete") as HTMLButtonElement;
+    expect(deleteBtn).toBeTruthy();
+    await act(async () => { fireEvent.click(deleteBtn); });
+    expect(confirm).toHaveBeenCalled();
+    expect(api.deleteContext).toHaveBeenCalledWith("/mock/App/Leaf");
   });
 
   it("definition toggle shows textarea", async () => {

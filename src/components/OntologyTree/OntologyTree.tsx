@@ -236,7 +236,8 @@ function OntologyItem({
           if (dragState.sourcePath) onTargetLeave(node.fsPath);
           if (getDragPropertySource()) onPropertyTargetLeave(node.fsPath);
         }}
-        onMouseUp={() => {
+        onMouseUp={(e) => {
+          if (e.button !== 0) return;
           if (dragState.sourcePath) onTargetDrop(node.fsPath);
           const propSrc = getDragPropertySource();
           if (propSrc) {
