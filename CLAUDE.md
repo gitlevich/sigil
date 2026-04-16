@@ -22,6 +22,10 @@ The preview_start verification workflow does not apply to this project — never
 
 Read `specification.sigil/how-to-inhabit-the-sigil.md` at the start of every session. This application IS a sigil — its specification lives in `specification.sigil/`. You cannot touch code until you have read the relevant spec, understood the relationships, and become the Design Partner. Quick fixes that ignore the spec are not acceptable.
 
+## Release
+
+To release, use the `release` skill (`.claude/skills/release.md`). Never improvise.
+
 ## Safety
 
 Before ANY destructive git operation (filter-repo, reset --hard, rebase, clean -f), ALWAYS:
