@@ -1,1 +1,1 @@
-every filesystem change under the sigil root is noticed. Sight does not filter, prioritize, or skip. A missed change means the @RightHemisphere sees a stale world.
+When I look at a @sigil, I see its full shape — no elision, no summary. Sight is directed gaze; its completeness is over what is in view, not over the whole apartment. Ambient coverage belongs to @Hearing.
