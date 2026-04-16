@@ -130,6 +130,9 @@ function InlinePeerInput({
   );
 }
 
+/** Suppresses click navigation after a property drop completes on a tree node. */
+let propertyDropJustHappened = false;
+
 function pathKey(path: string[]): string {
   return path.join("/");
 }
@@ -142,6 +145,7 @@ function OntologyItem({
   addingPeerAfterPath,
   collapsedPaths,
   dragState,
+  propertyDropTarget,
   onNavigate,
   onDefinitionChange,
   onContextMenu,
@@ -149,6 +153,8 @@ function OntologyItem({
   onTargetEnter,
   onTargetLeave,
   onTargetDrop,
+  onPropertyTargetEnter,
+  onPropertyTargetLeave,
   onPropertyDrop,
   onPeerSubmit,
   onPeerAbort,
@@ -162,6 +168,7 @@ function OntologyItem({
   addingPeerAfterPath: string[] | null;
   collapsedPaths: Set<string>;
   dragState: DragState;
+  propertyDropTarget: string | null;
   onNavigate: (path: string[]) => void;
   onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
@@ -169,6 +176,8 @@ function OntologyItem({
   onTargetEnter: (fsPath: string) => void;
   onTargetLeave: (fsPath: string) => void;
   onTargetDrop: (fsPath: string) => void;
+  onPropertyTargetEnter: (fsPath: string) => void;
+  onPropertyTargetLeave: (fsPath: string) => void;
   onPropertyDrop: (targetFsPath: string, source: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => void;
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
@@ -181,7 +190,7 @@ function OntologyItem({
   const expanded = !collapsedPaths.has(pathKey(node.path));
   const [defOpen, setDefOpen] = useState(false);
   const open = forceExpand || expanded;
-  const isDropTarget = dragState.targetPath === node.fsPath;
+  const isDropTarget = dragState.targetPath === node.fsPath || propertyDropTarget === node.fsPath;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -212,27 +221,25 @@ function OntologyItem({
         ref={rowRef}
         className={`${styles.row} ${isActive ? styles.active : ""} ${isDropTarget ? styles.dropTarget : ""}`}
         onMouseDown={(e) => { if (node.path.length > 0) onDragStart(e, node.fsPath); }}
-        onMouseEnter={() => { if (dragState.sourcePath) onTargetEnter(node.fsPath); }}
-        onMouseLeave={() => { if (dragState.sourcePath) onTargetLeave(node.fsPath); }}
-        onMouseUp={() => { if (dragState.sourcePath) onTargetDrop(node.fsPath); }}
-        onDragOver={(e) => {
-          // Still handle HTML5 property drags from SigilPropertyEditor
-          e.stopPropagation();
-          const isPropertyDrag = getDragPropertySource() !== null;
-          if (isPropertyDrag) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-          }
+        onMouseEnter={() => {
+          if (dragState.sourcePath) onTargetEnter(node.fsPath);
+          if (getDragPropertySource()) onPropertyTargetEnter(node.fsPath);
         }}
-        onDrop={(e) => {
+        onMouseLeave={() => {
+          if (dragState.sourcePath) onTargetLeave(node.fsPath);
+          if (getDragPropertySource()) onPropertyTargetLeave(node.fsPath);
+        }}
+        onMouseUp={() => {
+          if (dragState.sourcePath) onTargetDrop(node.fsPath);
           const propSrc = getDragPropertySource();
           if (propSrc) {
-            e.preventDefault(); e.stopPropagation();
             clearDragPropertySource();
+            propertyDropJustHappened = true;
+            setTimeout(() => { propertyDropJustHappened = false; }, 0);
             onPropertyDrop(node.fsPath, propSrc);
           }
         }}
-        onClick={() => { if (!dragState.sourcePath) onNavigate(node.path); }}
+        onClick={() => { if (!dragState.sourcePath && !propertyDropJustHappened) onNavigate(node.path); }}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e, node); }}
       >
         {hasChildren ? (
@@ -301,6 +308,7 @@ function OntologyItem({
                 addingPeerAfterPath={addingPeerAfterPath}
                 collapsedPaths={collapsedPaths}
                 dragState={dragState}
+                propertyDropTarget={propertyDropTarget}
                 onNavigate={onNavigate}
                 onDefinitionChange={onDefinitionChange}
                 onContextMenu={onContextMenu}
@@ -308,6 +316,8 @@ function OntologyItem({
                 onTargetEnter={onTargetEnter}
                 onTargetLeave={onTargetLeave}
                 onTargetDrop={onTargetDrop}
+                onPropertyTargetEnter={onPropertyTargetEnter}
+                onPropertyTargetLeave={onPropertyTargetLeave}
                 onPropertyDrop={onPropertyDrop}
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
@@ -404,7 +414,18 @@ export function OntologyTree() {
     canDrop,
   });
 
+  const [propertyDropTarget, setPropertyDropTarget] = useState<string | null>(null);
+
+  const handlePropertyTargetEnter = useCallback((fsPath: string) => {
+    setPropertyDropTarget(fsPath);
+  }, []);
+
+  const handlePropertyTargetLeave = useCallback((fsPath: string) => {
+    setPropertyDropTarget(prev => prev === fsPath ? null : prev);
+  }, []);
+
   const handlePropertyDrop = async (targetFsPath: string, src: { kind: "affordance" | "invariant"; name: string; content: string; sourcePath: string }) => {
+    setPropertyDropTarget(null);
     await actions.moveProperty(targetFsPath, src, actionDeps);
     const spec = await reload();
     if (spec) await reloadDefinitions(spec.root);
@@ -480,6 +501,7 @@ export function OntologyTree() {
     addingPeerAfterPath: addingPeerOf,
     collapsedPaths: collapsedSet,
     dragState,
+    propertyDropTarget,
     onNavigate: (path: string[]) => navigate(path),
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
@@ -487,6 +509,8 @@ export function OntologyTree() {
     onTargetEnter,
     onTargetLeave,
     onTargetDrop,
+    onPropertyTargetEnter: handlePropertyTargetEnter,
+    onPropertyTargetLeave: handlePropertyTargetLeave,
     onPropertyDrop: handlePropertyDrop,
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),

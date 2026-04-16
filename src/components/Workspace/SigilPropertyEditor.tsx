@@ -6,6 +6,7 @@ import { api, SigilFolder } from "../../tauri";
 import { RenamePopup } from "../shared/RenamePopup";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
+import { DRAG_THRESHOLD, createDragGhost, suppressTextSelection, restoreTextSelection } from "../../hooks/useMouseDrag";
 import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import {
@@ -302,11 +303,10 @@ function PropertyItem({
   onFoldToggle,
   isMaximized,
   onMaximizeToggle,
-  propertyKind,
-  sigilPath,
-  onDragStart,
-  onDragOver,
-  onDrop,
+  onDragHandleDown,
+  onReorderEnter,
+  onReorderLeave,
+  onReorderDrop,
   scope,
   scopeNames,
   sigilRoot,
@@ -323,16 +323,15 @@ function PropertyItem({
   isDragOver: boolean;
   isFolded: boolean;
   isMaximized: boolean;
-  propertyKind: "affordance" | "invariant";
-  sigilPath: string;
   onNameCommit: (newName: string) => void;
   onContentChange: (content: string) => void;
   onDelete: () => void;
   onFoldToggle: () => void;
   onMaximizeToggle: () => void;
-  onDragStart: () => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: () => void;
+  onDragHandleDown: (e: React.MouseEvent) => void;
+  onReorderEnter: () => void;
+  onReorderLeave: () => void;
+  onReorderDrop: () => void;
   scope?: ScopeEntry[];
   scopeNames?: string[];
   sigilRoot?: SigilFolder;
@@ -350,21 +349,24 @@ function PropertyItem({
   return (
     <div
       className={`${styles.item} ${isDragOver ? styles.itemDragOver : ""} ${isMaximized ? styles.itemMaximized : ""}`}
-      onDragOver={onDragOver}
-      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      onMouseEnter={() => { if (getDragPropertySource()) onReorderEnter(); }}
+      onMouseLeave={() => { if (getDragPropertySource()) onReorderLeave(); }}
+      onMouseUp={() => {
+        if (getDragPropertySource()) {
+          clearDragPropertySource();
+          onReorderDrop();
+        }
+      }}
     >
       <span
         className={styles.dragHandle}
         title="Drag to reorder or move to another sigil"
-        draggable
-        onDragStart={(e) => {
+        onMouseDown={(e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
           e.stopPropagation();
-          onDragStart();
-          if (item.savedName) {
-            dragPropertySource = { kind: propertyKind, name: item.savedName, content: item.content, sourcePath: sigilPath };
-          }
+          onDragHandleDown(e);
         }}
-        onDragEnd={() => { dragPropertySource = null; }}
       >&#x283F;</span>
       <div className={styles.itemBody}>
       <div className={`${styles.itemHeader} ${isFolded ? styles.itemHeaderFolded : ""}`}>
@@ -475,6 +477,12 @@ export function SigilPropertyEditor({
   const [renameState, setRenameState] = useState<{ oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" } | null>(null);
   const [refsState, setRefsState] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
   const dragSourceIndex = useRef<number | null>(null);
+  const propertyDragRef = useRef<{
+    startX: number; startY: number; active: boolean;
+    sourceEl: HTMLElement | null;
+    pendingSource: DragPropertySource | null;
+  } | null>(null);
+  const propertyGhostRef = useRef(createDragGhost());
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingWrites = useRef<Record<string, string>>({});
   const listRef = useRef<HTMLDivElement>(null);
@@ -651,6 +659,57 @@ export function SigilPropertyEditor({
     setDragOverIndex(null);
   }, [saveOrder]);
 
+  const handlePropertyDragStart = useCallback((e: React.MouseEvent, index: number, item: LocalItem) => {
+    dragSourceIndex.current = index;
+    propertyDragRef.current = {
+      startX: e.clientX, startY: e.clientY, active: false,
+      sourceEl: (e.target as HTMLElement).closest(`.${styles.item}`) as HTMLElement | null,
+      pendingSource: item.savedName ? {
+        kind: filePrefix as "affordance" | "invariant",
+        name: item.savedName,
+        content: item.content,
+        sourcePath: sigilPath,
+      } : null,
+    };
+    suppressTextSelection();
+  }, [filePrefix, sigilPath]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const drag = propertyDragRef.current;
+      if (!drag) return;
+      if (!drag.active) {
+        const dx = e.clientX - drag.startX;
+        const dy = e.clientY - drag.startY;
+        if (dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD) {
+          drag.active = true;
+          if (drag.pendingSource) dragPropertySource = drag.pendingSource;
+          if (drag.sourceEl) propertyGhostRef.current.show(drag.sourceEl, drag.startX, drag.startY);
+          document.body.style.cursor = "grabbing";
+        }
+      }
+      if (drag.active) propertyGhostRef.current.move(e.clientX, e.clientY);
+    };
+
+    const handleMouseUp = () => {
+      if (!propertyDragRef.current) return;
+      restoreTextSelection();
+      propertyGhostRef.current.hide();
+      document.body.style.cursor = "";
+      dragPropertySource = null;
+      propertyDragRef.current = null;
+      dragSourceIndex.current = null;
+      setDragOverIndex(null);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
   return (
     <div ref={listRef} className={`${styles.editor} ${maximizedItem ? styles.editorMaximized : ""}`} style={{ "--property-color": color } as React.CSSProperties}>
       <div className={styles.header} onClick={() => setCollapsed((c) => !c)}>
@@ -688,16 +747,15 @@ export function SigilPropertyEditor({
                 isDragOver={dragOverIndex === i}
                 isFolded={maximizedItem ? false : foldedItems.has(item.savedName)}
                 isMaximized={maximizedItem === item.id}
-                propertyKind={filePrefix as "affordance" | "invariant"}
-                sigilPath={sigilPath}
                 onContentChange={(c) => handleContentChange(item.savedName, c)}
                 onNameCommit={(n) => handleNameCommit(item.savedName, n)}
                 onDelete={() => handleDelete(item.savedName)}
                 onFoldToggle={() => toggleItemFold(item.savedName)}
                 onMaximizeToggle={() => setMaximizedItem((prev) => prev === item.id ? null : item.id)}
-                onDragStart={() => { dragSourceIndex.current = i; }}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
-                onDrop={() => handleDrop(i)}
+                onDragHandleDown={(e) => handlePropertyDragStart(e, i, item)}
+                onReorderEnter={() => setDragOverIndex(i)}
+                onReorderLeave={() => setDragOverIndex((prev) => prev === i ? null : prev)}
+                onReorderDrop={() => handleDrop(i)}
                 scope={scope}
                 scopeNames={scopeNames}
                 sigilRoot={sigilRoot}

@@ -16,12 +16,12 @@ interface DragCallbacks {
   canDrop?: (sourcePath: string, targetPath: string) => boolean;
 }
 
-function suppressTextSelection() {
+export function suppressTextSelection() {
   document.body.style.userSelect = "none";
   document.body.style.webkitUserSelect = "none";
 }
 
-function restoreTextSelection() {
+export function restoreTextSelection() {
   document.body.style.userSelect = "";
   document.body.style.webkitUserSelect = "";
 }
