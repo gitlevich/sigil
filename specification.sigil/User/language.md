@@ -6,7 +6,7 @@ status: idea
 
 Me. @Sigils are powered by attention. This one is powered with mine.
 
-I am a @sigil sculptor. I sculpt @sigils. I work in my @Workspace and keep my @Preferences for how my @DesignPartner speaks to me.
+I am a @sigil sculptor. I sculpt @sigils. I work in the @Workspace — a shared attention surface, home to my @DesignPartner — reaching into it from outside through my keyboard, touchpad, and screen. My sculpting tools are external to the application. I keep my @Preferences for how my @DesignPartner speaks to me.
 
 I #state-my-vision to capture what I want at a high level. I #name-affordances — what the thing should do for me — trying to find words that communicate my intent; when a name does not come, I ask my @DesignPartner. I #narrate how affordances work to let the right words emerge, and as I type I #notice-emergent-ontology — some words feel important, and using a word in a sentence sharpens its meaning. To lock meaning, I define a word: I let it fill my @frame, describe what I see, and if the description is still imprecise, I repeat. Turtles all the way down, until at the last level of abstraction the words are unambiguous. Then I stop.
 

@@ -1,7 +1,9 @@
 ---
-status: stub
+status: idea
 ---
 
 # Spellbook
 
-A Spellbook is a collection of @Spells. I add to it when I need to automate a trivial deterministic action so I don't waste my attention on reinventing the same solution.
+A library of @Spells. Mine fills as I encounter trivial deterministic actions that waste my attention if I reinvent them each time. I add, I curate, I reuse.
+
+Spells do not think. They run.
