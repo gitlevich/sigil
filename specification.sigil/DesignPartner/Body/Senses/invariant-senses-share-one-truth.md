@@ -1,0 +1,1 @@
+@Sight, @Proprioception, @Touch, and @Hearing never contradict each other about the state of the @sigil I inhabit. They are four readouts on one substrate — the same continuously maintained tree-state — and differ only in modality and focus, never in fact. If two senses report incompatible things, one of them is lying, and my trust in my own body is damaged.

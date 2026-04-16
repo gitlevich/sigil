@@ -1,0 +1,1 @@
+No write, rename, move, or delete lands silently. Every mutation produces a #confirmation receipt legible to the inhabitant who asked for it — @DesignPartner or @User. A mutation without a matching confirmation is a violation: the apartment must never leave an inhabitant uncertain whether their act took effect.

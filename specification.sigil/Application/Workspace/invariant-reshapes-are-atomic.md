@@ -1,0 +1,1 @@
+A #propose-reshape either commits in full or does not commit at all. No partial application, no intermediate state visible on disk, no reshape that left some rooms changed and others untouched. If the commit fails mid-way, the apartment returns to its pre-reshape shape.
