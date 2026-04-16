@@ -10,4 +10,4 @@ The Idea contains a @Workspace where the @User works and a @SigilFolder where th
 
 !vision-tab-opened-on-first-run. !state-restored-to-saved on subsequent runs. !state-saved-on-exit. !is-an-image-centric-application.
 
-When projected, this Idea becomes the application called Sigil Development Environment (SDE).
+When projected, this Idea becomes the application called **Sigil**.
