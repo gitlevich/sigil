@@ -20,10 +20,4 @@ Language change — the story told about children changed, altering entanglement
 
 Structural change — a child @sigil moved in or out. The parent loses or gains authority. A moved child can still be referenced but is no longer controlled.
 
-Three levels of authority over referenced @sigils:
-
-Children — I define them. I control their #affordances and #invariants. Reliable.
-
-Neighbors — I reference them. Peers, not under my authority. Unreliable — they can change without consulting me.
-
-Parent — I inherit from it. I can't see its implementation. Its #affordances are laws of nature for me.
+A @sigil attended by an @observer occupies one of four @Rings relative to that observer: @Self, @Children, @Neighbor, or @Fundamentals. The ring governs how the @sigil is attended, what its #invariants cost to violate, and what #affordances it offers.
