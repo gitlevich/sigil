@@ -73,8 +73,15 @@ export function canDropOnNode(src: string, target: string, allNodes: OntologyNod
   if (target.startsWith(src + "/")) return false;
   const targetNode = allNodes.find(n => n.fsPath === target);
   if (!targetNode) return false;
-  if (!targetNode.isImported && targetNode.children.length >= 5) return false;
   return true;
+}
+
+/** Density band for child count. Green up to 5, yellow 6-8, red 9+. */
+export function childCountBand(n: number): "green" | "yellow" | "red" | null {
+  if (n <= 0) return null;
+  if (n <= 5) return "green";
+  if (n <= 8) return "yellow";
+  return "red";
 }
 
 async function loadDefinitions(root: OntologyNode): Promise<Record<string, string>> {
@@ -253,6 +260,15 @@ function OntologyItem({
           <span className={styles.chevronPlaceholder} />
         )}
         <span className={`${styles.term} ${node.isImported ? styles.imported : ""}`}>{node.name}</span>
+        {(() => {
+          const band = childCountBand(node.children.length);
+          if (!band) return null;
+          return (
+            <span className={`${styles.count} ${styles[`count_${band}`]}`}>
+              ({node.children.length})
+            </span>
+          );
+        })()}
         <button
           className={`${styles.defBtn} ${defOpen ? styles.defBtnOpen : ""} ${!defOpen && definitions[node.fsPath]?.trim() ? styles.defBtnDefined : ""}`}
           onClick={(e) => { e.stopPropagation(); setDefOpen(!defOpen); }}

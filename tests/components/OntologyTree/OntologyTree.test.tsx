@@ -10,7 +10,7 @@ import { ToastContext } from "../../../src/hooks/useToast";
 import type { Toast } from "../../../src/hooks/useToast";
 import {
   OntologyTree, canDropOnNode, buildOntology, nodeMatches, pathsEqual,
-  flattenPaths, flattenNodes,
+  flattenPaths, flattenNodes, childCountBand,
 } from "../../../src/../src/components/OntologyTree/OntologyTree";
 import type { OntologyNode } from "../../../src/../src/components/OntologyTree/OntologyTree";
 
@@ -140,19 +140,31 @@ describe("flattenNodes", () => {
   });
 });
 
+describe("childCountBand", () => {
+  it("returns null for zero", () => expect(childCountBand(0)).toBeNull());
+  it("returns green for 1–5", () => {
+    expect(childCountBand(1)).toBe("green");
+    expect(childCountBand(5)).toBe("green");
+  });
+  it("returns yellow for 6–8", () => {
+    expect(childCountBand(6)).toBe("yellow");
+    expect(childCountBand(8)).toBe("yellow");
+  });
+  it("returns red for 9+", () => {
+    expect(childCountBand(9)).toBe("red");
+    expect(childCountBand(42)).toBe("red");
+  });
+});
+
 describe("canDropOnNode", () => {
   const nodes = [node("A", { fsPath: "/a" }), node("B", { fsPath: "/b" })];
   it("rejects self", () => expect(canDropOnNode("/a", "/a", nodes)).toBe(false));
   it("rejects descendant", () => expect(canDropOnNode("/a", "/a/b", nodes)).toBe(false));
   it("allows valid", () => expect(canDropOnNode("/a", "/b", nodes)).toBe(true));
   it("rejects unknown target", () => expect(canDropOnNode("/a", "/z", nodes)).toBe(false));
-  it("rejects full non-imported target", () => {
-    const full = node("F", { fsPath: "/f", children: [node("1", { fsPath: "/1" }), node("2", { fsPath: "/2" }), node("3", { fsPath: "/3" }), node("4", { fsPath: "/4" }), node("5", { fsPath: "/5" })] });
-    expect(canDropOnNode("/a", "/f", [...nodes, full])).toBe(false);
-  });
-  it("allows full imported target", () => {
-    const imp = node("I", { fsPath: "/i", isImported: true, children: [node("1", { fsPath: "/1" }), node("2", { fsPath: "/2" }), node("3", { fsPath: "/3" }), node("4", { fsPath: "/4" }), node("5", { fsPath: "/5" })] });
-    expect(canDropOnNode("/a", "/i", [...nodes, imp])).toBe(true);
+  it("allows dense target — density is now a visual hint, not a hard limit", () => {
+    const dense = node("D", { fsPath: "/d", children: [node("1", { fsPath: "/1" }), node("2", { fsPath: "/2" }), node("3", { fsPath: "/3" }), node("4", { fsPath: "/4" }), node("5", { fsPath: "/5" }), node("6", { fsPath: "/6" })] });
+    expect(canDropOnNode("/a", "/d", [...nodes, dense])).toBe(true);
   });
 });
 

@@ -689,20 +689,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_context_max_five() {
-        let tmp = TempDir::new().unwrap();
-        let root_path = setup_sigil(&tmp);
-
-        create_context(root_path.clone(), "C".to_string()).unwrap();
-        create_context(root_path.clone(), "D".to_string()).unwrap();
-        create_context(root_path.clone(), "E".to_string()).unwrap();
-
-        let result = create_context(root_path, "F".to_string());
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Maximum of 5"));
-    }
-
-    #[test]
     fn test_rename_context() {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);

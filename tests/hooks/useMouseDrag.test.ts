@@ -53,16 +53,16 @@ describe("canDropOnNode", () => {
     expect(canDropOnNode("/root/A", "/nonexistent", allNodes)).toBe(false);
   });
 
-  it("rejects drop onto node with 5+ children", () => {
-    const kids = Array.from({ length: 5 }, (_, i) =>
-      node(`K${i}`, `/root/Full/K${i}`)
+  it("allows drop onto dense node — density is a visual hint, not a hard limit", () => {
+    const kids = Array.from({ length: 9 }, (_, i) =>
+      node(`K${i}`, `/root/Dense/K${i}`)
     );
-    const fullNode = node("Full", "/root/Full", { children: kids });
-    const nodes = [root, fullNode, ...kids, child1];
-    expect(canDropOnNode("/root/A", "/root/Full", nodes)).toBe(false);
+    const denseNode = node("Dense", "/root/Dense", { children: kids });
+    const nodes = [root, denseNode, ...kids, child1];
+    expect(canDropOnNode("/root/A", "/root/Dense", nodes)).toBe(true);
   });
 
-  it("allows drop onto imported node with 5+ children", () => {
+  it("allows drop onto imported node with many children", () => {
     const kids = Array.from({ length: 5 }, (_, i) =>
       node(`K${i}`, `/root/Lib/K${i}`)
     );
@@ -71,13 +71,13 @@ describe("canDropOnNode", () => {
     expect(canDropOnNode("/root/A", "/root/Lib", nodes)).toBe(true);
   });
 
-  it("allows drop onto node with exactly 4 children", () => {
+  it("allows drop onto sparse node", () => {
     const kids = Array.from({ length: 4 }, (_, i) =>
-      node(`K${i}`, `/root/Almost/K${i}`)
+      node(`K${i}`, `/root/Sparse/K${i}`)
     );
-    const almostFull = node("Almost", "/root/Almost", { children: kids });
-    const nodes = [root, almostFull, ...kids, child1];
-    expect(canDropOnNode("/root/A", "/root/Almost", nodes)).toBe(true);
+    const sparseNode = node("Sparse", "/root/Sparse", { children: kids });
+    const nodes = [root, sparseNode, ...kids, child1];
+    expect(canDropOnNode("/root/A", "/root/Sparse", nodes)).toBe(true);
   });
 });
 

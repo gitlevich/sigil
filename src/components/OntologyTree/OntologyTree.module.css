@@ -237,6 +237,24 @@
   box-sizing: border-box;
 }
 
+.count {
+  font-size: 0.72em;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  padding: 0 4px;
+  opacity: 0.75;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.count_green { color: #7ba05b; }
+.count_yellow { color: #c9a227; }
+.count_red { color: #b06060; }
+
+.row.active .count {
+  color: inherit;
+  opacity: 0.8;
+}
+
 .defBtn {
   background: none;
   border: none;
