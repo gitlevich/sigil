@@ -28,6 +28,38 @@ export interface Idea {
   importedOntologies?: SigilFolder;
 }
 
+/**
+ * ReshapePreview — the blast radius of a proposed reshape, computed without
+ * mutating the filesystem. Feeds the Workspace's #propose-reshape affordance.
+ */
+export interface ReferenceChangeLine {
+  lineNumber: number;
+  before: string;
+  after: string;
+}
+
+export interface FileReferenceChange {
+  path: string;
+  matchCount: number;
+  sampleLines: ReferenceChangeLine[];
+}
+
+export interface DirectoryRename {
+  fromPath: string;
+  toPath: string;
+}
+
+export interface ReshapePreview {
+  operation: string;
+  oldName: string;
+  newName: string;
+  targetOldPath: string;
+  targetNewPath: string;
+  fileChanges: FileReferenceChange[];
+  directoryRenames: DirectoryRename[];
+  totalMatchCount: number;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -236,6 +268,9 @@ export const api = {
 
   renameSigil: (rootPath: string, path: string, newName: string) =>
     invoke<string>("rename_sigil", { rootPath, path, newName }),
+
+  previewRenameSigil: (rootPath: string, path: string, newName: string) =>
+    invoke<ReshapePreview>("preview_rename_sigil", { rootPath, path, newName }),
 
   moveSigil: (rootPath: string, path: string, newParentPath: string) =>
     invoke<string>("move_sigil", { rootPath, path, newParentPath }),

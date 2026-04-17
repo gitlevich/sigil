@@ -10,6 +10,7 @@ import { useActionDeps } from "../../hooks/useActionDeps";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
 import { findAllReferencesInTree } from "../Workspace/editorScope";
 import { RefsDropdown } from "../shared/RefsDropdown";
+import { ProposeReshapeModal } from "../Workspace/ProposeReshapeModal";
 import type { RefHit } from "../shared/RefsDropdown";
 import { useMouseDrag } from "../../hooks/useMouseDrag";
 import type { DragState } from "../../hooks/useMouseDrag";
@@ -370,6 +371,7 @@ export function OntologyTree() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [refsState, setRefsState] = useState<{ hits: RefHit[]; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ fsPath: string; name: string } | null>(null);
+  const [reshaping, setReshaping] = useState<{ fsPath: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState<{ fsPath: string; name: string } | null>(null);
   const [addingPeerOf, setAddingPeerOf] = useState<string[] | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -575,6 +577,9 @@ export function OntologyTree() {
       {contextMenu && (
         <div ref={contextMenuRef} className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button className={styles.menuItem} onClick={() => { setRenaming({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Rename</button>
+          {contextMenu.node.path.length > 0 && (
+            <button className={styles.menuItem} onClick={() => { setReshaping({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Propose reshape…</button>
+          )}
           <button className={styles.menuItem} onClick={() => {
             const hits = findAllReferencesInTree(ws.spec.root, contextMenu.node.name, []);
             if (hits.length > 0) {
@@ -599,6 +604,14 @@ export function OntologyTree() {
           y={refsState.y}
           onNavigate={(path) => navigate(path)}
           onClose={() => setRefsState(null)}
+        />
+      )}
+
+      {reshaping && (
+        <ProposeReshapeModal
+          targetPath={reshaping.fsPath}
+          oldName={reshaping.name}
+          onClose={() => setReshaping(null)}
         />
       )}
 

@@ -545,6 +545,172 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
     }).to_string())
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReferenceChangeLine {
+    pub line_number: usize,
+    pub before: String,
+    pub after: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileReferenceChange {
+    /// Path relative to the workspace root, using forward slashes.
+    pub path: String,
+    /// Total lines in this file that would change.
+    pub match_count: usize,
+    /// Up to N sampled before/after lines for rendering the preview.
+    pub sample_lines: Vec<ReferenceChangeLine>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryRename {
+    pub from_path: String,
+    pub to_path: String,
+}
+
+/// The full blast radius of a proposed reshape, computed without mutating the filesystem.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReshapePreview {
+    pub operation: String,
+    pub old_name: String,
+    pub new_name: String,
+    pub target_old_path: String,
+    pub target_new_path: String,
+    pub file_changes: Vec<FileReferenceChange>,
+    pub directory_renames: Vec<DirectoryRename>,
+    pub total_match_count: usize,
+}
+
+/// Compute the blast radius of a rename-sigil without touching the filesystem.
+///
+/// Spec affordance: Workspace/#propose-reshape.
+/// Spec invariant: Workspace/!reshapes-are-atomic — the preview is honest about
+/// what the reshape would do; the commit is performed separately (via rename_sigil)
+/// and applies in full or not at all.
+#[tauri::command]
+pub fn preview_rename_sigil(
+    root_path: String,
+    path: String,
+    new_name: String,
+) -> Result<ReshapePreview, String> {
+    const MAX_SAMPLE_LINES: usize = 5;
+
+    let old_path = Path::new(&path);
+    let old_name = old_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine current name".to_string())?
+        .to_string();
+
+    let parent = old_path
+        .parent()
+        .ok_or_else(|| "Cannot rename root".to_string())?;
+    let new_path = parent.join(&new_name);
+
+    let case_only = old_name.to_lowercase() == new_name.to_lowercase();
+    if !case_only && new_path.exists() {
+        return Err(format!("A context named '{}' already exists", new_name));
+    }
+
+    let root = Path::new(&root_path);
+    let mut file_changes: Vec<FileReferenceChange> = Vec::new();
+    let mut total_match_count = 0usize;
+
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+    {
+        let file_path = entry.path();
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !matches!(ext, "md" | "json" | "txt" | "") {
+            continue;
+        }
+        let content = match fs::read_to_string(file_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let updated = replace_references(&content, &old_name, &new_name);
+        if updated == content {
+            continue;
+        }
+
+        let old_lines: Vec<&str> = content.lines().collect();
+        let new_lines: Vec<&str> = updated.lines().collect();
+        let mut sample_lines: Vec<ReferenceChangeLine> = Vec::new();
+        let mut match_count = 0usize;
+
+        let limit = old_lines.len().max(new_lines.len());
+        for i in 0..limit {
+            let old_line = old_lines.get(i).copied().unwrap_or("");
+            let new_line = new_lines.get(i).copied().unwrap_or("");
+            if old_line != new_line {
+                match_count += 1;
+                if sample_lines.len() < MAX_SAMPLE_LINES {
+                    sample_lines.push(ReferenceChangeLine {
+                        line_number: i + 1,
+                        before: old_line.to_string(),
+                        after: new_line.to_string(),
+                    });
+                }
+            }
+        }
+
+        let rel_path = file_path
+            .strip_prefix(root)
+            .unwrap_or(file_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        file_changes.push(FileReferenceChange {
+            path: rel_path,
+            match_count,
+            sample_lines,
+        });
+        total_match_count += match_count;
+    }
+
+    // Directories whose basename equals old_name (excluding the root) would also rename.
+    let mut directory_renames: Vec<DirectoryRename> = Vec::new();
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir() && e.path() != root && e.path() != old_path)
+    {
+        if entry.file_name().to_str() == Some(old_name.as_str()) {
+            let from = entry.path();
+            let parent_dir = from.parent().unwrap();
+            let to = parent_dir.join(&new_name);
+            directory_renames.push(DirectoryRename {
+                from_path: from.to_string_lossy().to_string(),
+                to_path: to.to_string_lossy().to_string(),
+            });
+        }
+    }
+    // The target sigil itself — always first in the list.
+    directory_renames.insert(
+        0,
+        DirectoryRename {
+            from_path: old_path.to_string_lossy().to_string(),
+            to_path: new_path.to_string_lossy().to_string(),
+        },
+    );
+
+    Ok(ReshapePreview {
+        operation: "rename-sigil".to_string(),
+        old_name,
+        new_name,
+        target_old_path: old_path.to_string_lossy().to_string(),
+        target_new_path: new_path.to_string_lossy().to_string(),
+        file_changes,
+        directory_renames,
+        total_match_count,
+    })
+}
+
 #[tauri::command]
 pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
     let old_path = Path::new(&path);

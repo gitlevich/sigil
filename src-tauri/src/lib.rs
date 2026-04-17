@@ -83,6 +83,7 @@ pub fn run() {
             commands::sigil::create_context,
             commands::sigil::rename_context,
             commands::sigil::rename_sigil,
+            commands::sigil::preview_rename_sigil,
             commands::sigil::move_sigil,
             commands::sigil::delete_context,
             commands::file_ops::read_file,
