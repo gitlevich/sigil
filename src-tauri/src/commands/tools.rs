@@ -450,11 +450,49 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             Ok(format!("Moved to {}", new_path))
         }
         "delete_sigil" | "delete_context" => {
-            let sigil_path = input.get("sigil_path")
+            let raw = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
-            delete_context(sigil_path.to_string())?;
+            let sigil_path = raw
+                .trim_end_matches("/language.md")
+                .trim_matches('/')
+                .to_string();
+
+            // Resolve against workspace root — guard against deleting
+            // anything outside the spec tree. Deleting root itself is
+            // refused.
+            let root_path = editor_ctx.map(|c| c.root_path.as_str()).unwrap_or("");
+            if root_path.is_empty() {
+                return Err("No workspace root — cannot delete safely".into());
+            }
+            let abs = Path::new(root_path).join(&sigil_path);
+            eprintln!(
+                "[delete_sigil] raw={:?} cleaned={:?} root={:?} abs={:?} exists={}",
+                raw, sigil_path, root_path, abs, abs.exists(),
+            );
+            if sigil_path.is_empty() {
+                return Err("Refusing to delete workspace root".into());
+            }
+            if !abs.exists() {
+                return Err(format!("Sigil not found at path: {}", sigil_path));
+            }
+            let canonical_root = Path::new(root_path).canonicalize()
+                .map_err(|e| format!("canonicalize root: {}", e))?;
+            let canonical_abs = abs.canonicalize()
+                .map_err(|e| format!("canonicalize target: {}", e))?;
+            if !canonical_abs.starts_with(&canonical_root) {
+                return Err(format!(
+                    "Refusing to delete {} — outside workspace",
+                    canonical_abs.display(),
+                ));
+            }
+
+            eprintln!("[delete_sigil] removing {:?}", canonical_abs);
+            delete_context(canonical_abs.to_string_lossy().to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Deleted sigil at {}", sigil_path))
         }
         "write_vision" => {
