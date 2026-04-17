@@ -82,8 +82,14 @@ export function useChatStream() {
     // Sigil changes and navigation are handled by the workspace layer
     const unlistenSigilChanged = events.onSigilChanged(() => {});
     const unlistenNavigate = events.onNavigateTo((sigilPath) => {
+      console.info("[navigate-to] received payload:", JSON.stringify(sigilPath));
       const segments = sigilPath.split("/").filter((s) => s.length > 0);
-      if (segments.length > 0) navigateRef.current(segments);
+      if (segments.length > 0) {
+        console.info("[navigate-to] dispatching navigate to:", segments);
+        navigateRef.current(segments);
+      } else {
+        console.warn("[navigate-to] empty segments after split");
+      }
     });
 
     const unlistenEnd = events.onChatStreamEnd(() => {

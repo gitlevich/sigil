@@ -306,16 +306,24 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
                 .trim_matches('/')
                 .to_string();
 
-            // Resolve against the workspace root provided by editor context.
-            let abs = match editor_ctx {
-                Some(ctx) => Path::new(&ctx.root_path).join(&sigil_path),
-                None => Path::new(&sigil_path).to_path_buf(),
-            };
+            let root_path = editor_ctx.map(|c| c.root_path.as_str()).unwrap_or("");
+            let abs = Path::new(root_path).join(&sigil_path);
+            eprintln!(
+                "[navigate] raw={:?} cleaned={:?} root={:?} abs={:?} exists={}",
+                raw,
+                sigil_path,
+                root_path,
+                abs,
+                abs.exists(),
+            );
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
             if let Some(app) = app {
+                eprintln!("[navigate] emitting navigate-to with payload {:?}", sigil_path);
                 let _ = app.emit("navigate-to", sigil_path.clone());
+            } else {
+                eprintln!("[navigate] no app handle — event NOT emitted");
             }
             Ok(format!("Navigated to {}", sigil_path))
         }
