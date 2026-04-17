@@ -68,21 +68,24 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
  */
 function edgeOffset(kind: IconKind, ux: number, uy: number): { ox: number; oy: number } {
   const { w, h } = glyphSize(kind);
-  // Child is a circle.
+  // Child is a circle: extend 1px past the edge so the opaque fill swallows
+  // the overshoot and the line visibly meets the border.
   if (kind === "child") {
-    const r = w / 2 - 3;
+    const r = w / 2 + 1;
     return { ox: ux * r, oy: uy * r };
   }
-  // Triangles: inscribed radius, no outward margin.
+  // Triangles: use the circumscribed radius so lines reaching toward a vertex
+  // still meet the glyph's silhouette. In edge-midpoint directions the line
+  // overshoots the edge and is hidden by the opaque fill.
   if (kind === "parent" || kind === "god") {
-    const r = h / 3;
+    const r = (2 * h) / 3 - 2;
     return { ox: ux * r, oy: uy * r };
   }
-  // Rectangular kinds: ray-rectangle, tucked a few px inside.
+  // Rectangular kinds: ray-rectangle intersection, 1px into the fill.
   const axu = Math.abs(ux) || 1e-9;
   const ayu = Math.abs(uy) || 1e-9;
   const t = Math.min((w / 2) / axu, (h / 2) / ayu);
-  return { ox: ux * (t - 4), oy: uy * (t - 4) };
+  return { ox: ux * (t + 1), oy: uy * (t + 1) };
 }
 
 const SAVE_DEBOUNCE_MS = 400;
