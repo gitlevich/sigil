@@ -267,13 +267,13 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon, i) => {
           const pos = icon.kind === "parent"
-            ? { x: size.w / 2, y: 28 }
+            ? { x: size.w / 2, y: 24 }
             : positionFor(icon.name, i);
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
               className={styles.icon}
-              style={{ left: pos.x - 22, top: pos.y - 22 }}
+              style={{ left: pos.x - 18, top: pos.y - 18 }}
               onPointerDown={(e) => onIconPointerDown(e, icon, i)}
               onDoubleClick={() => onIconDoubleClick(icon)}
               title={`${icon.kind}: ${icon.name}`}
