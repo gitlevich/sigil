@@ -214,7 +214,8 @@
   bottom: 16px;
   left: 16px;
   width: 420px;
-  max-width: 45%;
+  min-width: 260px;
+  max-width: 85%;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -266,4 +267,20 @@
   cursor: pointer;
   padding: 0 0.3rem;
   line-height: 1;
+}
+
+.scrollResizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 2;
+}
+
+.scrollResizeHandle:hover,
+.scrollResizeHandle.active {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
 }

@@ -265,22 +265,81 @@ interface LanguageScrollPanelProps {
   childNames: string[];
 }
 
+const SCROLL_WIDTH_STORAGE_KEY = "sigil.spatial.scrollWidth";
+const SCROLL_WIDTH_MIN = 260;
+const SCROLL_WIDTH_MAX_FRAC = 0.85;
+const SCROLL_WIDTH_DEFAULT = 420;
+
+function loadScrollWidth(): number {
+  try {
+    const raw = localStorage.getItem(SCROLL_WIDTH_STORAGE_KEY);
+    if (!raw) return SCROLL_WIDTH_DEFAULT;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < SCROLL_WIDTH_MIN) return SCROLL_WIDTH_DEFAULT;
+    return n;
+  } catch {
+    return SCROLL_WIDTH_DEFAULT;
+  }
+}
+
+function saveScrollWidth(px: number): void {
+  try { localStorage.setItem(SCROLL_WIDTH_STORAGE_KEY, String(Math.round(px))); } catch { /* ignore */ }
+}
+
 /**
  * Foldable scroll showing the current sigil's language.md with @-refs that
- * resolve to a child rendered in the child's own color. This is the same
- * color-signature used for the child's icon on the desktop, so the text and
- * the canvas reinforce each other.
+ * resolve to a child rendered in the child's own color. The right edge is
+ * a drag handle for width; width persists to localStorage.
  */
 function LanguageScrollPanel({ open, onClose, title, text, childNames }: LanguageScrollPanelProps) {
   const childSet = useMemo(() => new Set(childNames), [childNames]);
   const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState<number>(() => loadScrollWidth());
+  const [resizing, setResizing] = useState<boolean>(false);
+
+  const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const panel = panelRef.current;
+    if (!panel) return;
+    const left = panel.getBoundingClientRect().left;
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    setResizing(true);
+
+    const onMove = (ev: PointerEvent) => {
+      const maxPx = window.innerWidth * SCROLL_WIDTH_MAX_FRAC;
+      const next = Math.min(maxPx, Math.max(SCROLL_WIDTH_MIN, ev.clientX - left));
+      setWidth(next);
+    };
+    const onUp = () => {
+      handle.releasePointerCapture(e.pointerId);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setResizing(false);
+      setWidth((w) => { saveScrollWidth(w); return w; });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
   return (
-    <div className={`${styles.scrollPanel} ${open ? "" : styles.closed}`}>
+    <div
+      ref={panelRef}
+      className={`${styles.scrollPanel} ${open ? "" : styles.closed}`}
+      style={{ width, transition: resizing ? "none" : undefined }}
+    >
       <div className={styles.scrollHeader}>
         <span>{title ? `${title}/language.md` : "language.md"}</span>
         <button className={styles.scrollClose} onClick={onClose} aria-label="Close scroll">×</button>
       </div>
       <div className={styles.scrollBody}>{rendered}</div>
+      <div
+        className={`${styles.scrollResizeHandle} ${resizing ? styles.active : ""}`}
+        onPointerDown={onResizeDown}
+        aria-label="Resize scroll panel"
+        role="separator"
+      />
     </div>
   );
 }
