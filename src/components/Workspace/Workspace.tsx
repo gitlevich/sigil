@@ -22,6 +22,8 @@ import { useSpellbook } from "../../hooks/useSpellbook";
 import { useDPCurated } from "../../hooks/useDPCurated";
 import { useFrameTick } from "../../hooks/useFrameTick";
 import { selectedProvider } from "../../tauri";
+import { useExperience } from "../../state/ExperienceContext";
+import { ObservationChip, type Observation } from "../DesignPartner/ObservationChip";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
@@ -335,6 +337,9 @@ export function Workspace() {
 
   // Continuous attention — the DP wakes at a regular tempo (substrate only;
   // phenomenologically he attends continuously). Only active for local tiers.
+  const experience = useExperience();
+  const [chipObservation, setChipObservation] = useState<Observation | null>(null);
+  const nextObservationIdRef = useRef(1);
   useFrameTick({
     root: ws.spec.root,
     hearingEvents,
@@ -342,7 +347,12 @@ export function Workspace() {
     compileErrors: compileResult.errors,
     activeProvider: selectedProvider(appState.settings) ?? null,
     onObservation: (text, exploration) => {
-      console.info(`[DP${exploration ? " (exploring)" : ""}] ${text}`);
+      experience.recordObservation(text, exploration);
+      setChipObservation({
+        id: nextObservationIdRef.current++,
+        text,
+        exploration,
+      });
     },
   });
 
@@ -438,6 +448,11 @@ export function Workspace() {
         }} />
       </div>
       <DesignPartnerPanel />
+
+      <ObservationChip
+        observation={chipObservation}
+        onDismiss={() => setChipObservation(null)}
+      />
 
       {menuRenaming && (
         <div style={{ position: "fixed", inset: 0, zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)" }}>

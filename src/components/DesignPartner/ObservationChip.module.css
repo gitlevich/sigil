@@ -1,0 +1,58 @@
+.chip {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  max-width: 360px;
+  padding: 0.6rem 0.9rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  z-index: 200;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #1a73e8);
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+}
+
+.exploring .dot {
+  background: color-mix(in srgb, var(--accent, #1a73e8) 60%, transparent);
+}
+
+.text {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.chip:hover {
+  border-color: color-mix(in srgb, var(--accent, #1a73e8) 40%, var(--border));
+}

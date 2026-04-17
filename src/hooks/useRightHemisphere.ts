@@ -40,6 +40,7 @@ export interface RightHemisphereHandle {
   perceive: (spec: Idea, changedPaths: string[]) => Perception;
   getExperience: () => ExperienceSegment[];
   recordChat: (role: "user" | "assistant", content: string) => void;
+  recordObservation: (text: string, exploration: boolean) => void;
   getMemory: () => import("sigil-core/memory").MemoryState;
 }
 
@@ -293,11 +294,48 @@ export function useRightHemisphere(spec: Idea, currentPath: string[], callbacks?
     }
   }, [spec.rootPath]);
 
+  /**
+   * Record an observation the DP produced on his own — a frame-tick
+   * observation from continuous attention, not a reply to a user turn.
+   * Lands in Experience as an articulation segment, same surface as
+   * user-triggered LH articulations.
+   */
+  const recordObservation = useCallback((text: string, exploration: boolean) => {
+    if (!mindRef.current) return;
+    const focus = mindRef.current.hemisphere.focus;
+    const segment: ExperienceSegment = {
+      sigils: focus ? [focus] : [],
+      disturbance: { displaced: [], total: 0 },
+      timestamp: Date.now(),
+      relevant: true,
+      resolution: null,
+      articulation: {
+        observation: text,
+        suggestions: [],
+        needsAttention: !exploration,
+      },
+    };
+    mindRef.current = {
+      ...mindRef.current,
+      hemisphere: {
+        ...mindRef.current.hemisphere,
+        experience: [...mindRef.current.hemisphere.experience, segment],
+      },
+    };
+    if (sessionIdRef.current) {
+      const entry = toEntry(segment, focus);
+      const line = serializeEntry(entry);
+      api.appendExperience(spec.rootPath, sessionIdRef.current, line).catch(err => {
+        console.error("[Experience] failed to append observation:", err);
+      });
+    }
+  }, [spec.rootPath]);
+
   const getMemory = useCallback((): MemoryState => {
     return mindRef.current ? mindMemory(mindRef.current) : { longTerm: new Map(), shortTerm: [] };
   }, []);
 
-  return { perceive, getExperience, recordChat, getMemory };
+  return { perceive, getExperience, recordChat, recordObservation, getMemory };
 }
 
 function extractSigilNames(paths: string[], workspaceRoot: string, rootName: string): string[] {

@@ -11,12 +11,14 @@ import type { MemoryState } from "sigil-core/memory";
 interface ExperienceHandle {
   getExperience: () => ExperienceSegment[];
   recordChat: (role: "user" | "assistant", content: string) => void;
+  recordObservation: (text: string, exploration: boolean) => void;
   getMemory: () => MemoryState;
 }
 
 const ExperienceContext = createContext<ExperienceHandle>({
   getExperience: () => [],
   recordChat: () => {},
+  recordObservation: () => {},
   getMemory: () => ({ longTerm: new Map(), shortTerm: [] }),
 });
 
