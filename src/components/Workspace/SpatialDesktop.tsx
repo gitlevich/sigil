@@ -165,7 +165,8 @@ export function SpatialDesktop() {
     const counters: Record<string, number> = {};
     const byName = new Map<string, { kind: IconKind; index: number }>();
     for (const icon of icons) {
-      if (icon.kind === "parent" || icon.kind === "affordance" || icon.kind === "invariant") continue;
+      // Affordances and invariants live in fixed rows, not on the canvas.
+      if (icon.kind === "affordance" || icon.kind === "invariant") continue;
       const n = counters[icon.kind] ?? 0;
       byName.set(icon.name, { kind: icon.kind, index: n });
       counters[icon.kind] = n + 1;
@@ -176,13 +177,10 @@ export function SpatialDesktop() {
   const positionFor = useCallback((name: string): IconPosition => {
     const entry = kindIndex.byName.get(name);
     if (!entry) return { x: size.w / 2, y: size.h / 2 };
-    // Only children honor user-dragged positions. Everything else (narrative,
-    // gods, neighbors) belongs in its region — stored positions from older
-    // runs are ignored so regions stay composed and don't overlap.
-    if (entry.kind === "child") {
-      const stored = layout?.icons[name];
-      if (stored) return stored;
-    }
+    // User-dragged positions win for every icon. The region default is only
+    // the initial placement; once dragged, the sigil owns its layout.
+    const stored = layout?.icons[name];
+    if (stored) return stored;
     const kindForLayout = entry.kind as IconKindForLayout;
     const count = kindIndex.counters[entry.kind] ?? 1;
     return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
@@ -194,7 +192,7 @@ export function SpatialDesktop() {
     let maxX = size.w;
     let maxY = size.h;
     for (const icon of icons) {
-      const pos = icon.kind === "parent" ? { x: size.w / 2, y: 32 } : positionFor(icon.name);
+      const pos = positionFor(icon.name);
       const { w, h } = glyphSize(icon.kind);
       maxX = Math.max(maxX, pos.x + w / 2 + 40);
       maxY = Math.max(maxY, pos.y + h / 2 + 60);
@@ -218,7 +216,6 @@ export function SpatialDesktop() {
   const arcEndpoints = useMemo(() => {
     const byName = new Map<string, { x: number; y: number; kind: IconKind }>();
     icons.forEach((icon) => {
-      if (icon.kind === "parent") return;
       const pos = positionFor(icon.name);
       byName.set(icon.name, { ...pos, kind: icon.kind });
     });
@@ -245,7 +242,6 @@ export function SpatialDesktop() {
 
   const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
     if (!folder || !layout) return;
-    if (icon.kind === "parent") return; // Parent pinned at top; no drag.
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     const start = positionFor(icon.name);
@@ -320,24 +316,14 @@ export function SpatialDesktop() {
             {arcEndpoints.map(({ arc, pa, pb }, i) => {
               const midX = (pa.x + pb.x) / 2;
               const midY = (pa.y + pb.y) / 2;
-              const dx = pb.x - pa.x;
-              const dy = pb.y - pa.y;
-              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-              // Gentle curve — very light bow, max 12% of chord. Short links
-              // read essentially as straight; long links bow just enough to
-              // distinguish overlapping pairs.
-              const curveOffset = Math.min(24, dist * 0.08);
-              const nx = -dy / dist;
-              const ny = dx / dist;
-              const cx = midX + nx * curveOffset;
-              const cy = midY + ny * curveOffset;
-              const d = `M ${pa.x} ${pa.y} Q ${cx} ${cy} ${pb.x} ${pb.y}`;
+              // Straight lines — natural, honest, no forced bending.
+              const d = `M ${pa.x} ${pa.y} L ${pb.x} ${pb.y}`;
               const title = arc.sentence;
               return (
                 <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`} className={styles.arcGroup}>
                   <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
                   <path className={styles.arcPath} d={d}><title>{title}</title></path>
-                  <text className={styles.arcLabel} x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                  <text className={styles.arcLabel} x={midX} y={midY} textAnchor="middle" dominantBaseline="middle">
                     {arcLabel(arc.sentence, 32)}
                     <title>{title}</title>
                   </text>
@@ -372,9 +358,7 @@ export function SpatialDesktop() {
         )}
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
-          const pos = icon.kind === "parent"
-            ? { x: Math.max(120, size.w * 0.28), y: 110 }
-            : positionFor(icon.name);
+          const pos = positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           return (
             <div

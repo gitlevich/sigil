@@ -61,7 +61,7 @@ export function defaultPosition(name: string, index: number, canvasWidth: number
   return { x, y };
 }
 
-export type IconKindForLayout = "child" | "neighbor" | "god" | "narrative";
+export type IconKindForLayout = "child" | "neighbor" | "god" | "narrative" | "parent";
 
 /**
  * Region-based placement. Each kind lives in a dedicated zone of the canvas
@@ -97,6 +97,11 @@ export function regionPosition(
   const interiorBottom = canvasHeight - bottomReserved - 40;
   const interiorLeft = leftWall + 120; // leave room for neighbor doors
   const interiorRight = rightWall - 40;
+
+  if (kind === "parent") {
+    // Top-left quadrant, above the gods band but below the affordance row.
+    return { x: Math.max(120, canvasWidth * 0.22), y: 110 };
+  }
 
   if (kind === "narrative") {
     return { x: 60, y: canvasHeight - bottomReserved - 20 };
