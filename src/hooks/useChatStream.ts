@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppState } from "../state/AppContext";
-import { useWorkspaceState } from "../state/WorkspaceContext";
+import { useWorkspaceState, useWorkspaceActions } from "../state/WorkspaceContext";
 import { useChatState, useChatDispatch } from "../state/ChatContext";
 import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
@@ -14,6 +14,9 @@ import { consultSpellbook, type Disturbance } from "sigil-core";
 export function useChatStream() {
   const appState = useAppState();
   const workspace = useWorkspaceState();
+  const { navigate } = useWorkspaceActions();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
@@ -78,7 +81,10 @@ export function useChatStream() {
 
     // Sigil changes and navigation are handled by the workspace layer
     const unlistenSigilChanged = events.onSigilChanged(() => {});
-    const unlistenNavigate = events.onNavigateTo(() => {});
+    const unlistenNavigate = events.onNavigateTo((sigilPath) => {
+      const segments = sigilPath.split("/").filter((s) => s.length > 0);
+      if (segments.length > 0) navigateRef.current(segments);
+    });
 
     const unlistenEnd = events.onChatStreamEnd(() => {
       const ws = workspaceRef.current;

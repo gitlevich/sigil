@@ -297,12 +297,25 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
 pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
     match name {
         "navigate" => {
-            let sigil_path = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
-            if !Path::new(sigil_path).exists() {
-                return Err(format!("Sigil not found: {}", sigil_path));
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            // Forgive common mistakes: trailing /language.md, leading or
+            // trailing slashes. The argument is a sigil-path (dir names
+            // joined by /), not a filesystem path.
+            let sigil_path = raw
+                .trim_end_matches("/language.md")
+                .trim_matches('/')
+                .to_string();
+
+            // Resolve against the workspace root provided by editor context.
+            let abs = match editor_ctx {
+                Some(ctx) => Path::new(&ctx.root_path).join(&sigil_path),
+                None => Path::new(&sigil_path).to_path_buf(),
+            };
+            if !abs.exists() {
+                return Err(format!("Sigil not found at path: {}", sigil_path));
             }
             if let Some(app) = app {
-                let _ = app.emit("navigate-to", sigil_path.to_string());
+                let _ = app.emit("navigate-to", sigil_path.clone());
             }
             Ok(format!("Navigated to {}", sigil_path))
         }
