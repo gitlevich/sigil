@@ -60,10 +60,23 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
   }
 }
 
-/** Outer radius used to trim arc endpoints so they meet the icon's edge. */
-function glyphRadius(kind: IconKind): number {
+/**
+ * Compute the intersection of a ray from the glyph's center in direction
+ * (ux, uy) with the glyph's actual edge — not its circumscribed circle. This
+ * keeps arcs from disappearing under or overshooting the icon.
+ */
+function edgeOffset(kind: IconKind, ux: number, uy: number): { ox: number; oy: number } {
   const { w, h } = glyphSize(kind);
-  return Math.max(w, h) / 2;
+  // Triangles (parent, god): use inscribed radius ≈ h/3 for equilateral.
+  if (kind === "parent" || kind === "god") {
+    const r = h / 3 + 3; // + small margin
+    return { ox: ux * r, oy: uy * r };
+  }
+  // Rectangular kinds: ray-rectangle intersection.
+  const axu = Math.abs(ux) || 1e-9;
+  const ayu = Math.abs(uy) || 1e-9;
+  const t = Math.min((w / 2) / axu, (h / 2) / ayu);
+  return { ox: ux * (t + 2), oy: uy * (t + 2) };
 }
 
 const SAVE_DEBOUNCE_MS = 400;
@@ -203,29 +216,29 @@ export function SpatialDesktop() {
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
   const arcEndpoints = useMemo(() => {
-    const byName = new Map<string, { x: number; y: number; r: number }>();
+    const byName = new Map<string, { x: number; y: number; kind: IconKind }>();
     icons.forEach((icon) => {
       if (icon.kind === "parent") return;
       const pos = positionFor(icon.name);
-      byName.set(icon.name, { ...pos, r: glyphRadius(icon.kind) });
+      byName.set(icon.name, { ...pos, kind: icon.kind });
     });
     return arcs
       .map((arc) => {
         const pa = byName.get(arc.a);
         const pb = byName.get(arc.b);
         if (!pa || !pb) return null;
-        // Trim each end by the glyph radius so the line meets the icon's edge,
-        // not its center — lines look like they converge on the icon cleanly.
+        // Direction from each center to the other — use it to find the point
+        // on this icon's actual edge in the direction of the other icon.
         const dx = pb.x - pa.x;
         const dy = pb.y - pa.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const ux = dx / dist;
         const uy = dy / dist;
-        const trimA = Math.min(pa.r, dist * 0.45);
-        const trimB = Math.min(pb.r, dist * 0.45);
-        const paTrimmed = { x: pa.x + ux * trimA, y: pa.y + uy * trimA };
-        const pbTrimmed = { x: pb.x - ux * trimB, y: pb.y - uy * trimB };
-        return { arc, pa: paTrimmed, pb: pbTrimmed };
+        const offA = edgeOffset(pa.kind, ux, uy);
+        const offB = edgeOffset(pb.kind, -ux, -uy);
+        const paEdge = { x: pa.x + offA.ox, y: pa.y + offA.oy };
+        const pbEdge = { x: pb.x + offB.ox, y: pb.y + offB.oy };
+        return { arc, pa: paEdge, pb: pbEdge };
       })
       .filter((x): x is { arc: SentenceArc; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
   }, [arcs, icons, positionFor]);
@@ -303,28 +316,28 @@ export function SpatialDesktop() {
       >
         <div className={styles.parentBar} />
         {arcEndpoints.length > 0 && (
-          <svg className={styles.arcs} width={size.w} height={size.h}>
+          <svg className={styles.arcs} width={contentBounds.w} height={contentBounds.h}>
             {arcEndpoints.map(({ arc, pa, pb }, i) => {
               const midX = (pa.x + pb.x) / 2;
               const midY = (pa.y + pb.y) / 2;
               const dx = pb.x - pa.x;
               const dy = pb.y - pa.y;
               const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-              // Curve control point perpendicular to the segment, curving upward consistently.
-              const curveOffset = Math.min(60, dist * 0.25);
+              // Gentle curve — very light bow, max 12% of chord. Short links
+              // read essentially as straight; long links bow just enough to
+              // distinguish overlapping pairs.
+              const curveOffset = Math.min(24, dist * 0.08);
               const nx = -dy / dist;
               const ny = dx / dist;
               const cx = midX + nx * curveOffset;
               const cy = midY + ny * curveOffset;
               const d = `M ${pa.x} ${pa.y} Q ${cx} ${cy} ${pb.x} ${pb.y}`;
-              const labelX = cx;
-              const labelY = cy;
               const title = arc.sentence;
               return (
                 <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`} className={styles.arcGroup}>
                   <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
                   <path className={styles.arcPath} d={d}><title>{title}</title></path>
-                  <text className={styles.arcLabel} x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle">
+                  <text className={styles.arcLabel} x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
                     {arcLabel(arc.sentence, 32)}
                     <title>{title}</title>
                   </text>
