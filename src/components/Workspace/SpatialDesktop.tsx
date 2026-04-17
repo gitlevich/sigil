@@ -61,22 +61,28 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
 }
 
 /**
- * Compute the intersection of a ray from the glyph's center in direction
- * (ux, uy) with the glyph's actual edge — not its circumscribed circle. This
- * keeps arcs from disappearing under or overshooting the icon.
+ * Compute how far to project from the glyph's center along direction
+ * (ux, uy) so the line ends just inside the icon's visible edge. Since
+ * every icon has an opaque fill, any portion of the line inside the
+ * glyph is occluded — the line visibly terminates exactly at the border.
  */
 function edgeOffset(kind: IconKind, ux: number, uy: number): { ox: number; oy: number } {
   const { w, h } = glyphSize(kind);
-  // Triangles (parent, god): use inscribed radius ≈ h/3 for equilateral.
-  if (kind === "parent" || kind === "god") {
-    const r = h / 3 + 3; // + small margin
+  // Child is a circle.
+  if (kind === "child") {
+    const r = w / 2 - 3;
     return { ox: ux * r, oy: uy * r };
   }
-  // Rectangular kinds: ray-rectangle intersection.
+  // Triangles: inscribed radius, no outward margin.
+  if (kind === "parent" || kind === "god") {
+    const r = h / 3;
+    return { ox: ux * r, oy: uy * r };
+  }
+  // Rectangular kinds: ray-rectangle, tucked a few px inside.
   const axu = Math.abs(ux) || 1e-9;
   const ayu = Math.abs(uy) || 1e-9;
   const t = Math.min((w / 2) / axu, (h / 2) / ayu);
-  return { ox: ux * (t + 2), oy: uy * (t + 2) };
+  return { ox: ux * (t - 4), oy: uy * (t - 4) };
 }
 
 const SAVE_DEBOUNCE_MS = 400;

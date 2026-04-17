@@ -257,11 +257,12 @@
   transition: box-shadow 140ms ease-out;
 }
 
-/* Child — outlined square with an opaque fill so arcs behind it are hidden. */
+/* Child — a seal. Circle bounded by a thin stroke, initials inscribed
+ * inside. A sigil is a named mark; the circle is its bounded form. */
 .child {
   background: var(--bg-primary);
   border: 1.5px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
-  border-radius: 6px;
+  border-radius: 50%;
 }
 
 /* Neighbor — a simple door. No interior text; the name lives as a label
