@@ -18,6 +18,7 @@
     "./memory": "./src/memory.ts",
     "./attention": "./src/attention.ts",
     "./compressor": "./src/compressor.ts",
+    "./temporalCompressor": "./src/temporalCompressor.ts",
     "./sigilSpace": "./src/sigilSpace.ts",
     "./types": "./src/types.ts"
   },
