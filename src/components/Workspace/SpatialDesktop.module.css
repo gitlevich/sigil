@@ -142,6 +142,40 @@
   height: 0;
 }
 
+.narrative {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 3px;
+  width: 36px;
+  height: 44px;
+  position: relative;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.narrative::before,
+.narrative::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.narrative::before { top: 10px; }
+.narrative::after { bottom: 10px; }
+
+.narrative > span {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-primary);
+  padding: 0 3px;
+}
+
 .label {
   font-size: 0.74rem;
   color: var(--text-primary);

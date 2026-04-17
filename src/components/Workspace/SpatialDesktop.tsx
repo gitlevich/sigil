@@ -17,13 +17,15 @@ import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type SentenceArc, type ArcScope } from "../../lib/sentenceArcs";
 import styles from "./SpatialDesktop.module.css";
 
-type IconKind = "child" | "neighbor" | "god" | "parent";
+type IconKind = "child" | "neighbor" | "god" | "parent" | "narrative";
 
 interface IconSpec {
   name: string;
   kind: IconKind;
-  navigateTo: string[]; // absolute path in the workspace tree
+  navigateTo?: string[]; // absolute path in the workspace tree — undefined for body-facet icons
 }
+
+const NARRATIVE_NAME = "narrative";
 
 const SAVE_DEBOUNCE_MS = 400;
 
@@ -67,7 +69,7 @@ export function SpatialDesktop() {
     }, SAVE_DEBOUNCE_MS);
   }, []);
 
-  // Derive the icons for the current sigil. Phase A: parent + children.
+  // Derive the icons for the current sigil. Phase A: parent + narrative + children.
   const icons: IconSpec[] = useMemo(() => {
     if (!folder) return [];
     const list: IconSpec[] = [];
@@ -80,6 +82,8 @@ export function SpatialDesktop() {
         : parentPath[parentPath.length - 1];
       list.push({ name: parentName, kind: "parent", navigateTo: parentPath });
     }
+    // My body — narrative (language.md) always present.
+    list.push({ name: NARRATIVE_NAME, kind: "narrative" });
     for (const child of folder.children) {
       list.push({ name: child.name, kind: "child", navigateTo: [...currentPath, child.name] });
     }
@@ -151,17 +155,16 @@ export function SpatialDesktop() {
   }, [folder, layout, positionFor, queueSave]);
 
   const onIconDoubleClick = useCallback((icon: IconSpec) => {
-    navigate(icon.navigateTo);
+    if (icon.kind === "narrative") {
+      setScrollOpen((v) => !v);
+      return;
+    }
+    if (icon.navigateTo) navigate(icon.navigateTo);
   }, [navigate]);
 
   return (
     <div className={styles.root}>
       <div className={styles.modeBar}>
-        <button
-          className={`${styles.modeBtn} ${scrollOpen ? styles.active : ""}`}
-          onClick={() => setScrollOpen((v) => !v)}
-          title="Show this sigil's language with color-signed references"
-        >Scroll</button>
         <button
           className={`${styles.modeBtn} ${arcScope === "sentence" ? styles.active : ""}`}
           onClick={() => setArcScope(arcScope === "sentence" ? "paragraph" : "sentence")}
@@ -236,9 +239,9 @@ export function SpatialDesktop() {
                 className={`${styles.glyph} ${styles[icon.kind]}`}
                 style={icon.kind === "child" ? { background: colorForSigilName(icon.name) } : undefined}
               >
-                {icon.kind === "parent" ? "" : initials(icon.name)}
+                {icon.kind === "parent" ? "" : icon.kind === "narrative" ? <span>abc</span> : initials(icon.name)}
               </div>
-              <div className={styles.label}>{icon.name}</div>
+              <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
             </div>
           );
         })}
