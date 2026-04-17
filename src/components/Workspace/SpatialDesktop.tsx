@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type IconKindForLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
-import { extractArcs, arcLabel, type SentenceArc, type ArcScope } from "../../lib/sentenceArcs";
+import { extractArcs, arcLabel, type ArcScope } from "../../lib/sentenceArcs";
 import { extractEntanglements } from "../../lib/entanglements";
 import type { Sigil } from "sigil-core";
 import styles from "./SpatialDesktop.module.css";
@@ -214,11 +214,43 @@ export function SpatialDesktop() {
   const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
   const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
 
-  // Arcs between children that co-occur in a sentence (or paragraph) of the sigil's language.
-  const arcs: SentenceArc[] = useMemo(() => {
+  // Arcs between children that co-occur — deduped per pair, with per-arc
+  // scope classification. An arc is "sentence" scope if the pair ever shares
+  // a sentence; otherwise "paragraph" (only co-occurring across sentences in
+  // the same paragraph). Each pair produces at most one arc regardless of
+  // how many sentences it appears in — duplicate lines don't blend.
+  const arcs: Array<{ a: string; b: string; scope: "sentence" | "paragraph"; sentences: string[]; sentence: string }> = useMemo(() => {
     if (!folder) return [];
     const childNames = folder.children.map((c) => c.name);
-    return extractArcs(folder.language ?? "", childNames, arcScope);
+    const text = folder.language ?? "";
+    const sentenceArcs = extractArcs(text, childNames, "sentence");
+
+    const pairMap = new Map<string, { a: string; b: string; scope: "sentence" | "paragraph"; sentences: string[] }>();
+    const keyOf = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
+
+    for (const arc of sentenceArcs) {
+      const key = keyOf(arc.a, arc.b);
+      const existing = pairMap.get(key) ?? { a: arc.a, b: arc.b, scope: "sentence" as const, sentences: [] };
+      existing.sentences.push(arc.sentence);
+      existing.scope = "sentence";
+      pairMap.set(key, existing);
+    }
+
+    if (arcScope === "paragraph") {
+      const paragraphArcs = extractArcs(text, childNames, "paragraph");
+      for (const arc of paragraphArcs) {
+        const key = keyOf(arc.a, arc.b);
+        if (pairMap.has(key)) continue; // already covered at tighter sentence scope
+        pairMap.set(key, { a: arc.a, b: arc.b, scope: "paragraph", sentences: [arc.sentence] });
+      }
+    }
+
+    return Array.from(pairMap.values()).map((p) => ({
+      ...p,
+      sentence: p.sentences.length === 1
+        ? p.sentences[0]
+        : `${p.sentences.length} sentences: ${p.sentences.join(" ⧫ ")}`,
+    }));
   }, [folder, arcScope]);
 
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
@@ -247,7 +279,7 @@ export function SpatialDesktop() {
         const pbEdge = { x: pb.x + offB.ox, y: pb.y + offB.oy };
         return { arc, pa: paEdge, pb: pbEdge };
       })
-      .filter((x): x is { arc: SentenceArc; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
+      .filter((x): x is { arc: typeof arcs[number]; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
   }, [arcs, icons, positionFor]);
 
   const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
@@ -363,9 +395,9 @@ export function SpatialDesktop() {
               const d = `M ${pa.x} ${pa.y} L ${pb.x} ${pb.y}`;
               const title = arc.sentence;
               return (
-                <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`} className={styles.arcGroup}>
+                <g key={`${arc.a}-${arc.b}-${i}`} className={styles.arcGroup}>
                   <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
-                  <path className={`${styles.arcPath} ${arcScope === "paragraph" ? styles.paragraph : ""}`} d={d}><title>{title}</title></path>
+                  <path className={`${styles.arcPath} ${arc.scope === "paragraph" ? styles.paragraph : ""}`} d={d}><title>{title}</title></path>
                   <text className={styles.arcLabel} x={midX} y={midY} textAnchor="middle" dominantBaseline="middle">
                     {arcLabel(arc.sentence, 32)}
                     <title>{title}</title>
