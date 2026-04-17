@@ -1,3 +1,31 @@
+.upButton {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 6;
+  width: 48px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--text-primary) 70%, transparent);
+  transition: color 140ms ease-out, filter 180ms ease-out;
+}
+
+.upButton svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  pointer-events: auto;
+}
+
+.upButton:hover {
+  color: #b8860b;
+  filter: drop-shadow(0 0 6px rgba(245, 211, 90, 0.6));
+}
+
 .root {
   position: relative;
   width: 100%;
@@ -330,6 +358,7 @@
 
 .affordanceRow {
   top: 12px;
+  left: 72px; /* leave room for the UP button that sits before the row */
   border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 

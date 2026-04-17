@@ -121,19 +121,23 @@ export function SpatialDesktop() {
     }, SAVE_DEBOUNCE_MS);
   }, []);
 
-  // Derive the icons for the current sigil. Phase A: parent + narrative + children.
+  // Ascension target — the containing sigil. Rendered as a separate UP
+  // button, not as a canvas icon.
+  const ascend = useMemo(() => {
+    const currentPath = ws.currentPath;
+    if (currentPath.length === 0) return null;
+    const parentPath = currentPath.slice(0, -1);
+    const parentName = parentPath.length === 0
+      ? (ws.currentPath[0] === "Imported Ontologies" ? "Imported Ontologies" : ws.spec.name)
+      : parentPath[parentPath.length - 1];
+    return { name: parentName, path: parentPath };
+  }, [ws.currentPath, ws.spec.name]);
+
+  // Derive the icons for the current sigil. Phase A: narrative + children + entanglements.
   const icons: IconSpec[] = useMemo(() => {
     if (!folder) return [];
     const list: IconSpec[] = [];
     const currentPath = ws.currentPath;
-    // Structural parent — only when not at root.
-    if (currentPath.length > 0) {
-      const parentPath = currentPath.slice(0, -1);
-      const parentName = parentPath.length === 0
-        ? (ws.currentPath[0] === "Imported Ontologies" ? "Imported Ontologies" : ws.spec.name)
-        : parentPath[parentPath.length - 1];
-      list.push({ name: parentName, kind: "parent", navigateTo: parentPath });
-    }
     // My body — narrative (language.md) always present.
     list.push({ name: NARRATIVE_NAME, kind: "narrative" });
     // Affordances and invariants live in their own fixed rows — not in the
@@ -281,6 +285,18 @@ export function SpatialDesktop() {
 
   return (
     <div className={styles.root}>
+      {ascend && (
+        <div
+          className={styles.upButton}
+          role="button"
+          tabIndex={0}
+          title={ascend.name}
+          onClick={() => navigate(ascend.path)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(ascend.path); }}
+        >
+          <UpGlyph />
+        </div>
+      )}
       <div className={styles.modeBar}>
         <button
           className={`${styles.modeBtn} ${arcScope === "sentence" ? styles.active : ""}`}
@@ -373,8 +389,7 @@ export function SpatialDesktop() {
                 className={`${styles.glyph} ${styles[icon.kind]}`}
                 style={{ width: w, height: h }}
               >
-                {icon.kind === "parent" ? <ParentGlyph /> :
-                 icon.kind === "god" ? <GodGlyph /> :
+                {icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
                  icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
@@ -398,9 +413,34 @@ function initials(name: string): string {
 }
 
 /**
- * Design language: thin strokes (1.5px), transparent fills, currentColor.
- * Each glyph shaped by what it affords or constrains.
+ * Design language: thin strokes (1.5px), transparent fills, currentColor,
+ * gently rounded corners. Each glyph shaped by what it affords or constrains.
  */
+
+/**
+ * Build a path for a polygon whose vertices are rounded by radius `r`. Each
+ * corner uses a quadratic curve with the original vertex as the control
+ * point — a quick, visually clean rounded polygon.
+ */
+function roundedPolygonPath(points: [number, number][], r: number): string {
+  const n = points.length;
+  const pieces: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = points[(i - 1 + n) % n];
+    const curr = points[i];
+    const next = points[(i + 1) % n];
+    const vax = prev[0] - curr[0], vay = prev[1] - curr[1];
+    const vbx = next[0] - curr[0], vby = next[1] - curr[1];
+    const la = Math.hypot(vax, vay) || 1;
+    const lb = Math.hypot(vbx, vby) || 1;
+    const entry: [number, number] = [curr[0] + (vax / la) * r, curr[1] + (vay / la) * r];
+    const exit: [number, number] = [curr[0] + (vbx / lb) * r, curr[1] + (vby / lb) * r];
+    pieces.push(`${i === 0 ? "M" : "L"} ${entry[0].toFixed(2)} ${entry[1].toFixed(2)}`);
+    pieces.push(`Q ${curr[0]} ${curr[1]} ${exit[0].toFixed(2)} ${exit[1].toFixed(2)}`);
+  }
+  pieces.push("Z");
+  return pieces.join(" ");
+}
 
 /** Affordance — # in a thin rounded square, the offering tag. */
 function AffordanceGlyph() {
@@ -422,22 +462,37 @@ function InvariantGlyph() {
   );
 }
 
-/** One true god (structural parent / @LawsOfNature) — equilateral triangle
- * pointing up. Same size as the emergent gods, just the reversed orientation.
- * Name renders below as a standard label. */
-function ParentGlyph() {
+/** Emergent god — equilateral triangle pointing down, vortex pulling
+ * worshippers. Corners gently rounded. */
+function GodGlyph() {
+  const path = roundedPolygonPath([[6, 6], [90, 6], [48, 80]], 5);
   return (
     <svg viewBox="0 0 96 83" aria-hidden>
-      <polygon points="48,6 90,78 6,78" strokeWidth={1.5} strokeLinejoin="round" />
+      <path d={path} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
 
-/** Emergent god — equilateral triangle pointing down, vortex pulling worshippers. */
-function GodGlyph() {
+/** UP button — small triangle pointing up with "UP" inside, positioned before
+ * the affordance row. Click ascends to the containing sigil. Subtle golden
+ * glow on hover; tooltip carries the parent's name. */
+function UpGlyph() {
+  const path = roundedPolygonPath([[24, 4], [44, 36], [4, 36]], 4);
   return (
-    <svg viewBox="0 0 96 83" aria-hidden>
-      <polygon points="6,6 90,6 48,80" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox="0 0 48 42" aria-hidden>
+      <path d={path} strokeWidth={1.4} />
+      <text
+        x={24}
+        y={30}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={600}
+        fill="currentColor"
+        stroke="none"
+        fontFamily="var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+      >
+        UP
+      </text>
     </svg>
   );
 }
