@@ -1,7 +1,35 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use regex::Regex;
 use tauri::Emitter;
+
+/// Resolve a sigil-path argument from the model against the workspace root.
+///
+/// The model passes a spec-relative path like "Scratch" or "DesignPartner/
+/// BicameralMind" — sometimes with a trailing /language.md it included by
+/// accident. This normalizes the argument and resolves it to an absolute
+/// PathBuf under the workspace root. Rejects absolute paths and ".."
+/// traversal so a tool call can't escape the workspace.
+fn resolve_sigil_arg(
+    raw: &str,
+    editor_ctx: Option<&EditorContext>,
+) -> Result<(String, PathBuf), String> {
+    let cleaned = raw
+        .trim_end_matches("/language.md")
+        .trim_matches('/')
+        .to_string();
+    if cleaned.contains("..") {
+        return Err(format!("Path traversal refused: {}", cleaned));
+    }
+    if cleaned.starts_with('/') {
+        return Err(format!("Absolute path refused: {}", cleaned));
+    }
+    let root_path = editor_ctx
+        .map(|c| c.root_path.as_str())
+        .ok_or("No workspace root available")?;
+    let abs = Path::new(root_path).join(&cleaned);
+    Ok((cleaned, abs))
+}
 use crate::commands::sigil::{create_context, delete_context, rename_sigil, move_sigil, read_sigil_with_libs};
 use crate::commands::chat::render_context;
 
@@ -298,32 +326,12 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
     match name {
         "navigate" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
-            // Forgive common mistakes: trailing /language.md, leading or
-            // trailing slashes. The argument is a sigil-path (dir names
-            // joined by /), not a filesystem path.
-            let sigil_path = raw
-                .trim_end_matches("/language.md")
-                .trim_matches('/')
-                .to_string();
-
-            let root_path = editor_ctx.map(|c| c.root_path.as_str()).unwrap_or("");
-            let abs = Path::new(root_path).join(&sigil_path);
-            eprintln!(
-                "[navigate] raw={:?} cleaned={:?} root={:?} abs={:?} exists={}",
-                raw,
-                sigil_path,
-                root_path,
-                abs,
-                abs.exists(),
-            );
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
             if let Some(app) = app {
-                eprintln!("[navigate] emitting navigate-to with payload {:?}", sigil_path);
                 let _ = app.emit("navigate-to", sigil_path.clone());
-            } else {
-                eprintln!("[navigate] no app handle — event NOT emitted");
             }
             Ok(format!("Navigated to {}", sigil_path))
         }
@@ -373,40 +381,47 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             Ok("Text replaced".to_string())
         }
         "write_sigil" | "create_context" | "write_language" | "create_sigil" => {
-            let sigil_path = input.get("sigil_path")
+            let raw = input.get("sigil_path")
                 .or(input.get("parent_path"))
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let content = input["content"].as_str().unwrap_or("");
 
-            // For legacy create_context / create_sigil: parent_path + name → child dir
+            // For legacy create_context / create_sigil: parent + name → child dir
             if (name == "create_context" || name == "create_sigil") && input.get("name").is_some() {
                 let ctx_name = input["name"].as_str().ok_or("Missing name")?;
-                let ctx = create_context(sigil_path.to_string(), ctx_name.to_string())?;
+                let ctx = create_context(abs.to_string_lossy().to_string(), ctx_name.to_string())?;
                 if !content.is_empty() {
                     let file_path = Path::new(&ctx.path).join("language.md");
                     fs::write(&file_path, content).map_err(|e| e.to_string())?;
                 }
-                return Ok(format!("Created sigil '{}' at {}", ctx.name, ctx.path));
+                if let Some(app) = app {
+                    let _ = app.emit("sigil-changed", ());
+                }
+                return Ok(format!("Created sigil '{}' at {}", ctx.name, sigil_path));
             }
 
-            // Ensure directory exists
-            let dir = Path::new(sigil_path);
-            if !dir.exists() {
-                fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            if !abs.exists() {
+                fs::create_dir_all(&abs).map_err(|e| e.to_string())?;
             }
-            let file_path = dir.join("language.md");
+            let file_path = abs.join("language.md");
             fs::write(&file_path, content).map_err(|e| e.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Wrote sigil at {}", sigil_path))
         }
         "read_sigil" | "read_context" => {
-            let sigil_path = input.get("sigil_path")
-                .or(input.get("context_path"))
-                .and_then(|v| v.as_str())
-                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
-                .ok_or("Missing sigil_path")?;
-            let sigil = read_sigil_with_libs(sigil_path.to_string())?;
+            let abs = match input.get("sigil_path").or(input.get("context_path")).and_then(|v| v.as_str()) {
+                Some(raw) => resolve_sigil_arg(raw, editor_ctx)?.1,
+                None => {
+                    let root = editor_ctx.map(|c| c.root_path.as_str()).ok_or("Missing sigil_path")?;
+                    PathBuf::from(root)
+                }
+            };
+            let sigil = read_sigil_with_libs(abs.to_string_lossy().to_string())?;
             let mut output = String::new();
             render_context(&sigil.root, 0, &mut output);
             Ok(output)
@@ -430,23 +445,40 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             Ok(output)
         }
         "rename_sigil" | "rename_context" => {
-            let root = input["root_path"].as_str().ok_or("Missing root_path")?;
-            let sigil_path = input.get("sigil_path")
+            let root = input.get("root_path").and_then(|v| v.as_str())
+                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
+                .ok_or("Missing root_path and no editor context")?;
+            let raw = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
+            let (_, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
-            let result = rename_sigil(root.to_string(), sigil_path.to_string(), new_name.to_string())?;
+            let result = rename_sigil(root.to_string(), abs.to_string_lossy().to_string(), new_name.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(result)
         }
         "move_sigil" => {
-            let root = input["root_path"].as_str().ok_or("Missing root_path")?;
-            let sigil_path = input.get("sigil_path")
+            let root = input.get("root_path").and_then(|v| v.as_str())
+                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
+                .ok_or("Missing root_path and no editor context")?;
+            let raw = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
-            let new_parent = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
-            let new_path = move_sigil(root.to_string(), sigil_path.to_string(), new_parent.to_string())?;
+            let (_, abs) = resolve_sigil_arg(raw, editor_ctx)?;
+            let new_parent_raw = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
+            let (_, new_parent_abs) = resolve_sigil_arg(new_parent_raw, editor_ctx)?;
+            let new_path = move_sigil(
+                root.to_string(),
+                abs.to_string_lossy().to_string(),
+                new_parent_abs.to_string_lossy().to_string(),
+            )?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Moved to {}", new_path))
         }
         "delete_sigil" | "delete_context" => {
@@ -454,88 +486,81 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
-            let sigil_path = raw
-                .trim_end_matches("/language.md")
-                .trim_matches('/')
-                .to_string();
-
-            // Resolve against workspace root — guard against deleting
-            // anything outside the spec tree. Deleting root itself is
-            // refused.
-            let root_path = editor_ctx.map(|c| c.root_path.as_str()).unwrap_or("");
-            if root_path.is_empty() {
-                return Err("No workspace root — cannot delete safely".into());
-            }
-            let abs = Path::new(root_path).join(&sigil_path);
-            eprintln!(
-                "[delete_sigil] raw={:?} cleaned={:?} root={:?} abs={:?} exists={}",
-                raw, sigil_path, root_path, abs, abs.exists(),
-            );
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             if sigil_path.is_empty() {
                 return Err("Refusing to delete workspace root".into());
             }
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            let canonical_root = Path::new(root_path).canonicalize()
-                .map_err(|e| format!("canonicalize root: {}", e))?;
-            let canonical_abs = abs.canonicalize()
-                .map_err(|e| format!("canonicalize target: {}", e))?;
-            if !canonical_abs.starts_with(&canonical_root) {
-                return Err(format!(
-                    "Refusing to delete {} — outside workspace",
-                    canonical_abs.display(),
-                ));
-            }
-
-            eprintln!("[delete_sigil] removing {:?}", canonical_abs);
-            delete_context(canonical_abs.to_string_lossy().to_string())?;
+            delete_context(abs.to_string_lossy().to_string())?;
             if let Some(app) = app {
                 let _ = app.emit("sigil-changed", ());
             }
             Ok(format!("Deleted sigil at {}", sigil_path))
         }
         "write_vision" => {
-            let root_path = input["root_path"].as_str().ok_or("Missing root_path")?;
+            let root_path = input.get("root_path").and_then(|v| v.as_str())
+                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
+                .ok_or("Missing root_path and no editor context")?;
             let content = input["content"].as_str().ok_or("Missing content")?;
             let file_path = Path::new(root_path).join("vision.md");
             fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            Ok(format!("Wrote vision.md at {}", root_path))
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
+            Ok(format!("Wrote vision.md"))
         }
         "write_affordance" | "create_affordance" => {
-            let sigil_path = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let name = input["name"].as_str().ok_or("Missing name")?;
             let content = input["content"].as_str().unwrap_or("");
-            let file_path = Path::new(sigil_path).join(format!("affordance-{}.md", name));
+            let file_path = abs.join(format!("affordance-{}.md", name));
             fs::write(&file_path, content).map_err(|e| e.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Wrote affordance #{} on {}", name, sigil_path))
         }
         "delete_affordance" => {
-            let sigil_path = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let name = input["name"].as_str().ok_or("Missing name")?;
-            let file_path = Path::new(sigil_path).join(format!("affordance-{}.md", name));
+            let file_path = abs.join(format!("affordance-{}.md", name));
             if !file_path.exists() {
                 return Err(format!("Affordance '{}' not found at {}", name, sigil_path));
             }
             fs::remove_file(&file_path).map_err(|e| e.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Deleted affordance #{} from {}", name, sigil_path))
         }
         "write_invariant" | "create_invariant" => {
-            let sigil_path = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let name = input["name"].as_str().ok_or("Missing name")?;
             let content = input["content"].as_str().unwrap_or("");
-            let file_path = Path::new(sigil_path).join(format!("invariant-{}.md", name));
+            let file_path = abs.join(format!("invariant-{}.md", name));
             fs::write(&file_path, content).map_err(|e| e.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Wrote invariant !{} on {}", name, sigil_path))
         }
         "delete_invariant" => {
-            let sigil_path = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let name = input["name"].as_str().ok_or("Missing name")?;
-            let file_path = Path::new(sigil_path).join(format!("invariant-{}.md", name));
+            let file_path = abs.join(format!("invariant-{}.md", name));
             if !file_path.exists() {
                 return Err(format!("Invariant '{}' not found at {}", name, sigil_path));
             }
             fs::remove_file(&file_path).map_err(|e| e.to_string())?;
+            if let Some(app) = app {
+                let _ = app.emit("sigil-changed", ());
+            }
             Ok(format!("Deleted invariant !{} from {}", name, sigil_path))
         }
         "browser_state_inspection" => {
