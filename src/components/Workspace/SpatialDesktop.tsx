@@ -17,6 +17,8 @@ import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type ArcScope } from "../../lib/sentenceArcs";
 import { extractEntanglements } from "../../lib/entanglements";
 import type { Sigil } from "sigil-core";
+import { findContext, stripFrontmatter } from "sigil-core";
+import type { SigilFolder } from "../../tauri";
 import styles from "./SpatialDesktop.module.css";
 
 type IconKind = "child" | "neighbor" | "god" | "parent" | "narrative" | "affordance" | "invariant";
@@ -25,6 +27,35 @@ interface IconSpec {
   name: string;
   kind: IconKind;
   navigateTo?: string[]; // absolute path in the workspace tree — undefined for body-facet icons
+  peek?: PeekData | null; // summary + facets shown on hover
+}
+
+interface PeekData {
+  thesis: string;
+  affordances: string[];
+  invariants: string[];
+}
+
+/** First sentence (up to ~160 chars) of a sigil's language.md — its thesis. */
+function extractThesisSentence(language: string): string {
+  const body = stripFrontmatter(language ?? "")
+    // drop headings
+    .replace(/^#+\s+.*$/gm, "")
+    .trim();
+  if (!body) return "";
+  // Split on the first .!? or blank-line boundary.
+  const m = body.match(/^([\s\S]*?[.!?])(\s|$)/);
+  const first = (m ? m[1] : body.split(/\n\n/)[0]).trim();
+  return first.length > 180 ? first.slice(0, 177) + "…" : first;
+}
+
+function buildPeek(target: SigilFolder | null): PeekData | null {
+  if (!target) return null;
+  return {
+    thesis: extractThesisSentence(target.language ?? ""),
+    affordances: (target.affordances ?? []).map((a) => a.name),
+    invariants: (target.invariants ?? []).map((i) => i.name),
+  };
 }
 
 const NARRATIVE_NAME = "Language";
@@ -142,32 +173,57 @@ export function SpatialDesktop() {
     return { name: parentName, path: parentPath };
   }, [ws.currentPath, ws.spec.name]);
 
-  // Derive the icons for the current sigil. Phase A: narrative + children + entanglements.
+  // Derive the icons for the current sigil, with peek data (thesis, affordances,
+  // invariants) attached so hovering any icon reveals what that sigil offers.
   const icons: IconSpec[] = useMemo(() => {
     if (!folder) return [];
     const list: IconSpec[] = [];
     const currentPath = ws.currentPath;
-    // My body — narrative (language.md) always present.
-    list.push({ name: NARRATIVE_NAME, kind: "narrative" });
-    // Affordances and invariants live in their own fixed rows — not in the
-    // draggable icon list. See affordances/invariants memoized below.
-    for (const child of folder.children) {
-      list.push({ name: child.name, kind: "child", navigateTo: [...currentPath, child.name] });
-    }
-    // Neighbors and gods — entanglements referenced in my language.
-    const childNames = folder.children.map((c) => c.name);
     const isImported = ws.currentPath[0] === "Imported Ontologies";
-    const root: Sigil = (isImported ? ws.spec.importedOntologies : ws.spec.root) as Sigil;
+    const mainRoot = ws.spec.root as Sigil | undefined;
+    const importedRoot = ws.spec.importedOntologies as Sigil | undefined;
+
+    // Resolve a path within the workspace tree back to its SigilFolder so we can
+    // read language/affordances/invariants for peek data.
+    const resolveFolder = (path: string[]): SigilFolder | null => {
+      if (path.length === 0) return null;
+      if (path[0] === "Imported Ontologies") {
+        if (!importedRoot) return null;
+        return findContext(importedRoot, path.slice(1)) as SigilFolder | null;
+      }
+      if (!mainRoot) return null;
+      return findContext(mainRoot, path) as SigilFolder | null;
+    };
+
+    // Narrative — my own body's language. Peek shows my own thesis.
+    list.push({ name: NARRATIVE_NAME, kind: "narrative", peek: buildPeek(folder) });
+
+    for (const child of folder.children) {
+      list.push({
+        name: child.name,
+        kind: "child",
+        navigateTo: [...currentPath, child.name],
+        peek: buildPeek(child),
+      });
+    }
+
+    const childNames = folder.children.map((c) => c.name);
+    const entanglementRoot = (isImported ? importedRoot : mainRoot) as Sigil;
     const resolvedCurrentPath = isImported ? ws.currentPath.slice(1) : ws.currentPath;
     const entanglements = extractEntanglements(
       folder.language ?? "",
-      root,
+      entanglementRoot,
       resolvedCurrentPath,
-      ws.spec.importedOntologies ?? null,
+      importedRoot ?? null,
       childNames,
     );
     for (const ent of entanglements) {
-      list.push({ name: ent.name, kind: ent.kind, navigateTo: ent.path });
+      list.push({
+        name: ent.name,
+        kind: ent.kind,
+        navigateTo: ent.path,
+        peek: buildPeek(resolveFolder(ent.path)),
+      });
     }
     return list;
   }, [folder, ws.currentPath, ws.spec.name, ws.spec.root, ws.spec.importedOntologies]);
@@ -434,6 +490,26 @@ export function SpatialDesktop() {
                  initials(icon.name)}
               </div>
               <div className={styles.label}>{icon.name}</div>
+              {icon.peek && (icon.peek.thesis || icon.peek.affordances.length > 0 || icon.peek.invariants.length > 0) && (
+                <div className={styles.peek}>
+                  <div className={styles.peekTitle}>{icon.name}</div>
+                  {icon.peek.thesis && <div className={styles.peekThesis}>{icon.peek.thesis}</div>}
+                  {icon.peek.affordances.length > 0 && (
+                    <div className={styles.peekSection}>
+                      {icon.peek.affordances.map((a) => (
+                        <span key={`aff:${a}`} className={`${styles.peekChip} ${styles.peekChipAff}`}>#{a}</span>
+                      ))}
+                    </div>
+                  )}
+                  {icon.peek.invariants.length > 0 && (
+                    <div className={styles.peekSection}>
+                      {icon.peek.invariants.map((i) => (
+                        <span key={`inv:${i}`} className={`${styles.peekChip} ${styles.peekChipInv}`}>!{i}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

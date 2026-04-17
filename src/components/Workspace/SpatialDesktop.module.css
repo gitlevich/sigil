@@ -493,6 +493,73 @@
   opacity: 1;
 }
 
+/* Peek panel — floats near an icon on hover, showing the target sigil's
+ * thesis sentence plus its #affordances and !invariants as chips. */
+.peek {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  max-width: 320px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms ease-out;
+  z-index: 30;
+  text-align: left;
+}
+
+.icon:hover .peek {
+  opacity: 1;
+  transition-delay: 120ms;
+}
+
+.peekTitle {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.peekThesis {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.peekSection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 4px;
+}
+
+.peekChip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.72rem;
+  background: transparent;
+}
+
+.peekChipAff {
+  border: 1px solid rgba(61, 158, 140, 0.55);
+  color: #3d9e8c;
+}
+
+.peekChipInv {
+  border: 1px solid rgba(232, 160, 64, 0.55);
+  color: #e8a040;
+}
+
 .emptyHint {
   position: absolute;
   top: 50%;
