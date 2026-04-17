@@ -10,6 +10,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { languages } from "@codemirror/language-data";
 import { SigilFolder, api, events } from "../../tauri";
+import { getBase, setBase } from "../../hooks/useAutoSave";
 import { RenamePopup } from "../shared/RenamePopup";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { fromDashForm } from "sigil-core";
@@ -566,9 +567,11 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
   }, [wordWrap]);
 
   // Sync external content into CodeMirror.
-  // Navigation: replace doc and clear undo. Same-path: skip if CodeMirror is already current
-  // (debounced echo or watcher reload — the watcher grafts local content, so its updates
-  // match what CodeMirror has and get skipped here).
+  // Navigation: replace doc and clear undo.
+  // Same-path clean buffer (doc === last-known-disk snapshot): adopt new content silently —
+  //   this is the #reconcile-external-changes path for an unedited file.
+  // Same-path dirty buffer (doc diverged from snapshot): skip — could be the 300ms debounce
+  //   echo, or a real external change that the shell will surface as a conflict.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
@@ -580,14 +583,27 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     const currentDoc = view.state.doc.toString();
     if (currentDoc === content) return;
 
-    // Same path, content differs: the 300ms debounce hasn't round-tripped yet. Skip.
-    if (!navigated) return;
+    if (navigated) {
+      // Navigation to a different sigil. Replace content and clear undo history.
+      view.dispatch({
+        changes: { from: 0, to: currentDoc.length, insert: content },
+        annotations: [Transaction.addToHistory.of(false)],
+      });
+      return;
+    }
 
-    // Navigation to a different sigil. Replace content and clear undo history.
+    // Same path. Decide by buffer dirtiness.
+    const filePath = sigilDirRef.current ? `${sigilDirRef.current}/language.md` : null;
+    const base = filePath ? getBase(filePath) : null;
+    if (base === null) return; // No snapshot — can't judge; preserve existing behavior (skip).
+    if (currentDoc !== base) return; // Dirty buffer — protect unsaved work.
+
+    // Clean buffer with diverged content prop = silent external-change adoption.
     view.dispatch({
       changes: { from: 0, to: currentDoc.length, insert: content },
       annotations: [Transaction.addToHistory.of(false)],
     });
+    if (filePath) setBase(filePath, content);
   }, [content, currentPath]);
 
   return (

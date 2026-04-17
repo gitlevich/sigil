@@ -12,7 +12,7 @@ import type { BicameralCallbacks } from "./hooks/useRightHemisphere";
 import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
-import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
+import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, setBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
 import { api, FsChangeEvent, SigilFolder, Idea } from "./tauri";
 import { useChatStream } from "./hooks/useChatStream";
 import { Workspace } from "./components/Workspace/Workspace";
@@ -80,22 +80,31 @@ export function WorkspaceShell() {
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
     const pendingPath = getAutoSavePendingPath();
+    const pendingContent = getAutoSavePendingContent();
+
+    // Buffer dirtiness for the currently-edited file:
+    // dirty iff pending content exists AND it diverges from the last-known-disk snapshot.
+    // A null pending (no unsaved change) or pending === base both mean the buffer is clean.
+    let isBufferDirty = false;
+    if (pendingPath) {
+      const base = getBase(pendingPath);
+      isBufferDirty = base !== null && pendingContent !== null && pendingContent !== base;
+    }
 
     // Read fresh spec from disk, but do NOT dispatch yet.
     const diskSpec = await readSpec();
 
-    // Graft: preserve the currently-edited node's language from the local spec tree.
-    // The local tree (ws.spec) has the user's latest content (via handleContentChange's
-    // 300ms debounce). The disk spec may have stale content for that node because
-    // auto-save hasn't caught up yet. We take structure from disk, content from local.
+    // Graft: preserve the currently-edited node's language from the local spec tree ONLY
+    // when the buffer is dirty. A clean buffer has no unsaved work to protect — letting
+    // fresh disk content flow through is the silent-adopt path.
     const currentWs = ws;
     const { scopeRoot, scopePath } = scopeInfo(currentWs);
     const localFolder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
 
     let spec: Idea;
-    if (localFolder && scopePath.length > 0) {
+    if (localFolder && isBufferDirty && scopePath.length > 0) {
       spec = graftLanguage(diskSpec, currentWs, scopePath, localFolder.language);
-    } else if (localFolder && scopePath.length === 0) {
+    } else if (localFolder && isBufferDirty && scopePath.length === 0) {
       // Editing the root — graft its language directly
       const isImported = currentWs.currentPath[0] === "Imported Ontologies";
       if (isImported && diskSpec.importedOntologies) {
@@ -117,31 +126,38 @@ export function WorkspaceShell() {
     const pendingMatchesChanged = event.paths.some((p) => p === pendingPath);
     if (!pendingMatchesChanged) return;
 
-    // The file being edited was changed externally. Detect conflict.
+    // The file being edited was changed externally. Reconcile.
     const base = getBase(pendingPath);
-    if (base === null) return; // No base tracked — cannot detect conflict, skip.
-
-    const localContent = getAutoSavePendingContent() ?? base;
+    if (base === null) return; // No base tracked — cannot reconcile, skip.
 
     if (event.kind === "remove") {
-      pauseAutoSaveFor(pendingPath);
-      dispatch({
-        type: "SET_CONFLICT",
-        conflict: { path: pendingPath, diskContent: "", localContent, deleted: true },
-      });
+      if (isBufferDirty) {
+        pauseAutoSaveFor(pendingPath);
+        dispatch({
+          type: "SET_CONFLICT",
+          conflict: { path: pendingPath, diskContent: "", localContent: pendingContent ?? base, deleted: true },
+        });
+      }
       return;
     }
 
-    // Read the new disk content to compare against base.
+    // Compare disk content to snapshot (content-hash equivalent: byte equality).
     const diskContent = await api.readFile(pendingPath).catch(() => null);
     if (diskContent === null) return; // File disappeared between event and read.
-    if (diskContent === base) return; // Echo of our own write.
+    if (diskContent === base) return; // Echo: no real change relative to snapshot.
 
-    // External process changed the file while user has local edits. Conflict.
+    if (!isBufferDirty) {
+      // Clean buffer: adopt disk silently. Update base so future checks stay accurate.
+      // UPDATE_SPEC already propagated the new content to the editor (no graft taken above).
+      setBase(pendingPath, diskContent);
+      return;
+    }
+
+    // Dirty buffer + disk diverged from snapshot = real conflict.
     pauseAutoSaveFor(pendingPath);
     dispatch({
       type: "SET_CONFLICT",
-      conflict: { path: pendingPath, diskContent, localContent, deleted: false },
+      conflict: { path: pendingPath, diskContent, localContent: pendingContent ?? base, deleted: false },
     });
   });
 
