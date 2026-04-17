@@ -8,6 +8,8 @@ A structure that runs on @attention. Its #invariants hold because you hold them.
 
 The structure is real and precisely articulated: #invariants, #affordances, children, boundaries. But it runs on @attention.
 
+A @sigil is a named door. You can point to it in a sentence without entering — invoke its behavior by naming it. The name carries what is inside. This is why @references compound, why the @Gate can cast a @Spell by recognizing its name, why a narrative can mention a whole subtree in one word.
+
 A @sigil can be a member of multiple @sigils simultaneously. Each membership imposes the containing @sigil's #invariants. !multiple-membership.
 
 Four things can change about a @sigil:
