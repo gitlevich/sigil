@@ -595,10 +595,10 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     // Same path. Decide by buffer dirtiness.
     const filePath = sigilDirRef.current ? `${sigilDirRef.current}/language.md` : null;
     const base = filePath ? getBase(filePath) : null;
-    if (base === null) return; // No snapshot — can't judge; preserve existing behavior (skip).
-    if (currentDoc !== base) return; // Dirty buffer — protect unsaved work.
+    if (base !== null && currentDoc !== base) return; // Dirty buffer — protect unsaved work.
+    // base===null path falls through: no snapshot tracked (e.g., in tests or transient states),
+    // so we accept the content prop. This matches pre-reconcile behavior.
 
-    // Clean buffer with diverged content prop = silent external-change adoption.
     view.dispatch({
       changes: { from: 0, to: currentDoc.length, insert: content },
       annotations: [Transaction.addToHistory.of(false)],
