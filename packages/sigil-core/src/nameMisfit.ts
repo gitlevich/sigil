@@ -46,22 +46,38 @@ export interface NameMisfit {
 /** Options for tuning the detector's sensitivity. */
 export interface NameMisfitOptions {
   /**
-   * Minimum external total edge count for a ref to be considered "well-connected."
-   * A lower number catches more misfits but produces more false positives on
-   * sparse sigils. Default: 3.
+   * Minimum external total edge count for a ref to be considered
+   * "seriously embedded." Below this, the ref has not accumulated enough
+   * co-occurrence history to trust that a new placement is anomalous vs
+   * simply novel. Default: 6.
    */
   minRichness?: number;
   /**
    * Minimum co-occurrence count for a neighbor to be considered "stable."
    * A ref must have at least one stable external neighbor for a misfit to
    * fire — the signal is "well-connected elsewhere," which requires some
-   * established pattern to depart from. Default: 2.
+   * established pattern to depart from. Default: 3.
    */
   minStableCompanionCount?: number;
+  /**
+   * Minimum number of line-mates required for a ref to be tested. A single
+   * co-occurrence is weak evidence; multiple strangers together is the
+   * stronger signal. Default: 2.
+   */
+  minLineMates?: number;
+  /**
+   * The ref's strongest stable companion must have an external count at
+   * least this many times larger than its strongest connection to any
+   * line-mate, to fire. Without dominance, the placement is arguably
+   * another legitimate companion. Default: 3.
+   */
+  minDominanceRatio?: number;
 }
 
-const DEFAULT_MIN_RICHNESS = 3;
+const DEFAULT_MIN_RICHNESS = 4;
 const DEFAULT_MIN_STABLE_COMPANION = 2;
+const DEFAULT_MIN_LINE_MATES = 2;
+const DEFAULT_MIN_DOMINANCE = 3;
 
 interface RefOnLine {
   token: string;
@@ -110,41 +126,47 @@ function testRef(
   file: string,
   minRichness: number,
   minStableCompanion: number,
+  minLineMates: number,
+  minDominance: number,
 ): NameMisfit | null {
   const node = space.nodes.get(ref.resolvedName);
   if (!node) return null;
+  if (lineMates.length < minLineMates) return null;
 
   const edgeCounts = new Map(node.edges.map(e => [e.target, e.count]));
 
-  // External co-occurrence with line-mates (subtract this line's contribution).
-  // Each pair in this line contributed 1 to the sentence-level count when the
-  // space was built. A multi-occurrence within the same line would still be 1.
-  let externalNeighborhoodOverlap = 0;
+  // External co-occurrence with line-mates: the strongest external link from
+  // this ref to any of its line-mates. If any mate is a known companion
+  // externally, this placement isn't anomalous.
+  let maxExternalToMate = 0;
   for (const mate of lineMates) {
     const total = edgeCounts.get(mate) ?? 0;
-    externalNeighborhoodOverlap += Math.max(0, total - 1);
+    const external = Math.max(0, total - 1);
+    if (external > maxExternalToMate) maxExternalToMate = external;
   }
+  if (maxExternalToMate > 0) return null;
 
-  // External total edge count (exclude this line's contributions).
+  // External total edge count and strongest stable companion (excluding
+  // contributions from this line).
   let externalTotalEdgeCount = 0;
-  // Does the ref have at least one stable external companion — a neighbor
-  // with external count >= minStableCompanion? Without a stable companion,
-  // the ref has no "established neighborhood" to depart from.
-  let hasStableExternalCompanion = false;
+  let strongestStableCompanion = 0;
   for (const edge of node.edges) {
     const inLine = lineMates.includes(edge.target) ? 1 : 0;
     const external = Math.max(0, edge.count - inLine);
     externalTotalEdgeCount += external;
-    if (external >= minStableCompanion) hasStableExternalCompanion = true;
+    if (external > strongestStableCompanion) strongestStableCompanion = external;
   }
 
-  // Misfit criterion: ref is well-connected elsewhere (stable companions exist),
-  // has no external co-occurrence with its line-mates, and has enough total
-  // external edges to count as broadly used. "Well-placed elsewhere, out of
-  // place here."
-  if (externalNeighborhoodOverlap !== 0) return null;
-  if (!hasStableExternalCompanion) return null;
+  if (strongestStableCompanion < minStableCompanion) return null;
   if (externalTotalEdgeCount < minRichness) return null;
+
+  // Dominance: the strongest established companion must be meaningfully
+  // larger than the strongest external link to any line-mate. Since we
+  // already filtered at maxExternalToMate === 0 above, this is equivalent
+  // to requiring strongestStableCompanion >= minDominance. Keeping the
+  // check explicit so the rule is legible and easy to generalize later
+  // (e.g. when we allow weak mate connections through).
+  if (strongestStableCompanion < Math.max(1, maxExternalToMate) * minDominance) return null;
 
   // Compose a reason naming the ref's typical neighbors (excluding line-mates).
   const topNeighbors = node.edges
@@ -179,6 +201,8 @@ function detectInContent(
   file: string,
   minRichness: number,
   minStableCompanion: number,
+  minLineMates: number,
+  minDominance: number,
   result: NameMisfit[],
 ): void {
   const lines = content.split("\n");
@@ -201,6 +225,8 @@ function detectInContent(
         file,
         minRichness,
         minStableCompanion,
+        minLineMates,
+        minDominance,
       );
       if (misfit) result.push(misfit);
     }
@@ -218,20 +244,22 @@ function walkDetect(
   space: SigilSpace,
   minRichness: number,
   minStableCompanion: number,
+  minLineMates: number,
+  minDominance: number,
   result: NameMisfit[],
 ): void {
   if (sigil.language) {
-    detectInContent(sigil.language, root, path, importedOntologies, space, "language.md", minRichness, minStableCompanion, result);
+    detectInContent(sigil.language, root, path, importedOntologies, space, "language.md", minRichness, minStableCompanion, minLineMates, minDominance, result);
   }
   for (const aff of sigil.affordances) {
-    detectInContent(aff.content, root, path, importedOntologies, space, `affordance-${aff.name}.md`, minRichness, minStableCompanion, result);
+    detectInContent(aff.content, root, path, importedOntologies, space, `affordance-${aff.name}.md`, minRichness, minStableCompanion, minLineMates, minDominance, result);
   }
   for (const inv of sigil.invariants) {
-    detectInContent(inv.content, root, path, importedOntologies, space, `invariant-${inv.name}.md`, minRichness, minStableCompanion, result);
+    detectInContent(inv.content, root, path, importedOntologies, space, `invariant-${inv.name}.md`, minRichness, minStableCompanion, minLineMates, minDominance, result);
   }
   for (const child of sigil.children) {
     if (child.isImported) continue;
-    walkDetect(child, [...path, child.name], root, importedOntologies, space, minRichness, minStableCompanion, result);
+    walkDetect(child, [...path, child.name], root, importedOntologies, space, minRichness, minStableCompanion, minLineMates, minDominance, result);
   }
 }
 
@@ -250,7 +278,9 @@ export function detectNameMisfits(
   const space = build(root, libs);
   const minRichness = options?.minRichness ?? DEFAULT_MIN_RICHNESS;
   const minStableCompanion = options?.minStableCompanionCount ?? DEFAULT_MIN_STABLE_COMPANION;
+  const minLineMates = options?.minLineMates ?? DEFAULT_MIN_LINE_MATES;
+  const minDominance = options?.minDominanceRatio ?? DEFAULT_MIN_DOMINANCE;
   const result: NameMisfit[] = [];
-  walkDetect(root, [], root, libs, space, minRichness, minStableCompanion, result);
+  walkDetect(root, [], root, libs, space, minRichness, minStableCompanion, minLineMates, minDominance, result);
   return result;
 }
