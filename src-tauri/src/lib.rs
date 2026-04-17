@@ -114,6 +114,7 @@ pub fn run() {
             commands::left_hemisphere::invoke_left_hemisphere,
             commands::memory::write_long_term_memory,
             commands::memory::read_long_term_memory,
+            commands::spells::list_spells,
             take_pending_open_path,
         ])
         .build(tauri::generate_context!())

@@ -7,7 +7,8 @@ import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
 import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
 import { useHearing, type HearingEvent } from "./useHearing";
-import { consultSpellbook, emptySpellbook, type Disturbance } from "sigil-core";
+import { useSpellbook } from "./useSpellbook";
+import { consultSpellbook, type Disturbance } from "sigil-core";
 
 export function useChatStream() {
   const appState = useAppState();
@@ -30,10 +31,13 @@ export function useChatStream() {
   // should see the list, not only the User.
   const nameMisfits = useNameMisfits(workspace.spec.root, workspace.spec.importedOntologies ?? null);
   const hearingEvents = useHearing(workspace.spec.root);
+  const spellbook = useSpellbook(workspace.spec.rootPath);
   const nameMisfitsRef = useRef(nameMisfits);
   const hearingEventsRef = useRef(hearingEvents);
+  const spellbookRef = useRef(spellbook);
   nameMisfitsRef.current = nameMisfits;
   hearingEventsRef.current = hearingEvents;
+  spellbookRef.current = spellbook;
 
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
@@ -162,7 +166,7 @@ export function useChatStream() {
         recentEventCount: hearingEventsRef.current.length,
       },
     };
-    const consultation = consultSpellbook(disturbance, emptySpellbook);
+    const consultation = consultSpellbook(disturbance, spellbookRef.current);
     if (consultation.cast && consultation.result.success) {
       // Spell handled the disturbance — no LH call.
       const response = consultation.result.summary ?? "";

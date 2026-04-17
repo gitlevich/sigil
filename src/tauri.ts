@@ -78,6 +78,35 @@ export interface DeletePreview {
   danglingReferences: DanglingReference[];
 }
 
+/**
+ * A Spell manifest as stored on disk in the workspace's .private/spells/ directory.
+ * The Subconscious loads these, converts them to Spell values, and consults them
+ * for each Disturbance.
+ */
+export interface SpellManifest {
+  name: string;
+  situation: string;
+  /** Declarative match rule — structure documented in useSpellbook. */
+  match: SpellMatchRule;
+  /** Ordered list of actions to run when this Spell is cast. */
+  actions: SpellAction[];
+}
+
+export interface SpellMatchRule {
+  /** Match when the disturbance's kind equals this string. Required. */
+  kind: string;
+  /** Optional payload predicates — all must pass for the Spell to match. */
+  payload?: Record<string, SpellPayloadPredicate>;
+}
+
+/** Tiny predicate DSL over a payload field's string value. */
+export type SpellPayloadPredicate =
+  | { equals: string }
+  | { matches: string }; // regex, case-insensitive
+
+export type SpellAction =
+  | { type: "reply"; content: string };
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -349,6 +378,9 @@ export const api = {
 
   readMemories: (rootPath: string) =>
     invoke<MemoryGraph>("read_memories", { rootPath }),
+
+  listSpells: (rootPath: string) =>
+    invoke<SpellManifest[]>("list_spells", { rootPath }),
 
   watchDirectory: (rootPath: string) =>
     invoke<void>("watch_directory", { rootPath }),
