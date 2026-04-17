@@ -10,7 +10,7 @@ import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
 import { useHearing, type HearingEvent } from "./useHearing";
 import { useCompileCheck, type RefError } from "./useCompileCheck";
 import { useSpellbook } from "./useSpellbook";
-import { consultSpellbook, type Disturbance } from "sigil-core";
+import { consultSpellbook, compressSigil, type Disturbance } from "sigil-core";
 
 export function useChatStream() {
   const appState = useAppState();
@@ -221,7 +221,17 @@ export function useChatStream() {
       ? ""
       : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
     const sensorySuffix = composeSensorySection(nameMisfitsRef.current, hearingEventsRef.current, compileErrorsRef.current);
-    const systemPrompt = stylePrefix + appState.settings.system_prompt + sensorySuffix;
+
+    // Local tiers (Local sidecar, Ollama) get a compressed view of the sigil
+    // tree so the model knows what paths actually exist — otherwise it
+    // fabricates placeholders like "/projects/Scratch" from training data.
+    // Remote tiers get the full tree assembled on the Rust side.
+    const isLocalTier = provider.provider === "local" || provider.provider === "ollama";
+    const sigilAtlas = isLocalTier
+      ? "\n\n# Sigils that exist in this workspace\n\nThese are the only sigil paths you can reference. Use exactly these names — do not invent paths.\n\n" + compressSigil(ws.spec.root) + "\n"
+      : "";
+
+    const systemPrompt = stylePrefix + appState.settings.system_prompt + sigilAtlas + sensorySuffix;
 
     try {
       await api.sendChatMessage(

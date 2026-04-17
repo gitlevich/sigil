@@ -51,7 +51,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil to navigate to"
+                        "description": "Sigil path relative to the workspace root, using the sigil's name hierarchy. Example: 'Scratch' for the top-level Scratch sigil, or 'DesignPartner/BicameralMind/Memory' for a nested one. Do not invent paths; use names that actually exist in the tree."
                     }
                 },
                 "required": ["sigil_path"]
@@ -100,7 +100,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     },
                     "content": {
                         "type": "string",
@@ -118,7 +118,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     }
                 },
                 "required": ["sigil_path"]
@@ -132,7 +132,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "root_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil root directory. Omit to use the current sigil root."
+                        "description": "Optional — omit to use the current workspace root."
                     }
                 },
                 "required": []
@@ -146,11 +146,11 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "root_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil root directory"
+                        "description": "Optional — omit to use the current workspace root."
                     },
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil to rename"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch')"
                     },
                     "new_name": {
                         "type": "string",
@@ -168,15 +168,15 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "root_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil root directory"
+                        "description": "Optional — omit to use the current workspace root."
                     },
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil to move"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch')"
                     },
                     "new_parent_path": {
                         "type": "string",
-                        "description": "Absolute path to the new parent sigil"
+                        "description": "Sigil path of the new parent, relative to workspace root. Omit to move to root."
                     }
                 },
                 "required": ["root_path", "sigil_path", "new_parent_path"]
@@ -190,7 +190,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil to delete"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch'). This sigil must exist."
                     }
                 },
                 "required": ["sigil_path"]
@@ -204,7 +204,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "root_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil root directory"
+                        "description": "Optional — omit to use the current workspace root."
                     },
                     "content": {
                         "type": "string",
@@ -223,7 +223,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     },
                     "name": {
                         "type": "string",
@@ -245,7 +245,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     },
                     "name": {
                         "type": "string",
@@ -264,7 +264,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     },
                     "name": {
                         "type": "string",
@@ -286,7 +286,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "properties": {
                     "sigil_path": {
                         "type": "string",
-                        "description": "Absolute path to the sigil directory"
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
                     },
                     "name": {
                         "type": "string",
