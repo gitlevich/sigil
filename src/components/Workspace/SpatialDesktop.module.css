@@ -1,29 +1,44 @@
 .upButton {
   position: absolute;
-  top: 12px;
-  left: 16px;
+  top: 14px;
+  left: 18px;
   z-index: 6;
-  width: 48px;
-  height: 42px;
+  width: 40px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: color-mix(in srgb, var(--text-primary) 70%, transparent);
-  transition: color 140ms ease-out, filter 180ms ease-out;
+  transition: color 200ms ease-out, filter 260ms ease-out;
 }
 
 .upButton svg {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   stroke: currentColor;
-  fill: none;
+  fill: var(--bg-primary);
   pointer-events: auto;
 }
 
+/* Inside UP button SVG, the text must render in the color, not the fill. */
+.upButton svg text {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* Subtle, diffused 3200K light source feathered around the icon. Stacked
+ * drop-shadows produce a smooth natural falloff — brighter close in, fading
+ * through warm cream to nothing at the outer ring. */
 .upButton:hover {
-  color: #b8860b;
-  filter: drop-shadow(0 0 6px rgba(245, 211, 90, 0.6));
+  color: color-mix(in srgb, var(--text-primary) 90%, #e8c896);
+  filter:
+    drop-shadow(0 0 1.5px rgba(240, 210, 180, 0.9))
+    drop-shadow(0 0 6px rgba(232, 200, 160, 0.55))
+    drop-shadow(0 0 14px rgba(224, 188, 146, 0.35))
+    drop-shadow(0 0 26px rgba(214, 178, 138, 0.2));
 }
 
 .root {
@@ -139,7 +154,7 @@
 }
 
 .arcLabel {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-family: 'SF Mono', 'Fira Code', monospace;
   fill: var(--text-secondary);
   pointer-events: none;
@@ -188,15 +203,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 18px;
   color: var(--text-primary);
   font-weight: 500;
   transition: box-shadow 140ms ease-out;
 }
 
-/* Child — outlined square. Shape alone says "I am a child of this sigil." */
+/* Child — outlined square with an opaque fill so arcs behind it are hidden. */
 .child {
-  background: transparent;
+  background: var(--bg-primary);
   border: 1.5px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
   border-radius: 6px;
 }
@@ -211,7 +226,7 @@
   height: 112px;
   position: relative;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   font-family: var(--font-sans, system-ui, -apple-system, "SF Pro Text", sans-serif);
   letter-spacing: 0;
@@ -252,7 +267,7 @@
   width: 100%;
   height: 100%;
   stroke: currentColor;
-  fill: none;
+  fill: var(--bg-primary);
 }
 
 .narrative {
@@ -314,9 +329,9 @@
 }
 
 .label {
-  font-size: 0.72rem;
+  font-size: 0.88rem;
   color: color-mix(in srgb, var(--text-primary) 85%, transparent);
-  max-width: 140px;
+  max-width: 180px;
   text-align: center;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -391,7 +406,7 @@
   top: 26px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: color-mix(in srgb, var(--text-primary) 90%, transparent);
   background: var(--bg-secondary);

@@ -447,7 +447,7 @@ function AffordanceGlyph() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden>
       <rect x={2} y={2} width={16} height={16} rx={4} ry={4} strokeWidth={1} />
-      <text x={10} y={14} textAnchor="middle" fontSize={11} fontWeight={500} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">#</text>
+      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={500} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">#</text>
     </svg>
   );
 }
@@ -457,7 +457,7 @@ function InvariantGlyph() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden>
       <rect x={2} y={2} width={16} height={16} strokeWidth={1} />
-      <text x={10} y={14} textAnchor="middle" fontSize={11} fontWeight={600} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">!</text>
+      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={600} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">!</text>
     </svg>
   );
 }
@@ -474,18 +474,18 @@ function GodGlyph() {
 }
 
 /** UP button — small triangle pointing up with "UP" inside, positioned before
- * the affordance row. Click ascends to the containing sigil. Subtle golden
- * glow on hover; tooltip carries the parent's name. */
+ * the affordance row. Click ascends to the containing sigil. Diffused warm
+ * light behind it on hover; tooltip carries the parent's name. */
 function UpGlyph() {
-  const path = roundedPolygonPath([[24, 4], [44, 36], [4, 36]], 4);
+  const path = roundedPolygonPath([[20, 3], [37, 30], [3, 30]], 3);
   return (
-    <svg viewBox="0 0 48 42" aria-hidden>
-      <path d={path} strokeWidth={1.4} />
+    <svg viewBox="0 0 40 34" aria-hidden>
+      <path d={path} strokeWidth={1.3} strokeLinejoin="round" />
       <text
-        x={24}
-        y={30}
+        x={20}
+        y={26}
         textAnchor="middle"
-        fontSize={11}
+        fontSize={10}
         fontWeight={600}
         fill="currentColor"
         stroke="none"
