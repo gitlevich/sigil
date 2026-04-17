@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// The open specification — the workspace's view of the sigil hierarchy on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IdeaSpec {
+pub struct Idea {
     pub name: String,
     pub root_path: String,
     pub vision: String,

@@ -10,7 +10,7 @@
  */
 import { useRef, useEffect, useCallback } from "react";
 import { api, selectedProvider } from "../tauri";
-import type { IdeaSpec } from "../tauri";
+import type { Idea } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import type { Mind } from "sigil-core/bicameralMind";
 import {
@@ -37,7 +37,7 @@ import { serializeTrace, serializeLongTerm, parseLongTerm, initWithLongTerm } fr
 import { memory as mindMemory } from "sigil-core/bicameralMind";
 
 export interface RightHemisphereHandle {
-  perceive: (spec: IdeaSpec, changedPaths: string[]) => Perception;
+  perceive: (spec: Idea, changedPaths: string[]) => Perception;
   getExperience: () => ExperienceSegment[];
   recordChat: (role: "user" | "assistant", content: string) => void;
   getMemory: () => import("sigil-core/memory").MemoryState;
@@ -47,7 +47,7 @@ export interface BicameralCallbacks {
   onArticulation?: (articulation: Articulation, sigils: string[]) => void;
 }
 
-export function useRightHemisphere(spec: IdeaSpec, currentPath: string[], callbacks?: BicameralCallbacks): RightHemisphereHandle {
+export function useRightHemisphere(spec: Idea, currentPath: string[], callbacks?: BicameralCallbacks): RightHemisphereHandle {
   const appState = useAppState();
   const settingsRef = useRef(appState.settings);
   settingsRef.current = appState.settings;
@@ -160,7 +160,7 @@ export function useRightHemisphere(spec: IdeaSpec, currentPath: string[], callba
     sleepTimerRef.current = setTimeout(doSleep, LIGHT_SLEEP_MS);
   }, [doSleep]);
 
-  const perceive = useCallback((newSpec: IdeaSpec, changedPaths: string[]): Perception => {
+  const perceive = useCallback((newSpec: Idea, changedPaths: string[]): Perception => {
     const m = mindRef.current!;
     const changedSigils = extractSigilNames(changedPaths, newSpec.rootPath, newSpec.root.name);
 

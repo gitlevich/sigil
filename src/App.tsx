@@ -9,7 +9,7 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
-import { api, IdeaSpec } from "./tauri";
+import { api, Idea } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -21,7 +21,7 @@ interface AppProps {
 }
 
 interface OpenedWorkspace {
-  spec: IdeaSpec;
+  spec: Idea;
   initialPath: string[];
   initialCollapsed: string[];
   initialLayout: Partial<LayoutState>;

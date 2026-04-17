@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { api, IdeaSpec } from "../tauri";
+import { api, Idea } from "../tauri";
 
 export function useSigil() {
-  const reload = useCallback(async (rootPath: string): Promise<IdeaSpec> => {
+  const reload = useCallback(async (rootPath: string): Promise<Idea> => {
     return api.readSigil(rootPath);
   }, []);
 
-  const openDocument = useCallback(async (rootPath: string): Promise<IdeaSpec> => {
+  const openDocument = useCallback(async (rootPath: string): Promise<Idea> => {
     const spec = await api.readSigil(rootPath);
     await api.addRecentDocument(rootPath);
     await api.watchDirectory(rootPath);

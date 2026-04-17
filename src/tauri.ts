@@ -17,10 +17,10 @@ export interface SigilFolder extends Sigil {
 }
 
 /**
- * IdeaSpec — the open specification being worked on.
+ * Idea — the open specification being worked on.
  * Contains the root SigilFolder hierarchy and imported ontologies.
  */
-export interface IdeaSpec {
+export interface Idea {
   name: string;
   rootPath: string;
   vision: string;
@@ -190,7 +190,7 @@ export function enabledProviders(settings: Settings): AiProvider[] {
 
 export const api = {
   readSigil: (rootPath: string) =>
-    invoke<IdeaSpec>("read_sigil", { rootPath }),
+    invoke<Idea>("read_sigil", { rootPath }),
 
   closeWorkspace: (rootPath: string) =>
     invoke<void>("close_workspace", { rootPath }),
