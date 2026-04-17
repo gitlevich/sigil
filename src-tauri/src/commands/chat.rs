@@ -368,8 +368,14 @@ pub async fn send_chat_message(
     };
 
     // The partner wears the sigil. The LLM provides the attention.
-    let sigil_context = assemble_sigil_context(&root_path, &current_path)
-        .unwrap_or_default();
+    // Local small models choke on the full sigil dump — skip for now; we'll
+    // re-introduce a scoped context (current sigil + neighbors only) once we
+    // see how the minimal-context flow behaves.
+    let sigil_context = if profile.provider == AiProvider::Local {
+        String::new()
+    } else {
+        assemble_sigil_context(&root_path, &current_path).unwrap_or_default()
+    };
     let system_prompt = if sigil_context.is_empty() {
         base_prompt
     } else {
@@ -703,6 +709,13 @@ async fn stream_local(
             content: m.content.clone(),
         });
     }
+
+    let total_chars: usize = messages.iter().map(|m| m.content.len()).sum();
+    eprintln!(
+        "[local] invoking: {} messages, {} total chars across content",
+        messages.len(),
+        total_chars,
+    );
 
     let text = local.invoke_messages(&messages, 512).await?;
     if !text.is_empty() {

@@ -118,8 +118,23 @@ def main() -> int:
             _respond({"id": request_id, "error": "missing prompt or messages"})
             continue
 
+        summary = ", ".join(
+            f"{m.get('role','?')}={len(m.get('content',''))}ch"
+            for m in turn_messages
+        )
+        log.info(
+            "request id=%s messages=[%s] max_tokens=%d",
+            request_id, summary, max_tokens,
+        )
+
         try:
+            import time as _t
+            t0 = _t.monotonic()
             content = _generate(model, tokenizer, turn_messages, max_tokens)
+            log.info(
+                "generated id=%s in %.2fs, %d chars",
+                request_id, _t.monotonic() - t0, len(content),
+            )
             _respond({"id": request_id, "content": content})
         except Exception as exc:
             log.exception("generation failed")
