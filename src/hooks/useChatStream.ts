@@ -14,9 +14,11 @@ import { consultSpellbook, type Disturbance } from "sigil-core";
 export function useChatStream() {
   const appState = useAppState();
   const workspace = useWorkspaceState();
-  const { navigate } = useWorkspaceActions();
+  const { navigate, reload } = useWorkspaceActions();
   const navigateRef = useRef(navigate);
+  const reloadRef = useRef(reload);
   navigateRef.current = navigate;
+  reloadRef.current = reload;
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
@@ -79,8 +81,16 @@ export function useChatStream() {
       chatDispatch({ type: "SET_MESSAGES", messages: msgs });
     });
 
-    // Sigil changes and navigation are handled by the workspace layer
-    const unlistenSigilChanged = events.onSigilChanged(() => {});
+    // When a tool mutates the sigil tree (create/delete/rename/move/write),
+    // reload the spec so the workspace sees the change. The file watcher
+    // catches disk changes too, but this is a direct path that doesn't
+    // depend on watcher latency.
+    const unlistenSigilChanged = events.onSigilChanged(() => {
+      console.info("[sigil-changed] reloading spec");
+      reloadRef.current().catch((err) => {
+        console.error("[sigil-changed] reload failed:", err);
+      });
+    });
     const unlistenNavigate = events.onNavigateTo((sigilPath) => {
       console.info("[navigate-to] received payload:", JSON.stringify(sigilPath));
       const segments = sigilPath.split("/").filter((s) => s.length > 0);

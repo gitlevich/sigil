@@ -323,6 +323,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
 
 /// Execute a tool call and return the result as a string
 pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
+    eprintln!("[tool] {} input={}", name, input);
     match name {
         "navigate" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -488,6 +489,7 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
+            eprintln!("[delete_sigil] raw={:?} cleaned={:?} abs={:?} exists={}", raw, sigil_path, abs, abs.exists());
             if sigil_path.is_empty() {
                 return Err("Refusing to delete workspace root".into());
             }
@@ -495,6 +497,7 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
             delete_context(abs.to_string_lossy().to_string())?;
+            eprintln!("[delete_sigil] removed {:?}", abs);
             if let Some(app) = app {
                 let _ = app.emit("sigil-changed", ());
             }
