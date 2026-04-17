@@ -41,6 +41,8 @@ export function ExperiencePanel() {
           segments: session.entries.map(e => entryToSegment(e) as ExperienceSegment),
         });
       }
+      // Newest session first.
+      groups.sort((a, b) => b.startedAt - a.startedAt);
       setPastSessions(groups);
     }).catch(err => {
       console.error("[Experience] failed to load past sessions:", err);
@@ -53,9 +55,11 @@ export function ExperiencePanel() {
     return () => clearInterval(interval);
   }, [getExperience]);
 
+  // Newest-on-top: scroll to the top when new live segments arrive so the
+  // latest entry is visible without the user scrolling all the way down.
   useEffect(() => {
     if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
+      listRef.current.scrollTop = 0;
     }
   }, [liveSegments.length]);
 
@@ -74,22 +78,22 @@ export function ExperiencePanel() {
         <div className={styles.empty}>No experience yet. Edit a sigil or start a conversation.</div>
       ) : (
         <>
+          {liveMeaningful.length > 0 && (
+            <div>
+              <div className={styles.sessionHeader}>Now</div>
+              {liveMeaningful.slice().reverse().map((seg, i) => <Entry key={i} segment={seg} />)}
+            </div>
+          )}
           {filteredPast.map((group, gi) => {
             const meaningful = group.segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message || s.articulation);
             if (meaningful.length === 0) return null;
             return (
               <div key={gi}>
                 <div className={styles.sessionHeader}>{group.label}</div>
-                {meaningful.map((seg, i) => <Entry key={i} segment={seg} />)}
+                {meaningful.slice().reverse().map((seg, i) => <Entry key={i} segment={seg} />)}
               </div>
             );
           })}
-          {liveMeaningful.length > 0 && (
-            <div>
-              <div className={styles.sessionHeader}>Now</div>
-              {liveMeaningful.map((seg, i) => <Entry key={i} segment={seg} />)}
-            </div>
-          )}
         </>
       )}
     </div>
