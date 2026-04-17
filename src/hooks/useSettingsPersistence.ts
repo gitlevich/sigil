@@ -15,7 +15,7 @@ interface PersistedDocState {
   designPartnerPanelOpen: boolean;
   designPartnerPanelTab: "chat" | "memories" | "experience";
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "atlas" | "space";
+  contentTab: "language" | "atlas" | "space" | "flowing";
   activeChatId: string;
   wordWrap: boolean;
   collapsedPaths?: string[];

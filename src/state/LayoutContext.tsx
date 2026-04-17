@@ -9,7 +9,7 @@ import { createContext, useContext, useReducer, ReactNode, Dispatch } from "reac
 
 export interface LayoutState {
   editorMode: "edit" | "split" | "preview";
-  contentTab: "language" | "atlas" | "space";
+  contentTab: "language" | "atlas" | "space" | "flowing";
   wordWrap: boolean;
   ontologyPanelOpen: boolean;
   ontologyPanelTab: "vision" | "ontology";
@@ -19,7 +19,7 @@ export interface LayoutState {
 
 type LayoutAction =
   | { type: "SET_EDITOR_MODE"; mode: "edit" | "split" | "preview" }
-  | { type: "SET_CONTENT_TAB"; tab: "language" | "atlas" | "space" }
+  | { type: "SET_CONTENT_TAB"; tab: "language" | "atlas" | "space" | "flowing" }
   | { type: "SET_WORD_WRAP"; wrap: boolean }
   | { type: "SET_ONTOLOGY_PANEL"; open: boolean; tab?: "vision" | "ontology" }
   | { type: "SET_DESIGN_PARTNER_PANEL"; open: boolean; tab?: "chat" | "memories" | "experience" };

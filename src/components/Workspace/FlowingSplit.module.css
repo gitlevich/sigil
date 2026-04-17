@@ -1,0 +1,46 @@
+.root {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.left {
+  border-right: 1px solid var(--border);
+}
+
+.right {
+  /* no extra border — the divider carries the seam */
+}
+
+.divider {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 4;
+  flex-shrink: 0;
+}
+
+.divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  background: var(--border);
+  transition: background 160ms ease-out;
+}
+
+.divider:hover::after,
+.divider.active::after {
+  background: var(--accent);
+}

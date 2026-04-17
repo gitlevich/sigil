@@ -32,6 +32,7 @@ import * as actions from "../../actions/workspace";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SpatialDesktop } from "./SpatialDesktop";
+import { FlowingSplit } from "./FlowingSplit";
 import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
@@ -403,36 +404,40 @@ export function Workspace() {
         <ConflictBanner />
         <ConflictToast />
         <EditorToolbar />
-        {layout.contentTab === "atlas" ? (
-          <Atlas />
-        ) : layout.contentTab === "space" ? (
-          <SpatialDesktop />
-        ) : (
-          <SigilEditor
-            sigil={currentFolder}
-            content={content}
-            onChange={handleContentChange}
-            scope={scope}
-            scopeNames={scopeNames}
-            scopeRoot={scopeRoot}
-            scopePath={scopePath}
-            coreRefs={coreRefs}
-            keybindings={appState.settings.keybindings as unknown as Record<string, string>}
-            actionDeps={actionDeps}
-            onCreateSigil={handleCreateSigil}
-            onCreateAffordance={handleCreateAffordance}
-            onCreateInvariant={handleCreateInvariant}
-            onRenameSigil={handleRenameSigil}
-            onRenameProperty={handleRenameProperty}
-            onRenameStatus={handleRenameStatus}
-            onNavigateToSigil={handleNavigateToSigil}
-            onNavigateToAbsPath={(path) => navigate(path)}
-            findReferencesName={findReferencesNameRef.current}
-            onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
-            goToLine={ws.targetLine}
-            onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
-          />
-        )}
+        {(() => {
+          const sigilEditor = (
+            <SigilEditor
+              sigil={currentFolder}
+              content={content}
+              onChange={handleContentChange}
+              scope={scope}
+              scopeNames={scopeNames}
+              scopeRoot={scopeRoot}
+              scopePath={scopePath}
+              coreRefs={coreRefs}
+              keybindings={appState.settings.keybindings as unknown as Record<string, string>}
+              actionDeps={actionDeps}
+              onCreateSigil={handleCreateSigil}
+              onCreateAffordance={handleCreateAffordance}
+              onCreateInvariant={handleCreateInvariant}
+              onRenameSigil={handleRenameSigil}
+              onRenameProperty={handleRenameProperty}
+              onRenameStatus={handleRenameStatus}
+              onNavigateToSigil={handleNavigateToSigil}
+              onNavigateToAbsPath={(path) => navigate(path)}
+              findReferencesName={findReferencesNameRef.current}
+              onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
+              goToLine={ws.targetLine}
+              onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
+            />
+          );
+          if (layout.contentTab === "atlas") return <Atlas />;
+          if (layout.contentTab === "space") return <SpatialDesktop />;
+          if (layout.contentTab === "flowing") {
+            return <FlowingSplit left={sigilEditor} right={<SpatialDesktop />} />;
+          }
+          return sigilEditor;
+        })()}
         <ConflictStatusBar />
         <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });

@@ -74,6 +74,13 @@ export function EditorToolbar() {
         >
           Space
         </button>
+        <button
+          className={`${styles.contentTab} ${layout.contentTab === "flowing" ? styles.contentTabActive : ""}`}
+          onClick={() => layoutDispatch({ type: "SET_CONTENT_TAB", tab: "flowing" })}
+          title="Flowing — type on the left, watch the world emerge on the right"
+        >
+          Flowing
+        </button>
       </div>
 
       {layout.contentTab === "language" && (
