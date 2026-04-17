@@ -51,11 +51,16 @@ def _load_model(model_id: str):
     return model, tokenizer
 
 
-def _generate(model, tokenizer, prompt: str, max_tokens: int) -> str:
+def _generate(
+    model,
+    tokenizer,
+    messages: list[dict[str, str]],
+    max_tokens: int,
+) -> str:
     from mlx_lm import generate  # type: ignore
 
-    # Apply the model's chat template so the prompt is framed correctly.
-    messages = [{"role": "user", "content": prompt}]
+    # Apply the model's chat template so the prompt is framed correctly —
+    # Phi-3 stops cleanly at <|end|> only when the template owns the framing.
     formatted = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
@@ -99,15 +104,22 @@ def main() -> int:
             continue
 
         request_id = request.get("id")
-        prompt = request.get("prompt")
-        max_tokens = int(request.get("max_tokens") or 1024)
+        max_tokens = int(request.get("max_tokens") or 512)
 
-        if not isinstance(prompt, str) or not prompt:
-            _respond({"id": request_id, "error": "missing prompt"})
+        # Accept either `messages` (preferred — real chat-template framing) or
+        # a raw `prompt` (wrapped as a single user message).
+        messages = request.get("messages")
+        prompt = request.get("prompt")
+        if isinstance(messages, list) and messages:
+            turn_messages = messages
+        elif isinstance(prompt, str) and prompt:
+            turn_messages = [{"role": "user", "content": prompt}]
+        else:
+            _respond({"id": request_id, "error": "missing prompt or messages"})
             continue
 
         try:
-            content = _generate(model, tokenizer, prompt, max_tokens)
+            content = _generate(model, tokenizer, turn_messages, max_tokens)
             _respond({"id": request_id, "content": content})
         except Exception as exc:
             log.exception("generation failed")

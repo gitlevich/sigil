@@ -20,10 +20,20 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 
+use serde::Serialize;
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::sync::Mutex;
+
+/// One turn in a conversation, sent to the sidecar so Phi-3's chat template
+/// can frame it correctly. Using the proper template lets the model stop at
+/// its own `<|end|>` token instead of generating the full max_tokens.
+#[derive(Debug, Clone, Serialize)]
+pub struct Message {
+    pub role: String,
+    pub content: String,
+}
 
 /// One live sidecar process with its I/O streams.
 struct Session {
@@ -45,61 +55,88 @@ impl LocalInference {
         Self::default()
     }
 
-    /// Send a prompt and return the generated content.
+    /// Send a single-turn prompt and return the generated content.
+    /// Convenience wrapper around `invoke_messages` for @LeftHemisphere callers.
+    pub async fn invoke(&self, prompt: &str, max_tokens: u32) -> Result<String, String> {
+        let messages = vec![Message {
+            role: "user".into(),
+            content: prompt.into(),
+        }];
+        self.invoke_messages(&messages, max_tokens).await
+    }
+
+    /// Send a full conversation and return the generated content.
     ///
     /// Spawns the sidecar on first call; subsequent calls reuse it. Serialized:
-    /// two concurrent callers wait on the same Mutex.
-    pub async fn invoke(&self, prompt: &str, max_tokens: u32) -> Result<String, String> {
+    /// two concurrent callers wait on the same Mutex. The sidecar applies
+    /// Phi-3's chat template, which is what lets generation stop at `<|end|>`.
+    pub async fn invoke_messages(
+        &self,
+        messages: &[Message],
+        max_tokens: u32,
+    ) -> Result<String, String> {
         let mut guard = self.session.lock().await;
         if guard.is_none() {
             *guard = Some(spawn_sidecar().await?);
         }
-        let session = guard.as_mut().expect("session just set");
 
         let request = json!({
             "id": "req",
-            "prompt": prompt,
+            "messages": messages,
             "max_tokens": max_tokens,
         });
         let mut line = serde_json::to_string(&request)
             .map_err(|e| format!("encode request: {}", e))?;
         line.push('\n');
 
-        session
-            .stdin
-            .write_all(line.as_bytes())
-            .await
-            .map_err(|e| format!("write sidecar stdin: {}", e))?;
-        session
-            .stdin
-            .flush()
-            .await
-            .map_err(|e| format!("flush sidecar stdin: {}", e))?;
-
-        let mut response_line = String::new();
-        session
-            .stdout
-            .read_line(&mut response_line)
-            .await
-            .map_err(|e| format!("read sidecar stdout: {}", e))?;
-        if response_line.is_empty() {
-            return Err("sidecar closed stdout".into());
+        // Drop the dead session and bubble up the error — the next call will
+        // respawn. This handles sidecar crashes, user-killed processes, and
+        // pipe closures without leaving the app stuck on a corpse.
+        let result = {
+            let session = guard.as_mut().expect("session just set");
+            exchange(session, &line).await
+        };
+        if result.is_err() {
+            *guard = None;
         }
-
-        let response: serde_json::Value = serde_json::from_str(response_line.trim())
-            .map_err(|e| format!("parse sidecar response: {} — raw: {}", e, response_line))?;
-
-        if let Some(err) = response.get("error").and_then(|v| v.as_str()) {
-            return Err(err.to_string());
-        }
-
-        let content = response
-            .get("content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        Ok(content)
+        result
     }
+}
+
+async fn exchange(session: &mut Session, line: &str) -> Result<String, String> {
+    session
+        .stdin
+        .write_all(line.as_bytes())
+        .await
+        .map_err(|e| format!("write sidecar stdin: {}", e))?;
+    session
+        .stdin
+        .flush()
+        .await
+        .map_err(|e| format!("flush sidecar stdin: {}", e))?;
+
+    let mut response_line = String::new();
+    session
+        .stdout
+        .read_line(&mut response_line)
+        .await
+        .map_err(|e| format!("read sidecar stdout: {}", e))?;
+    if response_line.is_empty() {
+        return Err("sidecar closed stdout".into());
+    }
+
+    let response: serde_json::Value = serde_json::from_str(response_line.trim())
+        .map_err(|e| format!("parse sidecar response: {} — raw: {}", e, response_line))?;
+
+    if let Some(err) = response.get("error").and_then(|v| v.as_str()) {
+        return Err(err.to_string());
+    }
+
+    Ok(response
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string())
 }
 
 fn sidecar_dir() -> PathBuf {

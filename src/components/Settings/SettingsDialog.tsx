@@ -125,11 +125,17 @@ export function SettingsDialog() {
               <select
                 className={styles.select}
                 value={editing.provider}
-                onChange={(e) => setEditing({
-                  ...editing,
-                  provider: e.target.value as "anthropic" | "openai" | "local",
-                  model: "",
-                })}
+                onChange={(e) => {
+                  const provider = e.target.value as "anthropic" | "openai" | "local";
+                  setEditing({
+                    ...editing,
+                    provider,
+                    // Local inference has a single built-in model; prefill it
+                    // so the user doesn't have to type the mlx model id.
+                    model: provider === "local" ? "mlx-community/Phi-3.5-mini-instruct-4bit" : "",
+                    api_key: provider === "local" ? "" : editing.api_key,
+                  });
+                }}
               >
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
@@ -174,7 +180,13 @@ export function SettingsDialog() {
                   className={styles.input}
                   value={editing.model}
                   onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-                  placeholder={editing.api_key ? "Loading models..." : "Enter API key first"}
+                  placeholder={
+                    editing.provider === "local"
+                      ? "mlx-community/Phi-3.5-mini-instruct-4bit"
+                      : editing.api_key
+                        ? "Loading models..."
+                        : "Enter API key first"
+                  }
                 />
               )}
             </div>

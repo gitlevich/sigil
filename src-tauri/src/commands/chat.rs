@@ -675,32 +675,36 @@ async fn stream_openai(
 /// Stream from the local Python sidecar (Phi-3 via mlx-lm).
 ///
 /// No true streaming yet — the full response is generated, then emitted as
-/// a single chat-token event. No tool-calling. Keeps the surface minimal
-/// while we wire this up.
+/// a single chat-token event. No tool-calling. The conversation is sent as
+/// a proper messages array so Phi-3's chat template frames it correctly,
+/// which is what lets the model stop at its own `<|end|>` token.
 async fn stream_local(
     app: &AppHandle,
     history: &[ChatMessage],
     system_prompt: &str,
     local: crate::commands::local_inference::LocalInference,
 ) -> Result<String, String> {
-    // Flatten history into a single prompt, prefixed with the system context.
-    // Phi-3's chat template runs on the sidecar side; here we just concatenate.
-    let mut prompt = String::new();
+    use crate::commands::local_inference::Message;
+
+    let mut messages: Vec<Message> = Vec::new();
     if !system_prompt.trim().is_empty() {
-        prompt.push_str("[system]\n");
-        prompt.push_str(system_prompt);
-        prompt.push_str("\n\n");
+        messages.push(Message {
+            role: "system".into(),
+            content: system_prompt.to_string(),
+        });
     }
     for m in history {
         let role = match m.role {
             ChatRole::User => "user",
             ChatRole::Assistant => "assistant",
         };
-        prompt.push_str(&format!("[{}]\n{}\n\n", role, m.content));
+        messages.push(Message {
+            role: role.into(),
+            content: m.content.clone(),
+        });
     }
-    prompt.push_str("[assistant]\n");
 
-    let text = local.invoke(&prompt, 1024).await?;
+    let text = local.invoke_messages(&messages, 512).await?;
     if !text.is_empty() {
         let _ = app.emit("chat-token", text.clone());
     }
