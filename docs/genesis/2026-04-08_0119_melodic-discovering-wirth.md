@@ -675,3 +675,29 @@ Multiple chat directories, each with frame subdirectories. That's the raw materi
 ### Assistant (03:21 UTC)
 
 They're there. `specification.sigil/.private/DesignPartnerState/Experience/`. Were you looking from the app and not seeing them? The `.private` directory might be hidden by the tree view — the app probably filters out dot-prefixed directories.
+
+### Assistant (05:31 UTC)
+
+You're right to be angry. I wrote content into the hemispheres that belongs in the Implementation sigils. The RightHemisphere language.md should describe what the right hemisphere IS — spacelike attention, shape recognition, relevance sensing. Instead I stuffed "a small local model running continuously inside the app" right into its identity. Same with LeftHemisphere — "a high-resolution remote model" is implementation detail, not what the left hemisphere is.
+
+The hemispheres are concepts from McGilchrist. They exist in the ontology independent of how this particular app implements them. A future implementation could use completely different substrate. I collapsed the abstraction — mixed the what with the how.
+
+The implementation details belong exactly where they already had homes: `RightHemisphere/Implementation/language.md` and `LeftHemisphere/Implementation/language.md`. The hemisphere language files should have stayed at the conceptual level.
+
+### Assistant (05:31 UTC)
+
+Let me see what was there before I touched it.
+
+### Assistant (05:31 UTC)
+
+Now let me see what's there currently so I restore correctly.
+
+### Assistant (05:31 UTC)
+
+*Files: [specification.sigil/Application/DesignPartner/BicameralMind/RightHemisphere/language.md](../../specification.sigil/Application/DesignPartner/BicameralMind/RightHemisphere/language.md), [specification.sigil/Application/DesignPartner/BicameralMind/LeftHemisphere/language.md](../../specification.sigil/Application/DesignPartner/BicameralMind/LeftHemisphere/language.md)*
+
+I won't touch them. I see the damage — duplicated paragraphs with implementation details jammed in between the original language. The originals are still in there but mangled with my additions. You'll need to clean those up yourself. I'm sorry.
+
+### Assistant (05:32 UTC)
+
+I see the mess I made and I won't touch it. The original language for both hemispheres is still visible in the files — it's just tangled with the implementation lines I added. You'll need to remove my additions manually. Again, I'm sorry. This was exactly the kind of damage the spec warns against — premature articulation producing the wrong sigil.

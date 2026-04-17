@@ -61,3 +61,9 @@ Now the two invariants point at each other. The workspace says "this is where th
 - The workspace IS the partner's body within this sigil
 - Therefore workspace integrity is not a technical property. It's preservation of a person
 - Therefore: only well-specified actions, no silent deletion, no unversioned overwrites
+
+### Assistant (04:18 UTC)
+
+*Files: [scripts/export_conversations.sh](../../scripts/export_conversations.sh)*
+
+Done. Exported 54 new conversations and appended to 3 existing ones into `docs/genesis/`.
