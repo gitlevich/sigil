@@ -234,31 +234,27 @@
   padding: 0 3px;
 }
 
-/* Affordance — tiny arc, glyph-scale. Monochrome — shape alone says
- * "I offer this" as a cup opening upward. Contrast against any bg. */
-.affordance {
-  background: transparent;
-  width: 12px;
-  height: 6px;
-  border: 1.5px solid color-mix(in srgb, var(--text-primary) 78%, transparent);
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
-  color: transparent;
-  font-size: 0;
-  transition: border-color 120ms ease-out;
-}
-
-/* Invariant — tiny ring, glyph-scale. Monochrome — shape alone says
- * "this holds regardless" as a closed seal. */
+/* Affordance / Invariant — SVG glyphs. The outer class sets stroke color via
+ * currentColor; the SVG child inherits. Visible against any bg, glyph-scale. */
+.affordance,
 .invariant {
   background: transparent;
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid color-mix(in srgb, var(--text-primary) 78%, transparent);
-  border-radius: 50%;
-  color: transparent;
-  font-size: 0;
-  transition: border-color 120ms ease-out;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--text-primary) 80%, transparent);
+  transition: color 120ms ease-out;
+}
+
+.affordance svg,
+.invariant svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
 }
 
 .label {
@@ -294,19 +290,15 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 14px;
-  padding: 6px 12px;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 8px 14px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
   backdrop-filter: blur(3px);
   pointer-events: auto;
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: thin;
+  overflow: visible;
 }
-
-.affordanceRow::-webkit-scrollbar,
-.invariantRow::-webkit-scrollbar { height: 4px; }
 
 .affordanceRow {
   top: 58px;
@@ -318,16 +310,14 @@
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
-/* Each row item: wrapper is bigger than the glyph so the hover target is
- * easy to hit, while the glyph stays tiny. */
 .rowItem {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  cursor: help;
+  width: 22px;
+  height: 22px;
+  cursor: default;
   flex-shrink: 0;
 }
 
@@ -335,6 +325,9 @@
   width: auto;
   height: auto;
 }
+
+.rowItem:hover .affordance,
+.rowItem:hover .invariant { color: var(--text-primary); }
 
 .rowItem .rowLabel {
   position: absolute;
@@ -361,10 +354,6 @@
   bottom: 26px;
 }
 
-.rowItem:hover .affordance,
-.rowItem:hover .invariant {
-  border-color: var(--text-primary);
-}
 
 .rowItem:hover .rowLabel {
   opacity: 1;

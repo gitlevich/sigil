@@ -299,7 +299,9 @@ export function SpatialDesktop() {
           <div className={styles.affordanceRow} aria-label="Affordances">
             {affordances.map((aff) => (
               <div key={`aff:${aff.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.affordance}`} />
+                <div className={`${styles.glyph} ${styles.affordance}`}>
+                  <AffordanceGlyph />
+                </div>
                 <div className={styles.rowLabel}>#{aff.name}</div>
               </div>
             ))}
@@ -309,7 +311,9 @@ export function SpatialDesktop() {
           <div className={styles.invariantRow} aria-label="Invariants">
             {invariants.map((inv) => (
               <div key={`inv:${inv.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.invariant}`} />
+                <div className={`${styles.glyph} ${styles.invariant}`}>
+                  <InvariantGlyph />
+                </div>
                 <div className={styles.rowLabel}>!{inv.name}</div>
               </div>
             ))}
@@ -354,6 +358,25 @@ function initials(name: string): string {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/** Affordance — a cup opening upward, "I offer this." */
+function AffordanceGlyph() {
+  return (
+    <svg viewBox="0 0 18 12" aria-hidden>
+      <path d="M 2 2 A 7 7 0 0 0 16 2" strokeWidth={1.75} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Invariant — a closed ring with a fixed center, "this holds regardless." */
+function InvariantGlyph() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden>
+      <circle cx={7} cy={7} r={5} strokeWidth={1.5} />
+      <circle cx={7} cy={7} r={1.2} fill="currentColor" stroke="none" />
+    </svg>
+  );
 }
 
 interface LanguageScrollPanelProps {
