@@ -287,13 +287,16 @@ export function SpatialDesktop() {
                   icon.name
                 }
               >
-                {icon.kind === "parent" ? "" :
+                {icon.kind === "parent" || icon.kind === "god" ? null :
                  icon.kind === "narrative" ? <span>abc</span> :
                  icon.kind === "affordance" ? "#" :
                  icon.kind === "invariant" ? <span>!</span> :
+                 icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
               </div>
-              <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
+              {icon.kind !== "neighbor" && (
+                <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
+              )}
             </div>
           );
         })}

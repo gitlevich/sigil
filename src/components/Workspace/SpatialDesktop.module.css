@@ -133,28 +133,67 @@
   border-radius: 6px;
 }
 
+/* Neighbor — a door. Simple rectangle with a handle, the neighbor's name on
+ * its face. Minimal, recognizable at a glance. */
 .neighbor {
-  background: var(--success, #2ea44f);
-  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 1.5px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
+  border-radius: 1.5px;
+  width: 32px;
+  height: 52px;
+  position: relative;
+  color: var(--text-primary);
+  font-size: 9px;
+  font-weight: 500;
+  font-family: var(--font-sans, system-ui, -apple-system, "SF Pro Text", sans-serif);
+  letter-spacing: 0;
+  padding: 2px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
 }
 
+.neighbor::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text-primary) 55%, transparent);
+}
+
+/* God — equilateral triangle pointing up. Pale yellow fill, soft glow
+ * implied by a subtle drop shadow. No text inside the glyph. */
 .god {
-  background: radial-gradient(circle at 50% 50%, #fff0a6 0%, #ffe066 55%, rgba(255, 230, 120, 0) 100%);
-  border-radius: 50%;
-  width: 42px;
-  height: 42px;
-  color: #7a5a00;
-  font-weight: 700;
-  box-shadow: 0 0 16px rgba(255, 225, 100, 0.42);
-}
-
-.parent {
   background: transparent;
-  border-bottom: 22px solid color-mix(in srgb, var(--text-secondary) 65%, transparent);
-  border-left: 17px solid transparent;
-  border-right: 17px solid transparent;
   width: 0;
   height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-bottom: 38px solid #f5d35a;
+  filter: drop-shadow(0 0 6px rgba(245, 211, 90, 0.45));
+  color: transparent;
+  font-size: 0;
+}
+
+/* Structural parent — equilateral triangle pointing down. Descends from
+ * above to contain me; the inverse of a god. Muted so it reads as ceiling
+ * rather than entity. */
+.parent {
+  background: transparent;
+  width: 0;
+  height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-top: 38px solid color-mix(in srgb, var(--text-secondary) 55%, transparent);
+  color: transparent;
+  font-size: 0;
 }
 
 .narrative {
