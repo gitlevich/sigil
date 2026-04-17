@@ -48,6 +48,25 @@ function statusFrom(frontmatter: string | null): string | null {
   return match ? match[1].trim() : null;
 }
 
+/**
+ * Extract whose "I" is speaking, if the opening declares it.
+ *
+ * Every language.md is first-person. Scoped sigils name whose first-person
+ * with phrasing like "I am the @DesignPartner" near the top. Generic sigils
+ * omit this — any attention reading becomes the "I".
+ */
+function voiceFrom(body: string): string {
+  const paragraphs = body.split(/\n\s*\n/);
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/I am (?:the\s+)?(@\w+)/);
+    return match ? match[1] : "whoever reads";
+  }
+  return "whoever reads";
+}
+
 function listPropertyFiles(dir: string, prefix: "affordance" | "invariant"): Array<{ name: string; body: string }> {
   if (!fs.existsSync(dir)) return [];
   const entries = fs.readdirSync(dir);
@@ -100,6 +119,7 @@ function render(sigilDir: string): string {
   const lines: string[] = [];
   lines.push(`@${name}   (${rel})`);
   if (status) lines.push(`status: ${status}`);
+  if (language.trim()) lines.push(`voice:  ${voiceFrom(language)}`);
   lines.push("");
 
   if (language.trim()) {

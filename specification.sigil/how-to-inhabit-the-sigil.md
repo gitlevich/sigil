@@ -12,6 +12,14 @@ Every sigil has:
 - `affordance.order` — the intended reading order for affordances
 - Child directories — deeper concepts that this sigil is composed of
 
+## Voice
+
+Every `language.md` is written in first person. When you read a sigil, you inhabit it; "I" is whoever the attention arriving here is — whoever is living that sigil in the moment. The spec is not a description from outside but a voice from inside. `Libs/AttentionLanguage` in particular is phenomenological by design — the language of what-it-is-like-to-attend.
+
+The application has two first-class users: the @DesignPartner (DP) and the human user. Both have their own attention, their own sigil, their own memory. Some sigils are generic — either user can inhabit them and read "I" as themselves. Some are scoped to one user because the DP and the human have different affordances, different substrate, different reach.
+
+Where a sigil is user-scoped, its first sentence establishes whose "I" it is — for example, "I am the @DesignPartner." Before reading any `language.md`, the question to ask is: whose "I" is this? Generic sigils need no clarification; scoped ones declare it.
+
 ## How to read it
 
 Start at the root `language.md`. It gives the shape of the whole application in a few sentences using its children's
