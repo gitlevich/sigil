@@ -18,4 +18,6 @@ The imported ontologies subtree is !visually-differentiated from other @sigils b
 It is !shipped-with-app as a standard library with its current contents.
 It !cannot-be-deleted from the editor. 
 
-@Fundamentals
+@Fundamentals have stuff I want to consider fundamental explicitly, subject to change without a prior notice. 
+
+@Hoffman
