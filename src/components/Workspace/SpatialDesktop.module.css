@@ -5,6 +5,37 @@
   flex: 1;
   overflow: auto;
   background: var(--bg-primary);
+  /* Subtle, ghost-like scrollbars — present only on interaction. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 180ms ease-out;
+}
+
+.root:hover {
+  scrollbar-color: color-mix(in srgb, var(--text-secondary) 25%, transparent) transparent;
+}
+
+.root::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.root::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.root::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 180ms ease-out;
+}
+
+.root:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-secondary) 22%, transparent);
+}
+
+.root::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-secondary) 45%, transparent);
 }
 
 .modeBar {
@@ -297,7 +328,7 @@
 }
 
 .affordanceRow {
-  top: 58px;
+  top: 160px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 

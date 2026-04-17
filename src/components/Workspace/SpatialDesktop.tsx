@@ -42,8 +42,8 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
   // facets are smaller — they're details on the body, not the principal
   // actors.
   switch (kind) {
-    case "parent":    return { w: 72, h: 62 };
-    case "god":       return { w: 56, h: 48 };
+    case "parent":    return { w: 140, h: 120 };
+    case "god":       return { w: 64, h: 56 };
     case "child":     return { w: 52, h: 52 };
     case "neighbor":  return { w: 88, h: 112 };
     case "narrative": return { w: 30, h: 36 };
@@ -347,7 +347,7 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = icon.kind === "parent"
-            ? { x: size.w / 2, y: 32 }
+            ? { x: contentBounds.w / 2, y: 80 }
             : positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           return (
@@ -363,13 +363,13 @@ export function SpatialDesktop() {
                 className={`${styles.glyph} ${styles[icon.kind]}`}
                 style={{ width: w, height: h }}
               >
-                {icon.kind === "parent" ? <ParentGlyph /> :
+                {icon.kind === "parent" ? <ParentGlyph name={icon.name} /> :
                  icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
                  icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
               </div>
-              {icon.kind !== "neighbor" && (
+              {icon.kind !== "neighbor" && icon.kind !== "parent" && (
                 <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
               )}
             </div>
@@ -413,11 +413,22 @@ function InvariantGlyph() {
 }
 
 /** One true god (structural parent / @LawsOfNature) — equilateral triangle
- * pointing up. Thin outline, transparent. Aspires upward. */
-function ParentGlyph() {
+ * pointing up, its name written inside. Thin outline, transparent. */
+function ParentGlyph({ name }: { name: string }) {
   return (
-    <svg viewBox="0 0 56 48" aria-hidden>
-      <polygon points="28,4 52,44 4,44" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox="0 0 140 120" aria-hidden>
+      <polygon points="70,8 132,112 8,112" strokeWidth={1.5} strokeLinejoin="round" />
+      <text
+        x={70}
+        y={94}
+        textAnchor="middle"
+        fontSize={13}
+        fill="currentColor"
+        stroke="none"
+        fontFamily="var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+      >
+        {name}
+      </text>
     </svg>
   );
 }
@@ -426,8 +437,8 @@ function ParentGlyph() {
  * pulling the worshippers into its gravity well. Thin outline, transparent. */
 function GodGlyph() {
   return (
-    <svg viewBox="0 0 56 48" aria-hidden>
-      <polygon points="4,4 52,4 28,44" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox="0 0 64 56" aria-hidden>
+      <polygon points="4,6 60,6 32,50" strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   );
 }
