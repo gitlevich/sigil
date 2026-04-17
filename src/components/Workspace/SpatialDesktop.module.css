@@ -1,10 +1,10 @@
 .upButton {
   position: absolute;
   top: 14px;
-  left: 18px;
-  z-index: 6;
-  width: 40px;
-  height: 34px;
+  left: 16px;
+  z-index: 8;
+  width: 30px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -29,6 +29,27 @@
   stroke: none;
 }
 
+.upTooltip {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.82rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 60ms ease-out;
+  z-index: 10;
+}
+
+.upButton:hover .upTooltip { opacity: 1; }
+
 /* Subtle, diffused 3200K light source feathered around the icon. Stacked
  * drop-shadows produce a smooth natural falloff — brighter close in, fading
  * through warm cream to nothing at the outer ring. */
@@ -41,12 +62,40 @@
     drop-shadow(0 0 26px rgba(214, 178, 138, 0.2));
 }
 
+.scrollArea {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  /* Ghost-scroll, same treatment as .root used to carry. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 180ms ease-out;
+}
+
+.scrollArea:hover {
+  scrollbar-color: color-mix(in srgb, var(--text-secondary) 25%, transparent) transparent;
+}
+
+.scrollArea::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollArea::-webkit-scrollbar-track { background: transparent; }
+.scrollArea::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 180ms ease-out;
+}
+.scrollArea:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-secondary) 22%, transparent);
+}
+.scrollArea::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-secondary) 45%, transparent);
+}
+
 .root {
   position: relative;
   width: 100%;
   height: 100%;
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg-primary);
   /* Subtle, ghost-like scrollbars — present only on interaction. */
   scrollbar-width: thin;
@@ -216,36 +265,27 @@
   border-radius: 6px;
 }
 
-/* Neighbor — a door. Simple rectangle with a handle, the neighbor's name on
- * its face on a single line. */
+/* Neighbor — a simple door. No interior text; the name lives as a label
+ * below like every other icon. A small handle dot is the only mark. */
 .neighbor {
   background: var(--bg-primary);
   border: 1.5px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
   border-radius: 2px;
-  width: 88px;
-  height: 112px;
+  width: 48px;
+  height: 76px;
   position: relative;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  font-family: var(--font-sans, system-ui, -apple-system, "SF Pro Text", sans-serif);
-  letter-spacing: 0;
-  padding: 0 18px 0 8px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-align: center;
-  line-height: 112px;
+  color: transparent;
+  font-size: 0;
 }
 
 .neighbor::after {
   content: "";
   position: absolute;
-  right: 8px;
+  right: 5px;
   top: 50%;
   transform: translateY(-50%);
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
@@ -373,8 +413,13 @@
 
 .affordanceRow {
   top: 12px;
-  left: 72px; /* leave room for the UP button that sits before the row */
+  left: 56px; /* leave room for the UP button that sits before the row */
+  z-index: 7;
   border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+.invariantRow {
+  z-index: 7;
 }
 
 .invariantRow {

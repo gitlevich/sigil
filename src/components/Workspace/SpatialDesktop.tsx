@@ -52,7 +52,7 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
   switch (kind) {
     case "parent":    return { w: UNIT * 4, h: Math.round(UNIT * 4 * 0.866) }; // equilateral 96×83, same as god
     case "god":       return { w: UNIT * 4, h: Math.round(UNIT * 4 * 0.866) }; // equilateral 96×83
-    case "neighbor":  return { w: UNIT * 3, h: UNIT * 4 };                     // door 72×96
+    case "neighbor":  return { w: 48, h: 76 };                                  // slim door
     case "child":     return { w: UNIT * 3, h: UNIT * 3 };                     // 72×72
     case "narrative": return { w: UNIT * 2, h: Math.round(UNIT * 2.5) };       // 48×60
     case "affordance":
@@ -290,11 +290,11 @@ export function SpatialDesktop() {
           className={styles.upButton}
           role="button"
           tabIndex={0}
-          title={ascend.name}
           onClick={() => navigate(ascend.path)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate(ascend.path); }}
         >
           <UpGlyph />
+          <span className={styles.upTooltip}>{ascend.name}</span>
         </div>
       )}
       <div className={styles.modeBar}>
@@ -321,6 +321,31 @@ export function SpatialDesktop() {
         text={folder?.language ?? ""}
         childNames={folder ? folder.children.map((c) => c.name) : []}
       />
+      {affordances.length > 0 && (
+        <div className={styles.affordanceRow} aria-label="Affordances">
+          {affordances.map((aff) => (
+            <div key={`aff:${aff.name}`} className={styles.rowItem}>
+              <div className={`${styles.glyph} ${styles.affordance}`}>
+                <AffordanceGlyph />
+              </div>
+              <div className={styles.rowLabel}>#{aff.name}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {invariants.length > 0 && (
+        <div className={styles.invariantRow} aria-label="Invariants">
+          {invariants.map((inv) => (
+            <div key={`inv:${inv.name}`} className={styles.rowItem}>
+              <div className={`${styles.glyph} ${styles.invariant}`}>
+                <InvariantGlyph />
+              </div>
+              <div className={styles.rowLabel}>!{inv.name}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={styles.scrollArea}>
       <div
         ref={canvasRef}
         className={styles.canvas}
@@ -348,30 +373,6 @@ export function SpatialDesktop() {
             })}
           </svg>
         )}
-        {affordances.length > 0 && (
-          <div className={styles.affordanceRow} aria-label="Affordances">
-            {affordances.map((aff) => (
-              <div key={`aff:${aff.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.affordance}`}>
-                  <AffordanceGlyph />
-                </div>
-                <div className={styles.rowLabel}>#{aff.name}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        {invariants.length > 0 && (
-          <div className={styles.invariantRow} aria-label="Invariants">
-            {invariants.map((inv) => (
-              <div key={`inv:${inv.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.invariant}`}>
-                  <InvariantGlyph />
-                </div>
-                <div className={styles.rowLabel}>!{inv.name}</div>
-              </div>
-            ))}
-          </div>
-        )}
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = positionFor(icon.name);
@@ -383,7 +384,6 @@ export function SpatialDesktop() {
               style={{ left: pos.x - w / 2, top: pos.y - h / 2 }}
               onPointerDown={(e) => onIconPointerDown(e, icon)}
               onDoubleClick={() => onIconDoubleClick(icon)}
-              title={`${icon.kind}: ${icon.name}`}
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
@@ -391,15 +391,14 @@ export function SpatialDesktop() {
               >
                 {icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
-                 icon.kind === "neighbor" ? icon.name :
+                 icon.kind === "neighbor" ? null :
                  initials(icon.name)}
               </div>
-              {icon.kind !== "neighbor" && (
-                <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
-              )}
+              <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
