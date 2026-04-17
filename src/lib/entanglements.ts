@@ -40,18 +40,22 @@ export function extractEntanglements(
     const resolution = coreResolve(root, currentPath, `@${name}`, importedOntologies);
     if (!resolution) continue;
     if (resolution.kind === "unresolved" || resolution.kind === "ancestor" || resolution.kind === "contained") continue;
-    let kind: EntanglementKind;
-    let path: string[];
+    if (resolution.kind === "proximity") continue; // Co-occurrence isn't an explicit reference; skip.
     if (resolution.kind === "lib") {
-      kind = "god";
-      // Imported ontology paths need the `Imported Ontologies` prefix for navigation.
-      path = ["Imported Ontologies", ...resolution.path];
-    } else {
-      // sibling or proximity — both are peer neighbors in the main tree.
-      kind = "neighbor";
-      path = resolution.path;
+      // Collapse the ref to its top-level imported ontology — the god itself,
+      // not the specific blessing it offers. A reference like @Narration (which
+      // resolves inside AttentionLanguage) becomes one entanglement with the
+      // AttentionLanguage god, deduped across all such inner refs.
+      const godName = resolution.path[0];
+      if (!godName) continue;
+      const key = `god:${godName}`;
+      if (seen.has(key)) continue;
+      seen.set(key, { name: godName, kind: "god", path: ["Imported Ontologies", godName] });
+      continue;
     }
-    seen.set(name, { name, kind, path });
+    // Sibling — a peer neighbor in the main spec tree.
+    if (seen.has(name)) continue;
+    seen.set(name, { name, kind: "neighbor", path: resolution.path });
   }
   return [...seen.values()];
 }

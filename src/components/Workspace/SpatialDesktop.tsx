@@ -86,13 +86,8 @@ export function SpatialDesktop() {
     }
     // My body — narrative (language.md) always present.
     list.push({ name: NARRATIVE_NAME, kind: "narrative" });
-    // Affordances and invariants — small facet icons on my body.
-    for (const aff of folder.affordances ?? []) {
-      list.push({ name: aff.name, kind: "affordance" });
-    }
-    for (const inv of folder.invariants ?? []) {
-      list.push({ name: inv.name, kind: "invariant" });
-    }
+    // Affordances and invariants live in their own fixed rows — not in the
+    // draggable icon list. See affordances/invariants memoized below.
     for (const child of folder.children) {
       list.push({ name: child.name, kind: "child", navigateTo: [...currentPath, child.name] });
     }
@@ -119,6 +114,21 @@ export function SpatialDesktop() {
     if (stored) return stored;
     return defaultPosition(name, index, size.w, size.h);
   }, [layout, size]);
+
+  // Body facets — affordances and invariants — rendered in fixed top/bottom rows.
+  const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
+  const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
+
+  // Decide whether each row has space for labels. If the icons + labels would
+  // overflow the row width, we hide labels and show them only on hover.
+  const rowShowsLabels = useCallback((count: number): boolean => {
+    if (count === 0) return true;
+    const avgPerItem = 110; // icon + label budget in px
+    return count * avgPerItem <= size.w - 48;
+  }, [size.w]);
+
+  const affordancesShowLabels = rowShowsLabels(affordances.length);
+  const invariantsShowLabels = rowShowsLabels(invariants.length);
 
   // Arcs between children that co-occur in a sentence (or paragraph) of the sigil's language.
   const arcs: SentenceArc[] = useMemo(() => {
@@ -244,6 +254,34 @@ export function SpatialDesktop() {
               );
             })}
           </svg>
+        )}
+        {affordances.length > 0 && (
+          <div className={styles.affordanceRow} aria-label="Affordances">
+            {affordances.map((aff) => (
+              <div
+                key={`aff:${aff.name}`}
+                className={`${styles.rowItem} ${affordancesShowLabels ? "" : styles.noLabel}`}
+                title={`#${aff.name}`}
+              >
+                <div className={`${styles.glyph} ${styles.affordance}`}>#</div>
+                <div className={styles.label}>{aff.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {invariants.length > 0 && (
+          <div className={styles.invariantRow} aria-label="Invariants">
+            {invariants.map((inv) => (
+              <div
+                key={`inv:${inv.name}`}
+                className={`${styles.rowItem} ${invariantsShowLabels ? "" : styles.noLabel}`}
+                title={`!${inv.name}`}
+              >
+                <div className={`${styles.glyph} ${styles.invariant}`}><span>!</span></div>
+                <div className={styles.label}>{inv.name}</div>
+              </div>
+            ))}
+          </div>
         )}
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon, i) => {
