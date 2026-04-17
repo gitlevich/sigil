@@ -181,30 +181,38 @@
   padding: 0 3px;
 }
 
+/* Affordance and invariant facet icons — match the editor's reference colors.
+ * Affordance teal #3d9e8c; invariant amber #e8a040. Outlined, not blobby. */
 .affordance {
-  background: #d97706;
+  background: transparent;
+  color: #3d9e8c;
+  border: 1.5px solid rgba(61, 158, 140, 0.55);
   border-radius: 50%;
-  width: 34px;
-  height: 34px;
-  color: var(--bg-primary);
+  width: 28px;
+  height: 28px;
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 14px;
+  opacity: 0.78;
+  transition: opacity 140ms ease-out, background 140ms ease-out, border-color 140ms ease-out;
 }
 
 .invariant {
-  background: #b91c1c;
-  width: 34px;
-  height: 34px;
+  background: transparent;
+  color: #e8a040;
+  border: 1.5px solid rgba(232, 160, 64, 0.55);
+  border-radius: 4px;
   transform: rotate(45deg);
-  border-radius: 3px;
-  color: var(--bg-primary);
+  width: 22px;
+  height: 22px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
+  opacity: 0.78;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity 140ms ease-out, background 140ms ease-out, border-color 140ms ease-out;
 }
 
 .invariant > span {
@@ -233,45 +241,89 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--text-secondary) 8%, transparent) 0%, transparent 100%);
 }
 
-/* Body-facet rows — fixed layouts for affordances (top) and invariants (bottom). */
+/* Body-facet rows — a modest, separate-looking tray for each.
+ * Affordances at the top (teal outline); invariants at the bottom (amber). */
 .affordanceRow,
 .invariantRow {
   position: absolute;
-  left: 16px;
-  right: 16px;
-  height: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 14px;
-  padding: 0 8px;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .affordanceRow {
-  top: 78px;
+  top: 74px;
+  border: 1px solid rgba(61, 158, 140, 0.35);
+  box-shadow: 0 1px 0 rgba(61, 158, 140, 0.08) inset;
 }
 
 .invariantRow {
-  bottom: 12px;
+  bottom: 14px;
+  border: 1px solid rgba(232, 160, 64, 0.35);
+  box-shadow: 0 1px 0 rgba(232, 160, 64, 0.08) inset;
 }
 
+/* Each row item is a small icon with a hover-revealed label.
+ * The label is absolutely positioned under the icon so it doesn't
+ * reflow neighbors when it appears. */
 .rowItem {
-  pointer-events: auto;
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
-  min-width: 44px;
-}
-
-.rowItem.noLabel .label {
-  display: none;
-}
-
-.rowItem.noLabel .glyph {
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   cursor: help;
+}
+
+.rowItem .glyph {
+  width: 28px;
+  height: 28px;
+}
+
+.rowItem .rowLabel {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+  z-index: 3;
+}
+
+.invariantRow .rowLabel {
+  top: auto;
+  bottom: 36px;
+}
+
+.rowItem:hover .affordance,
+.rowItem:hover .invariant {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-color: currentColor;
+}
+
+.rowItem:hover .rowLabel {
+  opacity: 1;
 }
 
 .emptyHint {

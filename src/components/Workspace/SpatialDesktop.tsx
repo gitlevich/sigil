@@ -119,17 +119,6 @@ export function SpatialDesktop() {
   const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
   const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
 
-  // Decide whether each row has space for labels. If the icons + labels would
-  // overflow the row width, we hide labels and show them only on hover.
-  const rowShowsLabels = useCallback((count: number): boolean => {
-    if (count === 0) return true;
-    const avgPerItem = 110; // icon + label budget in px
-    return count * avgPerItem <= size.w - 48;
-  }, [size.w]);
-
-  const affordancesShowLabels = rowShowsLabels(affordances.length);
-  const invariantsShowLabels = rowShowsLabels(invariants.length);
-
   // Arcs between children that co-occur in a sentence (or paragraph) of the sigil's language.
   const arcs: SentenceArc[] = useMemo(() => {
     if (!folder) return [];
@@ -258,13 +247,9 @@ export function SpatialDesktop() {
         {affordances.length > 0 && (
           <div className={styles.affordanceRow} aria-label="Affordances">
             {affordances.map((aff) => (
-              <div
-                key={`aff:${aff.name}`}
-                className={`${styles.rowItem} ${affordancesShowLabels ? "" : styles.noLabel}`}
-                title={`#${aff.name}`}
-              >
+              <div key={`aff:${aff.name}`} className={styles.rowItem}>
                 <div className={`${styles.glyph} ${styles.affordance}`}>#</div>
-                <div className={styles.label}>{aff.name}</div>
+                <div className={styles.rowLabel}>#{aff.name}</div>
               </div>
             ))}
           </div>
@@ -272,13 +257,9 @@ export function SpatialDesktop() {
         {invariants.length > 0 && (
           <div className={styles.invariantRow} aria-label="Invariants">
             {invariants.map((inv) => (
-              <div
-                key={`inv:${inv.name}`}
-                className={`${styles.rowItem} ${invariantsShowLabels ? "" : styles.noLabel}`}
-                title={`!${inv.name}`}
-              >
+              <div key={`inv:${inv.name}`} className={styles.rowItem}>
                 <div className={`${styles.glyph} ${styles.invariant}`}><span>!</span></div>
-                <div className={styles.label}>{inv.name}</div>
+                <div className={styles.rowLabel}>!{inv.name}</div>
               </div>
             ))}
           </div>
