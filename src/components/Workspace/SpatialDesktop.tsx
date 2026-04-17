@@ -29,6 +29,28 @@ interface IconSpec {
 
 const NARRATIVE_NAME = "narrative";
 
+/**
+ * Glyph bounding box per kind, used both to position the icon's visual center
+ * on its stored (x, y) and to compute arc trim so lines meet at the glyph's
+ * edge rather than disappearing under it.
+ */
+function glyphSize(kind: IconKind): { w: number; h: number } {
+  switch (kind) {
+    case "child": return { w: 48, h: 48 };
+    case "neighbor": return { w: 88, h: 112 };
+    case "god": return { w: 60, h: 52 };
+    case "parent": return { w: 56, h: 48 };
+    case "narrative": return { w: 30, h: 36 };
+    default: return { w: 20, h: 20 };
+  }
+}
+
+/** Outer radius used to trim arc endpoints so they meet the icon's edge. */
+function glyphRadius(kind: IconKind): number {
+  const { w, h } = glyphSize(kind);
+  return Math.max(w, h) / 2;
+}
+
 const SAVE_DEBOUNCE_MS = 400;
 
 export function SpatialDesktop() {
@@ -147,18 +169,29 @@ export function SpatialDesktop() {
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
   const arcEndpoints = useMemo(() => {
-    const byName = new Map<string, { x: number; y: number }>();
+    const byName = new Map<string, { x: number; y: number; r: number }>();
     icons.forEach((icon) => {
       if (icon.kind === "parent") return;
       const pos = positionFor(icon.name);
-      byName.set(icon.name, pos);
+      byName.set(icon.name, { ...pos, r: glyphRadius(icon.kind) });
     });
     return arcs
       .map((arc) => {
         const pa = byName.get(arc.a);
         const pb = byName.get(arc.b);
         if (!pa || !pb) return null;
-        return { arc, pa, pb };
+        // Trim each end by the glyph radius so the line meets the icon's edge,
+        // not its center — lines look like they converge on the icon cleanly.
+        const dx = pb.x - pa.x;
+        const dy = pb.y - pa.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const trimA = Math.min(pa.r, dist * 0.45);
+        const trimB = Math.min(pb.r, dist * 0.45);
+        const paTrimmed = { x: pa.x + ux * trimA, y: pa.y + uy * trimA };
+        const pbTrimmed = { x: pb.x - ux * trimB, y: pb.y - uy * trimB };
+        return { arc, pa: paTrimmed, pb: pbTrimmed };
       })
       .filter((x): x is { arc: SentenceArc; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
   }, [arcs, icons, positionFor]);
@@ -285,25 +318,20 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = icon.kind === "parent"
-            ? { x: size.w / 2, y: 24 }
+            ? { x: size.w / 2, y: 32 }
             : positionFor(icon.name);
+          const { w, h } = glyphSize(icon.kind);
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
               className={styles.icon}
-              style={{ left: pos.x - 18, top: pos.y - 18 }}
+              style={{ left: pos.x - w / 2, top: pos.y - h / 2 }}
               onPointerDown={(e) => onIconPointerDown(e, icon)}
               onDoubleClick={() => onIconDoubleClick(icon)}
               title={`${icon.kind}: ${icon.name}`}
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
-                style={icon.kind === "child" ? { background: colorForSigilName(icon.name) } : undefined}
-                title={
-                  icon.kind === "affordance" ? `#${icon.name}` :
-                  icon.kind === "invariant" ? `!${icon.name}` :
-                  icon.name
-                }
               >
                 {icon.kind === "parent" || icon.kind === "god" || icon.kind === "affordance" || icon.kind === "invariant" ? null :
                  icon.kind === "narrative" ? <span>abc</span> :
