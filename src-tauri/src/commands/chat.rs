@@ -674,6 +674,23 @@ async fn stream_openai_compatible(
         let choice = &resp_body["choices"][0];
         let message = &choice["message"];
 
+        let has_tool_calls = message["tool_calls"].as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false);
+        let content_preview: String = message["content"]
+            .as_str()
+            .unwrap_or("")
+            .chars()
+            .take(200)
+            .collect();
+        eprintln!(
+            "[{}] response: tool_calls={} content_len={} content_preview={:?}",
+            label,
+            has_tool_calls,
+            message["content"].as_str().map(|s| s.len()).unwrap_or(0),
+            content_preview,
+        );
+
         let tool_calls = message["tool_calls"]
             .as_array()
             .filter(|arr| !arr.is_empty());

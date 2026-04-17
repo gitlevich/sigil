@@ -9,6 +9,7 @@
  *
  * Phase A: Children + structural parent. Neighbors and Gods land next.
  */
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
@@ -33,6 +34,7 @@ export function SpatialDesktop() {
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [layout, setLayout] = useState<SpatialLayout | null>(null);
   const [mode, setMode] = useState<"inside" | "outside">("inside");
+  const [scrollOpen, setScrollOpen] = useState<boolean>(false);
 
   const folder = resolveCurrentFolder(ws);
 
@@ -155,6 +157,11 @@ export function SpatialDesktop() {
     <div className={styles.root}>
       <div className={styles.modeBar}>
         <button
+          className={`${styles.modeBtn} ${scrollOpen ? styles.active : ""}`}
+          onClick={() => setScrollOpen((v) => !v)}
+          title="Show this sigil's language with color-signed references"
+        >Scroll</button>
+        <button
           className={`${styles.modeBtn} ${mode === "inside" ? styles.active : ""}`}
           onClick={() => setMode("inside")}
         >Inside</button>
@@ -165,6 +172,13 @@ export function SpatialDesktop() {
           title="3D atlas — Phase B"
         >Outside</button>
       </div>
+      <LanguageScrollPanel
+        open={scrollOpen}
+        onClose={() => setScrollOpen(false)}
+        title={folder ? folder.name : ""}
+        text={folder?.language ?? ""}
+        childNames={folder ? folder.children.map((c) => c.name) : []}
+      />
       <div ref={canvasRef} className={styles.canvas}>
         <div className={styles.parentBar} />
         {arcEndpoints.length > 0 && (
@@ -232,4 +246,60 @@ function initials(name: string): string {
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+interface LanguageScrollPanelProps {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  text: string;
+  childNames: string[];
+}
+
+/**
+ * Foldable scroll showing the current sigil's language.md with @-refs that
+ * resolve to a child rendered in the child's own color. This is the same
+ * color-signature used for the child's icon on the desktop, so the text and
+ * the canvas reinforce each other.
+ */
+function LanguageScrollPanel({ open, onClose, title, text, childNames }: LanguageScrollPanelProps) {
+  const childSet = useMemo(() => new Set(childNames), [childNames]);
+  const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
+  return (
+    <div className={`${styles.scrollPanel} ${open ? "" : styles.closed}`}>
+      <div className={styles.scrollHeader}>
+        <span>{title ? `${title}/language.md` : "language.md"}</span>
+        <button className={styles.scrollClose} onClick={onClose} aria-label="Close scroll">×</button>
+      </div>
+      <div className={styles.scrollBody}>{rendered}</div>
+    </div>
+  );
+}
+
+/**
+ * Tokenize the text and wrap any `@Name` that resolves to a named child
+ * in a span colored with that child's deterministic hue. Everything else
+ * is passed through as text.
+ */
+function renderWithColoredRefs(text: string, childSet: Set<string>): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const re = /@([A-Za-z][A-Za-z0-9_]*)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (start > last) parts.push(text.slice(last, start));
+    const name = match[1];
+    if (childSet.has(name)) {
+      parts.push(
+        <span key={start} className={styles.ref} style={{ color: colorForSigilName(name) }}>{match[0]}</span>
+      );
+    } else {
+      parts.push(<span key={start}>{match[0]}</span>);
+    }
+    last = end;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
