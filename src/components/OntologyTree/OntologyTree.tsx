@@ -11,6 +11,7 @@ import { getDragPropertySource, clearDragPropertySource } from "../Workspace/Sig
 import { findAllReferencesInTree } from "../Workspace/editorScope";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { ProposeReshapeModal } from "../Workspace/ProposeReshapeModal";
+import { ProposeDeleteModal } from "../Workspace/ProposeDeleteModal";
 import type { RefHit } from "../shared/RefsDropdown";
 import { useMouseDrag } from "../../hooks/useMouseDrag";
 import type { DragState } from "../../hooks/useMouseDrag";
@@ -375,7 +376,6 @@ export function OntologyTree() {
   const [deleting, setDeleting] = useState<{ fsPath: string; name: string } | null>(null);
   const [addingPeerOf, setAddingPeerOf] = useState<string[] | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -411,12 +411,6 @@ export function OntologyTree() {
       renameInputRef.current.select();
     }
   }, [renaming]);
-
-  useEffect(() => {
-    if (deleting && deleteConfirmRef.current) {
-      deleteConfirmRef.current.focus();
-    }
-  }, [deleting]);
 
   const handleDefinitionChange = useCallback((fsPath: string, value: string) => {
     setDefinitions((prev) => ({ ...prev, [fsPath]: value }));
@@ -468,13 +462,6 @@ export function OntologyTree() {
 
   const handleDelete = (node: OntologyNode) => {
     setDeleting({ fsPath: node.fsPath, name: node.name });
-  };
-
-  const confirmDelete = async () => {
-    if (!deleting) return;
-    const target = deleting;
-    setDeleting(null);
-    await actions.deleteSigil(target.fsPath, actionDeps);
   };
 
   const handlePeerSubmit = async () => {
@@ -634,24 +621,11 @@ export function OntologyTree() {
       )}
 
       {deleting && (
-        <div className={styles.renameOverlay} onClick={() => setDeleting(null)}>
-          <div
-            className={styles.renameDialog}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") { e.preventDefault(); setDeleting(null); }
-              if (e.key === "Enter") { e.preventDefault(); confirmDelete(); }
-            }}
-          >
-            <label className={styles.renameLabel}>
-              Delete "{deleting.name}" and all its contents? This cannot be undone.
-            </label>
-            <div className={styles.deleteActions}>
-              <button className={styles.deleteCancelBtn} onClick={() => setDeleting(null)}>Cancel</button>
-              <button ref={deleteConfirmRef} className={styles.deleteConfirmBtn} onClick={confirmDelete}>Delete</button>
-            </div>
-          </div>
-        </div>
+        <ProposeDeleteModal
+          targetPath={deleting.fsPath}
+          targetName={deleting.name}
+          onClose={() => setDeleting(null)}
+        />
       )}
     </div>
   );

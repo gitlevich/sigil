@@ -735,6 +735,127 @@ pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> 
     Ok(new_path.to_string_lossy().to_string())
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DanglingReference {
+    /// Path relative to the workspace root, forward slashes.
+    pub file_path: String,
+    pub line_number: usize,
+    pub line_text: String,
+    pub ref_token: String,
+}
+
+/// The blast radius of a proposed delete: references that would be left dangling.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeletePreview {
+    pub target_path: String,
+    pub target_name: String,
+    /// Descendant sigil names (directories under target) that would also be removed.
+    pub descendants: Vec<String>,
+    /// References to target or any descendant that would be left dangling after delete.
+    pub dangling_references: Vec<DanglingReference>,
+}
+
+/// Compute which references would be left dangling if the given sigil (and its
+/// descendants) were deleted. Pure read — does not touch the filesystem.
+///
+/// Spec: Workspace/#propose-reshape for the delete case. Delete is destructive;
+/// the preview exists so the user sees what would orphan before approving.
+#[tauri::command]
+pub fn preview_delete_sigil(root_path: String, path: String) -> Result<DeletePreview, String> {
+    let target_path = Path::new(&path);
+    let target_name = target_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Cannot determine target name".to_string())?
+        .to_string();
+    let root = Path::new(&root_path);
+
+    // Collect descendant sigil names (directories under target).
+    let mut descendants: Vec<String> = Vec::new();
+    if target_path.exists() {
+        for entry in walkdir::WalkDir::new(target_path)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir() && e.path() != target_path)
+        {
+            if let Some(name) = entry.file_name().to_str() {
+                // Treat any directory name that starts with a capital letter as a sigil.
+                if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    descendants.push(name.to_string());
+                }
+            }
+        }
+    }
+    descendants.sort();
+    descendants.dedup();
+
+    // Build the set of names that would disappear: the target plus its descendants.
+    let mut disappearing_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+    disappearing_names.insert(target_name.clone());
+    for d in &descendants {
+        disappearing_names.insert(d.clone());
+    }
+
+    let ref_re = Regex::new(r"@[a-zA-Z_][\w-]*(?:@[a-zA-Z_][\w-]*)*(?:[#!][a-zA-Z_][\w-]*)?").unwrap();
+
+    let mut dangling_references: Vec<DanglingReference> = Vec::new();
+
+    for entry in walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+    {
+        let file_path = entry.path();
+        if file_path.starts_with(target_path) {
+            continue;
+        }
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !matches!(ext, "md" | "json" | "txt" | "") {
+            continue;
+        }
+        let content = match fs::read_to_string(file_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        for (line_idx, line) in content.lines().enumerate() {
+            for m in ref_re.find_iter(line) {
+                let token = m.as_str();
+                let without_at = &token[1..];
+                let sigil_part = match without_at.find(|c: char| c == '#' || c == '!') {
+                    Some(i) => &without_at[..i],
+                    None => without_at,
+                };
+                let mentions_disappearing = sigil_part
+                    .split('@')
+                    .any(|seg| disappearing_names.contains(seg));
+                if !mentions_disappearing {
+                    continue;
+                }
+                let rel = file_path
+                    .strip_prefix(root)
+                    .unwrap_or(file_path)
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                dangling_references.push(DanglingReference {
+                    file_path: rel,
+                    line_number: line_idx + 1,
+                    line_text: line.to_string(),
+                    ref_token: token.to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(DeletePreview {
+        target_path: target_path.to_string_lossy().to_string(),
+        target_name,
+        descendants,
+        dangling_references,
+    })
+}
+
 #[tauri::command]
 pub fn delete_context(path: String) -> Result<(), String> {
     let context_path = Path::new(&path);

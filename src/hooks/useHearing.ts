@@ -6,13 +6,13 @@
  * Hearing reports changes happening anywhere in the @sigil I inhabit,
  * including rooms I am not looking at. Each event is located: the sigil
  * where it happened, the kind of change (language, affordance, invariant,
- * structural). Invariant: !complete — no event is filtered or dropped.
+ * structural). Invariant: !complete — no event is filtered, prioritized,
+ * or dropped.
  *
  * Implementation: on every spec update, diff the previous tree against
- * the new one and emit located events. Consecutive same-kind same-path
- * events within MERGE_WINDOW_MS collapse into one — this keeps typing
- * bursts from drowning the list without violating !complete (the latest
- * event still carries the truth).
+ * the new one and emit located events. Per !complete, every detected
+ * change is kept. The list rolls at MAX_EVENTS so memory stays bounded,
+ * but within the window nothing is collapsed or suppressed.
  */
 import { useEffect, useRef, useState } from "react";
 import type { Sigil } from "sigil-core";
@@ -27,8 +27,7 @@ export interface HearingEvent {
   summary: string;
 }
 
-const MAX_EVENTS = 20;
-const MERGE_WINDOW_MS = 1500;
+const MAX_EVENTS = 50;
 
 interface DiffContext {
   nextId: number;
@@ -140,26 +139,10 @@ function diffTrees(prev: Sigil, next: Sigil, nextIdStart: number): HearingEvent[
   return ctx.events;
 }
 
-/** Collapse consecutive same-kind same-path events within the merge window. */
-function mergeRecent(existing: HearingEvent[], incoming: HearingEvent[]): HearingEvent[] {
+/** Prepend new events and roll the list at MAX_EVENTS. No merging, no filtering. */
+function prependAndRoll(existing: HearingEvent[], incoming: HearingEvent[]): HearingEvent[] {
   if (incoming.length === 0) return existing;
-  let result = [...incoming, ...existing];
-  // Merge: drop any event that has a newer sibling (same kind, same path) within window.
-  result = result.filter((e, idx) => {
-    for (let j = 0; j < idx; j++) {
-      const prior = result[j];
-      if (
-        prior.kind === e.kind &&
-        prior.path.length === e.path.length &&
-        prior.path.every((p, k) => p === e.path[k]) &&
-        prior.timestamp - e.timestamp < MERGE_WINDOW_MS
-      ) {
-        return false;
-      }
-    }
-    return true;
-  });
-  return result.slice(0, MAX_EVENTS);
+  return [...incoming, ...existing].slice(0, MAX_EVENTS);
 }
 
 export function useHearing(root: Sigil | null): HearingEvent[] {
@@ -179,7 +162,7 @@ export function useHearing(root: Sigil | null): HearingEvent[] {
     const incoming = diffTrees(prev, root, nextIdRef.current);
     if (incoming.length === 0) return;
     nextIdRef.current += incoming.length;
-    setEvents((cur) => mergeRecent(cur, incoming));
+    setEvents((cur) => prependAndRoll(cur, incoming));
   }, [root]);
 
   return events;

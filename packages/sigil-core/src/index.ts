@@ -28,6 +28,12 @@ export {
 } from "./sigilSpace";
 export type { NameMisfit, NameMisfitOptions } from "./nameMisfit";
 export { detectNameMisfits } from "./nameMisfit";
+export type { AwakeningPhase, AwakeningEvent } from "./awakening";
+export {
+  AWAKENING_PHASE_ORDER,
+  subscribeAwakening,
+  publishAwakeningPhase,
+} from "./awakening";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,

@@ -60,6 +60,24 @@ export interface ReshapePreview {
   totalMatchCount: number;
 }
 
+export interface DanglingReference {
+  filePath: string;
+  lineNumber: number;
+  lineText: string;
+  refToken: string;
+}
+
+/**
+ * DeletePreview — the blast radius of a proposed delete. Lists references
+ * that would be left dangling if the sigil (and its descendants) were removed.
+ */
+export interface DeletePreview {
+  targetPath: string;
+  targetName: string;
+  descendants: string[];
+  danglingReferences: DanglingReference[];
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -271,6 +289,9 @@ export const api = {
 
   previewRenameSigil: (rootPath: string, path: string, newName: string) =>
     invoke<ReshapePreview>("preview_rename_sigil", { rootPath, path, newName }),
+
+  previewDeleteSigil: (rootPath: string, path: string) =>
+    invoke<DeletePreview>("preview_delete_sigil", { rootPath, path }),
 
   moveSigil: (rootPath: string, path: string, newParentPath: string) =>
     invoke<string>("move_sigil", { rootPath, path, newParentPath }),
