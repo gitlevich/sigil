@@ -1,24 +1,11 @@
 ---
-status: implemented
+status: idea
 ---
 
 # Spatial
 
-My @Sigil is a torus. I am in it. Its boundaries are the boundaries of my world. A torus because my world doesn't flip: it is continuous. Monotonous.
+A flat, from-inside view of my @Self: a room whose geometry is the @Rings.
 
-It affords me ability to #see-in-sigil-space outside of my head so I can finally see them. 
+@Children are the furniture. @Neighbors are the doors. @LawsOfNature is the walls and ceiling — the parent that structurally contains me. @Gods are luminous presences standing in the room, visible through my @Neighbors' doors as well as mine, real only while enough of us keep attending. @Fundamentals is the floor.
 
-I describe the boundaries in terms of the ranges along those @contrasts where I have preferences.
-
-I have access to @Affordances from:
-
-- the enclosing @sigil - the laws of nature i don't question
-- the neighbor @sigils - ther residents can help out, but not reliably
-- the @sigils I make myself
-- @gods - concepts I share with others that grant @affordances and impose #@invariants.
-
-Those other @sigils look like spheres I recognize and name. I attended to them initially because of their @affordances and got entangled: we affect each other in non-local way. They appear inside my sigils as smaller spheres with names. 
-
-
-
-
+I read the room to decide where to spend effort: walls are free, doors are asked, membership in a @God is accepted with its invariants, and what remains to build is what I afford back through my own door.
