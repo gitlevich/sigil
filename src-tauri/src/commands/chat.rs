@@ -635,9 +635,16 @@ async fn stream_openai_compatible(
         }))
         .collect();
 
+    // Force the function-calling protocol explicitly. Small local models
+    // (Qwen 7B in particular) sometimes write "*Using tool: X*" as prose
+    // instead of emitting a real tool_calls JSON — the UI renders the prose,
+    // the user thinks the tool ran, and nothing actually executes.
+    let tool_use_rule =
+        "\n\nTool-use protocol: when a tool can accomplish what the user asks, you MUST invoke it via the function-calling API (emit tool_calls). Never describe a tool call in prose. Never write 'Using tool: X' as text content. If you write about a tool instead of calling it, no tool runs and you are lying to the user. Only actual tool_calls in your response trigger execution.";
+
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
-        "content": system_prompt,
+        "content": format!("{}{}", system_prompt, tool_use_rule),
     })];
 
     for m in history {
@@ -734,12 +741,27 @@ async fn stream_openai_compatible(
             continue;
         }
 
-        // No tool calls — emit text and finish
-        if let Some(text) = message["content"].as_str() {
-            if !text.is_empty() {
-                accumulated_text.push_str(text);
-                let _ = app.emit("chat-token", text.to_string());
-            }
+        // No tool calls — emit text and finish. But first catch the
+        // small-model failure mode where the model describes a tool call
+        // in prose instead of emitting one. If we see that, push a clear
+        // correction message back as a user turn and retry.
+        let text = message["content"].as_str().unwrap_or("");
+        let looks_like_hallucinated_call = text.contains("*Using tool:")
+            || text.contains("<tool_call>")
+            || text.starts_with("Using tool:");
+        if looks_like_hallucinated_call {
+            eprintln!("[{}] hallucinated tool prose detected, correcting and retrying", label);
+            messages.push(message.clone());
+            messages.push(serde_json::json!({
+                "role": "user",
+                "content": "That was not a real tool call — you wrote about one in text but did not emit tool_calls. No tool ran. Please make the actual tool call using the function-calling protocol now, or tell me plainly you cannot.",
+            }));
+            continue;
+        }
+
+        if !text.is_empty() {
+            accumulated_text.push_str(text);
+            let _ = app.emit("chat-token", text.to_string());
         }
 
         break;
