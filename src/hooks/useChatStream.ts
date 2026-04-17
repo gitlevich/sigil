@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import { useWorkspaceState, useWorkspaceActions } from "../state/WorkspaceContext";
+import { discardPendingAutoSave } from "./useAutoSave";
 import { useChatState, useChatDispatch } from "../state/ChatContext";
 import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
@@ -86,7 +87,11 @@ export function useChatStream() {
     // catches disk changes too, but this is a direct path that doesn't
     // depend on watcher latency.
     const unlistenSigilChanged = events.onSigilChanged(() => {
-      console.info("[sigil-changed] reloading spec");
+      console.info("[sigil-changed] discarding pending autosave and reloading spec");
+      // Kill any in-flight autosave first. If the user was editing the
+      // sigil Bicameron just deleted, the pending timer would recreate
+      // the directory via api.writeFile's create_dir_all behavior.
+      discardPendingAutoSave();
       reloadRef.current().catch((err) => {
         console.error("[sigil-changed] reload failed:", err);
       });

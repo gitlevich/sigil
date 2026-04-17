@@ -39,6 +39,24 @@ let globalPendingPath: string | null = null;
 
 let globalPendingContent: string | null = null;
 
+/**
+ * Discard any in-flight auto-save when the sigil tree was mutated
+ * externally (e.g. a tool deleted the sigil the user was editing).
+ * Without this, the pending timer fires 500ms after a delete and
+ * api.writeFile recreates the directory — the "ghost sigil" bug.
+ *
+ * Pausing the path makes the instance's writeToDisk a no-op when the
+ * timer finally fires. Clearing the globals keeps conflict-detection
+ * code from seeing stale pending content.
+ */
+export function discardPendingAutoSave(): void {
+  if (globalPendingPath) {
+    pauseAutoSaveFor(globalPendingPath);
+  }
+  globalPendingPath = null;
+  globalPendingContent = null;
+}
+
 export function getAutoSavePendingPath(): string | null {
   return globalPendingPath;
 }
