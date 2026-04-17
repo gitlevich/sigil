@@ -50,7 +50,7 @@ const NARRATIVE_NAME = "narrative";
 const UNIT = 24;
 function glyphSize(kind: IconKind): { w: number; h: number } {
   switch (kind) {
-    case "parent":    return { w: UNIT * 6, h: Math.round(UNIT * 6 * 0.866) }; // equilateral 144×125
+    case "parent":    return { w: UNIT * 4, h: Math.round(UNIT * 4 * 0.866) }; // equilateral 96×83, same as god
     case "god":       return { w: UNIT * 4, h: Math.round(UNIT * 4 * 0.866) }; // equilateral 96×83
     case "neighbor":  return { w: UNIT * 3, h: UNIT * 4 };                     // door 72×96
     case "child":     return { w: UNIT * 3, h: UNIT * 3 };                     // 72×72
@@ -360,7 +360,7 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = icon.kind === "parent"
-            ? { x: size.w / 2, y: 80 }
+            ? { x: Math.max(120, size.w * 0.28), y: 70 }
             : positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           return (
@@ -376,13 +376,13 @@ export function SpatialDesktop() {
                 className={`${styles.glyph} ${styles[icon.kind]}`}
                 style={{ width: w, height: h }}
               >
-                {icon.kind === "parent" ? <ParentGlyph name={icon.name} /> :
+                {icon.kind === "parent" ? <ParentGlyph /> :
                  icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
                  icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
               </div>
-              {icon.kind !== "neighbor" && icon.kind !== "parent" && (
+              {icon.kind !== "neighbor" && (
                 <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
               )}
             </div>
@@ -426,26 +426,12 @@ function InvariantGlyph() {
 }
 
 /** One true god (structural parent / @LawsOfNature) — equilateral triangle
- * pointing up, name inside auto-shrinks to fit the triangle's lower width. */
-function ParentGlyph({ name }: { name: string }) {
-  // Equilateral: 144×125. Apex at (72, 6), base at y=119.
-  // Inner width at y=98 (74% height) ≈ 108, generous but safe for text.
+ * pointing up. Same size as the emergent gods, just the reversed orientation.
+ * Name renders below as a standard label. */
+function ParentGlyph() {
   return (
-    <svg viewBox="0 0 144 125" aria-hidden>
-      <polygon points="72,6 138,119 6,119" strokeWidth={1.5} strokeLinejoin="round" />
-      <text
-        x={72}
-        y={102}
-        textAnchor="middle"
-        fontSize={13}
-        fill="currentColor"
-        stroke="none"
-        fontFamily="var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
-        textLength={108}
-        lengthAdjust="spacingAndGlyphs"
-      >
-        {name}
-      </text>
+    <svg viewBox="0 0 96 83" aria-hidden>
+      <polygon points="48,6 90,78 6,78" strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   );
 }
