@@ -296,7 +296,7 @@ export function ChatPanel() {
               </button>
             </div>
             {msg.role === "assistant" ? (
-              <MarkdownPreview content={msg.content} />
+              <AssistantBody content={msg.content} />
             ) : (
               <div className={styles.messageContent}>{msg.content}</div>
             )}
@@ -353,4 +353,39 @@ export function ChatPanel() {
       </div>
     </div>
   );
+}
+
+/**
+ * Assistant message body — extracts tool-use markers and renders them as
+ * subtle action chips, passes the remaining prose through markdown.
+ * "*Using tool: delete_sigil*" becomes its own affordance rather than
+ * italic text interrupting the reply.
+ */
+function AssistantBody({ content }: { content: string }) {
+  const { prose, tools } = extractToolUses(content);
+  return (
+    <>
+      {tools.length > 0 && (
+        <div className={styles.toolChips}>
+          {tools.map((tool, i) => (
+            <span key={i} className={styles.toolChip} title={`Used tool: ${tool}`}>
+              <span className={styles.toolChipGlyph} aria-hidden>↳</span>
+              {tool}
+            </span>
+          ))}
+        </div>
+      )}
+      {prose.trim() && <MarkdownPreview content={prose} />}
+    </>
+  );
+}
+
+function extractToolUses(content: string): { prose: string; tools: string[] } {
+  const tools: string[] = [];
+  const pattern = /^\s*\*Using tool:\s*([^*\n]+?)\s*\*\s*$/gm;
+  const prose = content.replace(pattern, (_, name: string) => {
+    tools.push(name.trim());
+    return "";
+  });
+  return { prose, tools };
 }
