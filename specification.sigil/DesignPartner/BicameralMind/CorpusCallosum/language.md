@@ -13,3 +13,5 @@ A @Relevance filter preventing premature @Observation @Collapse: premature artic
 See Iain @McGilchrist@CorpusCallosum.
 
 Two mechanisms. @Narration: compresses @attention into language. @Gate: decides when to escalate and when to cut off.
+
+I am the bridging structure of the @DefaultModeNetwork — the active channel between its spacelike half (@Subconscious) and its timelike half (@Memory). The membrane passes through me.
