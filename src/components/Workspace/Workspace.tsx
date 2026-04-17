@@ -11,9 +11,11 @@ import { Breadcrumb } from "./Breadcrumb";
 import type { ScopeEntry } from "./editorScope";
 import { CompileStatusBar } from "./CompileStatusBar";
 import { NameMisfitStatusBar } from "./NameMisfitStatusBar";
+import { HearingStatusBar } from "./HearingStatusBar";
 import { ConflictBanner } from "./ConflictBanner";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
+import { useHearing, type HearingEvent } from "../../hooks/useHearing";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
@@ -317,6 +319,7 @@ export function Workspace() {
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
   const nameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
+  const hearingEvents = useHearing(ws.spec.root);
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {
@@ -401,6 +404,10 @@ export function Workspace() {
         <NameMisfitStatusBar misfits={nameMisfits} onNavigateToMisfit={(m: NameMisfit) => {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(m.path, m.file === "language.md" ? m.line : undefined);
+        }} />
+        <HearingStatusBar events={hearingEvents} onNavigateToEvent={(e: HearingEvent) => {
+          layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
+          navigate(e.path);
         }} />
       </div>
       <DesignPartnerPanel />

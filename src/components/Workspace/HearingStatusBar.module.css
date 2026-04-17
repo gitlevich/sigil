@@ -1,0 +1,90 @@
+.container {
+  flex-shrink: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  user-select: none;
+  cursor: default;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.barHearing {
+  cursor: pointer;
+}
+
+.barHearing:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+.barQuiet {
+  opacity: 0.7;
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--text-secondary) 50%, transparent);
+}
+
+.ts {
+  color: color-mix(in srgb, var(--text-secondary) 70%, transparent);
+  margin-left: 0.3rem;
+  font-size: 0.72rem;
+}
+
+.panel {
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  padding: 0.3rem 0;
+  font-size: 0.76rem;
+  font-family: var(--font-mono, monospace);
+}
+
+.eventLine {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 1rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.eventLine:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.kind {
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.kind_language { color: #5c9ded; }
+.kind_affordance { color: #4caf50; }
+.kind_invariant { color: #d97706; }
+.kind_structural { color: #b47bd1; }
+
+.summary {
+  flex: 1;
+}
