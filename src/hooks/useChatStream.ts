@@ -5,6 +5,8 @@ import { useWorkspaceState } from "../state/WorkspaceContext";
 import { useChatState, useChatDispatch } from "../state/ChatContext";
 import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
+import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
+import { useHearing, type HearingEvent } from "./useHearing";
 
 export function useChatStream() {
   const appState = useAppState();
@@ -20,6 +22,17 @@ export function useChatStream() {
   const chatRef = useRef(chat);
   workspaceRef.current = workspace;
   chatRef.current = chat;
+
+  // The RightHemisphere's #senses-name-misfit and Hearing are kept current
+  // so they can be woven into the DP's system prompt when a message is sent.
+  // Per spec: #probe-name-misfit pulls from #senses-name-misfit; the DP
+  // should see the list, not only the User.
+  const nameMisfits = useNameMisfits(workspace.spec.root, workspace.spec.importedOntologies ?? null);
+  const hearingEvents = useHearing(workspace.spec.root);
+  const nameMisfitsRef = useRef(nameMisfits);
+  const hearingEventsRef = useRef(hearingEvents);
+  nameMisfitsRef.current = nameMisfits;
+  hearingEventsRef.current = hearingEvents;
 
   useEffect(() => {
     const unlistenToken = events.onChatToken((token) => {
@@ -135,7 +148,8 @@ export function useChatStream() {
     const stylePrefix = appState.settings.response_style === "detailed"
       ? ""
       : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
-    const systemPrompt = stylePrefix + appState.settings.system_prompt;
+    const sensorySuffix = composeSensorySection(nameMisfitsRef.current, hearingEventsRef.current);
+    const systemPrompt = stylePrefix + appState.settings.system_prompt + sensorySuffix;
 
     try {
       await api.sendChatMessage(
@@ -155,4 +169,48 @@ export function useChatStream() {
   }, [appState.settings, chatDispatch, addToast]);
 
   return { sendMessage };
+}
+
+/**
+ * Weave current RightHemisphere signals into the DesignPartner's system prompt.
+ * Per spec: #probe-name-misfit pulls from RightHemisphere/#senses-name-misfit,
+ * and Hearing reports located events. Both should reach the DP's context, not
+ * only the User's UI — otherwise the statistical signal never meets semantic
+ * judgment.
+ */
+function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[]): string {
+  if (misfits.length === 0 && events.length === 0) return "";
+
+  const parts: string[] = ["\n\n# Current Sensory State\n"];
+
+  if (misfits.length > 0) {
+    parts.push(
+      "\n## #senses-name-misfit — names that feel out of place\n\n" +
+      "Suspected mis-placed @references. These resolve, but the resolved sigil's co-occurrence neighborhood does not match the surrounding line. Suspicion, not conviction — apply your semantic judgment.\n",
+    );
+    for (const m of misfits.slice(0, 20)) {
+      const loc = m.path.join("/") + "/" + m.file;
+      parts.push(`- ${loc}:${m.line} ${m.ref} — ${m.reason}`);
+    }
+    if (misfits.length > 20) {
+      parts.push(`- …and ${misfits.length - 20} more`);
+    }
+    parts.push("");
+  }
+
+  if (events.length > 0) {
+    parts.push(
+      "\n## Hearing — recent located events\n\n" +
+      "Changes to the tree, in reverse chronological order.\n",
+    );
+    for (const e of events.slice(0, 15)) {
+      const loc = e.path.length > 0 ? e.path.join("/") : "(root)";
+      parts.push(`- [${e.kind}] ${loc} — ${e.summary}`);
+    }
+    if (events.length > 15) {
+      parts.push(`- …and ${events.length - 15} older`);
+    }
+  }
+
+  return parts.join("\n");
 }
