@@ -30,7 +30,7 @@ fn resolve_sigil_arg(
     let abs = Path::new(root_path).join(&cleaned);
     Ok((cleaned, abs))
 }
-use crate::commands::sigil::{create_context, delete_context, rename_sigil, move_sigil, read_sigil_with_libs};
+use crate::commands::sigil::{create_sigil, delete_context, rename_sigil, move_sigil, read_sigil_with_libs};
 use crate::commands::chat::render_context;
 
 /// Context about the editor state, passed from the chat handler.
@@ -389,10 +389,11 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
             let content = input["content"].as_str().unwrap_or("");
 
-            // For legacy create_context / create_sigil: parent + name → child dir
-            if (name == "create_context" || name == "create_sigil") && input.get("name").is_some() {
+            // For create_sigil: parent + name → child dir. create_context
+            // is kept as a legacy alias so old chat histories still replay.
+            if (name == "create_sigil" || name == "create_context") && input.get("name").is_some() {
                 let ctx_name = input["name"].as_str().ok_or("Missing name")?;
-                let ctx = create_context(abs.to_string_lossy().to_string(), ctx_name.to_string())?;
+                let ctx = create_sigil(abs.to_string_lossy().to_string(), ctx_name.to_string())?;
                 if !content.is_empty() {
                     let file_path = Path::new(&ctx.path).join("language.md");
                     fs::write(&file_path, content).map_err(|e| e.to_string())?;

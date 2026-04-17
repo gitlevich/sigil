@@ -82,7 +82,7 @@ pub fn run() {
             commands::sigil::check_imported_ontologies,
             commands::sigil::install_ontologies,
             commands::sigil::read_sigil,
-            commands::sigil::create_context,
+            commands::sigil::create_sigil,
             commands::sigil::rename_context,
             commands::sigil::rename_sigil,
             commands::sigil::preview_rename_sigil,

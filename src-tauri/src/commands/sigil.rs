@@ -284,7 +284,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Idea, String> {
 }
 
 #[tauri::command]
-pub fn create_context(parent_path: String, name: String) -> Result<SigilFolder, String> {
+pub fn create_sigil(parent_path: String, name: String) -> Result<SigilFolder, String> {
     let parent = Path::new(&parent_path);
 
     let context_path = parent.join(&name);
@@ -952,11 +952,11 @@ mod tests {
     }
 
     #[test]
-    fn test_create_context() {
+    fn test_create_sigil() {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);
 
-        let ctx = create_context(root_path.clone(), "Notifications".to_string()).unwrap();
+        let ctx = create_sigil(root_path.clone(), "Notifications".to_string()).unwrap();
         assert_eq!(ctx.name, "Notifications");
         assert!(ctx.language.is_empty());
         assert!(ctx.children.is_empty());
@@ -966,11 +966,11 @@ mod tests {
     }
 
     #[test]
-    fn test_create_context_duplicate() {
+    fn test_create_sigil_duplicate() {
         let tmp = TempDir::new().unwrap();
         let root_path = setup_sigil(&tmp);
 
-        let result = create_context(root_path, "Auth".to_string());
+        let result = create_sigil(root_path, "Auth".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("already exists"));
     }

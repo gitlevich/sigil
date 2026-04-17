@@ -71,7 +71,7 @@ async function execute(
  * Create a new sigil as a child of the given sigil folder.
  *
  * Pre: name is non-empty.
- * Op: createContext + write language.md with inherited status.
+ * Op: createSigil + write language.md with inherited status.
  * Post: reload tree.
  * Error: toast.
  */
@@ -92,7 +92,7 @@ export async function createSigil(
     requireNonEmpty(dirName, "Sigil name");
     const parentStatusMatch = folder.language?.match(/^---[\s\S]*?^status:\s*(\S+)/m);
     const parentStatus = parentStatusMatch?.[1] ?? "idea";
-    const newFolder = await api.createContext(folder.path, dirName);
+    const newFolder = await api.createSigil(folder.path, dirName);
     await api.writeFile(`${newFolder.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
     return `Created @${dirName}.`;
   });
@@ -427,20 +427,20 @@ export async function deleteProperty(
 }
 
 /**
- * Create a context (directory) as child of parentPath.
+ * Create a sigil (directory) as child of parentPath.
  *
  * Pre: name non-empty (backend validates 5-child limit).
- * Op: api.createContext.
+ * Op: api.createSigil.
  * Post: reload tree.
  * Error: toast.
  */
-export async function createContext(
+export async function createChildSigil(
   parentPath: string,
   name: string,
   deps: ActionDeps,
 ): Promise<void> {
   await execute(deps, async () => {
-    requireNonEmpty(name, "Context name");
-    await api.createContext(parentPath, name);
+    requireNonEmpty(name, "Sigil name");
+    await api.createSigil(parentPath, name);
   });
 }

@@ -115,7 +115,7 @@ function InlinePeerInput({
   const commit = async () => {
     const name = value.trim();
     if (!name) { onAbort(); return; }
-    await actions.createContext(parentFsPath, name, actionDeps);
+    await actions.createChildSigil(parentFsPath, name, actionDeps);
     onSubmit();
   };
 

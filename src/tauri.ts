@@ -315,8 +315,8 @@ export const api = {
   readImageBase64: (path: string) =>
     invoke<string>("read_image_base64", { path }),
 
-  createContext: (parentPath: string, name: string) =>
-    invoke<SigilFolder>("create_context", { parentPath, name }),
+  createSigil: (parentPath: string, name: string) =>
+    invoke<SigilFolder>("create_sigil", { parentPath, name }),
 
   renameContext: (rootPath: string, path: string, newName: string) =>
     invoke<string>("rename_context", { rootPath, path, newName }),
