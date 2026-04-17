@@ -654,12 +654,23 @@ async fn stream_openai_compatible(
         }));
     }
 
-    loop {
+    // Cap the agentic loop — both real tool-use rounds and hallucination
+    // retries count against the same budget so a misbehaving local model
+    // can't spin indefinitely.
+    const MAX_ROUNDS: usize = 10;
+    let mut hallucination_retries = 0;
+    const MAX_HALLUCINATION_RETRIES: usize = 2;
+
+    for round in 0..MAX_ROUNDS {
         let body = serde_json::json!({
             "model": model,
             "messages": messages,
             "tools": openai_tools,
         });
+        eprintln!(
+            "[{}] request round={} messages={} tools={}",
+            label, round, messages.len(), openai_tools.len(),
+        );
 
         let mut req = client.post(url).header("Content-Type", "application/json");
         if let Some(ref auth) = auth_header {
@@ -750,7 +761,19 @@ async fn stream_openai_compatible(
             || text.contains("<tool_call>")
             || text.starts_with("Using tool:");
         if looks_like_hallucinated_call {
-            eprintln!("[{}] hallucinated tool prose detected, correcting and retrying", label);
+            if hallucination_retries >= MAX_HALLUCINATION_RETRIES {
+                eprintln!("[{}] hallucinated tool prose again, giving up after {} retries", label, hallucination_retries);
+                let honest = format!(
+                    "[Model refused to use the function-calling protocol after {} retries. No tool actually ran. Raw model output: {}]",
+                    hallucination_retries,
+                    text.chars().take(200).collect::<String>(),
+                );
+                accumulated_text.push_str(&honest);
+                let _ = app.emit("chat-token", honest);
+                break;
+            }
+            hallucination_retries += 1;
+            eprintln!("[{}] hallucinated tool prose detected (retry {}/{})", label, hallucination_retries, MAX_HALLUCINATION_RETRIES);
             messages.push(message.clone());
             messages.push(serde_json::json!({
                 "role": "user",
