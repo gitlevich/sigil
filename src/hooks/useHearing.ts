@@ -16,6 +16,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { Sigil } from "sigil-core";
+import type { RefError } from "./useCompileCheck";
 
 export type HearingKind = "language" | "affordance" | "invariant" | "structural";
 
@@ -139,31 +140,94 @@ function diffTrees(prev: Sigil, next: Sigil, nextIdStart: number): HearingEvent[
   return ctx.events;
 }
 
+/**
+ * A stable key for a dangling reference — same path, file, line, and ref
+ * token across reloads. Used to diff compile state and emit events for
+ * references that newly dangled or newly resolved.
+ */
+function refErrorKey(err: RefError): string {
+  return `${err.path.join("/")}/${err.file}:${err.line}:${err.ref}`;
+}
+
+/**
+ * Diff compile errors between reloads. Per the spec, references that have
+ * just resolved or just dangled are Hearing sources — they are deformations
+ * that the apartment surfaces to the attending inhabitants.
+ *
+ * The four-kind taxonomy in Sigil/language.md doesn't include a "reference"
+ * kind; a dangling ref is a consequence of either a language change (text
+ * references a name that doesn't exist) or a structural change (the
+ * referenced sigil moved or was removed). Without more context we can't
+ * classify which caused it, so we tag these events as "language" — the
+ * referring side — and note the ref in the summary.
+ */
+function diffCompileErrors(
+  prevErrors: RefError[],
+  nextErrors: RefError[],
+  nextIdStart: number,
+): HearingEvent[] {
+  const prevKeys = new Map(prevErrors.map(e => [refErrorKey(e), e]));
+  const nextKeys = new Map(nextErrors.map(e => [refErrorKey(e), e]));
+  const ctx: DiffContext = { nextId: nextIdStart, now: Date.now(), events: [] };
+
+  // Newly dangling: present now but not before.
+  for (const [key, err] of nextKeys) {
+    if (prevKeys.has(key)) continue;
+    ctx.events.push({
+      id: ctx.nextId++,
+      timestamp: ctx.now,
+      kind: "language",
+      path: err.path,
+      summary: `${err.ref} in ${err.file}:${err.line} now dangles — ${err.reason}`,
+    });
+  }
+  // Newly resolved: present before but not now.
+  for (const [key, err] of prevKeys) {
+    if (nextKeys.has(key)) continue;
+    ctx.events.push({
+      id: ctx.nextId++,
+      timestamp: ctx.now,
+      kind: "language",
+      path: err.path,
+      summary: `${err.ref} in ${err.file}:${err.line} now resolves`,
+    });
+  }
+  return ctx.events;
+}
+
 /** Prepend new events and roll the list at MAX_EVENTS. No merging, no filtering. */
 function prependAndRoll(existing: HearingEvent[], incoming: HearingEvent[]): HearingEvent[] {
   if (incoming.length === 0) return existing;
   return [...incoming, ...existing].slice(0, MAX_EVENTS);
 }
 
-export function useHearing(root: Sigil | null): HearingEvent[] {
+export function useHearing(root: Sigil | null, compileErrors: RefError[] = []): HearingEvent[] {
   const prevRef = useRef<Sigil | null>(null);
+  const prevErrorsRef = useRef<RefError[] | null>(null);
   const nextIdRef = useRef(1);
   const [events, setEvents] = useState<HearingEvent[]>([]);
 
   useEffect(() => {
     if (!root) {
       prevRef.current = null;
+      prevErrorsRef.current = null;
       return;
     }
-    const prev = prevRef.current;
+    const prevRoot = prevRef.current;
+    const prevErrors = prevErrorsRef.current;
     prevRef.current = root;
-    if (!prev) return; // First load: nothing to diff against.
+    prevErrorsRef.current = compileErrors;
+    if (!prevRoot) return; // First load: nothing to diff against.
 
-    const incoming = diffTrees(prev, root, nextIdRef.current);
+    const treeEvents = diffTrees(prevRoot, root, nextIdRef.current);
+    nextIdRef.current += treeEvents.length;
+    const refEvents = diffCompileErrors(prevErrors ?? [], compileErrors, nextIdRef.current);
+    nextIdRef.current += refEvents.length;
+
+    const incoming = [...treeEvents, ...refEvents];
     if (incoming.length === 0) return;
-    nextIdRef.current += incoming.length;
     setEvents((cur) => prependAndRoll(cur, incoming));
-  }, [root]);
+  }, [root, compileErrors]);
 
   return events;
 }

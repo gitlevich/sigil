@@ -319,7 +319,7 @@ export function Workspace() {
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
   const nameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
-  const hearingEvents = useHearing(ws.spec.root);
+  const hearingEvents = useHearing(ws.spec.root, compileResult.errors);
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {

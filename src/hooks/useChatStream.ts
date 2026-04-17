@@ -7,6 +7,7 @@ import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
 import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
 import { useHearing, type HearingEvent } from "./useHearing";
+import { useCompileCheck, type RefError } from "./useCompileCheck";
 import { useSpellbook } from "./useSpellbook";
 import { consultSpellbook, type Disturbance } from "sigil-core";
 
@@ -30,12 +31,15 @@ export function useChatStream() {
   // Per spec: #probe-name-misfit pulls from #senses-name-misfit; the DP
   // should see the list, not only the User.
   const nameMisfits = useNameMisfits(workspace.spec.root, workspace.spec.importedOntologies ?? null);
-  const hearingEvents = useHearing(workspace.spec.root);
+  const compileResult = useCompileCheck(workspace.spec.root, workspace.spec.importedOntologies ?? null, workspace.currentPath);
+  const hearingEvents = useHearing(workspace.spec.root, compileResult.errors);
   const spellbook = useSpellbook(workspace.spec.rootPath);
   const nameMisfitsRef = useRef(nameMisfits);
+  const compileErrorsRef = useRef(compileResult.errors);
   const hearingEventsRef = useRef(hearingEvents);
   const spellbookRef = useRef(spellbook);
   nameMisfitsRef.current = nameMisfits;
+  compileErrorsRef.current = compileResult.errors;
   hearingEventsRef.current = hearingEvents;
   spellbookRef.current = spellbook;
 
@@ -189,7 +193,7 @@ export function useChatStream() {
     const stylePrefix = appState.settings.response_style === "detailed"
       ? ""
       : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
-    const sensorySuffix = composeSensorySection(nameMisfitsRef.current, hearingEventsRef.current);
+    const sensorySuffix = composeSensorySection(nameMisfitsRef.current, hearingEventsRef.current, compileErrorsRef.current);
     const systemPrompt = stylePrefix + appState.settings.system_prompt + sensorySuffix;
 
     try {
@@ -219,10 +223,25 @@ export function useChatStream() {
  * only the User's UI — otherwise the statistical signal never meets semantic
  * judgment.
  */
-function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[]): string {
-  if (misfits.length === 0 && events.length === 0) return "";
+function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[], compileErrors: RefError[]): string {
+  if (misfits.length === 0 && events.length === 0 && compileErrors.length === 0) return "";
 
   const parts: string[] = ["\n\n# Current Sensory State\n"];
+
+  if (compileErrors.length > 0) {
+    parts.push(
+      "\n## Dangling references — currently unresolved\n\n" +
+      "Per Workspace/!deformations-surface-to-attenders, @references that dangle are felt. These are the ones currently unresolved:\n",
+    );
+    for (const err of compileErrors.slice(0, 30)) {
+      const loc = err.path.join("/") + "/" + err.file;
+      parts.push(`- ${loc}:${err.line} ${err.ref} — ${err.reason}`);
+    }
+    if (compileErrors.length > 30) {
+      parts.push(`- …and ${compileErrors.length - 30} more`);
+    }
+    parts.push("");
+  }
 
   if (misfits.length > 0) {
     parts.push(
