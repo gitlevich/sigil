@@ -16,6 +16,12 @@ export interface ActionDeps {
   rootPath: string;
   reload: (rootPath?: string) => Promise<unknown>;
   addToast: (message: string, type?: "error" | "info") => void;
+  /**
+   * Hand back a legible receipt after a mutation — the Workspace's
+   * #confirmation affordance per !every-mutation-confirmed.
+   * Optional because some contexts may not want visible feedback.
+   */
+  confirm?: (summary: string) => void;
 }
 
 // ── Precondition helpers ──
@@ -41,14 +47,17 @@ class PreconditionError extends Error {
 
 async function execute(
   deps: ActionDeps,
-  operation: () => Promise<void>,
+  operation: () => Promise<string | void>,
   options: { reloadAfter?: boolean } = {},
 ): Promise<void> {
   const { reloadAfter = true } = options;
   try {
-    await operation();
+    const summary = await operation();
     if (reloadAfter) {
       await deps.reload(deps.rootPath);
+    }
+    if (typeof summary === "string" && summary.length > 0) {
+      deps.confirm?.(summary);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -85,6 +94,7 @@ export async function createSigil(
     const parentStatus = parentStatusMatch?.[1] ?? "idea";
     const newFolder = await api.createContext(folder.path, dirName);
     await api.writeFile(`${newFolder.path}/language.md`, `---\nstatus: ${parentStatus}\n---\n\n# ${humanName}\n`);
+    return `Created @${dirName}.`;
   });
 }
 
@@ -103,7 +113,18 @@ export async function renameSigil(
 ): Promise<void> {
   await execute(deps, async () => {
     requireNonEmpty(newName, "Sigil name");
-    await api.renameSigil(deps.rootPath, targetPath, newName);
+    const result = await api.renameSigil(deps.rootPath, targetPath, newName);
+    // Rust returns a JSON string: { new_path, files_updated }
+    let filesUpdated = 0;
+    try {
+      const parsed = JSON.parse(result);
+      if (typeof parsed?.files_updated === "number") filesUpdated = parsed.files_updated;
+    } catch {
+      // Older returns are just the new path; that's fine — we just omit the count.
+    }
+    return filesUpdated > 0
+      ? `Renamed to @${newName}; updated ${filesUpdated} reference${filesUpdated === 1 ? "" : "s"}.`
+      : `Renamed to @${newName}.`;
   });
 }
 
@@ -146,6 +167,8 @@ export async function moveSigil(
     if (sourcePath === targetPath) throw new PreconditionError("Cannot move a sigil onto itself");
     if (targetPath.startsWith(sourcePath + "/")) throw new PreconditionError("Cannot move a sigil under itself");
     await api.moveSigil(deps.rootPath, sourcePath, targetPath);
+    const name = sourcePath.split("/").pop() ?? sourcePath;
+    return `Moved @${name}.`;
   });
 }
 
@@ -163,6 +186,8 @@ export async function deleteSigil(
 ): Promise<void> {
   await execute(deps, async () => {
     await api.deleteContext(path);
+    const name = path.split("/").pop() ?? path;
+    return `Deleted @${name}.`;
   });
 }
 
@@ -184,6 +209,7 @@ export async function createAffordance(
   await execute(deps, async () => {
     requireNonEmpty(name, "Affordance name");
     await api.writeFile(`${folder.path}/affordance-${name}.md`, "");
+    return `Added #${name} to @${folder.name}.`;
   });
 }
 
@@ -203,6 +229,7 @@ export async function createInvariant(
   await execute(deps, async () => {
     requireNonEmpty(name, "Invariant name");
     await api.writeFile(`${folder.path}/invariant-${name}.md`, "");
+    return `Added !${name} to @${folder.name}.`;
   });
 }
 

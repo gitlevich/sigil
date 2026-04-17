@@ -11,5 +11,8 @@ export function useActionDeps(): ActionDeps {
     rootPath: ws.spec.rootPath,
     reload: async () => { await reload(); },
     addToast,
+    // #confirmation: every structural mutation hands back a legible receipt.
+    // Routed through the info-toast channel per !every-mutation-confirmed.
+    confirm: (summary: string) => addToast(summary, "info"),
   }), [ws.spec.rootPath, reload, addToast]);
 }
