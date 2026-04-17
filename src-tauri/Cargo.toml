@@ -1,6 +1,6 @@
 [package]
 name = "sigil"
-version = "0.43.4"
+version = "0.43.5"
 edition = "2021"
 
 [lib]
