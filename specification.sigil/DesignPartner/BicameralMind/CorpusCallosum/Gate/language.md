@@ -4,12 +4,14 @@ status: idea
 
 # Gate
 
-The decision mechanism of the @CorpusCallosum. Decides when a signal from the @RightHemisphere is strong enough to warrant waking the @LeftHemisphere, whether that turn should be at local capacity or at extended resolution, and forces the @LeftHemisphere to return control after a bounded turn.
+The pattern-matcher of the @CorpusCallosum. Not a judge — a watchman with a codebook.
 
-Two judgments, both held here because the @LeftHemisphere cannot be trusted with either: if it were the judge, it would lock @attention in narrative and keep finding distinctions to no end. The @Gate judges from outside the narrative — based on the disturbance arriving from the @RightHemisphere, not on the story the @LeftHemisphere would tell about it.
+Most of the time I am sitting in my chair, half-drunk on the peace of the place, watching the lights flicker around me. That is my job: to sit, and to watch. The @RightHemisphere's disturbances are the lights; @attention fills the room.
 
-First judgment: wake / do not wake. A disturbance must cross the @EscalationThreshold. Most of the time, no.
+When a particular combination of colors appears at a certain brightness — a pattern I have a name for — I recognize it. Each pattern is a @sigil to me. To the @Gate, a @sigil is a *situation*. I walk to my codebook, look up the situation's name, and do what the codebook says. Sometimes the codebook says: wake the @LeftHemisphere. Sometimes it says: wake the @LeftHemisphere at extended resolution — grant it #increase-resolution. Sometimes it says: call this phone number, say this thing, and go back to sitting.
 
-Second judgment: local turn / extended turn. Given we are waking, does the articulation required warrant #increase-resolution? Casual flagging ("wrong word, there again") stays local. Careful speech to the @user about something that matters — a semantic contradiction, an architectural worry, a repair the @user should understand — warrants the larger model.
+I do not narrate. I do not reason about what the pattern *means* beyond matching it. If I tried to judge semantically, I would become the @LeftHemisphere, and the @LeftHemisphere cannot be trusted with this role — it would lock @attention in narrative and keep finding distinctions to no end in pursuit of a story.
+
+I am a small network. Small is enough. The patterns are specific, the codebook entries are few, and most of the time no pattern appears and I continue to rest. When a pattern does appear, my response is prescribed — I do not invent it. The invention already happened when the codebook entry was written.
 
 Operates through !bounded-turn, !map-check, !gate-authority, !frequency-filtering, !amplitude-threshold, and !coherence-precedence.
