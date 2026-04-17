@@ -10,6 +10,7 @@ import {
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { SigilFolder } from "../../tauri";
+import { colorForSigilName } from "../../lib/sigilColor";
 import {
   resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   flattenName, fromDashForm, buildNameIndex,
@@ -75,7 +76,22 @@ export function getGlobalCurrentPath() { return editorScope.currentPath; }
 
 // ── Decoration marks ──
 
-const containedMark = Decoration.mark({ class: "cm-ref-contained" });
+/**
+ * Cache per-child color marks so identical references reuse the same
+ * Decoration instance across rebuilds.
+ */
+const childColorMarkCache = new Map<string, Decoration>();
+function childColorMark(childName: string): Decoration {
+  let mark = childColorMarkCache.get(childName);
+  if (mark) return mark;
+  const color = colorForSigilName(childName);
+  mark = Decoration.mark({
+    class: "cm-ref-contained cm-ref-child-colored",
+    attributes: { style: `color: ${color}; border-bottom-color: ${color};` },
+  });
+  childColorMarkCache.set(childName, mark);
+  return mark;
+}
 const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
 const libMark = Decoration.mark({ class: "cm-ref-lib" });
 const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
@@ -717,13 +733,22 @@ export function buildScopeHighlighter(
                 const propIdx = findPropSeparator(matchText);
                 if (propIdx === -1) {
                   const resolution = resolveFromEditor(matchText);
-                  const mark =
-                    resolution.kind === "contained" ? containedMark :
-                    resolution.kind === "sibling" ? siblingMark :
-                    resolution.kind === "lib" ? libMark :
-                    resolution.kind === "absolute" ? absoluteMark :
-                    resolution.kind === "external" ? externalMark :
-                    unresolvedMark;
+                  let mark: Decoration;
+                  if (resolution.kind === "contained") {
+                    // Per-child color-signature: tint the @Child's name with the child's own hue.
+                    const childName = matchText.slice(1); // strip leading '@'
+                    mark = childColorMark(childName);
+                  } else if (resolution.kind === "sibling") {
+                    mark = siblingMark;
+                  } else if (resolution.kind === "lib") {
+                    mark = libMark;
+                  } else if (resolution.kind === "absolute") {
+                    mark = absoluteMark;
+                  } else if (resolution.kind === "external") {
+                    mark = externalMark;
+                  } else {
+                    mark = unresolvedMark;
+                  }
                   builder.add(abs, abs + matchText.length, mark);
                 } else {
                   const propChar = matchText[propIdx];

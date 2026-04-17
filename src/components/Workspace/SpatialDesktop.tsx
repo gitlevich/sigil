@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
+import { colorForSigilName } from "../../lib/sigilColor";
 import styles from "./SpatialDesktop.module.css";
 
 type IconKind = "child" | "neighbor" | "god" | "parent";
@@ -153,7 +154,10 @@ export function SpatialDesktop() {
               onDoubleClick={() => onIconDoubleClick(icon)}
               title={`${icon.kind}: ${icon.name}`}
             >
-              <div className={`${styles.glyph} ${styles[icon.kind]}`}>
+              <div
+                className={`${styles.glyph} ${styles[icon.kind]}`}
+                style={icon.kind === "child" ? { background: colorForSigilName(icon.name) } : undefined}
+              >
                 {icon.kind === "parent" ? "" : initials(icon.name)}
               </div>
               <div className={styles.label}>{icon.name}</div>
