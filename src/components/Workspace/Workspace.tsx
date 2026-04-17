@@ -31,7 +31,7 @@ import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
-import { SigilSpace3D } from "./SigilSpace3D";
+import { SpatialDesktop } from "./SpatialDesktop";
 import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
@@ -406,7 +406,7 @@ export function Workspace() {
         {layout.contentTab === "atlas" ? (
           <Atlas />
         ) : layout.contentTab === "space" ? (
-          <SigilSpace3D />
+          <SpatialDesktop />
         ) : (
           <SigilEditor
             sigil={currentFolder}

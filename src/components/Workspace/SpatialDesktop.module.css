@@ -1,0 +1,137 @@
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.modeBar {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.74rem;
+}
+
+.modeBtn {
+  padding: 0.2rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.modeBtn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.modeBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+.icon {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem 0.2rem;
+  user-select: none;
+  cursor: grab;
+  transition: transform 120ms ease-out;
+}
+
+.icon:active {
+  cursor: grabbing;
+  transition: none;
+}
+
+.icon:hover .glyph {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.glyph {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.child {
+  background: var(--accent, #4a90e2);
+  border-radius: 6px;
+}
+
+.neighbor {
+  background: var(--success, #2ea44f);
+  border-radius: 50%;
+}
+
+.god {
+  background: var(--warning, #e6a700);
+  clip-path: polygon(10% 0%, 90% 0%, 60% 100%, 40% 100%);
+  border-radius: 2px;
+}
+
+.parent {
+  background: transparent;
+  border-bottom: 28px solid var(--text-secondary);
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  width: 0;
+  height: 0;
+}
+
+.label {
+  font-size: 0.74rem;
+  color: var(--text-primary);
+  max-width: 140px;
+  text-align: center;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.parentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--text-secondary) 8%, transparent) 0%, transparent 100%);
+}
+
+.emptyHint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-align: center;
+  pointer-events: none;
+}
