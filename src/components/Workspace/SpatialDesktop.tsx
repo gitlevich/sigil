@@ -34,21 +34,29 @@ const NARRATIVE_NAME = "narrative";
  * on its stored (x, y) and to compute arc trim so lines meet at the glyph's
  * edge rather than disappearing under it.
  */
+/**
+ * Size hierarchy, deliberately stepped. The base unit is 24px.
+ *
+ *   Parent (one true god)       6u  (144)  —  dominant scope
+ *   God (emergent)              4u  (96)   —  pull of a shared name
+ *   Neighbor (door)             3u × 4u   —  tall enough to hold a name
+ *   Child                       3u  (72)   —  a peer I named
+ *   Narrative                   2u × 2.5u — a surface on my body
+ *   Affordance, Invariant       1u  (24)   —  a body facet
+ *
+ * Doors and narrative are rectangles because they are apertures/surfaces,
+ * not entities — their aspect ratio reflects that.
+ */
+const UNIT = 24;
 function glyphSize(kind: IconKind): { w: number; h: number } {
-  // Size encodes salience. The one-true-god (structural parent) is the most
-  // dominant presence — the scope that contains me. Emergent gods and
-  // children share the mid tier as equal-weight inhabitants of the world.
-  // Neighbors are doors, sized to hold a readable name. Narrative and body
-  // facets are smaller — they're details on the body, not the principal
-  // actors.
   switch (kind) {
-    case "parent":    return { w: 140, h: 120 };
-    case "god":       return { w: 64, h: 56 };
-    case "child":     return { w: 52, h: 52 };
-    case "neighbor":  return { w: 88, h: 112 };
-    case "narrative": return { w: 30, h: 36 };
+    case "parent":    return { w: UNIT * 6, h: Math.round(UNIT * 6 * 0.866) }; // equilateral 144×125
+    case "god":       return { w: UNIT * 4, h: Math.round(UNIT * 4 * 0.866) }; // equilateral 96×83
+    case "neighbor":  return { w: UNIT * 3, h: UNIT * 4 };                     // door 72×96
+    case "child":     return { w: UNIT * 3, h: UNIT * 3 };                     // 72×72
+    case "narrative": return { w: UNIT * 2, h: Math.round(UNIT * 2.5) };       // 48×60
     case "affordance":
-    case "invariant": return { w: 22, h: 22 };
+    case "invariant": return { w: UNIT, h: UNIT };                             // 24×24
   }
 }
 
@@ -153,10 +161,15 @@ export function SpatialDesktop() {
   }, [icons]);
 
   const positionFor = useCallback((name: string): IconPosition => {
-    const stored = layout?.icons[name];
-    if (stored) return stored;
     const entry = kindIndex.byName.get(name);
     if (!entry) return { x: size.w / 2, y: size.h / 2 };
+    // Only children honor user-dragged positions. Everything else (narrative,
+    // gods, neighbors) belongs in its region — stored positions from older
+    // runs are ignored so regions stay composed and don't overlap.
+    if (entry.kind === "child") {
+      const stored = layout?.icons[name];
+      if (stored) return stored;
+    }
     const kindForLayout = entry.kind as IconKindForLayout;
     const count = kindIndex.counters[entry.kind] ?? 1;
     return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
@@ -347,7 +360,7 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = icon.kind === "parent"
-            ? { x: contentBounds.w / 2, y: 80 }
+            ? { x: size.w / 2, y: 80 }
             : positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           return (
@@ -413,19 +426,23 @@ function InvariantGlyph() {
 }
 
 /** One true god (structural parent / @LawsOfNature) — equilateral triangle
- * pointing up, its name written inside. Thin outline, transparent. */
+ * pointing up, name inside auto-shrinks to fit the triangle's lower width. */
 function ParentGlyph({ name }: { name: string }) {
+  // Equilateral: 144×125. Apex at (72, 6), base at y=119.
+  // Inner width at y=98 (74% height) ≈ 108, generous but safe for text.
   return (
-    <svg viewBox="0 0 140 120" aria-hidden>
-      <polygon points="70,8 132,112 8,112" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox="0 0 144 125" aria-hidden>
+      <polygon points="72,6 138,119 6,119" strokeWidth={1.5} strokeLinejoin="round" />
       <text
-        x={70}
-        y={94}
+        x={72}
+        y={102}
         textAnchor="middle"
         fontSize={13}
         fill="currentColor"
         stroke="none"
         fontFamily="var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+        textLength={108}
+        lengthAdjust="spacingAndGlyphs"
       >
         {name}
       </text>
@@ -433,12 +450,11 @@ function ParentGlyph({ name }: { name: string }) {
   );
 }
 
-/** Emergent god (@God) — equilateral triangle pointing down, a vortex/funnel
- * pulling the worshippers into its gravity well. Thin outline, transparent. */
+/** Emergent god — equilateral triangle pointing down, vortex pulling worshippers. */
 function GodGlyph() {
   return (
-    <svg viewBox="0 0 64 56" aria-hidden>
-      <polygon points="4,6 60,6 32,50" strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox="0 0 96 83" aria-hidden>
+      <polygon points="6,6 90,6 48,80" strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   );
 }
