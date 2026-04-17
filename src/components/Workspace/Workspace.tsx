@@ -18,6 +18,8 @@ import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
 import { useHearing, type HearingEvent } from "../../hooks/useHearing";
 import { useSpellbook } from "../../hooks/useSpellbook";
 import { useDPCurated } from "../../hooks/useDPCurated";
+import { useFrameTick } from "../../hooks/useFrameTick";
+import { selectedProvider } from "../../tauri";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
@@ -328,6 +330,19 @@ export function Workspace() {
   const spellbook = useSpellbook(ws.spec.rootPath);
   const nameMisfits = useDPCurated(rawNameMisfits, spellbook, "misfits");
   const hearingEvents = useDPCurated(rawHearingEvents, spellbook, "hearing");
+
+  // Continuous attention — the DP wakes at a regular tempo (substrate only;
+  // phenomenologically he attends continuously). Only active for local tiers.
+  useFrameTick({
+    root: ws.spec.root,
+    hearingEvents,
+    nameMisfits,
+    compileErrors: compileResult.errors,
+    activeProvider: selectedProvider(appState.settings) ?? null,
+    onObservation: (text, exploration) => {
+      console.info(`[DP${exploration ? " (exploring)" : ""}] ${text}`);
+    },
+  });
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {
