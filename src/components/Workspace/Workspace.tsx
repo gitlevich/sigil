@@ -137,6 +137,19 @@ export function Workspace() {
     const kb = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Shift+Tab — quickly close both side panels (ontology + design partner).
+      if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Don't fight editor-internal shift-tab (dedent). Only act when focus is
+        // outside CodeMirror so typing isn't disturbed.
+        const target = e.target as HTMLElement | null;
+        const inEditor = target?.closest?.(".cm-editor");
+        if (!inEditor) {
+          e.preventDefault();
+          layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: false });
+          layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: false });
+          return;
+        }
+      }
       if (matchesBinding(e, kb["navigate-back"] || "Alt-[")) {
         e.preventDefault();
         back();

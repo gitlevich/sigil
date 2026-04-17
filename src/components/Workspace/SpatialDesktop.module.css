@@ -83,7 +83,13 @@
   font-family: 'SF Mono', 'Fira Code', monospace;
   fill: var(--text-secondary);
   pointer-events: none;
-  opacity: 0.8;
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+}
+
+.arcGroup:hover .arcLabel,
+.arcGroup:focus-within .arcLabel {
+  opacity: 0.95;
 }
 
 .arcHitbox {
@@ -117,12 +123,12 @@
 }
 
 .glyph {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--bg-primary);
   font-weight: 600;
   transition: box-shadow 140ms ease-out;
@@ -130,35 +136,35 @@
 
 .child {
   background: var(--accent, #4a90e2);
-  border-radius: 6px;
+  border-radius: 7px;
 }
 
 /* Neighbor — a door. Simple rectangle with a handle, the neighbor's name on
- * its face, sized so the name reads without squinting. */
+ * its face on a single line. */
 .neighbor {
   background: var(--bg-primary);
   border: 1.5px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
   border-radius: 2px;
-  width: 68px;
-  height: 104px;
+  width: 88px;
+  height: 112px;
   position: relative;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 500;
   font-family: var(--font-sans, system-ui, -apple-system, "SF Pro Text", sans-serif);
   letter-spacing: 0;
-  padding: 8px 12px;
-  line-height: 1.2;
+  padding: 0 18px 0 8px;
   overflow: hidden;
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   text-align: center;
+  line-height: 112px;
 }
 
 .neighbor::after {
   content: "";
   position: absolute;
-  right: 6px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   width: 5px;
@@ -167,30 +173,27 @@
   background: color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
 
-/* God — equilateral triangle pointing up. Pale yellow fill, soft glow
- * implied by a subtle drop shadow. No text inside the glyph. */
+/* God — equilateral upward triangle, pale yellow with soft halo. */
 .god {
   background: transparent;
   width: 0;
   height: 0;
-  border-left: 22px solid transparent;
-  border-right: 22px solid transparent;
-  border-bottom: 38px solid #f5d35a;
-  filter: drop-shadow(0 0 6px rgba(245, 211, 90, 0.45));
+  border-left: 30px solid transparent;
+  border-right: 30px solid transparent;
+  border-bottom: 52px solid #f5d35a;
+  filter: drop-shadow(0 0 8px rgba(245, 211, 90, 0.5));
   color: transparent;
   font-size: 0;
 }
 
-/* Structural parent — equilateral triangle pointing down. Descends from
- * above to contain me; the inverse of a god. Muted so it reads as ceiling
- * rather than entity. */
+/* Structural parent — equilateral downward triangle, muted ceiling. */
 .parent {
   background: transparent;
   width: 0;
   height: 0;
-  border-left: 22px solid transparent;
-  border-right: 22px solid transparent;
-  border-top: 38px solid color-mix(in srgb, var(--text-secondary) 55%, transparent);
+  border-left: 28px solid transparent;
+  border-right: 28px solid transparent;
+  border-top: 48px solid color-mix(in srgb, var(--text-secondary) 55%, transparent);
   color: transparent;
   font-size: 0;
 }
@@ -229,35 +232,31 @@
   padding: 0 3px;
 }
 
-/* Affordance — an offering. A cup opening upward: a semicircular arc with
- * the top open, phenomenologically "I extend this outward." Teal, the
- * editor's reference color. No text inside. */
+/* Affordance — tiny teal arc, glyph-scale. "I offer this" at text-weight. */
 .affordance {
   background: transparent;
-  width: 22px;
-  height: 11px;
-  border: 1.5px solid rgba(61, 158, 140, 0.7);
+  width: 12px;
+  height: 6px;
+  border: 1px solid rgba(61, 158, 140, 0.75);
   border-top: 0;
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 12px 12px;
   color: transparent;
   font-size: 0;
-  opacity: 0.82;
-  transition: opacity 140ms ease-out, border-color 140ms ease-out;
+  opacity: 0.78;
+  transition: opacity 120ms ease-out, border-color 120ms ease-out;
 }
 
-/* Invariant — a closed ring. Sealed, binding, admits no opening:
- * phenomenologically "this holds regardless." Amber, the editor's
- * reference color. No text inside. */
+/* Invariant — tiny amber ring, glyph-scale. "This holds" at text-weight. */
 .invariant {
   background: transparent;
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid rgba(232, 160, 64, 0.7);
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(232, 160, 64, 0.75);
   border-radius: 50%;
   color: transparent;
   font-size: 0;
-  opacity: 0.82;
-  transition: opacity 140ms ease-out, border-color 140ms ease-out;
+  opacity: 0.78;
+  transition: opacity 120ms ease-out, border-color 120ms ease-out;
 }
 
 .label {
@@ -282,77 +281,82 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--text-secondary) 5%, transparent) 0%, transparent 100%);
 }
 
-/* Body-facet rows — a modest, separate-looking tray for each.
- * Affordances at the top (teal outline); invariants at the bottom (amber). */
+/* Body-facet rows — quiet trays hugging the canvas edges, left-justified.
+ * Affordances top, invariants bottom. Scroll horizontally if they exceed
+ * the canvas width; each glyph is tiny. */
 .affordanceRow,
 .invariantRow {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 32px);
+  left: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 6px 14px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
-  backdrop-filter: blur(4px);
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(3px);
   pointer-events: auto;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
 }
 
+.affordanceRow::-webkit-scrollbar,
+.invariantRow::-webkit-scrollbar { height: 4px; }
+
 .affordanceRow {
-  top: 68px;
-  border: 1px solid rgba(61, 158, 140, 0.18);
+  top: 58px;
+  border: 1px solid rgba(61, 158, 140, 0.2);
 }
 
 .invariantRow {
   bottom: 14px;
-  border: 1px solid rgba(232, 160, 64, 0.18);
+  border: 1px solid rgba(232, 160, 64, 0.2);
 }
 
-/* Each row item is a small icon with a hover-revealed label.
- * The label is absolutely positioned under the icon so it doesn't
- * reflow neighbors when it appears. */
+/* Each row item: wrapper is bigger than the glyph so the hover target is
+ * easy to hit, while the glyph stays tiny. */
 .rowItem {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   cursor: help;
+  flex-shrink: 0;
 }
 
 .rowItem .glyph {
-  width: 28px;
-  height: 28px;
+  width: auto;
+  height: auto;
 }
 
 .rowItem .rowLabel {
   position: absolute;
-  top: 36px;
+  top: 26px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.7rem;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: color-mix(in srgb, var(--text-primary) 90%, transparent);
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 140ms ease-out;
-  z-index: 3;
-  backdrop-filter: blur(4px);
+  transition: opacity 120ms ease-out;
+  z-index: 20;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .invariantRow .rowLabel {
   top: auto;
-  bottom: 36px;
+  bottom: 26px;
 }
 
 .rowItem:hover .affordance,

@@ -83,32 +83,33 @@ export function regionPosition(
   canvasWidth: number,
   canvasHeight: number,
 ): IconPosition {
-  const topReserved = 130;  // below parent chevron + affordance row
-  const bottomReserved = 90;
-  const leftWall = 80;
-  const rightWall = canvasWidth - 80;
-  const interiorTop = topReserved + 60;
-  const interiorBottom = canvasHeight - bottomReserved - 60;
-  const interiorLeft = leftWall + 110;
+  // Top band stack: parent chevron (y≈24) → affordance row (y≈58, ~36px tall) → gods band
+  const affordanceRowBottom = 102;  // leave clearance for affordance row + padding
+  const godBandY = affordanceRowBottom + 40;
+  const topReserved = godBandY + 60;
+  const bottomReserved = 90;   // invariant row clearance
+  const leftWall = 72;
+  const rightWall = canvasWidth - 72;
+  const interiorTop = topReserved;
+  const interiorBottom = canvasHeight - bottomReserved - 40;
+  const interiorLeft = leftWall + 120; // leave room for neighbor doors
   const interiorRight = rightWall - 40;
 
   if (kind === "narrative") {
-    return { x: 60, y: canvasHeight - bottomReserved - 30 };
+    return { x: 60, y: canvasHeight - bottomReserved - 20 };
   }
 
   if (kind === "god") {
-    // Gods band: horizontal row at the top, centered above the interior.
-    const bandY = topReserved - 34;
     const usableWidth = (rightWall - 40) - (leftWall + 40);
     const gap = countInKind > 1 ? usableWidth / (countInKind - 1) : 0;
     const startX = countInKind === 1 ? canvasWidth / 2 : leftWall + 40;
-    return { x: startX + gap * indexInKind, y: bandY };
+    return { x: startX + gap * indexInKind, y: godBandY };
   }
 
   if (kind === "neighbor") {
-    // Doors on the left wall, stacked vertically.
-    const slotHeight = 124;
-    const firstY = interiorTop + 20;
+    // Doors along the left wall, evenly stacked from just below gods band.
+    const slotHeight = 136;
+    const firstY = interiorTop + 30;
     return { x: leftWall, y: firstY + indexInKind * slotHeight };
   }
 

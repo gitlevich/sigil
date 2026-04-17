@@ -250,7 +250,7 @@ export function SpatialDesktop() {
               const labelY = cy;
               const title = arc.sentence;
               return (
-                <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`}>
+                <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`} className={styles.arcGroup}>
                   <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
                   <path className={styles.arcPath} d={d}><title>{title}</title></path>
                   <text className={styles.arcLabel} x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle">
