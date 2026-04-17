@@ -28,18 +28,36 @@ export function ChatPanel() {
   const [chatMenu, setChatMenu] = useState<{ x: number; y: number; chatId: string } | null>(null);
   const chatsLoadedRef = useRef(false);
 
-  // Load chat list from disk on first mount
+  // Load chat list from disk on first mount. If there's no active chat yet
+  // but previous chats exist, open the most recent one — otherwise the
+  // first message spawns a fresh chat each launch and they accumulate.
   useEffect(() => {
     if (chatsLoadedRef.current) return;
     chatsLoadedRef.current = true;
-    api.listChats(ws.spec.rootPath).then(chats => {
-      if (chats.length > 0) {
-        chatDispatch({ type: "SET_CHATS", chats });
+    api.listChats(ws.spec.rootPath).then(async (chats) => {
+      if (chats.length === 0) return;
+      chatDispatch({ type: "SET_CHATS", chats });
+
+      const savedActiveExists = chat.activeChatId
+        && chats.some((c) => c.id === chat.activeChatId);
+      if (savedActiveExists) return;
+
+      const mostRecent = chats.reduce(
+        (a, b) => (a.last_modified >= b.last_modified ? a : b),
+        chats[0],
+      );
+      const loaded = await api.readChat(ws.spec.rootPath, mostRecent.id).catch(() => null);
+      if (loaded) {
+        chatDispatch({
+          type: "SET_ACTIVE_CHAT",
+          chatId: mostRecent.id,
+          messages: loaded.messages,
+        });
       }
     }).catch(err => {
       console.error("Failed to load chats:", err);
     });
-  }, [ws.spec.rootPath, chatDispatch]);
+  }, [ws.spec.rootPath, chatDispatch, chat.activeChatId]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const prevOpen = useRef(layout.designPartnerPanelOpen);
