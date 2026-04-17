@@ -83,14 +83,13 @@ export function regionPosition(
   canvasWidth: number,
   canvasHeight: number,
 ): IconPosition {
-  // Top-down composition with breathing room between zones:
-  //   parent triangle at top center (height ~120, centered at y=80 → extends to y=140)
-  //   affordance row below                    (top ~160, ~44px tall)
-  //   gods band below that                    (y ~260)
-  //   interior begins                         (y ~330)
-  const affordanceRowBottom = 204;
-  const godBandY = affordanceRowBottom + 60;
-  const topReserved = godBandY + 70;
+  // Top-down composition:
+  //   affordance row at the very top          (y=12, ~36px tall)
+  //   parent triangle in the top band below   (center ~y=110)
+  //   gods band alongside/below parent        (y ~180)
+  //   interior begins                         (y ~260)
+  const godBandY = 180;
+  const topReserved = 260;
   const bottomReserved = 90;   // invariant row clearance
   const leftWall = 72;
   const rightWall = canvasWidth - 72;

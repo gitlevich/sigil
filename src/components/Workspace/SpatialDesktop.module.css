@@ -261,17 +261,18 @@
   padding: 0 3px;
 }
 
-/* Affordance / Invariant — SVG glyphs. The outer class sets stroke color via
- * currentColor; the SVG child inherits. Visible against any bg, glyph-scale. */
+/* Affordance / Invariant — SVG glyphs at 16px, 1px stroke. Fine line, soft
+ * color; no crude edges. currentColor drives both the outline and the
+ * inner glyph char. */
 .affordance,
 .invariant {
   background: transparent;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--text-primary) 80%, transparent);
+  color: color-mix(in srgb, var(--text-primary) 62%, transparent);
   transition: color 120ms ease-out;
 }
 
@@ -318,9 +319,9 @@
   align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 12px 18px;
-  padding: 8px 14px;
-  border-radius: 8px;
+  gap: 10px 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
   backdrop-filter: blur(3px);
   pointer-events: auto;
@@ -328,13 +329,13 @@
 }
 
 .affordanceRow {
-  top: 160px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  top: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 
 .invariantRow {
   bottom: 14px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 
 .rowItem {
@@ -342,8 +343,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   cursor: default;
   flex-shrink: 0;
 }

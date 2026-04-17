@@ -360,7 +360,7 @@ export function SpatialDesktop() {
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon) => {
           const pos = icon.kind === "parent"
-            ? { x: Math.max(120, size.w * 0.28), y: 70 }
+            ? { x: Math.max(120, size.w * 0.28), y: 110 }
             : positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           return (
@@ -405,22 +405,22 @@ function initials(name: string): string {
  * Each glyph shaped by what it affords or constrains.
  */
 
-/** Affordance — # enclosed in a thin rounded rectangle, the "tag" that offers. */
+/** Affordance — # in a thin rounded square, the offering tag. */
 function AffordanceGlyph() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden>
-      <rect x={1.5} y={1.5} width={17} height={17} rx={5} ry={5} strokeWidth={1.5} />
-      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={600} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">#</text>
+      <rect x={2} y={2} width={16} height={16} rx={4} ry={4} strokeWidth={1} />
+      <text x={10} y={14} textAnchor="middle" fontSize={11} fontWeight={500} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">#</text>
     </svg>
   );
 }
 
-/** Invariant — ! enclosed in a thin sharp-cornered square, sealed. */
+/** Invariant — ! in a thin sharp-cornered square, sealed. */
 function InvariantGlyph() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden>
-      <rect x={1.5} y={1.5} width={17} height={17} strokeWidth={1.5} />
-      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={700} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">!</text>
+      <rect x={2} y={2} width={16} height={16} strokeWidth={1} />
+      <text x={10} y={14} textAnchor="middle" fontSize={11} fontWeight={600} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">!</text>
     </svg>
   );
 }
