@@ -1,7 +1,7 @@
 # adaptive-familiarity
 
-Repeated encounter with the same relevant structure should make it easier to recognize on future encounters. This is the persistence side of @Sight feeding into @Memory. When a pattern of @shape and @invariant relations keeps appearing and keeps being relevant, the mechanism should #recognize-familiar-sigil faster and with less effort.
+Repeated encounter with structures along @Attraction makes them easier to recognize on future encounters. When a @shape that sits in the current keeps appearing, the mechanism should #recognize-familiar-sigil faster and with less effort — the sphere tightens, the vocabulary surfaces without being summoned. This is the persistence side of @Sight feeding into @Memory.
 
-The complement is equally important: irrelevant noise must fade. Structures that appear repeatedly but never connect to active work should not accumulate weight. Without this decay, the mechanism drowns in low-value familiarity and becomes noisy over time.
+The complement matters equally: repeats without pull must not accumulate. A @shape that appears often but never lies along the current — never fits the present @frame's symmetry, never advances the @sigil toward its basin — should not gain weight no matter how frequent. Frequency without pull is noise; without this filter, @Memory drowns in low-pull familiarity.
 
-Violation: a structure the user encounters daily in active work is treated as novel every time. Or: a structure the user never acts on keeps gaining recognition weight and cluttering awareness.
+Violation: a @shape along the current is treated as novel every time it appears. Or: a @shape outside the current gains recognition weight through repetition alone.
