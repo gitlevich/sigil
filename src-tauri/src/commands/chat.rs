@@ -361,6 +361,7 @@ pub async fn send_chat_message(
     current_path: Vec<String>,
     local: tauri::State<'_, crate::commands::local_inference::LocalInference>,
     abort: tauri::State<'_, crate::commands::chat_abort::ChatAbort>,
+    dispatcher: tauri::State<'_, crate::commands::tool_dispatcher::ToolDispatcher>,
 ) -> Result<(), String> {
     let base_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
@@ -398,19 +399,19 @@ pub async fn send_chat_message(
 
     let cancel_rx = abort.begin().await;
 
-    let dispatch = async {
+    let dispatch_fut = async {
         match profile.provider {
             AiProvider::Anthropic => {
-                stream_anthropic(&app, &history, &profile, &system_prompt, &editor_ctx).await
+                stream_anthropic(&app, &history, &profile, &system_prompt, &editor_ctx, dispatcher.inner()).await
             }
             AiProvider::OpenAI => {
-                stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx).await
+                stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx, dispatcher.inner()).await
             }
             AiProvider::Local => {
-                stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone()).await
+                stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone(), dispatcher.inner()).await
             }
             AiProvider::Ollama => {
-                stream_ollama(&app, &history, &profile, &system_prompt, &editor_ctx).await
+                stream_ollama(&app, &history, &profile, &system_prompt, &editor_ctx, dispatcher.inner()).await
             }
         }
     };
@@ -421,7 +422,7 @@ pub async fn send_chat_message(
     let result: Result<String, String> = tokio::select! {
         biased;
         _ = cancel_rx => Err("cancelled by user".into()),
-        r = dispatch => r,
+        r = dispatch_fut => r,
     };
 
     abort.finish().await;
@@ -461,6 +462,7 @@ async fn stream_anthropic(
     profile: &AiProfile,
     system_prompt: &str,
     editor_ctx: &tools::EditorContext,
+    dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
@@ -547,7 +549,7 @@ async fn stream_anthropic(
                     "input": tool_input,
                 }));
 
-                let result = match tools::execute_tool(tool_name, tool_input, Some(&app), Some(editor_ctx)).await {
+                let result = match tools::execute_tool(tool_name, tool_input, Some(&app), Some(editor_ctx), Some(dispatcher)).await {
                     Ok(output) => serde_json::json!({
                         "type": "tool_result",
                         "tool_use_id": tool_id,
@@ -589,6 +591,7 @@ async fn stream_openai(
     profile: &AiProfile,
     system_prompt: &str,
     editor_ctx: &tools::EditorContext,
+    dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     stream_openai_compatible(
         app,
@@ -599,6 +602,7 @@ async fn stream_openai(
         "https://api.openai.com/v1/chat/completions",
         Some(format!("Bearer {}", profile.api_key)),
         "OpenAI",
+        dispatcher,
     )
     .await
 }
@@ -618,6 +622,7 @@ async fn stream_openai_compatible(
     url: &str,
     auth_header: Option<String>,
     label: &str,
+    dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
@@ -736,7 +741,7 @@ async fn stream_openai_compatible(
                     "input": &tool_input,
                 }));
 
-                let result = match tools::execute_tool(tool_name, &tool_input, Some(&app), Some(editor_ctx)).await {
+                let result = match tools::execute_tool(tool_name, &tool_input, Some(&app), Some(editor_ctx), Some(dispatcher)).await {
                     Ok(output) => output,
                     Err(err) => format!("Error: {}", err),
                 };
@@ -805,6 +810,7 @@ async fn stream_ollama(
     profile: &AiProfile,
     system_prompt: &str,
     editor_ctx: &tools::EditorContext,
+    dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     stream_openai_compatible(
         app,
@@ -815,6 +821,7 @@ async fn stream_ollama(
         "http://localhost:11434/v1/chat/completions",
         None,
         "Ollama",
+        dispatcher,
     )
     .await
 }
@@ -832,6 +839,7 @@ async fn stream_local(
     system_prompt: &str,
     editor_ctx: &tools::EditorContext,
     local: crate::commands::local_inference::LocalInference,
+    dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     let (endpoint, model) = local.ensure_running().await?;
     let url = format!("{}/v1/chat/completions", endpoint.trim_end_matches('/'));
@@ -854,6 +862,7 @@ async fn stream_local(
         &url,
         None,
         "local",
+        dispatcher,
     )
     .await;
 

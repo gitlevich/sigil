@@ -11,6 +11,8 @@ import { useHearing, type HearingEvent } from "./useHearing";
 import { useCompileCheck, type RefError } from "./useCompileCheck";
 import { useSpellbook } from "./useSpellbook";
 import { consultSpellbook, compressSigil, type Disturbance } from "sigil-core";
+import { useActionDeps } from "./useActionDeps";
+import * as actions from "../actions/workspace";
 
 export function useChatStream() {
   const appState = useAppState();
@@ -20,6 +22,9 @@ export function useChatStream() {
   const reloadRef = useRef(reload);
   navigateRef.current = navigate;
   reloadRef.current = reload;
+  const actionDeps = useActionDeps();
+  const actionDepsRef = useRef(actionDeps);
+  actionDepsRef.current = actionDeps;
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
@@ -86,6 +91,21 @@ export function useChatStream() {
     // reload the spec so the workspace sees the change. The file watcher
     // catches disk changes too, but this is a direct path that doesn't
     // depend on watcher latency.
+    // Tool dispatches from Bicameron route through the same workspace
+    // actions a user click would — deleteSigil, renameSigil, etc.
+    // The Rust tool awaits tool_result; the handler here runs the action
+    // and echoes back ok/message.
+    const unlistenToolDelete = events.onToolDeleteSigil(async ({ request_id, payload }) => {
+      console.info("[tool:delete_sigil] dispatched:", payload);
+      try {
+        await actions.deleteSigil(payload.abs_path, actionDepsRef.current);
+        await api.toolResult(request_id, true, `Deleted @${payload.sigil_path}.`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await api.toolResult(request_id, false, msg);
+      }
+    });
+
     const unlistenSigilChanged = events.onSigilChanged(() => {
       console.info("[sigil-changed] discarding pending autosave and reloading spec");
       // Kill any in-flight autosave first. If the user was editing the
@@ -135,6 +155,7 @@ export function useChatStream() {
       unlistenToken.then((fn) => fn());
       unlistenError.then((fn) => fn());
       unlistenToolUse.then((fn) => fn());
+      unlistenToolDelete.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
       unlistenNavigate.then((fn) => fn());
       unlistenEnd.then((fn) => fn());

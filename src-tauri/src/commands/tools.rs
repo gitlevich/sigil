@@ -30,7 +30,7 @@ fn resolve_sigil_arg(
     let abs = Path::new(root_path).join(&cleaned);
     Ok((cleaned, abs))
 }
-use crate::commands::sigil::{create_sigil, delete_context, rename_sigil, move_sigil, read_sigil_with_libs};
+use crate::commands::sigil::{create_sigil, rename_sigil, move_sigil, read_sigil_with_libs};
 use crate::commands::chat::render_context;
 
 /// Context about the editor state, passed from the chat handler.
@@ -327,9 +327,15 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
 /// and any error. Every tool invocation now leaves a trace in the dev
 /// terminal — if "nothing happens," either the tool was never dispatched
 /// (no [tool>] line) or the tool completed successfully (look for [tool<]).
-pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
+pub async fn execute_tool(
+    name: &str,
+    input: &serde_json::Value,
+    app: Option<&tauri::AppHandle>,
+    editor_ctx: Option<&EditorContext>,
+    dispatcher: Option<&crate::commands::tool_dispatcher::ToolDispatcher>,
+) -> Result<String, String> {
     eprintln!("[tool>] {} input={}", name, input);
-    let result = execute_tool_inner(name, input, app, editor_ctx).await;
+    let result = execute_tool_inner(name, input, app, editor_ctx, dispatcher).await;
     match &result {
         Ok(s) => {
             let preview: String = s.chars().take(160).collect();
@@ -342,7 +348,13 @@ pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&ta
     result
 }
 
-async fn execute_tool_inner(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
+async fn execute_tool_inner(
+    name: &str,
+    input: &serde_json::Value,
+    app: Option<&tauri::AppHandle>,
+    editor_ctx: Option<&EditorContext>,
+    dispatcher: Option<&crate::commands::tool_dispatcher::ToolDispatcher>,
+) -> Result<String, String> {
     match name {
         "navigate" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -515,12 +527,23 @@ async fn execute_tool_inner(name: &str, input: &serde_json::Value, app: Option<&
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            delete_context(abs.to_string_lossy().to_string())?;
-            eprintln!("[delete_sigil] removed {:?}", abs);
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Deleted sigil at {}", sigil_path))
+
+            // Route through the frontend's deleteSigil action — same path
+            // a user click takes. See ToolDispatcher for the protocol.
+            let (app, dispatcher) = match (app, dispatcher) {
+                (Some(a), Some(d)) => (a, d),
+                _ => return Err("Tool dispatch requires app handle and dispatcher".into()),
+            };
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher,
+                app,
+                "tool:delete_sigil",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                }),
+                30,
+            ).await
         }
         "write_vision" => {
             let root_path = input.get("root_path").and_then(|v| v.as_str())
@@ -709,37 +732,16 @@ mod tests {
         (tmp, ctx)
     }
 
-    #[tokio::test]
-    async fn delete_sigil_removes_directory_for_plain_name() {
-        let (tmp, ctx) = workspace_with_scratch();
-        let scratch = tmp.path().join("Scratch");
-        assert!(scratch.exists(), "precondition: Scratch exists");
-
-        let input = serde_json::json!({ "sigil_path": "Scratch" });
-        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
-
-        assert!(result.is_ok(), "delete_sigil returned Err: {:?}", result);
-        assert!(!scratch.exists(), "Scratch directory should be gone after delete");
-    }
-
-    #[tokio::test]
-    async fn delete_sigil_tolerates_trailing_language_md() {
-        let (tmp, ctx) = workspace_with_scratch();
-        let scratch = tmp.path().join("Scratch");
-        assert!(scratch.exists());
-
-        let input = serde_json::json!({ "sigil_path": "Scratch/language.md" });
-        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
-
-        assert!(result.is_ok(), "delete_sigil should strip /language.md; got {:?}", result);
-        assert!(!scratch.exists(), "Scratch directory should be gone");
-    }
+    // Happy-path deletion is now a frontend integration test — the tool
+    // dispatches to the frontend's deleteSigil action instead of calling
+    // the filesystem directly. These unit tests cover only the validation
+    // that happens before dispatch.
 
     #[tokio::test]
     async fn delete_sigil_refuses_workspace_root() {
         let (tmp, ctx) = workspace_with_scratch();
         let input = serde_json::json!({ "sigil_path": "" });
-        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx), None).await;
         assert!(result.is_err(), "empty path should be refused");
         assert!(tmp.path().exists(), "workspace root must remain");
     }
@@ -748,17 +750,26 @@ mod tests {
     async fn delete_sigil_refuses_parent_traversal() {
         let (tmp, ctx) = workspace_with_scratch();
         let input = serde_json::json!({ "sigil_path": "../escape" });
-        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx), None).await;
         assert!(result.is_err(), "../ traversal should be refused");
-        let _ = tmp; // keep tempdir alive
+        let _ = tmp;
     }
 
     #[tokio::test]
     async fn delete_sigil_returns_error_for_missing_sigil() {
         let (tmp, ctx) = workspace_with_scratch();
         let input = serde_json::json!({ "sigil_path": "DoesNotExist" });
-        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx), None).await;
         assert!(result.is_err(), "missing sigil should be Err");
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_refuses_without_dispatcher() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({ "sigil_path": "Scratch" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx), None).await;
+        assert!(result.is_err(), "no dispatcher means dispatch cannot route");
         let _ = tmp;
     }
 }

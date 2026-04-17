@@ -358,6 +358,14 @@ export const api = {
     invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt, currentPath }),
   cancelChat: () => invoke<void>("cancel_chat"),
 
+  /**
+   * Reply to a tool-dispatch request. Called by the frontend listener
+   * after it runs the workspace action; the Rust-side tool is awaiting
+   * this result and returns it to the model.
+   */
+  toolResult: (requestId: string, ok: boolean, message: string) =>
+    invoke<void>("tool_result", { requestId, ok, message }),
+
   listRecentDocuments: () =>
     invoke<RecentDocument[]>("list_recent_documents"),
 
@@ -434,6 +442,16 @@ export const events = {
 
   onNavigateTo: (handler: (sigilPath: string) => void): Promise<UnlistenFn> =>
     listen<string>("navigate-to", (event) => handler(event.payload)),
+
+  /**
+   * Tool-dispatch events: mutating tools ask the frontend to perform the
+   * action via its own workspace API. Each payload carries a request_id
+   * the handler must echo back via api.toolResult with the outcome.
+   */
+  onToolDeleteSigil: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:delete_sigil", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string } })),
 
   onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
     listen<string>("select-text", (event) => handler(event.payload)),

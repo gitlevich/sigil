@@ -77,6 +77,7 @@ pub fn run() {
         .manage(PendingOpenPath(Mutex::new(None)))
         .manage(commands::local_inference::LocalInference::new())
         .manage(commands::chat_abort::ChatAbort::new())
+        .manage(commands::tool_dispatcher::ToolDispatcher::new())
         .invoke_handler(tauri::generate_handler![
             commands::sigil::scaffold_sigil,
             commands::sigil::check_imported_ontologies,
@@ -104,6 +105,7 @@ pub fn run() {
             commands::chat::rename_chat,
             commands::chat::send_chat_message,
             commands::chat_abort::cancel_chat,
+            commands::tool_dispatcher::tool_result,
             commands::documents::list_recent_documents,
             commands::documents::add_recent_document,
             commands::documents::remove_recent_document,

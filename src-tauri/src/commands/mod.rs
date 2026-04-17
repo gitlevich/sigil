@@ -10,5 +10,6 @@ pub mod experience;
 pub mod chat_abort;
 pub mod left_hemisphere;
 pub mod local_inference;
+pub mod tool_dispatcher;
 pub mod memory;
 pub mod spells;
