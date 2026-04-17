@@ -403,6 +403,9 @@ pub async fn send_chat_message(
         AiProvider::Local => {
             stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone()).await
         }
+        AiProvider::Ollama => {
+            stream_ollama(&app, &history, &profile, &system_prompt, &editor_ctx).await
+        }
     };
 
     match &result {
@@ -705,6 +708,32 @@ async fn stream_openai_compatible(
     }
 
     Ok(accumulated_text)
+}
+
+/// Stream from a local Ollama daemon at localhost:11434.
+///
+/// Complements the embedded Local sidecar — Ollama is an external daemon
+/// the user manages (`ollama pull X`, `ollama run X`) but gives quick
+/// model-swapping for experimentation. Protocol is OpenAI-compatible,
+/// tool-calling included for supported models (qwen2.5, llama3.1/3.2, etc.).
+async fn stream_ollama(
+    app: &AppHandle,
+    history: &[ChatMessage],
+    profile: &AiProfile,
+    system_prompt: &str,
+    editor_ctx: &tools::EditorContext,
+) -> Result<String, String> {
+    stream_openai_compatible(
+        app,
+        history,
+        &profile.model,
+        system_prompt,
+        editor_ctx,
+        "http://localhost:11434/v1/chat/completions",
+        None,
+        "Ollama",
+    )
+    .await
 }
 
 /// Stream from the local Python sidecar.

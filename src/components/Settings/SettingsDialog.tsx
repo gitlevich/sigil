@@ -126,24 +126,28 @@ export function SettingsDialog() {
                 className={styles.select}
                 value={editing.provider}
                 onChange={(e) => {
-                  const provider = e.target.value as "anthropic" | "openai" | "local";
+                  const provider = e.target.value as "anthropic" | "openai" | "local" | "ollama";
+                  const needsKey = provider === "anthropic" || provider === "openai";
                   setEditing({
                     ...editing,
                     provider,
-                    // Local inference has a single built-in model; prefill it
-                    // so the user doesn't have to type the mlx model id.
-                    model: provider === "local" ? "bartowski/Qwen2.5-7B-Instruct-GGUF" : "",
-                    api_key: provider === "local" ? "" : editing.api_key,
+                    // Prefill sensible defaults so Save unblocks.
+                    model:
+                      provider === "local" ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
+                      : provider === "ollama" ? "qwen2.5:7b"
+                      : "",
+                    api_key: needsKey ? editing.api_key : "",
                   });
                 }}
               >
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
                 <option value="local">Local (Qwen2.5 7B via sidecar)</option>
+                <option value="ollama">Ollama (localhost:11434)</option>
               </select>
             </div>
 
-            {editing.provider !== "local" && (
+            {(editing.provider === "anthropic" || editing.provider === "openai") && (
               <div className={styles.field}>
                 <label className={styles.label}>API Key</label>
                 <input
@@ -183,9 +187,11 @@ export function SettingsDialog() {
                   placeholder={
                     editing.provider === "local"
                       ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
-                      : editing.api_key
-                        ? "Loading models..."
-                        : "Enter API key first"
+                      : editing.provider === "ollama"
+                        ? "qwen2.5:7b (or any model you've pulled)"
+                        : editing.api_key
+                          ? "Loading models..."
+                          : "Enter API key first"
                   }
                 />
               )}

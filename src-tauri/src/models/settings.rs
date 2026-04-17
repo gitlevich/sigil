@@ -5,9 +5,13 @@ use serde::{Deserialize, Serialize};
 pub enum AiProvider {
     Anthropic,
     OpenAI,
-    /// Local @LeftHemisphere: Phi-3 via Python sidecar over stdin/stdout JSON.
-    /// The `api_key` field is unused; `model` is the mlx-lm model id.
+    /// Local @LeftHemisphere: GGUF model via bundled Python sidecar
+    /// (llama-cpp-python). Embedded, self-contained.
     Local,
+    /// External Ollama daemon on localhost:11434. Useful for quickly
+    /// swapping between models the user has pulled with `ollama pull`.
+    /// Same OpenAI-compatible protocol as Local.
+    Ollama,
 }
 
 impl Default for AiProvider {

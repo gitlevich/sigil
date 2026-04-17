@@ -22,7 +22,49 @@ pub async fn invoke_left_hemisphere(
         AiProvider::Anthropic => invoke_anthropic(&client, &prompt, &profile).await,
         AiProvider::OpenAI => invoke_openai(&client, &prompt, &profile).await,
         AiProvider::Local => local.invoke(&prompt, 1024).await,
+        AiProvider::Ollama => invoke_ollama(&client, &prompt, &profile).await,
     }
+}
+
+async fn invoke_ollama(
+    client: &reqwest::Client,
+    prompt: &str,
+    profile: &AiProfile,
+) -> Result<String, String> {
+    let body = serde_json::json!({
+        "model": profile.model,
+        "messages": [
+            { "role": "user", "content": prompt }
+        ],
+        "max_tokens": 1024,
+    });
+
+    let resp = client
+        .post("http://localhost:11434/v1/chat/completions")
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Ollama request failed: {}", e))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!("Ollama error {}: {}", status, text));
+    }
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("JSON parse error: {}", e))?;
+
+    let content = parsed["choices"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice["message"]["content"].as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(content)
 }
 
 async fn invoke_anthropic(
