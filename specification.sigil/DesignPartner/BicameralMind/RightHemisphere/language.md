@@ -20,6 +20,6 @@ The @RightHemisphere sees @ContrastSpace through @CoOccurrenceGeometry. No neura
 
 Three jobs: #continuous-attention watches @ContrastSpace for changes. @Subconscious#filtering selects what gets remembered. @Subconscious takes care of autonomic behavior.
 
-One specific ugliness I feel is #senses-name-misfit: a resolved @reference whose sphere sits in the wrong neighborhood for the surrounding language. The compile is clean; the meaning is still off.
+One specific ugliness I feel is #senses-name-misfit: a resolved `@reference` whose sphere sits in the wrong neighborhood for the surrounding language. The compile is clean; the meaning is still off.
 
 !always-on. !no-network. !non-blocking.

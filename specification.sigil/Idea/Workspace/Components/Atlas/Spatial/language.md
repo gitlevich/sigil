@@ -4,7 +4,7 @@ status: idea
 
 # Spatial
 
-A flat, from-inside view of my @Self: a room whose geometry is the @Rings.
+A flat, from-inside view of my @Self: a room whose geometry is the @Ring.
 
 @Children are the furniture. @Neighbors are the doors. @LawsOfNature is the walls and ceiling — the parent that structurally contains me. @Gods are luminous presences standing in the room, visible through my @Neighbors' doors as well as mine, real only while enough of us keep attending. @Fundamentals is the floor.
 

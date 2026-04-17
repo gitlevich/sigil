@@ -24,4 +24,4 @@ Language change — the story told about children changed, altering entanglement
 
 Structural change — a child @sigil moved in or out. The parent loses or gains authority. A moved child can still be referenced but is no longer controlled.
 
-A @sigil attended by an @observer occupies one of six @Rings relative to that observer: @Self, @Children, @Neighbor, @LawsOfNature, @God, or @Fundamentals. The ring governs how the @sigil is attended, what its #invariants cost to violate, and what #affordances it offers.
+A @sigil attended by an @observer occupies one of six @Ring relative to that observer: @Self, @Children, @Neighbor, @LawsOfNature, @God, or @Fundamentals. The ring governs how the @sigil is attended, what its #invariants cost to violate, and what #affordances it offers.

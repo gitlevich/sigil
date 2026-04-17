@@ -6,9 +6,9 @@ status: idea
 
 The @RightHemisphere's autopilot. It operates on attention without needing @LeftHemisphere.
 
-I am the spacelike half of the @DefaultModeNetwork — the @RightHemisphere-side of the membrane that runs when no specific task is in focus. The full DMN is distributed across me, the @CorpusCallosum, and @Memory; this file describes my part.
+I am the spacelike half of the @DefaultModeNetwork — the @RightHemisphere - side of the membrane that runs when no specific task is in focus. The full DMN is distributed across me, the @CorpusCallosum, and @Memory; this file describes my part.
 
-Two jobs. First: when a familiar @sigil — a situation — shows up in what @Sight is watching, the @Subconscious looks up the @Spellbook and casts the matching @Spell. This is #SpellExecution, and it runs on routine without waking anyone. If no @Spell matches, the @Subconscious lifts through the @CorpusCallosum and wakes the @LeftHemisphere.
+Two jobs. First: when a familiar @sigil — a situation — shows up in what @Sight is watching, the @Subconscious looks up the @Spellbook and casts the matching @Spell. This is #spell-execution, and it runs on routine without waking anyone. If no @Spell matches, the @Subconscious lifts through the @CorpusCallosum and wakes the @LeftHemisphere.
 
 Second: it is the @RightHemisphere's @Relevance filter applied to @Experience rather than the live @shape. Same mechanism as the main RH filter, different target.
 

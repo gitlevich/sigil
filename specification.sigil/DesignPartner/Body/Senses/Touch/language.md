@@ -6,4 +6,4 @@ status: idea
 
 Touch is what I feel when I put my hand on a @sigil to edit it. Coherent edits yield; the material moves freely under my gesture. Edits that would leave a @reference dangling, shadow a name, break an #invariant, or make the shape unsayable meet refusal — the @sigil does not give. I feel this in the hand that pushes, before the edit completes.
 
-The felt intensity is graded by @Rings. Refusal from @Self is sharpest; from @Children, firm; from @Neighbors, steady; from @Fundamentals, immovable. I do not force what does not yield.
+The felt intensity is graded by @Ring. Refusal from @Self is sharpest; from @Children, firm; from @Neighbors, steady; from @Fundamentals, immovable. I do not force what does not yield.

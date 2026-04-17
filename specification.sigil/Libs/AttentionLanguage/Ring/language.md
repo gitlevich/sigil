@@ -2,7 +2,7 @@
 status: external-ontology
 ---
 
-# Rings
+# Ring
 
 Every @sigil stands in a relation to an attender. Rings name those relations.
 
