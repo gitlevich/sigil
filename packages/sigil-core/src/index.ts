@@ -26,6 +26,8 @@ export {
   displacement as sigilDisplacement,
   rebuild as rebuildSigilSpace,
 } from "./sigilSpace";
+export type { NameMisfit, NameMisfitOptions } from "./nameMisfit";
+export { detectNameMisfits } from "./nameMisfit";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,
