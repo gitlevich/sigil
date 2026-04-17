@@ -114,7 +114,7 @@ export function useRightHemisphere(spec: Idea, currentPath: string[], callbacks?
     const focusName = currentPath.length > 0
       ? currentPath[currentPath.length - 1]
       : spec.root.name;
-    mindRef.current = mindFocus(mindRef.current, focusName);
+    mindRef.current = mindFocus(mindRef.current, focusName, Date.now());
   }, [currentPath, spec.root.name]);
 
   const doSleep = useCallback(() => {

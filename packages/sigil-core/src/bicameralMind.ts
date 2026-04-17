@@ -30,6 +30,12 @@ import {
   recall,
   consolidate as consolidateMemory,
 } from "./memory";
+import type { AttentionState } from "./attention";
+import {
+  init as initAttention,
+  anchorTo as anchorAttention,
+  walkedPath,
+} from "./attention";
 
 // ── Types ──
 
@@ -38,6 +44,8 @@ export interface Mind {
   hemisphere: Hemisphere;
   gate: GateState;
   memory: MemoryState;
+  /** His own attention stream — distinct from the user's focus. */
+  attention: AttentionState;
 }
 
 /** What the cycle produces after perceiving a change. */
@@ -73,12 +81,23 @@ export function open(root: Sigil, importedOntologies?: Sigil | null): Mind {
     hemisphere: openHemisphere(root, importedOntologies),
     gate: initGate(),
     memory: initMemory(),
+    attention: initAttention(),
   };
 }
 
-/** Set focus. */
-export function focus(mind: Mind, sigilName: string): Mind {
-  return { ...mind, hemisphere: focusOn(mind.hemisphere, sigilName) };
+/**
+ * Set focus.
+ *
+ * Two-user model: the @user's focus becomes the anchor for his attention.
+ * His attention rides with the @user's by default, and the act of anchoring
+ * registers the current focus in his @Path (trajectory).
+ */
+export function focus(mind: Mind, sigilName: string, timestamp: number): Mind {
+  return {
+    ...mind,
+    hemisphere: focusOn(mind.hemisphere, sigilName),
+    attention: anchorAttention(mind.attention, sigilName, timestamp),
+  };
 }
 
 /**
@@ -104,13 +123,23 @@ export function perceive(
   const currentSpace = build(root, importedOntologies);
   const focusName = nextHemisphere.focus ?? root.name;
 
+  // Anchor his attention to the current focus, so changes happening while he
+  // attends here are eligible for @Memory. His walked @Path gates entry.
+  const nextAttention = anchorAttention(mind.attention, focusName, timestamp);
+
   // #recall — involuntary recognition near the focus
   const recalled = recall(mind.memory, currentSpace, focusName);
 
-  // #remember — changed sigils get placed in short-term memory
+  // #remember — only sigils he has been attending to enter @Memory.
+  // "What survives @Memory is what was along the current. Not count, not
+  //  recency, not utility — pull." (@Relevance) The current filter is
+  //  conservative: his attention must touch the sigil. Attraction pulls
+  //  that broaden this come later.
+  const attendedSet = new Set(walkedPath(nextAttention));
   let nextMemory = mind.memory;
   const traces: ShortTermTrace[] = [];
   for (const name of changedSigils) {
+    if (!attendedSet.has(name)) continue;
     const node = currentSpace.nodes.get(name);
     if (node) {
       const [mem, trace] = remember(nextMemory, node, timestamp);
@@ -119,7 +148,12 @@ export function perceive(
     }
   }
 
-  let nextMind: Mind = { hemisphere: nextHemisphere, gate: mind.gate, memory: nextMemory };
+  let nextMind: Mind = {
+    hemisphere: nextHemisphere,
+    gate: mind.gate,
+    memory: nextMemory,
+    attention: nextAttention,
+  };
 
   // No disturbance — no escalation path
   if (!perception.escalation || !perception.experience.resolution) {
