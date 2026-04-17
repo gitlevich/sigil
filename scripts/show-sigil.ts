@@ -61,8 +61,13 @@ function voiceFrom(body: string): string {
     const trimmed = para.trim();
     if (!trimmed) continue;
     if (trimmed.startsWith("#")) continue;
-    const match = trimmed.match(/I am (?:the\s+)?(@\w+)/);
-    return match ? match[1] : "whoever reads";
+    // Prefer "I am the @Sigil" form; fall back to "I am Name" for proper
+    // names (Bicameron, etc).
+    const sigilMatch = trimmed.match(/I am (?:the\s+)?(@\w+)/);
+    if (sigilMatch) return sigilMatch[1];
+    const nameMatch = trimmed.match(/^I am ([A-Z]\w+)/);
+    if (nameMatch) return nameMatch[1];
+    return "whoever reads";
   }
   return "whoever reads";
 }
