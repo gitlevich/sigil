@@ -33,7 +33,7 @@ export function NameMisfitStatusBar({ misfits, onNavigateToMisfit }: NameMisfitS
   const hasMisfits = misfits.length > 0;
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${expanded && hasMisfits ? styles.containerExpanded : ""}`}>
       <div
         className={`${styles.bar} ${hasMisfits ? styles.barMisfit : styles.barQuiet}`}
         onClick={() => hasMisfits && setExpanded(!expanded)}
@@ -54,7 +54,7 @@ export function NameMisfitStatusBar({ misfits, onNavigateToMisfit }: NameMisfitS
       </div>
 
       {expanded && hasMisfits && (
-        <div className={styles.panel}>
+        <div className={`${styles.panel} ${styles.panelExpanded}`}>
           {Array.from(groupByPath(misfits)).map(([fileKey, entries]) => (
             <div key={fileKey} className={styles.fileGroup}>
               <div

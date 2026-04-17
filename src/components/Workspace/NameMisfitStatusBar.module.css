@@ -1,5 +1,13 @@
 .container {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.containerExpanded {
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .bar {
@@ -55,6 +63,12 @@
   padding: 0.4rem 0;
   font-size: 0.78rem;
   font-family: var(--font-mono, monospace);
+}
+
+.panelExpanded {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .fileGroup {

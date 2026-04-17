@@ -4,6 +4,7 @@
  * Composes the language editor, affordance and invariant panels,
  * toolbar, and preview into a single editing surface.
  */
+import { useState } from "react";
 import { useLayoutState } from "../../state/LayoutContext";
 import { SigilFolder } from "../../tauri";
 import type { ScopeEntry } from "./editorScope";
@@ -13,6 +14,7 @@ import { LanguageEditor } from "./LanguageEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { SigilPropertyEditor } from "./SigilPropertyEditor";
 import styles from "./Workspace.module.css";
+import propStyles from "./SigilPropertyEditor.module.css";
 
 interface SigilEditorProps {
   sigil: SigilFolder;
@@ -64,6 +66,7 @@ export function SigilEditor({
   onGoToLineDone,
 }: SigilEditorProps) {
   const layout = useLayoutState();
+  const [languageCollapsed, setLanguageCollapsed] = useState(false);
 
   const sharedScope = {
     scope,
@@ -94,6 +97,11 @@ export function SigilEditor({
         items={sigil.affordances}
         {...sharedScope}
       />
+      <div className={propStyles.header} onClick={() => setLanguageCollapsed((c) => !c)}>
+        <span className={propStyles.toggleIcon}>{languageCollapsed ? "\u25B6" : "\u25BC"}</span>
+        <span className={propStyles.title}>Language</span>
+      </div>
+      {!languageCollapsed && (
       <div className={styles.editorArea}>
         {(layout.editorMode === "edit" || layout.editorMode === "split") && (
           <div className={layout.editorMode === "split" ? styles.splitLeft : styles.fullEditor}>
@@ -129,6 +137,7 @@ export function SigilEditor({
           </div>
         )}
       </div>
+      )}
       <SigilPropertyEditor
         sigilPath={sigil.path}
         filePrefix="invariant"
