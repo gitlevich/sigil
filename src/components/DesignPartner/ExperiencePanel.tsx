@@ -69,7 +69,7 @@ export function ExperiencePanel() {
     !g.segments.some(s => liveTimestamps.has(s.timestamp))
   );
 
-  const liveMeaningful = liveSegments.filter(s => s.disturbance.total > 0 || s.resolution || s.message || s.articulation);
+  const liveMeaningful = liveSegments.filter(s => s.disturbance.total >= 1 || s.resolution || s.message || s.articulation);
   const isEmpty = filteredPast.length === 0 && liveMeaningful.length === 0;
 
   return (
@@ -85,7 +85,7 @@ export function ExperiencePanel() {
             </div>
           )}
           {filteredPast.map((group, gi) => {
-            const meaningful = group.segments.filter(s => s.disturbance.total > 0 || s.resolution || s.message || s.articulation);
+            const meaningful = group.segments.filter(s => s.disturbance.total >= 1 || s.resolution || s.message || s.articulation);
             if (meaningful.length === 0) return null;
             return (
               <div key={gi}>
