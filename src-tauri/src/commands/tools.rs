@@ -10,6 +10,19 @@ use tauri::Emitter;
 /// accident. This normalizes the argument and resolves it to an absolute
 /// PathBuf under the workspace root. Rejects absolute paths and ".."
 /// traversal so a tool call can't escape the workspace.
+/// Mutating tools require both the app handle (to emit the event) and
+/// the dispatcher (to register the pending request). Unit tests pass
+/// None; the chat flow always has both.
+fn require_app_and_dispatcher<'a>(
+    app: Option<&'a tauri::AppHandle>,
+    dispatcher: Option<&'a crate::commands::tool_dispatcher::ToolDispatcher>,
+) -> Result<(&'a tauri::AppHandle, &'a crate::commands::tool_dispatcher::ToolDispatcher), String> {
+    match (app, dispatcher) {
+        (Some(a), Some(d)) => Ok((a, d)),
+        _ => Err("Tool dispatch requires app handle and dispatcher".into()),
+    }
+}
+
 fn resolve_sigil_arg(
     raw: &str,
     editor_ctx: Option<&EditorContext>,
@@ -30,7 +43,7 @@ fn resolve_sigil_arg(
     let abs = Path::new(root_path).join(&cleaned);
     Ok((cleaned, abs))
 }
-use crate::commands::sigil::{create_sigil, rename_sigil, move_sigil, read_sigil_with_libs};
+use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::chat::render_context;
 
 /// Context about the editor state, passed from the chat handler.
@@ -419,32 +432,32 @@ async fn execute_tool_inner(
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let content = input["content"].as_str().unwrap_or("");
+            let content = input["content"].as_str().unwrap_or("").to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
 
-            // For create_sigil: parent + name → child dir. create_context
-            // is kept as a legacy alias so old chat histories still replay.
             if (name == "create_sigil" || name == "create_context") && input.get("name").is_some() {
-                let ctx_name = input["name"].as_str().ok_or("Missing name")?;
-                let ctx = create_sigil(abs.to_string_lossy().to_string(), ctx_name.to_string())?;
-                if !content.is_empty() {
-                    let file_path = Path::new(&ctx.path).join("language.md");
-                    fs::write(&file_path, content).map_err(|e| e.to_string())?;
-                }
-                if let Some(app) = app {
-                    let _ = app.emit("sigil-changed", ());
-                }
-                return Ok(format!("Created sigil '{}' at {}", ctx.name, sigil_path));
+                let ctx_name = input["name"].as_str().ok_or("Missing name")?.to_string();
+                return crate::commands::tool_dispatcher::dispatch(
+                    dispatcher, app, "tool:create_sigil",
+                    serde_json::json!({
+                        "parent_sigil_path": sigil_path,
+                        "parent_abs_path": abs.to_string_lossy(),
+                        "name": ctx_name,
+                        "content": content,
+                    }),
+                    30,
+                ).await;
             }
 
-            if !abs.exists() {
-                fs::create_dir_all(&abs).map_err(|e| e.to_string())?;
-            }
-            let file_path = abs.join("language.md");
-            fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Wrote sigil at {}", sigil_path))
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:write_sigil",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "content": content,
+                }),
+                30,
+            ).await
         }
         "read_sigil" | "read_context" => {
             let abs = match input.get("sigil_path").or(input.get("context_path")).and_then(|v| v.as_str()) {
@@ -478,41 +491,48 @@ async fn execute_tool_inner(
             Ok(output)
         }
         "rename_sigil" | "rename_context" => {
-            let root = input.get("root_path").and_then(|v| v.as_str())
-                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
-                .ok_or("Missing root_path and no editor context")?;
             let raw = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
-            let (_, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let new_name = input["new_name"].as_str().ok_or("Missing new_name")?;
-            let result = rename_sigil(root.to_string(), abs.to_string_lossy().to_string(), new_name.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
+            if !abs.exists() {
+                return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            Ok(result)
+            let new_name = input["new_name"].as_str().ok_or("Missing new_name")?.to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:rename_sigil",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "new_name": new_name,
+                }),
+                30,
+            ).await
         }
         "move_sigil" => {
-            let root = input.get("root_path").and_then(|v| v.as_str())
-                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
-                .ok_or("Missing root_path and no editor context")?;
             let raw = input.get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
-            let (_, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let new_parent_raw = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
-            let (_, new_parent_abs) = resolve_sigil_arg(new_parent_raw, editor_ctx)?;
-            let new_path = move_sigil(
-                root.to_string(),
-                abs.to_string_lossy().to_string(),
-                new_parent_abs.to_string_lossy().to_string(),
-            )?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
+            if !abs.exists() {
+                return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            Ok(format!("Moved to {}", new_path))
+            let new_parent_raw = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
+            let (new_parent_path, new_parent_abs) = resolve_sigil_arg(new_parent_raw, editor_ctx)?;
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:move_sigil",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "new_parent_sigil_path": new_parent_path,
+                    "new_parent_abs_path": new_parent_abs.to_string_lossy(),
+                }),
+                30,
+            ).await
         }
         "delete_sigil" | "delete_context" => {
             let raw = input.get("sigil_path")
@@ -530,10 +550,7 @@ async fn execute_tool_inner(
 
             // Route through the frontend's deleteSigil action — same path
             // a user click takes. See ToolDispatcher for the protocol.
-            let (app, dispatcher) = match (app, dispatcher) {
-                (Some(a), Some(d)) => (a, d),
-                _ => return Err("Tool dispatch requires app handle and dispatcher".into()),
-            };
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
                 dispatcher,
                 app,
@@ -546,68 +563,77 @@ async fn execute_tool_inner(
             ).await
         }
         "write_vision" => {
-            let root_path = input.get("root_path").and_then(|v| v.as_str())
-                .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
-                .ok_or("Missing root_path and no editor context")?;
-            let content = input["content"].as_str().ok_or("Missing content")?;
-            let file_path = Path::new(root_path).join("vision.md");
-            fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Wrote vision.md"))
+            let content = input["content"].as_str().ok_or("Missing content")?.to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:write_vision",
+                serde_json::json!({ "content": content }),
+                30,
+            ).await
         }
         "write_affordance" | "create_affordance" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let name = input["name"].as_str().ok_or("Missing name")?;
-            let content = input["content"].as_str().unwrap_or("");
-            let file_path = abs.join(format!("affordance-{}.md", name));
-            fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Wrote affordance #{} on {}", name, sigil_path))
+            let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
+            let content = input["content"].as_str().unwrap_or("").to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:write_affordance",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "name": prop_name,
+                    "content": content,
+                }),
+                30,
+            ).await
         }
         "delete_affordance" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let name = input["name"].as_str().ok_or("Missing name")?;
-            let file_path = abs.join(format!("affordance-{}.md", name));
-            if !file_path.exists() {
-                return Err(format!("Affordance '{}' not found at {}", name, sigil_path));
-            }
-            fs::remove_file(&file_path).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Deleted affordance #{} from {}", name, sigil_path))
+            let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:delete_affordance",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "name": prop_name,
+                }),
+                30,
+            ).await
         }
         "write_invariant" | "create_invariant" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let name = input["name"].as_str().ok_or("Missing name")?;
-            let content = input["content"].as_str().unwrap_or("");
-            let file_path = abs.join(format!("invariant-{}.md", name));
-            fs::write(&file_path, content).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Wrote invariant !{} on {}", name, sigil_path))
+            let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
+            let content = input["content"].as_str().unwrap_or("").to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:write_invariant",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "name": prop_name,
+                    "content": content,
+                }),
+                30,
+            ).await
         }
         "delete_invariant" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let name = input["name"].as_str().ok_or("Missing name")?;
-            let file_path = abs.join(format!("invariant-{}.md", name));
-            if !file_path.exists() {
-                return Err(format!("Invariant '{}' not found at {}", name, sigil_path));
-            }
-            fs::remove_file(&file_path).map_err(|e| e.to_string())?;
-            if let Some(app) = app {
-                let _ = app.emit("sigil-changed", ());
-            }
-            Ok(format!("Deleted invariant !{} from {}", name, sigil_path))
+            let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:delete_invariant",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "name": prop_name,
+                }),
+                30,
+            ).await
         }
         "browser_state_inspection" => {
             if let Some(ctx) = editor_ctx {

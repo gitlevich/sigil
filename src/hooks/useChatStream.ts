@@ -93,18 +93,85 @@ export function useChatStream() {
     // depend on watcher latency.
     // Tool dispatches from Bicameron route through the same workspace
     // actions a user click would — deleteSigil, renameSigil, etc.
-    // The Rust tool awaits tool_result; the handler here runs the action
-    // and echoes back ok/message.
-    const unlistenToolDelete = events.onToolDeleteSigil(async ({ request_id, payload }) => {
-      console.info("[tool:delete_sigil] dispatched:", payload);
+    // Each handler: run the action, echo result back via toolResult.
+    const handleTool = async (
+      request_id: string,
+      label: string,
+      run: () => Promise<string>,
+    ) => {
+      console.info(`[${label}] dispatched`);
       try {
-        await actions.deleteSigil(payload.abs_path, actionDepsRef.current);
-        await api.toolResult(request_id, true, `Deleted @${payload.sigil_path}.`);
+        const message = await run();
+        await api.toolResult(request_id, true, message);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await api.toolResult(request_id, false, msg);
       }
-    });
+    };
+
+    const unlistenToolDelete = events.onToolDeleteSigil(({ request_id, payload }) =>
+      handleTool(request_id, "tool:delete_sigil", async () => {
+        await actions.deleteSigil(payload.abs_path, actionDepsRef.current);
+        return `Deleted @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolRename = events.onToolRenameSigil(({ request_id, payload }) =>
+      handleTool(request_id, "tool:rename_sigil", async () => {
+        await actions.renameSigil(payload.abs_path, payload.new_name, actionDepsRef.current);
+        return `Renamed @${payload.sigil_path} to @${payload.new_name}.`;
+      }));
+
+    const unlistenToolMove = events.onToolMoveSigil(({ request_id, payload }) =>
+      handleTool(request_id, "tool:move_sigil", async () => {
+        await actions.moveSigil(payload.abs_path, payload.new_parent_abs_path, actionDepsRef.current);
+        return `Moved @${payload.sigil_path} under @${payload.new_parent_sigil_path}.`;
+      }));
+
+    const unlistenToolWriteSigil = events.onToolWriteSigil(({ request_id, payload }) =>
+      handleTool(request_id, "tool:write_sigil", async () => {
+        await api.writeFile(`${payload.abs_path}/language.md`, payload.content);
+        return `Wrote @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolCreateSigil = events.onToolCreateSigil(({ request_id, payload }) =>
+      handleTool(request_id, "tool:create_sigil", async () => {
+        const newFolder = await api.createSigil(payload.parent_abs_path, payload.name);
+        if (payload.content) {
+          await api.writeFile(`${newFolder.path}/language.md`, payload.content);
+        }
+        return `Created @${payload.name} under @${payload.parent_sigil_path || "(root)"}.`;
+      }));
+
+    const unlistenToolWriteAff = events.onToolWriteAffordance(({ request_id, payload }) =>
+      handleTool(request_id, "tool:write_affordance", async () => {
+        await api.writeFile(`${payload.abs_path}/affordance-${payload.name}.md`, payload.content);
+        return `Wrote #${payload.name} on @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolDeleteAff = events.onToolDeleteAffordance(({ request_id, payload }) =>
+      handleTool(request_id, "tool:delete_affordance", async () => {
+        await api.deleteFile(`${payload.abs_path}/affordance-${payload.name}.md`);
+        return `Deleted #${payload.name} from @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolWriteInv = events.onToolWriteInvariant(({ request_id, payload }) =>
+      handleTool(request_id, "tool:write_invariant", async () => {
+        await api.writeFile(`${payload.abs_path}/invariant-${payload.name}.md`, payload.content);
+        return `Wrote !${payload.name} on @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolDeleteInv = events.onToolDeleteInvariant(({ request_id, payload }) =>
+      handleTool(request_id, "tool:delete_invariant", async () => {
+        await api.deleteFile(`${payload.abs_path}/invariant-${payload.name}.md`);
+        return `Deleted !${payload.name} from @${payload.sigil_path}.`;
+      }));
+
+    const unlistenToolWriteVision = events.onToolWriteVision(({ request_id, payload }) =>
+      handleTool(request_id, "tool:write_vision", async () => {
+        const ws = workspaceRef.current;
+        await api.writeFile(`${ws.spec.rootPath}/vision.md`, payload.content);
+        return `Wrote vision.md.`;
+      }));
 
     const unlistenSigilChanged = events.onSigilChanged(() => {
       console.info("[sigil-changed] discarding pending autosave and reloading spec");
@@ -156,6 +223,15 @@ export function useChatStream() {
       unlistenError.then((fn) => fn());
       unlistenToolUse.then((fn) => fn());
       unlistenToolDelete.then((fn) => fn());
+      unlistenToolRename.then((fn) => fn());
+      unlistenToolMove.then((fn) => fn());
+      unlistenToolWriteSigil.then((fn) => fn());
+      unlistenToolCreateSigil.then((fn) => fn());
+      unlistenToolWriteAff.then((fn) => fn());
+      unlistenToolDeleteAff.then((fn) => fn());
+      unlistenToolWriteInv.then((fn) => fn());
+      unlistenToolDeleteInv.then((fn) => fn());
+      unlistenToolWriteVision.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
       unlistenNavigate.then((fn) => fn());
       unlistenEnd.then((fn) => fn());

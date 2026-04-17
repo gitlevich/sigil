@@ -453,6 +453,51 @@ export const events = {
   ): Promise<UnlistenFn> =>
     listen("tool:delete_sigil", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string } })),
 
+  onToolRenameSigil: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; new_name: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:rename_sigil", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; new_name: string } })),
+
+  onToolMoveSigil: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; new_parent_sigil_path: string; new_parent_abs_path: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:move_sigil", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; new_parent_sigil_path: string; new_parent_abs_path: string } })),
+
+  onToolWriteSigil: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; content: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:write_sigil", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; content: string } })),
+
+  onToolCreateSigil: (
+    handler: (req: { request_id: string; payload: { parent_sigil_path: string; parent_abs_path: string; name: string; content: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:create_sigil", (event) => handler(event.payload as { request_id: string; payload: { parent_sigil_path: string; parent_abs_path: string; name: string; content: string } })),
+
+  onToolWriteAffordance: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; name: string; content: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:write_affordance", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; name: string; content: string } })),
+
+  onToolDeleteAffordance: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; name: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:delete_affordance", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; name: string } })),
+
+  onToolWriteInvariant: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; name: string; content: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:write_invariant", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; name: string; content: string } })),
+
+  onToolDeleteInvariant: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; name: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:delete_invariant", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; name: string } })),
+
+  onToolWriteVision: (
+    handler: (req: { request_id: string; payload: { content: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:write_vision", (event) => handler(event.payload as { request_id: string; payload: { content: string } })),
+
   onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
     listen<string>("select-text", (event) => handler(event.payload)),
 
