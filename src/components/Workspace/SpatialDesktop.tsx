@@ -424,7 +424,9 @@ export function SpatialDesktop() {
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
-                style={{ width: w, height: h }}
+                style={icon.kind === "child"
+                  ? { width: w, height: h, borderColor: colorForSigilName(icon.name) }
+                  : { width: w, height: h }}
               >
                 {icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :

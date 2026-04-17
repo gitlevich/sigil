@@ -270,12 +270,15 @@
   transition: box-shadow 140ms ease-out;
 }
 
-/* Child — a seal. Circle bounded by a thin stroke, initials inscribed
- * inside. A sigil is a named mark; the circle is its bounded form. */
+/* Child — a seal. Circle bounded by a stroke in the child's own hue,
+ * initials inscribed inside. A subtle drop shadow sets the seal off the
+ * canvas without requiring heavier stroke. The color-signature identifies
+ * this specific child, the circle identifies the ring. */
 .child {
   background: var(--bg-primary);
-  border: 1.5px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
+  border: 2px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
   border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* Neighbor — a simple door. No interior text; the name lives as a label
