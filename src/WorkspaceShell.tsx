@@ -13,7 +13,7 @@ import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
-import { api, FsChangeEvent, SigilFolder, ApplicationSpec } from "./tauri";
+import { api, FsChangeEvent, SigilFolder, IdeaSpec } from "./tauri";
 import { useChatStream } from "./hooks/useChatStream";
 import { Workspace } from "./components/Workspace/Workspace";
 import { ExperienceProvider } from "./state/ExperienceContext";
@@ -24,11 +24,11 @@ import type { WorkspaceState } from "./state/WorkspaceContext";
 
 /** Patch a disk-read spec: replace the language of the node at `scopePath` with local content. */
 function graftLanguage(
-  diskSpec: ApplicationSpec,
+  diskSpec: IdeaSpec,
   currentWs: WorkspaceState,
   scopePath: string[],
   localLanguage: string,
-): ApplicationSpec {
+): IdeaSpec {
   const isImported = currentWs.currentPath[0] === "Imported Ontologies";
   const tree = isImported ? diskSpec.importedOntologies : diskSpec.root;
   if (!tree) return diskSpec;
@@ -92,7 +92,7 @@ export function WorkspaceShell() {
     const { scopeRoot, scopePath } = scopeInfo(currentWs);
     const localFolder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
 
-    let spec: ApplicationSpec;
+    let spec: IdeaSpec;
     if (localFolder && scopePath.length > 0) {
       spec = graftLanguage(diskSpec, currentWs, scopePath, localFolder.language);
     } else if (localFolder && scopePath.length === 0) {

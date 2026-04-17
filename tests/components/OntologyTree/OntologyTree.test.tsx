@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, act, waitFor } from "@testing-library/react";
 import { ReactNode } from "react";
-import type { SigilFolder, ApplicationSpec } from "../../../src/tauri";
+import type { SigilFolder, IdeaSpec } from "../../../src/tauri";
 import { WorkspaceProvider } from "../../../src/state/WorkspaceContext";
 import { ToastContext } from "../../../src/hooks/useToast";
 import type { Toast } from "../../../src/hooks/useToast";
@@ -57,7 +57,7 @@ function makeFolder(name: string, opts?: {
   } as SigilFolder;
 }
 
-function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): ApplicationSpec {
+function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): IdeaSpec {
   return { name: root.name, rootPath: root.path, vision: "", root, importedOntologies };
 }
 
@@ -72,7 +72,7 @@ function node(name: string, opts?: Partial<OntologyNode>): OntologyNode {
 
 const toastCtx = { toasts: [] as Toast[], addToast: vi.fn(), removeToast: vi.fn() };
 
-function Wrapper({ spec, children }: { spec: ApplicationSpec; children: ReactNode }) {
+function Wrapper({ spec, children }: { spec: IdeaSpec; children: ReactNode }) {
   return (
     <ToastContext.Provider value={toastCtx}>
       <WorkspaceProvider spec={spec}>{children}</WorkspaceProvider>

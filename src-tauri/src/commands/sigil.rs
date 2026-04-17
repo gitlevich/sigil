@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager};
 use tauri::path::BaseDirectory;
 use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
-use crate::models::sigil::{SigilFolder, Invariant, ApplicationSpec};
+use crate::models::sigil::{SigilFolder, Invariant, IdeaSpec};
 
 /// Extract a value from YAML frontmatter (---...\n---) by key.
 fn extract_frontmatter_field(content: &str, key: &str) -> Option<String> {
@@ -242,14 +242,14 @@ pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>,
 }
 
 #[tauri::command]
-pub fn read_sigil(app: AppHandle, root_path: String) -> Result<ApplicationSpec, String> {
+pub fn read_sigil(app: AppHandle, root_path: String) -> Result<IdeaSpec, String> {
     let locks = app.state::<WorkspaceLocks>();
     super::workspace_lock::acquire(&locks, &root_path)?;
 
     read_sigil_with_libs(root_path)
 }
 
-pub fn read_sigil_with_libs(root_path: String) -> Result<ApplicationSpec, String> {
+pub fn read_sigil_with_libs(root_path: String) -> Result<IdeaSpec, String> {
     let root = Path::new(&root_path);
     if !root.exists() {
         return Err(format!("Path does not exist: {}", root_path));
@@ -274,7 +274,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<ApplicationSpec, String
             }
         });
 
-    Ok(ApplicationSpec {
+    Ok(IdeaSpec {
         name: context.name.clone(),
         root_path: root_path.clone(),
         vision,

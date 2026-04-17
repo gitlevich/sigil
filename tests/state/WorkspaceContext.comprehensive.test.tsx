@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { ReactNode } from "react";
-import type { ApplicationSpec, SigilFolder } from "../../src/tauri";
+import type { IdeaSpec, SigilFolder } from "../../src/tauri";
 import {
   resolveCurrentFolder, scopeInfo, isImportedPath,
   WorkspaceProvider, useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
@@ -20,7 +20,7 @@ function makeFolder(name: string, children: SigilFolder[] = [], language = ""): 
   return { name, path: `/mock/${name}`, language, affordances: [], invariants: [], children, images: [], isImported: false };
 }
 
-function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): ApplicationSpec {
+function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): IdeaSpec {
   return { name: root.name, rootPath: root.path, vision: "", root, importedOntologies };
 }
 

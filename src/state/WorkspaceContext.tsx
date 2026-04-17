@@ -1,14 +1,14 @@
 /**
  * WorkspaceContext — the .sigil directory where I work.
  *
- * Holds the ApplicationSpec (the sigil hierarchy on disk),
+ * Holds the IdeaSpec (the sigil hierarchy on disk),
  * current navigation path, navigation history, and provides
  * navigate/back/reload operations.
  *
  * All views sync to this context: OntologyTree, editor, Atlas, breadcrumb.
  */
 import { createContext, useContext, useReducer, useCallback, useMemo, ReactNode, Dispatch } from "react";
-import { ApplicationSpec, SigilFolder, api } from "../tauri";
+import { IdeaSpec, SigilFolder, api } from "../tauri";
 import { findContext } from "sigil-core";
 import type { Sigil } from "sigil-core";
 
@@ -20,7 +20,7 @@ export interface FileConflict {
 }
 
 export interface WorkspaceState {
-  spec: ApplicationSpec;
+  spec: IdeaSpec;
   currentPath: string[];
   history: string[][];
   collapsedPaths: string[];
@@ -33,7 +33,7 @@ export type WorkspaceAction =
   | { type: "NAVIGATE"; path: string[]; targetLine?: number }
   | { type: "CLEAR_TARGET_LINE" }
   | { type: "BACK" }
-  | { type: "UPDATE_SPEC"; spec: ApplicationSpec }
+  | { type: "UPDATE_SPEC"; spec: IdeaSpec }
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
   | { type: "TOGGLE_COLLAPSE"; pathKey: string }
   | { type: "SET_CONFLICT"; conflict: FileConflict }
@@ -105,7 +105,7 @@ const WorkspaceStateContext = createContext<WorkspaceState | null>(null);
 const WorkspaceDispatchContext = createContext<Dispatch<WorkspaceAction>>(() => {});
 
 interface WorkspaceProviderProps {
-  spec: ApplicationSpec;
+  spec: IdeaSpec;
   initialPath?: string[];
   initialCollapsed?: string[];
   children: ReactNode;

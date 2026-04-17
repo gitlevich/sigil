@@ -9,7 +9,7 @@ import {
 } from "sigil-core";
 
 export interface RefError {
-  /** Path segments from root (e.g. ["Application", "DesignPartner", "BicameralMind"]) */
+  /** Path segments from root (e.g. ["Idea", "DesignPartner", "BicameralMind"]) */
   path: string[];
   /** Filename where the error occurred */
   file: string;

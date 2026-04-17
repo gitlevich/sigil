@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ApplicationSpec, SigilFolder } from "../../src/tauri";
+import type { IdeaSpec, SigilFolder } from "../../src/tauri";
 import { resolveCurrentFolder, scopeInfo, isImportedPath } from "../../src/../src/state/WorkspaceContext";
 import type { WorkspaceState } from "../../src/../src/state/WorkspaceContext";
 
@@ -16,7 +16,7 @@ function makeFolder(name: string, children: SigilFolder[] = [], language = ""): 
   };
 }
 
-function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): ApplicationSpec {
+function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): IdeaSpec {
   return {
     name: root.name,
     rootPath: root.path,
@@ -27,7 +27,7 @@ function makeSpec(root: SigilFolder, importedOntologies?: SigilFolder): Applicat
 }
 
 function makeState(
-  spec: ApplicationSpec,
+  spec: IdeaSpec,
   currentPath: string[] = [],
   history: string[][] = [],
 ): WorkspaceState {

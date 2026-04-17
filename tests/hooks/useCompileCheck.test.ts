@@ -243,7 +243,7 @@ describe("compileCheck", () => {
   it("error path excludes root name, suitable for workspace navigate", () => {
     const root = sigil("specification.sigil", {
       children: [
-        sigil("Application", {
+        sigil("Idea", {
           children: [
             sigil("DesignPartner", {
               language: "Uses @BogusRef here.",
@@ -254,6 +254,6 @@ describe("compileCheck", () => {
     });
     const result = compileCheck(root);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].path).toEqual(["Application", "DesignPartner"]);
+    expect(result.errors[0].path).toEqual(["Idea", "DesignPartner"]);
   });
 });
