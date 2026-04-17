@@ -135,7 +135,7 @@ export function WorkspaceShell() {
         pauseAutoSaveFor(pendingPath);
         dispatch({
           type: "SET_CONFLICT",
-          conflict: { path: pendingPath, diskContent: "", localContent: pendingContent ?? base, deleted: true },
+          conflict: { path: pendingPath, base, diskContent: "", localContent: pendingContent ?? base, deleted: true },
         });
       }
       return;
@@ -157,7 +157,7 @@ export function WorkspaceShell() {
     pauseAutoSaveFor(pendingPath);
     dispatch({
       type: "SET_CONFLICT",
-      conflict: { path: pendingPath, diskContent, localContent: pendingContent ?? base, deleted: false },
+      conflict: { path: pendingPath, base, diskContent, localContent: pendingContent ?? base, deleted: false },
     });
   });
 

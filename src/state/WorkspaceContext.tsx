@@ -14,6 +14,8 @@ import type { Sigil } from "sigil-core";
 
 export interface FileConflict {
   path: string;
+  /** Last-known-disk snapshot at the moment the conflict was detected. Common ancestor for the three-way merge. */
+  base: string;
   diskContent: string;
   localContent: string;
   deleted: boolean;
