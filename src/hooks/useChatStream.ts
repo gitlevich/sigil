@@ -226,7 +226,12 @@ export function useChatStream() {
 function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[], compileErrors: RefError[]): string {
   if (misfits.length === 0 && events.length === 0 && compileErrors.length === 0) return "";
 
-  const parts: string[] = ["\n\n# Current Sensory State\n"];
+  const parts: string[] = [
+    "\n\n# Your current senses",
+    "",
+    "These are the signals you are currently sensing in the workspace. They are *yours* — your continuous attention produced them. When the user asks \"what do you sense\", \"anything out of place\", or similar, answer from this section.",
+    "",
+  ];
 
   if (compileErrors.length > 0) {
     parts.push(

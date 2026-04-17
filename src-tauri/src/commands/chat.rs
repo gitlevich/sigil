@@ -369,10 +369,12 @@ pub async fn send_chat_message(
     };
 
     // The partner wears the sigil. The LLM provides the attention.
-    // Local small models choke on the full sigil dump — skip for now; we'll
-    // re-introduce a scoped context (current sigil + neighbors only) once we
-    // see how the minimal-context flow behaves.
-    let sigil_context = if profile.provider == AiProvider::Local {
+    // Local small models (embedded sidecar, Ollama) choke on the full sigil
+    // dump and truncate from it in context-window-bound backends — dropping
+    // the sensory section that follows. Skip for them; scoped context comes
+    // later.
+    let is_local_tier = matches!(profile.provider, AiProvider::Local | AiProvider::Ollama);
+    let sigil_context = if is_local_tier {
         String::new()
     } else {
         assemble_sigil_context(&root_path, &current_path).unwrap_or_default()
