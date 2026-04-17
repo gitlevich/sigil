@@ -19,7 +19,7 @@ import { extractEntanglements } from "../../lib/entanglements";
 import type { Sigil } from "sigil-core";
 import styles from "./SpatialDesktop.module.css";
 
-type IconKind = "child" | "neighbor" | "god" | "parent" | "narrative";
+type IconKind = "child" | "neighbor" | "god" | "parent" | "narrative" | "affordance" | "invariant";
 
 interface IconSpec {
   name: string;
@@ -86,6 +86,13 @@ export function SpatialDesktop() {
     }
     // My body — narrative (language.md) always present.
     list.push({ name: NARRATIVE_NAME, kind: "narrative" });
+    // Affordances and invariants — small facet icons on my body.
+    for (const aff of folder.affordances ?? []) {
+      list.push({ name: aff.name, kind: "affordance" });
+    }
+    for (const inv of folder.invariants ?? []) {
+      list.push({ name: inv.name, kind: "invariant" });
+    }
     for (const child of folder.children) {
       list.push({ name: child.name, kind: "child", navigateTo: [...currentPath, child.name] });
     }
@@ -255,8 +262,17 @@ export function SpatialDesktop() {
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
                 style={icon.kind === "child" ? { background: colorForSigilName(icon.name) } : undefined}
+                title={
+                  icon.kind === "affordance" ? `#${icon.name}` :
+                  icon.kind === "invariant" ? `!${icon.name}` :
+                  icon.name
+                }
               >
-                {icon.kind === "parent" ? "" : icon.kind === "narrative" ? <span>abc</span> : initials(icon.name)}
+                {icon.kind === "parent" ? "" :
+                 icon.kind === "narrative" ? <span>abc</span> :
+                 icon.kind === "affordance" ? "#" :
+                 icon.kind === "invariant" ? <span>!</span> :
+                 initials(icon.name)}
               </div>
               <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
             </div>
@@ -282,25 +298,31 @@ interface LanguageScrollPanelProps {
   childNames: string[];
 }
 
-const SCROLL_WIDTH_STORAGE_KEY = "sigil.spatial.scrollWidth";
-const SCROLL_WIDTH_MIN = 260;
-const SCROLL_WIDTH_MAX_FRAC = 0.85;
-const SCROLL_WIDTH_DEFAULT = 420;
+const SCROLL_SIZE_STORAGE_KEY = "sigil.spatial.scrollSize";
+const SCROLL_MIN_W = 260;
+const SCROLL_MIN_H = 180;
+const SCROLL_MAX_W_FRAC = 0.92;
+const SCROLL_MAX_H_OFFSET = 80;
+const SCROLL_DEFAULT_W = 420;
+const SCROLL_DEFAULT_H = 520;
 
-function loadScrollWidth(): number {
+interface ScrollSize { w: number; h: number }
+
+function loadScrollSize(): ScrollSize {
   try {
-    const raw = localStorage.getItem(SCROLL_WIDTH_STORAGE_KEY);
-    if (!raw) return SCROLL_WIDTH_DEFAULT;
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n) || n < SCROLL_WIDTH_MIN) return SCROLL_WIDTH_DEFAULT;
-    return n;
+    const raw = localStorage.getItem(SCROLL_SIZE_STORAGE_KEY);
+    if (!raw) return { w: SCROLL_DEFAULT_W, h: SCROLL_DEFAULT_H };
+    const parsed = JSON.parse(raw) as Partial<ScrollSize>;
+    const w = Number.isFinite(parsed.w) ? (parsed.w as number) : SCROLL_DEFAULT_W;
+    const h = Number.isFinite(parsed.h) ? (parsed.h as number) : SCROLL_DEFAULT_H;
+    return { w: Math.max(SCROLL_MIN_W, w), h: Math.max(SCROLL_MIN_H, h) };
   } catch {
-    return SCROLL_WIDTH_DEFAULT;
+    return { w: SCROLL_DEFAULT_W, h: SCROLL_DEFAULT_H };
   }
 }
 
-function saveScrollWidth(px: number): void {
-  try { localStorage.setItem(SCROLL_WIDTH_STORAGE_KEY, String(Math.round(px))); } catch { /* ignore */ }
+function saveScrollSize(size: ScrollSize): void {
+  try { localStorage.setItem(SCROLL_SIZE_STORAGE_KEY, JSON.stringify({ w: Math.round(size.w), h: Math.round(size.h) })); } catch { /* ignore */ }
 }
 
 /**
@@ -312,29 +334,33 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
   const childSet = useMemo(() => new Set(childNames), [childNames]);
   const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState<number>(() => loadScrollWidth());
+  const [size, setSize] = useState<ScrollSize>(() => loadScrollSize());
   const [resizing, setResizing] = useState<boolean>(false);
 
   const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const panel = panelRef.current;
     if (!panel) return;
-    const left = panel.getBoundingClientRect().left;
+    const rect = panel.getBoundingClientRect();
+    const left = rect.left;
+    const top = rect.top;
     const handle = e.currentTarget;
     handle.setPointerCapture(e.pointerId);
     setResizing(true);
 
     const onMove = (ev: PointerEvent) => {
-      const maxPx = window.innerWidth * SCROLL_WIDTH_MAX_FRAC;
-      const next = Math.min(maxPx, Math.max(SCROLL_WIDTH_MIN, ev.clientX - left));
-      setWidth(next);
+      const maxW = window.innerWidth * SCROLL_MAX_W_FRAC;
+      const maxH = window.innerHeight - top - SCROLL_MAX_H_OFFSET;
+      const w = Math.min(maxW, Math.max(SCROLL_MIN_W, ev.clientX - left));
+      const h = Math.min(maxH, Math.max(SCROLL_MIN_H, ev.clientY - top));
+      setSize({ w, h });
     };
     const onUp = () => {
       handle.releasePointerCapture(e.pointerId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       setResizing(false);
-      setWidth((w) => { saveScrollWidth(w); return w; });
+      setSize((s) => { saveScrollSize(s); return s; });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -344,7 +370,7 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
     <div
       ref={panelRef}
       className={`${styles.scrollPanel} ${open ? "" : styles.closed}`}
-      style={{ width, transition: resizing ? "none" : undefined }}
+      style={{ width: size.w, height: size.h, transition: resizing ? "none" : undefined }}
     >
       <div className={styles.scrollHeader}>
         <span>{title ? `${title}/language.md` : "language.md"}</span>
