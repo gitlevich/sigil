@@ -382,12 +382,11 @@ pub async fn send_chat_message(
         format!("{}\n\n{}", base_prompt, sigil_context)
     };
 
+    // The frontend writes the user message into chat.json before calling us,
+    // so the loaded history already includes it. Don't push a duplicate.
     let chat = read_chat(root_path.clone(), chat_id)?;
-    let mut history = chat.messages;
-    history.push(ChatMessage {
-        role: ChatRole::User,
-        content: message.clone(),
-    });
+    let mut history = chat.messages.clone();
+    let _ = message; // kept in the signature for logging/back-compat
 
     let editor_ctx = tools::EditorContext {
         root_path: root_path.clone(),
