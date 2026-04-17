@@ -10,8 +10,10 @@ import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import type { ScopeEntry } from "./editorScope";
 import { CompileStatusBar } from "./CompileStatusBar";
+import { NameMisfitStatusBar } from "./NameMisfitStatusBar";
 import { ConflictBanner } from "./ConflictBanner";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
+import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
@@ -314,6 +316,7 @@ export function Workspace() {
   const { scopeRoot, scopePath } = scopeInfo(ws);
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
+  const nameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {
@@ -394,6 +397,10 @@ export function Workspace() {
         <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
+        }} />
+        <NameMisfitStatusBar misfits={nameMisfits} onNavigateToMisfit={(m: NameMisfit) => {
+          layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
+          navigate(m.path, m.file === "language.md" ? m.line : undefined);
         }} />
       </div>
       <DesignPartnerPanel />
