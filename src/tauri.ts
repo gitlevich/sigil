@@ -356,6 +356,7 @@ export const api = {
 
   sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, systemPrompt: string, currentPath: string[]) =>
     invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt, currentPath }),
+  cancelChat: () => invoke<void>("cancel_chat"),
 
   listRecentDocuments: () =>
     invoke<RecentDocument[]>("list_recent_documents"),

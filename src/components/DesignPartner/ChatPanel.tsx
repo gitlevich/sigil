@@ -309,16 +309,29 @@ export function ChatPanel() {
             }
           }}
         />
-        <button
-          className={styles.sendBtn}
-          onClick={handleSend}
-          disabled={chat.chatStreaming || !input.trim()}
-          aria-label="Send"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M9 14V4M9 4L4.5 8.5M9 4L13.5 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        {chat.chatStreaming ? (
+          <button
+            className={styles.sendBtn}
+            onClick={() => { api.cancelChat().catch(console.error); }}
+            aria-label="Stop"
+            title="Stop inference"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <rect x="4" y="4" width="10" height="10" rx="1" fill="currentColor" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            className={styles.sendBtn}
+            onClick={handleSend}
+            disabled={!input.trim()}
+            aria-label="Send"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 14V4M9 4L4.5 8.5M9 4L13.5 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

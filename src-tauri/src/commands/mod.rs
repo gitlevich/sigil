@@ -7,6 +7,7 @@ pub mod tools;
 pub mod watcher;
 pub mod workspace_lock;
 pub mod experience;
+pub mod chat_abort;
 pub mod left_hemisphere;
 pub mod local_inference;
 pub mod memory;

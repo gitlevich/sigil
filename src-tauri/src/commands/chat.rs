@@ -360,6 +360,7 @@ pub async fn send_chat_message(
     system_prompt: String,
     current_path: Vec<String>,
     local: tauri::State<'_, crate::commands::local_inference::LocalInference>,
+    abort: tauri::State<'_, crate::commands::chat_abort::ChatAbort>,
 ) -> Result<(), String> {
     let base_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
@@ -393,20 +394,35 @@ pub async fn send_chat_message(
         current_path: current_path.clone(),
     };
 
-    let result = match profile.provider {
-        AiProvider::Anthropic => {
-            stream_anthropic(&app, &history, &profile, &system_prompt, &editor_ctx).await
-        }
-        AiProvider::OpenAI => {
-            stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx).await
-        }
-        AiProvider::Local => {
-            stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone()).await
-        }
-        AiProvider::Ollama => {
-            stream_ollama(&app, &history, &profile, &system_prompt, &editor_ctx).await
+    let cancel_rx = abort.begin().await;
+
+    let dispatch = async {
+        match profile.provider {
+            AiProvider::Anthropic => {
+                stream_anthropic(&app, &history, &profile, &system_prompt, &editor_ctx).await
+            }
+            AiProvider::OpenAI => {
+                stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx).await
+            }
+            AiProvider::Local => {
+                stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone()).await
+            }
+            AiProvider::Ollama => {
+                stream_ollama(&app, &history, &profile, &system_prompt, &editor_ctx).await
+            }
         }
     };
+
+    // Race the stream against a cancel signal. If the user clicks Stop,
+    // cancel_rx resolves, we drop the dispatch future, which closes the
+    // HTTP connection and ends inference in the provider.
+    let result: Result<String, String> = tokio::select! {
+        biased;
+        _ = cancel_rx => Err("cancelled by user".into()),
+        r = dispatch => r,
+    };
+
+    abort.finish().await;
 
     match &result {
         Ok(assistant_text) => {
@@ -426,7 +442,10 @@ pub async fn send_chat_message(
             }
         }
         Err(err) => {
-            let _ = app.emit("chat-error", err.clone());
+            // User-initiated cancel isn't an error worth surfacing.
+            if err != "cancelled by user" {
+                let _ = app.emit("chat-error", err.clone());
+            }
         }
     }
 
