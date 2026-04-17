@@ -7,6 +7,7 @@ import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
 import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
 import { useHearing, type HearingEvent } from "./useHearing";
+import { consultSpellbook, emptySpellbook, type Disturbance } from "sigil-core";
 
 export function useChatStream() {
   const appState = useAppState();
@@ -142,6 +143,42 @@ export function useChatStream() {
     if (!provider) {
       addToast("No attention provider enabled. Open Settings to add one.", "error");
       chatDispatch({ type: "SET_STREAMING", streaming: false });
+      return;
+    }
+
+    // The @user's message is a disturbance arriving at the @RightHemisphere.
+    // The @Subconscious consults the @Spellbook; if a @Spell matches, it casts
+    // and the @LeftHemisphere is not invoked. If no Spell matches, we lift
+    // through the @CorpusCallosum — i.e., call the LLM. The Spellbook starts
+    // empty, so every chat message lifts today; future Spells will handle
+    // what they can without the API.
+    const disturbance: Disturbance = {
+      kind: "user-chat",
+      path: ws.currentPath,
+      payload: {
+        message,
+        currentPath: ws.currentPath,
+        misfitCount: nameMisfitsRef.current.length,
+        recentEventCount: hearingEventsRef.current.length,
+      },
+    };
+    const consultation = consultSpellbook(disturbance, emptySpellbook);
+    if (consultation.cast && consultation.result.success) {
+      // Spell handled the disturbance — no LH call.
+      const response = consultation.result.summary ?? "";
+      const updatedMessages: ChatMessage[] = [
+        ...newMessages,
+        { role: "assistant", content: response },
+      ];
+      chatDispatch({ type: "SET_MESSAGES", messages: updatedMessages });
+      chatDispatch({ type: "SET_STREAMING", streaming: false });
+      recordChatRef.current("assistant", response);
+      await api.writeChat(ws.spec.rootPath, {
+        id: chatId,
+        name: chatName,
+        messages: updatedMessages,
+      }).catch(console.error);
+      console.info(`[Subconscious] cast ${consultation.spell} for user-chat; LH not invoked`);
       return;
     }
 
