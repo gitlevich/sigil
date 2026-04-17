@@ -35,12 +35,25 @@ import {
  */
 function matchesRule(disturbance: Disturbance, rule: SpellMatchRule): boolean {
   if (disturbance.kind !== rule.kind) return false;
-  if (!rule.payload) return true;
+
   const payload = (disturbance.payload ?? {}) as Record<string, unknown>;
-  for (const [field, predicate] of Object.entries(rule.payload)) {
-    const value = payload[field];
-    if (typeof value !== "string") return false;
-    if (!testPredicate(value, predicate)) return false;
+
+  // Misfit-specific: selfReference asserts payload.path ends with payload.resolvedTo.
+  // Fails silently if payload doesn't have the expected shape.
+  if (rule.selfReference) {
+    const path = payload.path;
+    const resolvedTo = payload.resolvedTo;
+    if (!Array.isArray(path) || typeof resolvedTo !== "string") return false;
+    if (path.length === 0) return false;
+    if (path[path.length - 1] !== resolvedTo) return false;
+  }
+
+  if (rule.payload) {
+    for (const [field, predicate] of Object.entries(rule.payload)) {
+      const value = payload[field];
+      if (typeof value !== "string") return false;
+      if (!testPredicate(value, predicate)) return false;
+    }
   }
   return true;
 }

@@ -95,6 +95,13 @@ export interface SpellManifest {
 export interface SpellMatchRule {
   /** Match when the disturbance's kind equals this string. Required. */
   kind: string;
+  /**
+   * Misfit-specific: match only when the sigil is used inside its own
+   * definition file. Checks payload.path ends with payload.resolvedTo.
+   * Useful for suppressing the common false-positive where a sigil
+   * references its own name in its own language.md.
+   */
+  selfReference?: boolean;
   /** Optional payload predicates — all must pass for the Spell to match. */
   payload?: Record<string, SpellPayloadPredicate>;
 }
