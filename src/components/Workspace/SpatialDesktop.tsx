@@ -533,6 +533,27 @@ function saveScrollSize(size: ScrollSize): void {
   try { localStorage.setItem(SCROLL_SIZE_STORAGE_KEY, JSON.stringify({ w: Math.round(size.w), h: Math.round(size.h) })); } catch { /* ignore */ }
 }
 
+const SCROLL_POS_STORAGE_KEY = "sigil.spatial.scrollPos";
+
+interface ScrollPos { x: number; y: number }
+
+function loadScrollPos(): ScrollPos {
+  try {
+    const raw = localStorage.getItem(SCROLL_POS_STORAGE_KEY);
+    if (!raw) return { x: 16, y: 64 };
+    const parsed = JSON.parse(raw) as Partial<ScrollPos>;
+    const x = Number.isFinite(parsed.x) ? (parsed.x as number) : 16;
+    const y = Number.isFinite(parsed.y) ? (parsed.y as number) : 64;
+    return { x, y };
+  } catch {
+    return { x: 16, y: 64 };
+  }
+}
+
+function saveScrollPos(pos: ScrollPos): void {
+  try { localStorage.setItem(SCROLL_POS_STORAGE_KEY, JSON.stringify({ x: Math.round(pos.x), y: Math.round(pos.y) })); } catch { /* ignore */ }
+}
+
 /**
  * Foldable scroll showing the current sigil's language.md with @-refs that
  * resolve to a child rendered in the child's own color. The right edge is
@@ -543,7 +564,9 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
   const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
   const panelRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<ScrollSize>(() => loadScrollSize());
+  const [pos, setPos] = useState<ScrollPos>(() => loadScrollPos());
   const [resizing, setResizing] = useState<boolean>(false);
+  const [dragging, setDragging] = useState<boolean>(false);
 
   const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -574,13 +597,56 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
     window.addEventListener("pointerup", onUp);
   }, []);
 
+  const onHeaderDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Don't start drag when the click is on the close button.
+    const target = e.target as HTMLElement;
+    if (target.closest(`.${styles.scrollClose}`)) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPos = pos;
+    setDragging(true);
+
+    const onMove = (ev: PointerEvent) => {
+      const nx = startPos.x + (ev.clientX - startX);
+      const ny = startPos.y + (ev.clientY - startY);
+      // Keep at least the header inside the viewport on any side.
+      const margin = 24;
+      const clampedX = Math.max(margin - size.w + 80, Math.min(window.innerWidth - margin, nx));
+      const clampedY = Math.max(0, Math.min(window.innerHeight - margin, ny));
+      setPos({ x: clampedX, y: clampedY });
+    };
+    const onUp = () => {
+      handle.releasePointerCapture(e.pointerId);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setDragging(false);
+      setPos((p) => { saveScrollPos(p); return p; });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [pos, size]);
+
+  const activeTransition = resizing || dragging;
+
   return (
     <div
       ref={panelRef}
       className={`${styles.scrollPanel} ${open ? "" : styles.closed}`}
-      style={{ width: size.w, height: size.h, transition: resizing ? "none" : undefined }}
+      style={{
+        width: size.w,
+        height: size.h,
+        left: pos.x,
+        top: pos.y,
+        transition: activeTransition ? "none" : undefined,
+      }}
     >
-      <div className={styles.scrollHeader}>
+      <div
+        className={`${styles.scrollHeader} ${dragging ? styles.dragging : ""}`}
+        onPointerDown={onHeaderDown}
+      >
         <span>{title ? `${title}/language.md` : "language.md"}</span>
         <button className={styles.scrollClose} onClick={onClose} aria-label="Close scroll">×</button>
       </div>
