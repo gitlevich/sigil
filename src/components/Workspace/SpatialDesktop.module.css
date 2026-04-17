@@ -47,6 +47,44 @@
   cursor: default;
 }
 
+.arcs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.arcPath {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.4;
+  opacity: 0.35;
+  transition: opacity 140ms ease-out, stroke-width 140ms ease-out;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.arcPath:hover {
+  opacity: 1;
+  stroke-width: 2;
+}
+
+.arcLabel {
+  font-size: 0.72rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  fill: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.arcHitbox {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
 .icon {
   position: absolute;
   display: flex;

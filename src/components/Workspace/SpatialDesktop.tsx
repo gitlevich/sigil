@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
+import { extractArcs, arcLabel, type SentenceArc } from "../../lib/sentenceArcs";
 import styles from "./SpatialDesktop.module.css";
 
 type IconKind = "child" | "neighbor" | "god" | "parent";
@@ -88,6 +89,32 @@ export function SpatialDesktop() {
     return defaultPosition(name, index, size.w, size.h);
   }, [layout, size]);
 
+  // Arcs between children that co-occur in a sentence of the sigil's language.
+  const arcs: SentenceArc[] = useMemo(() => {
+    if (!folder) return [];
+    const childNames = folder.children.map((c) => c.name);
+    return extractArcs(folder.language ?? "", childNames);
+  }, [folder]);
+
+  // Resolve an arc endpoint to its on-canvas position by looking up the icon's
+  // position. If either end isn't placed on the current desktop, skip the arc.
+  const arcEndpoints = useMemo(() => {
+    const byName = new Map<string, { x: number; y: number }>();
+    icons.forEach((icon, i) => {
+      if (icon.kind === "parent") return;
+      const pos = positionFor(icon.name, i);
+      byName.set(icon.name, pos);
+    });
+    return arcs
+      .map((arc) => {
+        const pa = byName.get(arc.a);
+        const pb = byName.get(arc.b);
+        if (!pa || !pb) return null;
+        return { arc, pa, pb };
+      })
+      .filter((x): x is { arc: SentenceArc; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
+  }, [arcs, icons, positionFor]);
+
   const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec, index: number) => {
     if (!folder || !layout) return;
     if (icon.kind === "parent") return; // Parent pinned at top; no drag.
@@ -140,6 +167,37 @@ export function SpatialDesktop() {
       </div>
       <div ref={canvasRef} className={styles.canvas}>
         <div className={styles.parentBar} />
+        {arcEndpoints.length > 0 && (
+          <svg className={styles.arcs} width={size.w} height={size.h}>
+            {arcEndpoints.map(({ arc, pa, pb }, i) => {
+              const midX = (pa.x + pb.x) / 2;
+              const midY = (pa.y + pb.y) / 2;
+              const dx = pb.x - pa.x;
+              const dy = pb.y - pa.y;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              // Curve control point perpendicular to the segment, curving upward consistently.
+              const curveOffset = Math.min(60, dist * 0.25);
+              const nx = -dy / dist;
+              const ny = dx / dist;
+              const cx = midX + nx * curveOffset;
+              const cy = midY + ny * curveOffset;
+              const d = `M ${pa.x} ${pa.y} Q ${cx} ${cy} ${pb.x} ${pb.y}`;
+              const labelX = cx;
+              const labelY = cy;
+              const title = arc.sentence;
+              return (
+                <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`}>
+                  <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
+                  <path className={styles.arcPath} d={d}><title>{title}</title></path>
+                  <text className={styles.arcLabel} x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle">
+                    {arcLabel(arc.sentence, 32)}
+                    <title>{title}</title>
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        )}
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
         {icons.map((icon, i) => {
           const pos = icon.kind === "parent"
