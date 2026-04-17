@@ -49,3 +49,11 @@ docs/genesis/.export_state.json
 .sigil/
 src-tauri/.fastembed_cache/
 coverage/
+
+# Python sidecar
+sidecar/.venv/
+sidecar/*.log
+sidecar/__pycache__/
+sidecar/*.egg-info/
+sidecar/dist/
+sidecar/build/

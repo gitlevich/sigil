@@ -164,7 +164,7 @@ export interface RecentDocument {
 export interface AiProvider {
   id: string;
   name: string;
-  provider: "anthropic" | "openai";
+  provider: "anthropic" | "openai" | "local";
   api_key: string;
   model: string;
   enabled: boolean;

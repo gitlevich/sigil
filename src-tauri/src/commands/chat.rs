@@ -359,6 +359,7 @@ pub async fn send_chat_message(
     profile: AiProfile,
     system_prompt: String,
     current_path: Vec<String>,
+    local: tauri::State<'_, crate::commands::local_inference::LocalInference>,
 ) -> Result<(), String> {
     let base_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
@@ -393,6 +394,9 @@ pub async fn send_chat_message(
         }
         AiProvider::OpenAI => {
             stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx).await
+        }
+        AiProvider::Local => {
+            stream_local(&app, &history, &system_prompt, local.inner().clone()).await
         }
     };
 
@@ -666,6 +670,41 @@ async fn stream_openai(
     }
 
     Ok(accumulated_text)
+}
+
+/// Stream from the local Python sidecar (Phi-3 via mlx-lm).
+///
+/// No true streaming yet — the full response is generated, then emitted as
+/// a single chat-token event. No tool-calling. Keeps the surface minimal
+/// while we wire this up.
+async fn stream_local(
+    app: &AppHandle,
+    history: &[ChatMessage],
+    system_prompt: &str,
+    local: crate::commands::local_inference::LocalInference,
+) -> Result<String, String> {
+    // Flatten history into a single prompt, prefixed with the system context.
+    // Phi-3's chat template runs on the sidecar side; here we just concatenate.
+    let mut prompt = String::new();
+    if !system_prompt.trim().is_empty() {
+        prompt.push_str("[system]\n");
+        prompt.push_str(system_prompt);
+        prompt.push_str("\n\n");
+    }
+    for m in history {
+        let role = match m.role {
+            ChatRole::User => "user",
+            ChatRole::Assistant => "assistant",
+        };
+        prompt.push_str(&format!("[{}]\n{}\n\n", role, m.content));
+    }
+    prompt.push_str("[assistant]\n");
+
+    let text = local.invoke(&prompt, 1024).await?;
+    if !text.is_empty() {
+        let _ = app.emit("chat-token", text.clone());
+    }
+    Ok(text)
 }
 
 

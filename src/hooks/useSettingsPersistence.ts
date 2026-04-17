@@ -53,7 +53,7 @@ export function useSettingsPersistence(
               ai_providers: oldProfiles.map((p) => ({
                 id: (p.id as string) || `migrated-${Date.now()}`,
                 name: (p.name as string) || "Unknown",
-                provider: (p.provider as "anthropic" | "openai") || "anthropic",
+                provider: (p.provider as "anthropic" | "openai" | "local") || "anthropic",
                 api_key: (p.api_key as string) || "",
                 model: (p.model as string) || "",
                 enabled: true,
@@ -73,7 +73,7 @@ export function useSettingsPersistence(
               ai_providers: oldKey ? [{
                 id,
                 name: oldProvider === "anthropic" ? "Claude" : "ChatGPT",
-                provider: oldProvider as "anthropic" | "openai",
+                provider: oldProvider as "anthropic" | "openai" | "local",
                 api_key: oldKey,
                 model: oldModel,
                 enabled: true,

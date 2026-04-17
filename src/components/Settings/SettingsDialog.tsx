@@ -127,25 +127,28 @@ export function SettingsDialog() {
                 value={editing.provider}
                 onChange={(e) => setEditing({
                   ...editing,
-                  provider: e.target.value as "anthropic" | "openai",
+                  provider: e.target.value as "anthropic" | "openai" | "local",
                   model: "",
                 })}
               >
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
+                <option value="local">Local (Phi-3 via sidecar)</option>
               </select>
             </div>
 
-            <div className={styles.field}>
-              <label className={styles.label}>API Key</label>
-              <input
-                className={styles.input}
-                type="password"
-                value={editing.api_key}
-                onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
-                placeholder="Enter your API key"
-              />
-            </div>
+            {editing.provider !== "local" && (
+              <div className={styles.field}>
+                <label className={styles.label}>API Key</label>
+                <input
+                  className={styles.input}
+                  type="password"
+                  value={editing.api_key}
+                  onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
+                  placeholder="Enter your API key"
+                />
+              </div>
+            )}
 
             <div className={styles.field}>
               <label className={styles.label}>

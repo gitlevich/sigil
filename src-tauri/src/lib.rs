@@ -75,6 +75,7 @@ pub fn run() {
         .manage(WatcherState(Mutex::new(None)))
         .manage(WorkspaceLocks(Mutex::new(std::collections::HashMap::new())))
         .manage(PendingOpenPath(Mutex::new(None)))
+        .manage(commands::local_inference::LocalInference::new())
         .invoke_handler(tauri::generate_handler![
             commands::sigil::scaffold_sigil,
             commands::sigil::check_imported_ontologies,

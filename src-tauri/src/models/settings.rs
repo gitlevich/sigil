@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AiProvider {
     Anthropic,
     OpenAI,
+    /// Local @LeftHemisphere: Phi-3 via Python sidecar over stdin/stdout JSON.
+    /// The `api_key` field is unused; `model` is the mlx-lm model id.
+    Local,
 }
 
 impl Default for AiProvider {

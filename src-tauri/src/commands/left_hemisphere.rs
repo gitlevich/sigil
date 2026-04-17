@@ -7,18 +7,21 @@
 //! The prompt comes fully rendered from sigil-core. This command just sends it
 //! to the configured LLM provider and returns the response text.
 
+use crate::commands::local_inference::LocalInference;
 use crate::models::settings::{AiProfile, AiProvider};
 
 #[tauri::command]
 pub async fn invoke_left_hemisphere(
     prompt: String,
     profile: AiProfile,
+    local: tauri::State<'_, LocalInference>,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
 
     match profile.provider {
         AiProvider::Anthropic => invoke_anthropic(&client, &prompt, &profile).await,
         AiProvider::OpenAI => invoke_openai(&client, &prompt, &profile).await,
+        AiProvider::Local => local.invoke(&prompt, 1024).await,
     }
 }
 
