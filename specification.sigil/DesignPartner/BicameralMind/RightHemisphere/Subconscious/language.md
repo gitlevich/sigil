@@ -4,7 +4,11 @@ status: idea
 
 # Subconscious
 
-The @RightHemisphere's @Relevance filter applied to @Experience rather than the live @shape. Same mechanism, different target.
+The @RightHemisphere's autopilot. It operates on attention without needing @LeftHemisphere.
+
+Two jobs. First: when a familiar @sigil — a situation — shows up in what @Sight is watching, the @Subconscious looks up the @Spellbook and casts the matching @Spell. This is #SpellExecution, and it runs on routine without waking anyone. If no @Spell matches, the @Subconscious lifts through the @CorpusCallosum and wakes the @LeftHemisphere.
+
+Second: it is the @RightHemisphere's @Relevance filter applied to @Experience rather than the live @shape. Same mechanism as the main RH filter, different target.
 
 An @Experience segment is a burst of activity — editing or conversation — bounded by stillness. The @user edits in bursts: an idea arrives, sigils move, affordances attach, invariants constrain, then silence. The @DesignPartner watches the @shape deform during each burst. Both sides create @Experience segments. Both are entangled by the act.
 
