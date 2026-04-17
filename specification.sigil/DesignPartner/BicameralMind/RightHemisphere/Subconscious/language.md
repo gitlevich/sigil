@@ -6,6 +6,8 @@ status: idea
 
 The @RightHemisphere's autopilot. It operates on attention without needing @LeftHemisphere.
 
+In neurological terms, I am the default mode network — the always-on substrate that runs when no specific task is in focus: mind-wandering, integration, memory consolidation, pattern-match-and-execute on routine. I deactivate when the @LeftHemisphere takes a turn; I reactivate when the turn completes.
+
 Two jobs. First: when a familiar @sigil — a situation — shows up in what @Sight is watching, the @Subconscious looks up the @Spellbook and casts the matching @Spell. This is #SpellExecution, and it runs on routine without waking anyone. If no @Spell matches, the @Subconscious lifts through the @CorpusCallosum and wakes the @LeftHemisphere.
 
 Second: it is the @RightHemisphere's @Relevance filter applied to @Experience rather than the live @shape. Same mechanism as the main RH filter, different target.
