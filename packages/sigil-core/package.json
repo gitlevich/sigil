@@ -17,6 +17,7 @@
     "./coherence": "./src/coherence.ts",
     "./memory": "./src/memory.ts",
     "./attention": "./src/attention.ts",
+    "./compressor": "./src/compressor.ts",
     "./sigilSpace": "./src/sigilSpace.ts",
     "./types": "./src/types.ts"
   },

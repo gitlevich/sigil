@@ -43,6 +43,7 @@ export type {
   Consultation,
 } from "./subconscious";
 export { consultSpellbook, emptySpellbook } from "./subconscious";
+export { compressSigil, extractThesis } from "./compressor";
 export type { Focus, AttentionState } from "./attention";
 export {
   init as initAttention,
