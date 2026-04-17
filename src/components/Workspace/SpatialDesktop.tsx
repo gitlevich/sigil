@@ -15,6 +15,8 @@ import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "..
 import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type SentenceArc, type ArcScope } from "../../lib/sentenceArcs";
+import { extractEntanglements } from "../../lib/entanglements";
+import type { Sigil } from "sigil-core";
 import styles from "./SpatialDesktop.module.css";
 
 type IconKind = "child" | "neighbor" | "god" | "parent" | "narrative";
@@ -87,8 +89,23 @@ export function SpatialDesktop() {
     for (const child of folder.children) {
       list.push({ name: child.name, kind: "child", navigateTo: [...currentPath, child.name] });
     }
+    // Neighbors and gods — entanglements referenced in my language.
+    const childNames = folder.children.map((c) => c.name);
+    const isImported = ws.currentPath[0] === "Imported Ontologies";
+    const root: Sigil = (isImported ? ws.spec.importedOntologies : ws.spec.root) as Sigil;
+    const resolvedCurrentPath = isImported ? ws.currentPath.slice(1) : ws.currentPath;
+    const entanglements = extractEntanglements(
+      folder.language ?? "",
+      root,
+      resolvedCurrentPath,
+      ws.spec.importedOntologies ?? null,
+      childNames,
+    );
+    for (const ent of entanglements) {
+      list.push({ name: ent.name, kind: ent.kind, navigateTo: ent.path });
+    }
     return list;
-  }, [folder, ws.currentPath, ws.spec.name]);
+  }, [folder, ws.currentPath, ws.spec.name, ws.spec.root, ws.spec.importedOntologies]);
 
   const positionFor = useCallback((name: string, index: number): IconPosition => {
     const stored = layout?.icons[name];
