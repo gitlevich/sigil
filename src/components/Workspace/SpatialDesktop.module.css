@@ -3,7 +3,7 @@
   width: 100%;
   height: 100%;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   background: var(--bg-primary);
 }
 
@@ -53,6 +53,7 @@
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 100%;
   cursor: default;
 }
 
@@ -175,29 +176,24 @@
   background: color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
 
-/* God — equilateral upward triangle, neutral stroke fill. Shape alone
- * conveys the ring; no color needed. */
-.god {
-  background: transparent;
-  width: 0;
-  height: 0;
-  border-left: 30px solid transparent;
-  border-right: 30px solid transparent;
-  border-bottom: 52px solid color-mix(in srgb, var(--text-primary) 70%, transparent);
-  color: transparent;
-  font-size: 0;
-}
-
-/* Structural parent — equilateral downward triangle. */
+/* God and parent glyphs are SVG so they render as outlined triangles, not
+ * filled blocks. Both transparent, thin stroke, currentColor. */
+.god,
 .parent {
   background: transparent;
-  width: 0;
-  height: 0;
-  border-left: 28px solid transparent;
-  border-right: 28px solid transparent;
-  border-top: 48px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
-  color: transparent;
-  font-size: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+.god svg,
+.parent svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
 }
 
 .narrative {

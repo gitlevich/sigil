@@ -35,13 +35,20 @@ const NARRATIVE_NAME = "narrative";
  * edge rather than disappearing under it.
  */
 function glyphSize(kind: IconKind): { w: number; h: number } {
+  // Size encodes salience. The one-true-god (structural parent) is the most
+  // dominant presence — the scope that contains me. Emergent gods and
+  // children share the mid tier as equal-weight inhabitants of the world.
+  // Neighbors are doors, sized to hold a readable name. Narrative and body
+  // facets are smaller — they're details on the body, not the principal
+  // actors.
   switch (kind) {
-    case "child": return { w: 48, h: 48 };
-    case "neighbor": return { w: 88, h: 112 };
-    case "god": return { w: 60, h: 52 };
-    case "parent": return { w: 56, h: 48 };
+    case "parent":    return { w: 72, h: 62 };
+    case "god":       return { w: 56, h: 48 };
+    case "child":     return { w: 52, h: 52 };
+    case "neighbor":  return { w: 88, h: 112 };
     case "narrative": return { w: 30, h: 36 };
-    default: return { w: 20, h: 20 };
+    case "affordance":
+    case "invariant": return { w: 22, h: 22 };
   }
 }
 
@@ -155,6 +162,20 @@ export function SpatialDesktop() {
     return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
   }, [layout, size, kindIndex]);
 
+  // Content bounds — grow the canvas to contain every positioned icon so the
+  // root can scroll when content exceeds the visible viewport.
+  const contentBounds = useMemo(() => {
+    let maxX = size.w;
+    let maxY = size.h;
+    for (const icon of icons) {
+      const pos = icon.kind === "parent" ? { x: size.w / 2, y: 32 } : positionFor(icon.name);
+      const { w, h } = glyphSize(icon.kind);
+      maxX = Math.max(maxX, pos.x + w / 2 + 40);
+      maxY = Math.max(maxY, pos.y + h / 2 + 60);
+    }
+    return { w: maxX, h: maxY };
+  }, [icons, positionFor, size]);
+
   // Body facets — affordances and invariants — rendered in fixed top/bottom rows.
   const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
   const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
@@ -262,7 +283,11 @@ export function SpatialDesktop() {
         text={folder?.language ?? ""}
         childNames={folder ? folder.children.map((c) => c.name) : []}
       />
-      <div ref={canvasRef} className={styles.canvas}>
+      <div
+        ref={canvasRef}
+        className={styles.canvas}
+        style={{ minWidth: contentBounds.w, minHeight: contentBounds.h }}
+      >
         <div className={styles.parentBar} />
         {arcEndpoints.length > 0 && (
           <svg className={styles.arcs} width={size.w} height={size.h}>
@@ -336,8 +361,10 @@ export function SpatialDesktop() {
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
+                style={{ width: w, height: h }}
               >
-                {icon.kind === "parent" || icon.kind === "god" || icon.kind === "affordance" || icon.kind === "invariant" ? null :
+                {icon.kind === "parent" ? <ParentGlyph /> :
+                 icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
                  icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
@@ -360,21 +387,47 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Affordance — a cup opening upward, "I offer this." */
+/**
+ * Design language: thin strokes (1.5px), transparent fills, currentColor.
+ * Each glyph shaped by what it affords or constrains.
+ */
+
+/** Affordance — # enclosed in a thin rounded rectangle, the "tag" that offers. */
 function AffordanceGlyph() {
   return (
-    <svg viewBox="0 0 18 12" aria-hidden>
-      <path d="M 2 2 A 7 7 0 0 0 16 2" strokeWidth={1.75} strokeLinecap="round" />
+    <svg viewBox="0 0 20 20" aria-hidden>
+      <rect x={1.5} y={1.5} width={17} height={17} rx={5} ry={5} strokeWidth={1.5} />
+      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={600} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">#</text>
     </svg>
   );
 }
 
-/** Invariant — a closed ring with a fixed center, "this holds regardless." */
+/** Invariant — ! enclosed in a thin sharp-cornered square, sealed. */
 function InvariantGlyph() {
   return (
-    <svg viewBox="0 0 14 14" aria-hidden>
-      <circle cx={7} cy={7} r={5} strokeWidth={1.5} />
-      <circle cx={7} cy={7} r={1.2} fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 20 20" aria-hidden>
+      <rect x={1.5} y={1.5} width={17} height={17} strokeWidth={1.5} />
+      <text x={10} y={14.5} textAnchor="middle" fontSize={13} fontWeight={700} fill="currentColor" stroke="none" fontFamily="'SF Mono', 'Fira Code', monospace">!</text>
+    </svg>
+  );
+}
+
+/** One true god (structural parent / @LawsOfNature) — equilateral triangle
+ * pointing up. Thin outline, transparent. Aspires upward. */
+function ParentGlyph() {
+  return (
+    <svg viewBox="0 0 56 48" aria-hidden>
+      <polygon points="28,4 52,44 4,44" strokeWidth={1.5} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Emergent god (@God) — equilateral triangle pointing down, a vortex/funnel
+ * pulling the worshippers into its gravity well. Thin outline, transparent. */
+function GodGlyph() {
+  return (
+    <svg viewBox="0 0 56 48" aria-hidden>
+      <polygon points="4,4 52,4 28,44" strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   );
 }
