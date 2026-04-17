@@ -43,6 +43,14 @@ export type {
   Consultation,
 } from "./subconscious";
 export { consultSpellbook, emptySpellbook } from "./subconscious";
+export type { Focus, AttentionState } from "./attention";
+export {
+  init as initAttention,
+  shift as shiftAttention,
+  anchorTo as anchorAttention,
+  currentFocus,
+  walkedPath,
+} from "./attention";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,

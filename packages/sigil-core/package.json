@@ -16,6 +16,7 @@
     "./bicameralMind": "./src/bicameralMind.ts",
     "./coherence": "./src/coherence.ts",
     "./memory": "./src/memory.ts",
+    "./attention": "./src/attention.ts",
     "./sigilSpace": "./src/sigilSpace.ts",
     "./types": "./src/types.ts"
   },
