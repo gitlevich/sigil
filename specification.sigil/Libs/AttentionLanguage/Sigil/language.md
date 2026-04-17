@@ -4,7 +4,9 @@ status: external-ontology
 
 # Sigil
 
-A structure that runs on @attention. Its #invariants hold because you hold them. Its #affordances work because you work them. Stop attending, it fades. Attend more, it grows.
+A structure that gives @attention coherence — like a laser gives coherence to light. Without the @sigil, attention scatters. With it, attention aligns: same direction, same shape, compounding instead of diffusing.
+
+A @sigil runs on @attention. Its #invariants hold because you hold them. Its #affordances work because you work them. Stop attending, it fades. Attend more, it grows.
 
 The structure is real and precisely articulated: #invariants, #affordances, children, boundaries. But it runs on @attention.
 
