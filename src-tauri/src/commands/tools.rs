@@ -690,3 +690,75 @@ fn decode_entities(s: &str) -> String {
         .replace("&#39;", "'")
         .replace("&nbsp;", " ")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Build a workspace with one Scratch child sigil and return (tmp, ctx).
+    fn workspace_with_scratch() -> (TempDir, EditorContext) {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir(root.join("Scratch")).unwrap();
+        fs::write(root.join("Scratch/language.md"), "# Scratch\n\nA throwaway.\n").unwrap();
+        let ctx = EditorContext {
+            root_path: root.to_string_lossy().to_string(),
+            current_path: Vec::new(),
+        };
+        (tmp, ctx)
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_removes_directory_for_plain_name() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let scratch = tmp.path().join("Scratch");
+        assert!(scratch.exists(), "precondition: Scratch exists");
+
+        let input = serde_json::json!({ "sigil_path": "Scratch" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+
+        assert!(result.is_ok(), "delete_sigil returned Err: {:?}", result);
+        assert!(!scratch.exists(), "Scratch directory should be gone after delete");
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_tolerates_trailing_language_md() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let scratch = tmp.path().join("Scratch");
+        assert!(scratch.exists());
+
+        let input = serde_json::json!({ "sigil_path": "Scratch/language.md" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+
+        assert!(result.is_ok(), "delete_sigil should strip /language.md; got {:?}", result);
+        assert!(!scratch.exists(), "Scratch directory should be gone");
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_refuses_workspace_root() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({ "sigil_path": "" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        assert!(result.is_err(), "empty path should be refused");
+        assert!(tmp.path().exists(), "workspace root must remain");
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_refuses_parent_traversal() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({ "sigil_path": "../escape" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        assert!(result.is_err(), "../ traversal should be refused");
+        let _ = tmp; // keep tempdir alive
+    }
+
+    #[tokio::test]
+    async fn delete_sigil_returns_error_for_missing_sigil() {
+        let (tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({ "sigil_path": "DoesNotExist" });
+        let result = execute_tool("delete_sigil", &input, None, Some(&ctx)).await;
+        assert!(result.is_err(), "missing sigil should be Err");
+        let _ = tmp;
+    }
+}
