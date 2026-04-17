@@ -34,6 +34,14 @@ export {
   subscribeAwakening,
   publishAwakeningPhase,
 } from "./awakening";
+export type {
+  Disturbance,
+  SpellResult,
+  Spell,
+  Spellbook,
+  Consultation,
+} from "./subconscious";
+export { consultSpellbook, emptySpellbook } from "./subconscious";
 export type { Rect, WeightedItem, LayoutRect } from "./treemap";
 export {
   computeWeight, maxDepth, squarify, depthStyle,
