@@ -1,20 +1,19 @@
 """
 Sigil local inference sidecar.
 
-Runs as a child process of the Tauri app. Reads JSON requests from stdin,
-writes JSON responses to stdout. Loads Phi-3 once at startup and keeps it
-resident for the lifetime of the process.
+Runs as a child process of the Tauri app. Downloads Qwen2.5-7B-Instruct
+(GGUF, Q4_K_M) on first launch, then starts an OpenAI-compatible HTTP
+server via llama-cpp-python. Tauri reads the readiness line from stdout
+and then speaks the standard OpenAI chat-completions protocol against
+the endpoint — including tool-calling, which Qwen2.5 handles natively.
 
-Protocol (one JSON object per line, both directions):
+Protocol (stdout, one JSON line on startup):
 
-  Request:  {"id": "...", "prompt": "...", "max_tokens": 1024}
-  Response: {"id": "...", "content": "..."}
-  Error:    {"id": "...", "error": "..."}
+    {"ready": true, "endpoint": "http://127.0.0.1:PORT", "model": "..."}
+  | {"ready": false, "error": "..."}
 
-Readiness:  {"ready": true, "model": "..."}
-
-Apple Silicon uses mlx-lm for Metal-accelerated inference. Other platforms
-will need a different backend later; for now we target Apple Silicon only.
+After the ready line, stdin is ignored. The process keeps the server
+alive until the parent kills it.
 
 Infrastructure — not part of the sigil tree. See architectural_invariants.md.
 """
@@ -22,8 +21,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import signal
+import subprocess
 import sys
-from typing import Any
+import time
+import urllib.error
+import urllib.request
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,115 +36,106 @@ logging.basicConfig(
 )
 log = logging.getLogger("sigil-llm")
 
-DEFAULT_MODEL = "mlx-community/Phi-3.5-mini-instruct-4bit"
+# Qwen2.5-7B-Instruct Q4_K_M — ~4.4 GB, strong tool-calling support, runs at
+# 15-25 tok/s on Apple Silicon via llama.cpp's Metal backend.
+MODEL_REPO = "bartowski/Qwen2.5-7B-Instruct-GGUF"
+MODEL_FILE = "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+HOST = "127.0.0.1"
+PORT = int(os.environ.get("SIGIL_LLM_PORT", "8765"))
+READY_TIMEOUT_S = 120.0
 
 
-def _respond(obj: dict[str, Any]) -> None:
-    """Write one JSON object as a line to stdout and flush."""
+def _respond(obj: dict) -> None:
     sys.stdout.write(json.dumps(obj) + "\n")
     sys.stdout.flush()
 
 
-def _load_model(model_id: str):
-    """Load the model. Imports are lazy so startup errors reach the caller."""
-    log.info("loading model %s", model_id)
-    from mlx_lm import load  # type: ignore
+def _download_model() -> str:
+    from huggingface_hub import hf_hub_download
 
-    model, tokenizer = load(model_id)
-    log.info("model loaded")
-    return model, tokenizer
+    log.info("resolving model %s/%s (cache hit is instant)", MODEL_REPO, MODEL_FILE)
+    path = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_FILE)
+    log.info("model at %s", path)
+    return path
 
 
-def _generate(
-    model,
-    tokenizer,
-    messages: list[dict[str, str]],
-    max_tokens: int,
-) -> str:
-    from mlx_lm import generate  # type: ignore
-
-    # Apply the model's chat template so the prompt is framed correctly —
-    # Phi-3 stops cleanly at <|end|> only when the template owns the framing.
-    formatted = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    raw = generate(
-        model,
-        tokenizer,
-        prompt=formatted,
-        max_tokens=max_tokens,
-        verbose=False,
-    )
-    # Phi-3's raw generation includes end-of-turn control tokens; trim them
-    # and anything that follows (model looping back into user/assistant turns).
-    for stop in ("<|end|>", "<|user|>", "<|assistant|>", "<|system|>"):
-        idx = raw.find(stop)
-        if idx >= 0:
-            raw = raw[:idx]
-    return raw.strip()
+def _wait_for_server(endpoint: str, timeout_s: float) -> bool:
+    deadline = time.monotonic() + timeout_s
+    url = endpoint + "/v1/models"
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as resp:
+                if resp.status == 200:
+                    return True
+        except (urllib.error.URLError, ConnectionError, OSError):
+            pass
+        time.sleep(0.5)
+    return False
 
 
 def main() -> int:
-    model_id = DEFAULT_MODEL
-
     try:
-        model, tokenizer = _load_model(model_id)
+        model_path = _download_model()
     except Exception as exc:
-        log.exception("model load failed")
-        _respond({"ready": False, "error": f"model load failed: {exc}"})
+        log.exception("model download failed")
+        _respond({"ready": False, "error": f"model download failed: {exc}"})
         return 1
 
-    _respond({"ready": True, "model": model_id})
+    endpoint = f"http://{HOST}:{PORT}"
+    # Qwen2.5 uses ChatML; chatml-function-calling adds proper tool-use
+    # support on top. --n_gpu_layers -1 pushes every layer onto Metal on
+    # Apple Silicon.
+    cmd = [
+        sys.executable,
+        "-m",
+        "llama_cpp.server",
+        "--model", model_path,
+        "--host", HOST,
+        "--port", str(PORT),
+        "--n_ctx", "8192",
+        "--n_gpu_layers", "-1",
+        "--chat_format", "chatml-function-calling",
+    ]
+    log.info("starting server: %s", " ".join(cmd))
 
-    for raw in sys.stdin:
-        line = raw.strip()
-        if not line:
-            continue
+    proc = subprocess.Popen(
+        cmd,
+        stdout=sys.stderr,
+        stderr=sys.stderr,
+        start_new_session=False,
+    )
 
-        try:
-            request = json.loads(line)
-        except json.JSONDecodeError as exc:
-            _respond({"id": None, "error": f"invalid json: {exc}"})
-            continue
+    try:
+        if not _wait_for_server(endpoint, READY_TIMEOUT_S):
+            proc.terminate()
+            _respond({
+                "ready": False,
+                "error": f"server did not become ready within {READY_TIMEOUT_S:.0f}s",
+            })
+            return 1
 
-        request_id = request.get("id")
-        max_tokens = int(request.get("max_tokens") or 512)
+        _respond({
+            "ready": True,
+            "endpoint": endpoint,
+            "model": MODEL_REPO,
+        })
+        log.info("server ready at %s", endpoint)
 
-        # Accept either `messages` (preferred — real chat-template framing) or
-        # a raw `prompt` (wrapped as a single user message).
-        messages = request.get("messages")
-        prompt = request.get("prompt")
-        if isinstance(messages, list) and messages:
-            turn_messages = messages
-        elif isinstance(prompt, str) and prompt:
-            turn_messages = [{"role": "user", "content": prompt}]
-        else:
-            _respond({"id": request_id, "error": "missing prompt or messages"})
-            continue
+        # Forward SIGTERM to the child so the server exits cleanly.
+        def _terminate(signum, frame):
+            log.info("received signal %s, terminating server", signum)
+            proc.terminate()
 
-        summary = ", ".join(
-            f"{m.get('role','?')}={len(m.get('content',''))}ch"
-            for m in turn_messages
-        )
-        log.info(
-            "request id=%s messages=[%s] max_tokens=%d",
-            request_id, summary, max_tokens,
-        )
+        signal.signal(signal.SIGTERM, _terminate)
+        signal.signal(signal.SIGINT, _terminate)
 
-        try:
-            import time as _t
-            t0 = _t.monotonic()
-            content = _generate(model, tokenizer, turn_messages, max_tokens)
-            log.info(
-                "generated id=%s in %.2fs, %d chars",
-                request_id, _t.monotonic() - t0, len(content),
-            )
-            _respond({"id": request_id, "content": content})
-        except Exception as exc:
-            log.exception("generation failed")
-            _respond({"id": request_id, "error": f"generation failed: {exc}"})
-
-    return 0
+        proc.wait()
+        return proc.returncode or 0
+    except Exception as exc:
+        log.exception("sidecar failed")
+        _respond({"ready": False, "error": str(exc)})
+        proc.terminate()
+        return 1
 
 
 if __name__ == "__main__":

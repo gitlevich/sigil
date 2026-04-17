@@ -132,14 +132,14 @@ export function SettingsDialog() {
                     provider,
                     // Local inference has a single built-in model; prefill it
                     // so the user doesn't have to type the mlx model id.
-                    model: provider === "local" ? "mlx-community/Phi-3.5-mini-instruct-4bit" : "",
+                    model: provider === "local" ? "bartowski/Qwen2.5-7B-Instruct-GGUF" : "",
                     api_key: provider === "local" ? "" : editing.api_key,
                   });
                 }}
               >
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
-                <option value="local">Local (Phi-3 via sidecar)</option>
+                <option value="local">Local (Qwen2.5 7B via sidecar)</option>
               </select>
             </div>
 
@@ -182,7 +182,7 @@ export function SettingsDialog() {
                   onChange={(e) => setEditing({ ...editing, model: e.target.value })}
                   placeholder={
                     editing.provider === "local"
-                      ? "mlx-community/Phi-3.5-mini-instruct-4bit"
+                      ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
                       : editing.api_key
                         ? "Loading models..."
                         : "Enter API key first"

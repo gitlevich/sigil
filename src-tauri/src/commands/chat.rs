@@ -401,7 +401,7 @@ pub async fn send_chat_message(
             stream_openai(&app, &history, &profile, &system_prompt, &editor_ctx).await
         }
         AiProvider::Local => {
-            stream_local(&app, &history, &system_prompt, local.inner().clone()).await
+            stream_local(&app, &history, &system_prompt, &editor_ctx, local.inner().clone()).await
         }
     };
 
@@ -566,6 +566,35 @@ async fn stream_openai(
     system_prompt: &str,
     editor_ctx: &tools::EditorContext,
 ) -> Result<String, String> {
+    stream_openai_compatible(
+        app,
+        history,
+        &profile.model,
+        system_prompt,
+        editor_ctx,
+        "https://api.openai.com/v1/chat/completions",
+        Some(format!("Bearer {}", profile.api_key)),
+        "OpenAI",
+    )
+    .await
+}
+
+/// OpenAI-protocol chat completion against any compatible endpoint.
+/// Drives the tool-calling agentic loop: call, handle tool_calls, execute,
+/// send results back, repeat until the model produces a plain text response.
+///
+/// Used for both api.openai.com (auth via Bearer api_key) and the local
+/// llama-cpp-python server (no auth).
+async fn stream_openai_compatible(
+    app: &AppHandle,
+    history: &[ChatMessage],
+    model: &str,
+    system_prompt: &str,
+    editor_ctx: &tools::EditorContext,
+    url: &str,
+    auth_header: Option<String>,
+    label: &str,
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let tool_defs = tools::tool_definitions();
     let mut accumulated_text = String::new();
@@ -596,24 +625,25 @@ async fn stream_openai(
 
     loop {
         let body = serde_json::json!({
-            "model": profile.model,
+            "model": model,
             "messages": messages,
             "tools": openai_tools,
         });
 
-        let response = client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", profile.api_key))
-            .header("Content-Type", "application/json")
+        let mut req = client.post(url).header("Content-Type", "application/json");
+        if let Some(ref auth) = auth_header {
+            req = req.header("Authorization", auth);
+        }
+        let response = req
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("Network error: {}", e))?;
+            .map_err(|e| format!("{} network error: {}", label, e))?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_body = response.text().await.unwrap_or_default();
-            return Err(format!("OpenAI API error {}: {}", status, error_body));
+            return Err(format!("{} error {}: {}", label, status, error_body));
         }
 
         let resp_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
@@ -677,50 +707,50 @@ async fn stream_openai(
     Ok(accumulated_text)
 }
 
-/// Stream from the local Python sidecar (Phi-3 via mlx-lm).
+/// Stream from the local Python sidecar.
 ///
-/// No true streaming yet — the full response is generated, then emitted as
-/// a single chat-token event. No tool-calling. The conversation is sent as
-/// a proper messages array so Phi-3's chat template frames it correctly,
-/// which is what lets the model stop at its own `<|end|>` token.
+/// The sidecar runs llama-cpp-python's OpenAI-compatible HTTP server with
+/// Qwen2.5-7B-Instruct, so we just point the OpenAI flow at the local URL.
+/// Tool-calling works the same way — chatml-function-calling format on the
+/// sidecar side parses `<tool_call>` tags into the standard `tool_calls`
+/// field of the response.
 async fn stream_local(
     app: &AppHandle,
     history: &[ChatMessage],
     system_prompt: &str,
+    editor_ctx: &tools::EditorContext,
     local: crate::commands::local_inference::LocalInference,
 ) -> Result<String, String> {
-    use crate::commands::local_inference::Message;
+    let (endpoint, model) = local.ensure_running().await?;
+    let url = format!("{}/v1/chat/completions", endpoint.trim_end_matches('/'));
 
-    let mut messages: Vec<Message> = Vec::new();
-    if !system_prompt.trim().is_empty() {
-        messages.push(Message {
-            role: "system".into(),
-            content: system_prompt.to_string(),
-        });
-    }
-    for m in history {
-        let role = match m.role {
-            ChatRole::User => "user",
-            ChatRole::Assistant => "assistant",
-        };
-        messages.push(Message {
-            role: role.into(),
-            content: m.content.clone(),
-        });
-    }
-
-    let total_chars: usize = messages.iter().map(|m| m.content.len()).sum();
+    let total_chars: usize = history.iter().map(|m| m.content.len()).sum::<usize>()
+        + system_prompt.len();
     eprintln!(
-        "[local] invoking: {} messages, {} total chars across content",
-        messages.len(),
+        "[local] calling {} with {} history messages, {} total chars",
+        url,
+        history.len(),
         total_chars,
     );
 
-    let text = local.invoke_messages(&messages, 512).await?;
-    if !text.is_empty() {
-        let _ = app.emit("chat-token", text.clone());
+    let result = stream_openai_compatible(
+        app,
+        history,
+        &model,
+        system_prompt,
+        editor_ctx,
+        &url,
+        None,
+        "local",
+    )
+    .await;
+
+    if result.is_err() {
+        // If the HTTP call failed the sidecar may be dead; drop it so
+        // the next call respawns rather than retrying a corpse.
+        local.reset().await;
     }
-    Ok(text)
+    result
 }
 
 
