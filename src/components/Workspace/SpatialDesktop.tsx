@@ -27,7 +27,7 @@ interface IconSpec {
   navigateTo?: string[]; // absolute path in the workspace tree — undefined for body-facet icons
 }
 
-const NARRATIVE_NAME = "narrative";
+const NARRATIVE_NAME = "Language";
 
 /**
  * Glyph bounding box per kind, used both to position the icon's visual center
@@ -321,30 +321,26 @@ export function SpatialDesktop() {
         text={folder?.language ?? ""}
         childNames={folder ? folder.children.map((c) => c.name) : []}
       />
-      {affordances.length > 0 && (
-        <div className={styles.affordanceRow} aria-label="Affordances">
-          {affordances.map((aff) => (
-            <div key={`aff:${aff.name}`} className={styles.rowItem}>
-              <div className={`${styles.glyph} ${styles.affordance}`}>
-                <AffordanceGlyph />
-              </div>
-              <div className={styles.rowLabel}>#{aff.name}</div>
+      <div className={styles.affordanceRow} aria-label="Affordances">
+        {affordances.map((aff) => (
+          <div key={`aff:${aff.name}`} className={styles.rowItem}>
+            <div className={`${styles.glyph} ${styles.affordance}`}>
+              <AffordanceGlyph />
             </div>
-          ))}
-        </div>
-      )}
-      {invariants.length > 0 && (
-        <div className={styles.invariantRow} aria-label="Invariants">
-          {invariants.map((inv) => (
-            <div key={`inv:${inv.name}`} className={styles.rowItem}>
-              <div className={`${styles.glyph} ${styles.invariant}`}>
-                <InvariantGlyph />
-              </div>
-              <div className={styles.rowLabel}>!{inv.name}</div>
+            <div className={styles.rowLabel}>#{aff.name}</div>
+          </div>
+        ))}
+      </div>
+      <div className={styles.invariantRow} aria-label="Invariants">
+        {invariants.map((inv) => (
+          <div key={`inv:${inv.name}`} className={styles.rowItem}>
+            <div className={`${styles.glyph} ${styles.invariant}`}>
+              <InvariantGlyph />
             </div>
-          ))}
-        </div>
-      )}
+            <div className={styles.rowLabel}>!{inv.name}</div>
+          </div>
+        ))}
+      </div>
       <div className={styles.scrollArea}>
       <div
         ref={canvasRef}
@@ -394,7 +390,7 @@ export function SpatialDesktop() {
                  icon.kind === "neighbor" ? null :
                  initials(icon.name)}
               </div>
-              <div className={styles.label}>{icon.kind === "narrative" ? "narrative" : icon.name}</div>
+              <div className={styles.label}>{icon.name}</div>
             </div>
           );
         })}
