@@ -201,6 +201,19 @@
   stroke-width: 2;
 }
 
+/* Paragraph scope: a looser relation. Dashed, dimmer, thinner — reads as a
+ * softer tie than a same-sentence connection. */
+.arcPath.paragraph {
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+  opacity: 0.28;
+}
+
+.arcPath.paragraph:hover {
+  opacity: 0.85;
+  stroke-width: 1.5;
+}
+
 .arcLabel {
   font-size: 0.82rem;
   font-family: 'SF Mono', 'Fira Code', monospace;

@@ -365,7 +365,7 @@ export function SpatialDesktop() {
               return (
                 <g key={`${arc.a}-${arc.b}-${arc.sentenceIndex}-${i}`} className={styles.arcGroup}>
                   <path className={styles.arcHitbox} d={d}><title>{title}</title></path>
-                  <path className={styles.arcPath} d={d}><title>{title}</title></path>
+                  <path className={`${styles.arcPath} ${arcScope === "paragraph" ? styles.paragraph : ""}`} d={d}><title>{title}</title></path>
                   <text className={styles.arcLabel} x={midX} y={midY} textAnchor="middle" dominantBaseline="middle">
                     {arcLabel(arc.sentence, 32)}
                     <title>{title}</title>
