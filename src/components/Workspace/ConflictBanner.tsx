@@ -57,7 +57,7 @@ function MergePanel({ conflict }: { conflict: FileConflict }) {
 export function ConflictBanner() {
   const ws = useWorkspaceState();
   const dispatch = useWorkspaceDispatch();
-  const { conflict } = ws;
+  const { conflict, mergeViewOpen } = ws;
 
   const handleResolved = useCallback(() => {
     if (!conflict) return;
@@ -68,6 +68,10 @@ export function ConflictBanner() {
     dispatch({ type: "RESOLVE_CONFLICT" });
   }, [conflict, dispatch]);
 
+  const handleDismiss = useCallback(() => {
+    dispatch({ type: "CLOSE_MERGE_VIEW" });
+  }, [dispatch]);
+
   const handleKeepEditing = useCallback(() => {
     if (!conflict) return;
     // File was deleted externally but user wants to keep their work.
@@ -76,7 +80,7 @@ export function ConflictBanner() {
     dispatch({ type: "RESOLVE_CONFLICT" });
   }, [conflict, dispatch]);
 
-  if (!conflict) return null;
+  if (!conflict || !mergeViewOpen) return null;
 
   if (conflict.deleted) {
     return (
@@ -86,6 +90,9 @@ export function ConflictBanner() {
             This file was deleted externally.
           </span>
           <div className={styles.actions}>
+            <button className={styles.btn} onClick={handleDismiss}>
+              Later
+            </button>
             <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleKeepEditing}>
               Keep editing
             </button>
@@ -102,6 +109,9 @@ export function ConflictBanner() {
           This file was changed externally. Reconcile below.
         </span>
         <div className={styles.actions}>
+          <button className={styles.btn} onClick={handleDismiss}>
+            Later
+          </button>
           <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleResolved}>
             Resolved
           </button>

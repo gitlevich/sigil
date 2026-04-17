@@ -19,6 +19,10 @@ export interface FileConflict {
   diskContent: string;
   localContent: string;
   deleted: boolean;
+  /** Number of hunks the three-way merge resolved automatically (only mine-changed or only theirs-changed). */
+  mergedCount: number;
+  /** Number of hunks where both sides diverged from base and I must decide. */
+  conflictCount: number;
 }
 
 export interface WorkspaceState {
@@ -29,6 +33,8 @@ export interface WorkspaceState {
   /** When set, the editor should scroll to this line after navigation. Consumed once. */
   targetLine: number | null;
   conflict: FileConflict | null;
+  /** Whether the merge view is currently open. Defaults to false so the user isn't yanked from flow. */
+  mergeViewOpen: boolean;
 }
 
 export type WorkspaceAction =
@@ -39,7 +45,9 @@ export type WorkspaceAction =
   | { type: "SET_COLLAPSED_PATHS"; paths: string[] }
   | { type: "TOGGLE_COLLAPSE"; pathKey: string }
   | { type: "SET_CONFLICT"; conflict: FileConflict }
-  | { type: "RESOLVE_CONFLICT" };
+  | { type: "RESOLVE_CONFLICT" }
+  | { type: "OPEN_MERGE_VIEW" }
+  | { type: "CLOSE_MERGE_VIEW" };
 
 export function reducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
@@ -67,9 +75,13 @@ export function reducer(state: WorkspaceState, action: WorkspaceAction): Workspa
       return { ...state, collapsedPaths: paths };
     }
     case "SET_CONFLICT":
-      return { ...state, conflict: action.conflict };
+      return { ...state, conflict: action.conflict, mergeViewOpen: false };
     case "RESOLVE_CONFLICT":
-      return { ...state, conflict: null };
+      return { ...state, conflict: null, mergeViewOpen: false };
+    case "OPEN_MERGE_VIEW":
+      return state.conflict ? { ...state, mergeViewOpen: true } : state;
+    case "CLOSE_MERGE_VIEW":
+      return { ...state, mergeViewOpen: false };
   }
 }
 
@@ -121,6 +133,7 @@ export function WorkspaceProvider({ spec, initialPath = [], initialCollapsed = [
     collapsedPaths: initialCollapsed,
     targetLine: null,
     conflict: null,
+    mergeViewOpen: false,
   });
 
   return (

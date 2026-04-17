@@ -1,0 +1,54 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 600ms ease-out;
+}
+
+.bar:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.bar.just-arrived {
+  background: color-mix(in srgb, var(--warning, #e6a700) 16%, var(--bg-secondary));
+}
+
+.dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--warning, #e6a700);
+}
+
+.file {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.sep {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.merged {
+  color: var(--text-secondary);
+}
+
+.conflicts {
+  color: var(--warning, #e6a700);
+  font-weight: 500;
+}
+
+.cta {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 0.76rem;
+}

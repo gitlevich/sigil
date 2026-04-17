@@ -1,0 +1,46 @@
+.toast {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  background: color-mix(in srgb, var(--warning, #e6a700) 18%, var(--bg-primary));
+  border: 1px solid var(--warning, #e6a700);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease-out;
+}
+
+.toast.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.file {
+  font-weight: 500;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+}
+
+.sep {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.merged {
+  color: var(--text-secondary);
+}
+
+.conflicts {
+  color: var(--warning, #e6a700);
+  font-weight: 500;
+}

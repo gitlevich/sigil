@@ -14,6 +14,7 @@ import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, setBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
 import { api, FsChangeEvent, SigilFolder, Idea } from "./tauri";
+import { threeWayMergeCounts } from "./lib/mergeCounts";
 import { useChatStream } from "./hooks/useChatStream";
 import { Workspace } from "./components/Workspace/Workspace";
 import { ExperienceProvider } from "./state/ExperienceContext";
@@ -135,7 +136,7 @@ export function WorkspaceShell() {
         pauseAutoSaveFor(pendingPath);
         dispatch({
           type: "SET_CONFLICT",
-          conflict: { path: pendingPath, base, diskContent: "", localContent: pendingContent ?? base, deleted: true },
+          conflict: { path: pendingPath, base, diskContent: "", localContent: pendingContent ?? base, deleted: true, mergedCount: 0, conflictCount: 0 },
         });
       }
       return;
@@ -154,10 +155,12 @@ export function WorkspaceShell() {
     }
 
     // Dirty buffer + disk diverged from snapshot = real conflict.
+    const localContent = pendingContent ?? base;
+    const { mergedCount, conflictCount } = threeWayMergeCounts(localContent, base, diskContent);
     pauseAutoSaveFor(pendingPath);
     dispatch({
       type: "SET_CONFLICT",
-      conflict: { path: pendingPath, base, diskContent, localContent: pendingContent ?? base, deleted: false },
+      conflict: { path: pendingPath, base, diskContent, localContent, deleted: false, mergedCount, conflictCount },
     });
   });
 

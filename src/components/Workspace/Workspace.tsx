@@ -13,6 +13,8 @@ import { CompileStatusBar } from "./CompileStatusBar";
 import { NameMisfitStatusBar } from "./NameMisfitStatusBar";
 import { HearingStatusBar } from "./HearingStatusBar";
 import { ConflictBanner } from "./ConflictBanner";
+import { ConflictToast } from "./ConflictToast";
+import { ConflictStatusBar } from "./ConflictStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
 import { useHearing, type HearingEvent } from "../../hooks/useHearing";
@@ -389,6 +391,7 @@ export function Workspace() {
           onNavigate={(path) => navigate(path)}
         />
         <ConflictBanner />
+        <ConflictToast />
         <EditorToolbar />
         {layout.contentTab === "atlas" ? (
           <Atlas />
@@ -420,6 +423,7 @@ export function Workspace() {
             onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
           />
         )}
+        <ConflictStatusBar />
         <CompileStatusBar result={compileResult} onNavigateToError={(err: RefError) => {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
