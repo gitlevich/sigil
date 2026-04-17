@@ -134,23 +134,22 @@
 }
 
 /* Neighbor — a door. Simple rectangle with a handle, the neighbor's name on
- * its face. Minimal, recognizable at a glance. */
+ * its face, sized so the name reads without squinting. */
 .neighbor {
   background: var(--bg-primary);
   border: 1.5px solid color-mix(in srgb, var(--text-primary) 55%, transparent);
-  border-radius: 1.5px;
-  width: 32px;
-  height: 52px;
+  border-radius: 2px;
+  width: 68px;
+  height: 104px;
   position: relative;
   color: var(--text-primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   font-family: var(--font-sans, system-ui, -apple-system, "SF Pro Text", sans-serif);
   letter-spacing: 0;
-  padding: 2px;
-  line-height: 1.1;
+  padding: 8px 12px;
+  line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: normal;
   word-break: break-word;
   text-align: center;
@@ -159,11 +158,11 @@
 .neighbor::after {
   content: "";
   position: absolute;
-  right: 3px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 3px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
@@ -230,43 +229,35 @@
   padding: 0 3px;
 }
 
-/* Affordance and invariant facet icons — match the editor's reference colors.
- * Affordance teal #3d9e8c; invariant amber #e8a040. Outlined, not blobby. */
+/* Affordance — an offering. A cup opening upward: a semicircular arc with
+ * the top open, phenomenologically "I extend this outward." Teal, the
+ * editor's reference color. No text inside. */
 .affordance {
   background: transparent;
-  color: #3d9e8c;
-  border: 1.5px solid rgba(61, 158, 140, 0.55);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-weight: 600;
-  font-size: 14px;
-  opacity: 0.78;
-  transition: opacity 140ms ease-out, background 140ms ease-out, border-color 140ms ease-out;
+  width: 22px;
+  height: 11px;
+  border: 1.5px solid rgba(61, 158, 140, 0.7);
+  border-top: 0;
+  border-radius: 0 0 22px 22px;
+  color: transparent;
+  font-size: 0;
+  opacity: 0.82;
+  transition: opacity 140ms ease-out, border-color 140ms ease-out;
 }
 
+/* Invariant — a closed ring. Sealed, binding, admits no opening:
+ * phenomenologically "this holds regardless." Amber, the editor's
+ * reference color. No text inside. */
 .invariant {
   background: transparent;
-  color: #e8a040;
-  border: 1.5px solid rgba(232, 160, 64, 0.55);
-  border-radius: 4px;
-  transform: rotate(45deg);
-  width: 22px;
-  height: 22px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-weight: 700;
-  font-size: 13px;
-  opacity: 0.78;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 140ms ease-out, background 140ms ease-out, border-color 140ms ease-out;
-}
-
-.invariant > span {
-  transform: rotate(-45deg);
-  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(232, 160, 64, 0.7);
+  border-radius: 50%;
+  color: transparent;
+  font-size: 0;
+  opacity: 0.82;
+  transition: opacity 140ms ease-out, border-color 140ms ease-out;
 }
 
 .label {

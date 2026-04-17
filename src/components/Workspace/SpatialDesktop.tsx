@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
-import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
+import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type IconKindForLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type SentenceArc, type ArcScope } from "../../lib/sentenceArcs";
 import { extractEntanglements } from "../../lib/entanglements";
@@ -109,11 +109,29 @@ export function SpatialDesktop() {
     return list;
   }, [folder, ws.currentPath, ws.spec.name, ws.spec.root, ws.spec.importedOntologies]);
 
-  const positionFor = useCallback((name: string, index: number): IconPosition => {
+  // Per-kind indices for region-based placement. Preserves appearance order
+  // inside each kind so new items fall at the next slot, not random.
+  const kindIndex = useMemo(() => {
+    const counters: Record<string, number> = {};
+    const byName = new Map<string, { kind: IconKind; index: number }>();
+    for (const icon of icons) {
+      if (icon.kind === "parent" || icon.kind === "affordance" || icon.kind === "invariant") continue;
+      const n = counters[icon.kind] ?? 0;
+      byName.set(icon.name, { kind: icon.kind, index: n });
+      counters[icon.kind] = n + 1;
+    }
+    return { byName, counters };
+  }, [icons]);
+
+  const positionFor = useCallback((name: string): IconPosition => {
     const stored = layout?.icons[name];
     if (stored) return stored;
-    return defaultPosition(name, index, size.w, size.h);
-  }, [layout, size]);
+    const entry = kindIndex.byName.get(name);
+    if (!entry) return { x: size.w / 2, y: size.h / 2 };
+    const kindForLayout = entry.kind as IconKindForLayout;
+    const count = kindIndex.counters[entry.kind] ?? 1;
+    return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
+  }, [layout, size, kindIndex]);
 
   // Body facets — affordances and invariants — rendered in fixed top/bottom rows.
   const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
@@ -130,9 +148,9 @@ export function SpatialDesktop() {
   // position. If either end isn't placed on the current desktop, skip the arc.
   const arcEndpoints = useMemo(() => {
     const byName = new Map<string, { x: number; y: number }>();
-    icons.forEach((icon, i) => {
+    icons.forEach((icon) => {
       if (icon.kind === "parent") return;
-      const pos = positionFor(icon.name, i);
+      const pos = positionFor(icon.name);
       byName.set(icon.name, pos);
     });
     return arcs
@@ -145,12 +163,12 @@ export function SpatialDesktop() {
       .filter((x): x is { arc: SentenceArc; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
   }, [arcs, icons, positionFor]);
 
-  const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec, index: number) => {
+  const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
     if (!folder || !layout) return;
     if (icon.kind === "parent") return; // Parent pinned at top; no drag.
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
-    const start = positionFor(icon.name, index);
+    const start = positionFor(icon.name);
     const offsetX = e.clientX - start.x;
     const offsetY = e.clientY - start.y;
     let moved = false;
@@ -248,7 +266,7 @@ export function SpatialDesktop() {
           <div className={styles.affordanceRow} aria-label="Affordances">
             {affordances.map((aff) => (
               <div key={`aff:${aff.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.affordance}`}>#</div>
+                <div className={`${styles.glyph} ${styles.affordance}`} />
                 <div className={styles.rowLabel}>#{aff.name}</div>
               </div>
             ))}
@@ -258,23 +276,23 @@ export function SpatialDesktop() {
           <div className={styles.invariantRow} aria-label="Invariants">
             {invariants.map((inv) => (
               <div key={`inv:${inv.name}`} className={styles.rowItem}>
-                <div className={`${styles.glyph} ${styles.invariant}`}><span>!</span></div>
+                <div className={`${styles.glyph} ${styles.invariant}`} />
                 <div className={styles.rowLabel}>!{inv.name}</div>
               </div>
             ))}
           </div>
         )}
         {icons.length === 0 && <div className={styles.emptyHint}>Empty sigil. Navigate into one with children.</div>}
-        {icons.map((icon, i) => {
+        {icons.map((icon) => {
           const pos = icon.kind === "parent"
             ? { x: size.w / 2, y: 24 }
-            : positionFor(icon.name, i);
+            : positionFor(icon.name);
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
               className={styles.icon}
               style={{ left: pos.x - 18, top: pos.y - 18 }}
-              onPointerDown={(e) => onIconPointerDown(e, icon, i)}
+              onPointerDown={(e) => onIconPointerDown(e, icon)}
               onDoubleClick={() => onIconDoubleClick(icon)}
               title={`${icon.kind}: ${icon.name}`}
             >
@@ -287,10 +305,8 @@ export function SpatialDesktop() {
                   icon.name
                 }
               >
-                {icon.kind === "parent" || icon.kind === "god" ? null :
+                {icon.kind === "parent" || icon.kind === "god" || icon.kind === "affordance" || icon.kind === "invariant" ? null :
                  icon.kind === "narrative" ? <span>abc</span> :
-                 icon.kind === "affordance" ? "#" :
-                 icon.kind === "invariant" ? <span>!</span> :
                  icon.kind === "neighbor" ? icon.name :
                  initials(icon.name)}
               </div>
