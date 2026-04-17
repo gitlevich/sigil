@@ -4,13 +4,16 @@
  * provides layout signal.
  */
 
-/** One arc connects two child-by-name, labeled with the sentence index and text. */
+/** One arc connects two child-by-name, labeled with the index and text of the enclosing unit (sentence or paragraph). */
 export interface SentenceArc {
   a: string;       // child name
   b: string;       // child name
   sentenceIndex: number;
   sentence: string;
 }
+
+/** Granularity at which @Children are considered co-occurring. */
+export type ArcScope = "sentence" | "paragraph";
 
 /**
  * Split a block of markdown into sentences. Front matter, code fences, and
@@ -31,19 +34,29 @@ export function splitSentences(text: string): string[] {
   return raw.map((s) => s.trim()).filter((s) => s.length > 0);
 }
 
-/** Find all arcs among the provided child names in the given text. */
-export function extractArcs(text: string, childNames: string[]): SentenceArc[] {
+/**
+ * Split text into paragraphs. Blank lines separate; front matter and code
+ * fences are removed (same hygiene as splitSentences).
+ */
+export function splitParagraphs(text: string): string[] {
+  let body = text.replace(/^---\n[\s\S]*?\n---\n?/, "");
+  body = body.replace(/```[\s\S]*?```/g, " ");
+  body = body.replace(/\r\n/g, "\n");
+  return body.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
+}
+
+/** Find all arcs among the provided child names in the given text, at the chosen scope. */
+export function extractArcs(text: string, childNames: string[], scope: ArcScope = "sentence"): SentenceArc[] {
   if (childNames.length < 2) return [];
   const childSet = new Set(childNames);
-  const sentences = splitSentences(text);
+  const units = scope === "paragraph" ? splitParagraphs(text) : splitSentences(text);
   const arcs: SentenceArc[] = [];
-  // Pattern for @Name refs.
   const refRe = /@([A-Za-z][A-Za-z0-9_]*)/g;
-  sentences.forEach((sentence, i) => {
+  units.forEach((unit, i) => {
     refRe.lastIndex = 0;
     const seen = new Set<string>();
     let match: RegExpExecArray | null;
-    while ((match = refRe.exec(sentence)) !== null) {
+    while ((match = refRe.exec(unit)) !== null) {
       const name = match[1];
       if (childSet.has(name)) seen.add(name);
     }
@@ -51,7 +64,7 @@ export function extractArcs(text: string, childNames: string[]): SentenceArc[] {
     const names = [...seen].sort();
     for (let x = 0; x < names.length; x++) {
       for (let y = x + 1; y < names.length; y++) {
-        arcs.push({ a: names[x], b: names[y], sentenceIndex: i, sentence });
+        arcs.push({ a: names[x], b: names[y], sentenceIndex: i, sentence: unit });
       }
     }
   });

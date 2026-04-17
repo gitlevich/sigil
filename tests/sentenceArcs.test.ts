@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitSentences, extractArcs, arcLabel } from "../src/lib/sentenceArcs";
+import { splitSentences, splitParagraphs, extractArcs, arcLabel } from "../src/lib/sentenceArcs";
 
 describe("splitSentences", () => {
   it("splits on sentence-end punctuation", () => {
@@ -65,6 +65,32 @@ describe("extractArcs", () => {
   it("ignores non-child @refs", () => {
     const text = "@ExternalGod grants @A power.";
     const arcs = extractArcs(text, ["A"]);
+    expect(arcs).toEqual([]);
+  });
+});
+
+describe("splitParagraphs", () => {
+  it("splits on blank lines", () => {
+    const out = splitParagraphs("One line.\nStill one.\n\nTwo.");
+    expect(out).toEqual(["One line.\nStill one.", "Two."]);
+  });
+
+  it("drops frontmatter and code fences", () => {
+    const text = "---\nstatus: idea\n---\n\nAlpha.\n\n```\nin code\n```\n\nBeta.";
+    expect(splitParagraphs(text)).toEqual(["Alpha.", "Beta."]);
+  });
+});
+
+describe("extractArcs with paragraph scope", () => {
+  it("connects children in the same paragraph even when split across sentences", () => {
+    const text = "I have a @A. I have a @B. I have a @C.";
+    const arcs = extractArcs(text, ["A", "B", "C"], "paragraph");
+    expect(arcs).toHaveLength(3);
+  });
+
+  it("respects paragraph boundaries", () => {
+    const text = "I have a @A.\n\nI have a @B.";
+    const arcs = extractArcs(text, ["A", "B"], "paragraph");
     expect(arcs).toEqual([]);
   });
 });

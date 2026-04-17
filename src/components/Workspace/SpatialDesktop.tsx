@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { defaultPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
-import { extractArcs, arcLabel, type SentenceArc } from "../../lib/sentenceArcs";
+import { extractArcs, arcLabel, type SentenceArc, type ArcScope } from "../../lib/sentenceArcs";
 import styles from "./SpatialDesktop.module.css";
 
 type IconKind = "child" | "neighbor" | "god" | "parent";
@@ -35,6 +35,7 @@ export function SpatialDesktop() {
   const [layout, setLayout] = useState<SpatialLayout | null>(null);
   const [mode, setMode] = useState<"inside" | "outside">("inside");
   const [scrollOpen, setScrollOpen] = useState<boolean>(false);
+  const [arcScope, setArcScope] = useState<ArcScope>("sentence");
 
   const folder = resolveCurrentFolder(ws);
 
@@ -91,12 +92,12 @@ export function SpatialDesktop() {
     return defaultPosition(name, index, size.w, size.h);
   }, [layout, size]);
 
-  // Arcs between children that co-occur in a sentence of the sigil's language.
+  // Arcs between children that co-occur in a sentence (or paragraph) of the sigil's language.
   const arcs: SentenceArc[] = useMemo(() => {
     if (!folder) return [];
     const childNames = folder.children.map((c) => c.name);
-    return extractArcs(folder.language ?? "", childNames);
-  }, [folder]);
+    return extractArcs(folder.language ?? "", childNames, arcScope);
+  }, [folder, arcScope]);
 
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
@@ -161,6 +162,11 @@ export function SpatialDesktop() {
           onClick={() => setScrollOpen((v) => !v)}
           title="Show this sigil's language with color-signed references"
         >Scroll</button>
+        <button
+          className={`${styles.modeBtn} ${arcScope === "sentence" ? styles.active : ""}`}
+          onClick={() => setArcScope(arcScope === "sentence" ? "paragraph" : "sentence")}
+          title={`Arc scope: ${arcScope}. Click to toggle.`}
+        >{arcScope === "sentence" ? "Sentence" : "Paragraph"}</button>
         <button
           className={`${styles.modeBtn} ${mode === "inside" ? styles.active : ""}`}
           onClick={() => setMode("inside")}
