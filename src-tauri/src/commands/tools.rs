@@ -321,9 +321,28 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
     ]
 }
 
-/// Execute a tool call and return the result as a string
+/// Execute a tool call and return the result as a string.
+///
+/// Wraps execute_tool_inner with unconditional logging of entry, exit,
+/// and any error. Every tool invocation now leaves a trace in the dev
+/// terminal — if "nothing happens," either the tool was never dispatched
+/// (no [tool>] line) or the tool completed successfully (look for [tool<]).
 pub async fn execute_tool(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
-    eprintln!("[tool] {} input={}", name, input);
+    eprintln!("[tool>] {} input={}", name, input);
+    let result = execute_tool_inner(name, input, app, editor_ctx).await;
+    match &result {
+        Ok(s) => {
+            let preview: String = s.chars().take(160).collect();
+            eprintln!("[tool<] {} ok: {}", name, preview);
+        }
+        Err(e) => {
+            eprintln!("[tool✗] {} failed: {}", name, e);
+        }
+    }
+    result
+}
+
+async fn execute_tool_inner(name: &str, input: &serde_json::Value, app: Option<&tauri::AppHandle>, editor_ctx: Option<&EditorContext>) -> Result<String, String> {
     match name {
         "navigate" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
