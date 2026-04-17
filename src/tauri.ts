@@ -105,7 +105,8 @@ export type SpellPayloadPredicate =
   | { matches: string }; // regex, case-insensitive
 
 export type SpellAction =
-  | { type: "reply"; content: string };
+  | { type: "reply"; content: string }
+  | { type: "suppress" };
 
 export interface ChatMessage {
   role: "user" | "assistant";

@@ -37,6 +37,7 @@ export {
 export type {
   Disturbance,
   SpellResult,
+  SpellDirective,
   Spell,
   Spellbook,
   Consultation,

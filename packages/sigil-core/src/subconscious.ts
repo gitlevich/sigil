@@ -32,11 +32,19 @@ export interface Disturbance {
   payload: unknown;
 }
 
+/** A directive emitted by a cast Spell — instruction for the caller. */
+export type SpellDirective =
+  | { type: "reply"; content: string }
+  | { type: "suppress" };
+
 /** The result of a cast Spell — either handled (success) or failed. */
 export interface SpellResult {
   success: boolean;
   /** If success: a short summary of what the Spell did. If failure: why. */
   summary?: string;
+  /** Directives produced by the Spell's actions, in order. Callers iterate
+   * these to act on what the Spell decided. Absent on failure. */
+  directives?: SpellDirective[];
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   emptySpellbook,
   type Disturbance,
   type Spell,
+  type SpellDirective,
   type SpellResult,
   type Spellbook,
 } from "sigil-core";
@@ -57,22 +58,34 @@ function testPredicate(value: string, predicate: SpellPayloadPredicate): boolean
 }
 
 /**
- * Run a manifest's action sequence. Currently supports "reply" actions —
- * each produces part of a reply that concatenates into the Spell's result.
- * If the sequence is empty or all actions fail silently, return failure so
- * the Subconscious lifts (per !failure-escalates).
+ * Run a manifest's action sequence into structured directives the caller
+ * can act on. Known action types: "reply" (produce text), "suppress" (tell
+ * the caller to drop this item from a curated stream).
+ *
+ * Per !failure-escalates, if the sequence is empty we report failure so
+ * the Subconscious lifts rather than silently casting nothing.
  */
 function runActions(actions: SpellAction[]): SpellResult {
+  if (actions.length === 0) {
+    return { success: false, summary: "no actions" };
+  }
+
+  const directives: SpellDirective[] = [];
   const replyParts: string[] = [];
   for (const action of actions) {
     if (action.type === "reply") {
+      directives.push({ type: "reply", content: action.content });
       replyParts.push(action.content);
+    } else if (action.type === "suppress") {
+      directives.push({ type: "suppress" });
     }
   }
-  if (replyParts.length === 0) {
-    return { success: false, summary: "no actions produced output" };
-  }
-  return { success: true, summary: replyParts.join("\n\n") };
+
+  const summary = replyParts.length > 0
+    ? replyParts.join("\n\n")
+    : directives.map(d => d.type).join(", ");
+
+  return { success: true, summary, directives };
 }
 
 function manifestToSpell(manifest: SpellManifest): Spell {

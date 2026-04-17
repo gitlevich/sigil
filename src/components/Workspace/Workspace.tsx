@@ -16,6 +16,8 @@ import { ConflictBanner } from "./ConflictBanner";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
 import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
 import { useHearing, type HearingEvent } from "../../hooks/useHearing";
+import { useSpellbook } from "../../hooks/useSpellbook";
+import { useDPCurated } from "../../hooks/useDPCurated";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
 import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
@@ -318,8 +320,14 @@ export function Workspace() {
   const { scopeRoot, scopePath } = scopeInfo(ws);
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
-  const nameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
-  const hearingEvents = useHearing(ws.spec.root, compileResult.errors);
+  const rawNameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
+  const rawHearingEvents = useHearing(ws.spec.root, compileResult.errors);
+  // DP-curation: the DesignPartner's filtering eye sits between raw sensory
+  // streams and the User's UI. The Spellbook holds the rules; useDPCurated
+  // applies them per-item. Items with no matching Spell pass through.
+  const spellbook = useSpellbook(ws.spec.rootPath);
+  const nameMisfits = useDPCurated(rawNameMisfits, spellbook, "misfits");
+  const hearingEvents = useDPCurated(rawHearingEvents, spellbook, "hearing");
 
   // Memoize lexical scope — one call to sigil-core, same rules as resolution
   const { scope, scopeNames } = useMemo(() => {
