@@ -92,33 +92,9 @@ function glyphSize(kind: IconKind): { w: number; h: number } {
   }
 }
 
-/**
- * Compute how far to project from the glyph's center along direction
- * (ux, uy) so the line ends just inside the icon's visible edge. Since
- * every icon has an opaque fill, any portion of the line inside the
- * glyph is occluded — the line visibly terminates exactly at the border.
- */
-function edgeOffset(kind: IconKind, ux: number, uy: number): { ox: number; oy: number } {
-  const { w, h } = glyphSize(kind);
-  // Child is a circle: extend 1px past the edge so the opaque fill swallows
-  // the overshoot and the line visibly meets the border.
-  if (kind === "child") {
-    const r = w / 2 + 1;
-    return { ox: ux * r, oy: uy * r };
-  }
-  // Triangles: use the circumscribed radius so lines reaching toward a vertex
-  // still meet the glyph's silhouette. In edge-midpoint directions the line
-  // overshoots the edge and is hidden by the opaque fill.
-  if (kind === "parent" || kind === "god") {
-    const r = (2 * h) / 3 - 2;
-    return { ox: ux * r, oy: uy * r };
-  }
-  // Rectangular kinds: ray-rectangle intersection, 1px into the fill.
-  const axu = Math.abs(ux) || 1e-9;
-  const ayu = Math.abs(uy) || 1e-9;
-  const t = Math.min((w / 2) / axu, (h / 2) / ayu);
-  return { ox: ux * (t + 1), oy: uy * (t + 1) };
-}
+// No more per-shape trim — arcs go center to center, and the glyph's
+// opaque fill occludes the interior portion. The line naturally terminates
+// at the glyph's silhouette regardless of shape.
 
 const SAVE_DEBOUNCE_MS = 400;
 
@@ -319,28 +295,18 @@ export function SpatialDesktop() {
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
   const arcEndpoints = useMemo(() => {
-    const byName = new Map<string, { x: number; y: number; kind: IconKind }>();
+    const byName = new Map<string, { x: number; y: number }>();
     icons.forEach((icon) => {
       const pos = positionFor(icon.name);
-      byName.set(icon.name, { ...pos, kind: icon.kind });
+      byName.set(icon.name, pos);
     });
     return arcs
       .map((arc) => {
         const pa = byName.get(arc.a);
         const pb = byName.get(arc.b);
         if (!pa || !pb) return null;
-        // Direction from each center to the other — use it to find the point
-        // on this icon's actual edge in the direction of the other icon.
-        const dx = pb.x - pa.x;
-        const dy = pb.y - pa.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const ux = dx / dist;
-        const uy = dy / dist;
-        const offA = edgeOffset(pa.kind, ux, uy);
-        const offB = edgeOffset(pb.kind, -ux, -uy);
-        const paEdge = { x: pa.x + offA.ox, y: pa.y + offA.oy };
-        const pbEdge = { x: pb.x + offB.ox, y: pb.y + offB.oy };
-        return { arc, pa: paEdge, pb: pbEdge };
+        // Center to center. Glyph fill occludes the interior.
+        return { arc, pa, pb };
       })
       .filter((x): x is { arc: typeof arcs[number]; pa: { x: number; y: number }; pb: { x: number; y: number } } => x !== null);
   }, [arcs, icons, positionFor]);
