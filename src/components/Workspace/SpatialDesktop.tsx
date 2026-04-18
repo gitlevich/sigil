@@ -133,6 +133,7 @@ export function SpatialDesktop() {
   const [arcScope, setArcScope] = useState<ArcScope>("sentence");
   const [hoveredIcon, setHoveredIcon] = useState<{ icon: IconSpec; rect: DOMRect } | null>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef<boolean>(false);
 
   const folder = resolveCurrentFolder(ws);
 
@@ -346,6 +347,12 @@ export function SpatialDesktop() {
 
   const onIconPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
     if (!folder || !layout) return;
+    // Drag begins — contract the peek so it doesn't block the drag and
+    // doesn't keep reappearing as we move over other icons.
+    isDraggingRef.current = true;
+    setHoveredIcon(null);
+    if (hoverLeaveTimer.current) { clearTimeout(hoverLeaveTimer.current); hoverLeaveTimer.current = null; }
+
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     const start = positionFor(icon.name);
@@ -368,7 +375,7 @@ export function SpatialDesktop() {
       el.releasePointerCapture(e.pointerId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      // A tiny click without movement still counts as a drag event; no-op.
+      isDraggingRef.current = false;
       if (!moved) { /* click semantics live in onDoubleClick */ }
     };
     window.addEventListener("pointermove", onMove);
@@ -393,6 +400,7 @@ export function SpatialDesktop() {
   }, [cancelHoverLeave]);
 
   const onIconPointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
+    if (isDraggingRef.current) return; // suppress peek during a drag
     if (!icon.peek) return;
     if (!icon.peek.thesis && icon.peek.affordances.length === 0 && icon.peek.invariants.length === 0) return;
     cancelHoverLeave();
