@@ -1,13 +1,25 @@
 .slot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin: 0 0.35rem 0.85rem 0.1rem;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: transparent;
   flex-shrink: 0;
-  align-self: flex-end;
+  vertical-align: middle;
   transition: background 0.15s ease, opacity 0.3s ease;
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.inlineLabel {
+  white-space: nowrap;
 }
 
 .pulse {

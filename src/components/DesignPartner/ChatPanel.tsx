@@ -307,14 +307,17 @@ export function ChatPanel() {
          chat.chatMessages[chat.chatMessages.length - 1].role === "user" && (
           <div className={`${styles.message} ${styles.assistantMsg}`}>
             <div className={styles.messageRole}>AI</div>
-            <div className={styles.typing}>Thinking...</div>
+            <div className={styles.typing}>
+              {appState.resolutionIncrease === "in-flight" || appState.resolutionIncrease === "unserved"
+                ? <IncreaseResolutionDot variant="inline" />
+                : "Thinking..."}
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
       <div className={styles.inputArea}>
-        <IncreaseResolutionDot />
         <textarea
           ref={inputRef}
           className={styles.input}

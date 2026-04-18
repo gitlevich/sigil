@@ -352,20 +352,26 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
 
 /// Does this assistant utterance request #increase-resolution?
 ///
-/// The local @LeftHemisphere signals escalation by emitting the bare token
+/// The local @LeftHemisphere signals escalation by emitting the token
 /// `#increase-resolution`. Small local models aren't perfectly obedient —
-/// they sometimes surround the marker with a brief acknowledgment. We
-/// accept a standalone line or a short leading utterance, but not a long
+/// they sometimes surround the marker with a brief acknowledgment or
+/// explanation. We accept any utterance that contains the marker and is
+/// short enough to plausibly be "the marker plus preamble", but not a long
 /// reply that happens to mention the marker in passing.
 fn is_escalation_request(text: &str) -> bool {
     let trimmed = text.trim();
+    if !trimmed.contains("#increase-resolution") {
+        return false;
+    }
+    // Bare marker — always.
     if trimmed == "#increase-resolution" {
         return true;
     }
-    if trimmed.lines().any(|l| l.trim() == "#increase-resolution") && trimmed.len() < 200 {
-        return true;
-    }
-    false
+    // Marker embedded in a short utterance — treat as escalation request.
+    // Bound chosen to allow small-model preambles like "I need more
+    // resolution for this. #increase-resolution" but reject long replies
+    // that cite the term as a concept.
+    trimmed.len() < 400
 }
 
 #[tauri::command]
@@ -457,6 +463,10 @@ pub async fn send_chat_message(
         if let Ok(primary_text) = &result {
             if is_escalation_request(primary_text) {
                 let has_fallback = fallback_profile.is_some();
+                eprintln!(
+                    "[sigil:escalate] #increase-resolution detected (hasFallback={})",
+                    has_fallback,
+                );
                 let _ = app.emit(
                     "resolution-increase:begin",
                     serde_json::json!({ "hasFallback": has_fallback }),
@@ -501,6 +511,14 @@ pub async fn send_chat_message(
                     };
                 }
                 let _ = app.emit("resolution-increase:end", ());
+            } else if let Ok(primary_text) = &result {
+                // Local replied with real content (not the escalation marker).
+                // Local-tier streams are suppressed to keep the marker from
+                // flashing in the UI — flush the accumulated text now as one
+                // chunk so the user sees the answer.
+                if !primary_text.is_empty() {
+                    let _ = app.emit("chat-token", primary_text.clone());
+                }
             }
         }
     }
@@ -713,6 +731,12 @@ async fn stream_openai_compatible(
     // tools available. This matches Qwen's actual skill shape (strong
     // language perception, weak structured-output discipline).
     let tools_enabled = label != "local";
+    // Local output is buffered — not streamed to the chat UI — so the bare
+    // `#increase-resolution` marker never flashes as an assistant message.
+    // send_chat_message inspects the final text: if it's the marker, the
+    // fallback streams instead; otherwise the accumulated text is emitted
+    // as one chat-token at the end.
+    let stream_to_ui = label != "local";
     let openai_tools: Vec<serde_json::Value> = if tools_enabled {
         tools::tool_definitions()
             .iter()
@@ -802,7 +826,9 @@ async fn stream_openai_compatible(
             if let Some(text) = message["content"].as_str() {
                 if !text.is_empty() {
                     accumulated_text.push_str(text);
-                    let _ = app.emit("chat-token", text.to_string());
+                    if stream_to_ui {
+                        let _ = app.emit("chat-token", text.to_string());
+                    }
                 }
             }
 
@@ -840,7 +866,9 @@ async fn stream_openai_compatible(
         let text = message["content"].as_str().unwrap_or("");
         if !text.is_empty() {
             accumulated_text.push_str(text);
-            let _ = app.emit("chat-token", text.to_string());
+            if stream_to_ui {
+                let _ = app.emit("chat-token", text.to_string());
+            }
         }
 
         break;
