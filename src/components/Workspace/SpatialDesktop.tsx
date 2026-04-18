@@ -11,6 +11,7 @@
  */
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type IconKindForLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
@@ -130,6 +131,8 @@ export function SpatialDesktop() {
   const [mode, setMode] = useState<"inside" | "outside">("inside");
   const [scrollOpen, setScrollOpen] = useState<boolean>(false);
   const [arcScope, setArcScope] = useState<ArcScope>("sentence");
+  const [hoveredIcon, setHoveredIcon] = useState<{ icon: IconSpec; rect: DOMRect } | null>(null);
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const folder = resolveCurrentFolder(ws);
 
@@ -380,6 +383,23 @@ export function SpatialDesktop() {
     if (icon.navigateTo) navigate(icon.navigateTo);
   }, [navigate]);
 
+  const cancelHoverLeave = useCallback(() => {
+    if (hoverLeaveTimer.current) { clearTimeout(hoverLeaveTimer.current); hoverLeaveTimer.current = null; }
+  }, []);
+
+  const scheduleHoverLeave = useCallback(() => {
+    cancelHoverLeave();
+    hoverLeaveTimer.current = setTimeout(() => setHoveredIcon(null), 60);
+  }, [cancelHoverLeave]);
+
+  const onIconPointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
+    if (!icon.peek) return;
+    if (!icon.peek.thesis && icon.peek.affordances.length === 0 && icon.peek.invariants.length === 0) return;
+    cancelHoverLeave();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredIcon({ icon, rect });
+  }, [cancelHoverLeave]);
+
   return (
     <div className={styles.root}>
       {ascend && (
@@ -470,20 +490,16 @@ export function SpatialDesktop() {
         {icons.map((icon) => {
           const pos = positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
-          // Peek edge-anchor: flip to keep it visible when icon is near the
-          // canvas's left or right edge. PEEK_WIDTH is the peek's max-width.
-          const PEEK_HALF = 160;
-          const MARGIN = 12;
-          const nearLeft = pos.x - PEEK_HALF < MARGIN;
-          const nearRight = pos.x + PEEK_HALF > contentBounds.w - MARGIN;
-          const peekClass = nearLeft ? styles.peekLeft : nearRight ? styles.peekRight : "";
+          const isHovered = hoveredIcon?.icon.name === icon.name && hoveredIcon?.icon.kind === icon.kind;
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
-              className={styles.icon}
+              className={`${styles.icon} ${isHovered ? styles.hovered : ""}`}
               style={{ left: pos.x - w / 2, top: pos.y - h / 2 }}
               onPointerDown={(e) => onIconPointerDown(e, icon)}
               onDoubleClick={() => onIconDoubleClick(icon)}
+              onPointerEnter={(e) => onIconPointerEnter(e, icon)}
+              onPointerLeave={scheduleHoverLeave}
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
@@ -497,32 +513,86 @@ export function SpatialDesktop() {
                  initials(icon.name)}
               </div>
               <div className={styles.label}>{icon.name}</div>
-              {icon.peek && (icon.peek.thesis || icon.peek.affordances.length > 0 || icon.peek.invariants.length > 0) && (
-                <div className={`${styles.peek} ${peekClass}`}>
-                  <div className={styles.peekTitle}>{icon.name}</div>
-                  {icon.peek.thesis && <div className={styles.peekThesis}>{icon.peek.thesis}</div>}
-                  {icon.peek.affordances.length > 0 && (
-                    <div className={styles.peekSection}>
-                      {icon.peek.affordances.map((a) => (
-                        <span key={`aff:${a}`} className={`${styles.peekChip} ${styles.peekChipAff}`}>#{a}</span>
-                      ))}
-                    </div>
-                  )}
-                  {icon.peek.invariants.length > 0 && (
-                    <div className={styles.peekSection}>
-                      {icon.peek.invariants.map((i) => (
-                        <span key={`inv:${i}`} className={`${styles.peekChip} ${styles.peekChipInv}`}>!{i}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           );
         })}
       </div>
       </div>
+      {hoveredIcon && <FloatingPeek
+        icon={hoveredIcon.icon}
+        rect={hoveredIcon.rect}
+        onPeekEnter={cancelHoverLeave}
+        onPeekLeave={scheduleHoverLeave}
+      />}
     </div>
+  );
+}
+
+interface FloatingPeekProps {
+  icon: IconSpec;
+  rect: DOMRect;
+  onPeekEnter: () => void;
+  onPeekLeave: () => void;
+}
+
+/**
+ * Portal-rendered peek, positioned in viewport coordinates so it escapes the
+ * canvas/scrollArea clipping and flips vertically or horizontally to stay
+ * on-screen. Pointer-events auto so the cursor can rest on it without the
+ * hover state collapsing.
+ */
+function FloatingPeek({ icon, rect, onPeekEnter, onPeekLeave }: FloatingPeekProps) {
+  if (!icon.peek) return null;
+  const peek = icon.peek;
+  if (!peek.thesis && peek.affordances.length === 0 && peek.invariants.length === 0) return null;
+
+  const PEEK_WIDTH = 300;
+  const VIEWPORT_MARGIN = 12;
+  const GAP = 8;
+
+  const centerX = rect.left + rect.width / 2;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Horizontal: try centered; flip to left-anchor or right-anchor if it'd clip.
+  let left = centerX - PEEK_WIDTH / 2;
+  if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
+  else if (left + PEEK_WIDTH > vw - VIEWPORT_MARGIN) left = vw - VIEWPORT_MARGIN - PEEK_WIDTH;
+
+  // Vertical: below by default; flip above if not enough room below.
+  const spaceBelow = vh - rect.bottom - GAP;
+  const belowTop = rect.bottom + GAP;
+  const aboveBottom = rect.top - GAP;
+  const flipUp = spaceBelow < 200 && aboveBottom > 200;
+  const topStyle = flipUp
+    ? { bottom: vh - aboveBottom, top: "auto" as const }
+    : { top: belowTop, bottom: "auto" as const };
+
+  return createPortal(
+    <div
+      className={styles.peek}
+      style={{ left, width: PEEK_WIDTH, ...topStyle }}
+      onPointerEnter={onPeekEnter}
+      onPointerLeave={onPeekLeave}
+    >
+      <div className={styles.peekTitle}>{icon.name}</div>
+      {peek.thesis && <div className={styles.peekThesis}>{peek.thesis}</div>}
+      {peek.affordances.length > 0 && (
+        <div className={styles.peekSection}>
+          {peek.affordances.map((a) => (
+            <span key={`aff:${a}`} className={`${styles.peekChip} ${styles.peekChipAff}`}>#{a}</span>
+          ))}
+        </div>
+      )}
+      {peek.invariants.length > 0 && (
+        <div className={styles.peekSection}>
+          {peek.invariants.map((i) => (
+            <span key={`inv:${i}`} className={`${styles.peekChip} ${styles.peekChipInv}`}>!{i}</span>
+          ))}
+        </div>
+      )}
+    </div>,
+    document.body
   );
 }
 

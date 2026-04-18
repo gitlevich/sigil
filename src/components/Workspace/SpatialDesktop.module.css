@@ -253,7 +253,8 @@
   transition: none;
 }
 
-.icon:hover {
+.icon:hover,
+.icon.hovered {
   transform: scale(1.04);
   filter: brightness(1.05);
 }
@@ -508,47 +509,25 @@
   opacity: 1;
 }
 
-/* Peek panel — floats near an icon on hover, showing the target sigil's
- * thesis sentence plus its #affordances and !invariants as chips. */
+/* Peek panel — portal-rendered at document.body, fixed-positioned in
+ * viewport coordinates, so it escapes every scrollable ancestor. React
+ * state drives visibility; no CSS :hover. */
 .peek {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  /* Keep the peek within the viewport: translate by -50% to center, but
-   * anchored inside the icon so flicker doesn't strand the cursor. */
-  transform: translateX(-50%);
-  min-width: 220px;
-  max-width: 320px;
+  position: fixed;
   padding: 8px 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  opacity: 0;
-  /* pointer-events auto so hovering the peek itself keeps .icon:hover alive
-   * (descendant counts). Without this, moving the cursor from glyph toward
-   * peek passes through a pointer-events:none zone, hover drops, peek
-   * vanishes — hence the enter-then-immediately-off flicker. */
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
   pointer-events: auto;
-  transition: opacity 80ms ease-out;
-  z-index: 30;
+  z-index: 1000;
   text-align: left;
+  animation: peekIn 80ms ease-out both;
 }
 
-.icon:hover .peek {
-  opacity: 1;
-}
-
-/* Edge-aware anchoring so the peek never clips off the viewport. */
-.peekLeft {
-  left: 0;
-  transform: none;
-}
-
-.peekRight {
-  left: auto;
-  right: 0;
-  transform: none;
+@keyframes peekIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .peekTitle {
