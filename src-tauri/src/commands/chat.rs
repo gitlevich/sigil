@@ -350,6 +350,24 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
     }
 }
 
+/// Does this assistant utterance request #increase-resolution?
+///
+/// The local @LeftHemisphere signals escalation by emitting the bare token
+/// `#increase-resolution`. Small local models aren't perfectly obedient —
+/// they sometimes surround the marker with a brief acknowledgment. We
+/// accept a standalone line or a short leading utterance, but not a long
+/// reply that happens to mention the marker in passing.
+fn is_escalation_request(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed == "#increase-resolution" {
+        return true;
+    }
+    if trimmed.lines().any(|l| l.trim() == "#increase-resolution") && trimmed.len() < 200 {
+        return true;
+    }
+    false
+}
+
 #[tauri::command]
 pub async fn send_chat_message(
     app: AppHandle,
@@ -357,6 +375,7 @@ pub async fn send_chat_message(
     chat_id: String,
     message: String,
     profile: AiProfile,
+    fallback_profile: Option<AiProfile>,
     system_prompt: String,
     current_path: Vec<String>,
     local: tauri::State<'_, crate::commands::local_inference::LocalInference>,
@@ -380,10 +399,15 @@ pub async fn send_chat_message(
     } else {
         assemble_sigil_context(&root_path, &current_path).unwrap_or_default()
     };
-    let system_prompt = if sigil_context.is_empty() {
-        base_prompt
+    let local_escalation_hint = if is_local_tier {
+        "\n\nYou are the local face of the @LeftHemisphere. Your responsibility is perception and articulation — reading, sensing, describing. You do NOT have tools; you cannot act on the world from here.\n\nWhen a turn would require acting (navigating, selecting, writing, renaming, deleting, moving, creating), OR when the signal exceeds what you can articulate well locally, respond with exactly this single token on a line by itself:\n\n#increase-resolution\n\nNothing else. A larger model with tools will take the turn and act. Use this freely for any action request; use it sparingly for hard perception. If you can answer from perception alone, do."
     } else {
-        format!("{}\n\n{}", base_prompt, sigil_context)
+        ""
+    };
+    let system_prompt = if sigil_context.is_empty() {
+        format!("{}{}", base_prompt, local_escalation_hint)
+    } else {
+        format!("{}\n\n{}{}", base_prompt, sigil_context, local_escalation_hint)
     };
 
     // The frontend writes the user message into chat.json before calling us,
@@ -419,11 +443,67 @@ pub async fn send_chat_message(
     // Race the stream against a cancel signal. If the user clicks Stop,
     // cancel_rx resolves, we drop the dispatch future, which closes the
     // HTTP connection and ends inference in the provider.
-    let result: Result<String, String> = tokio::select! {
+    let mut result: Result<String, String> = tokio::select! {
         biased;
         _ = cancel_rx => Err("cancelled by user".into()),
         r = dispatch_fut => r,
     };
+
+    // #increase-resolution — the @LeftHemisphere signals that the signal
+    // exceeded its local capacity. One voice reaches the @user either way:
+    // if a fallback profile is configured we swap, otherwise the attempt is
+    // visible but nothing runs at higher resolution.
+    if is_local_tier {
+        if let Ok(primary_text) = &result {
+            if is_escalation_request(primary_text) {
+                let has_fallback = fallback_profile.is_some();
+                let _ = app.emit(
+                    "resolution-increase:begin",
+                    serde_json::json!({ "hasFallback": has_fallback }),
+                );
+
+                if let Some(fallback) = fallback_profile {
+                    // Replace the primary's in-flight utterance in the UI; it
+                    // was only the marker. The fallback's stream becomes the
+                    // assistant turn.
+                    let _ = app.emit("chat-reset-assistant", ());
+                    let remote_sigil_context = if matches!(fallback.provider, AiProvider::Local | AiProvider::Ollama) {
+                        String::new()
+                    } else {
+                        assemble_sigil_context(&root_path, &current_path).unwrap_or_default()
+                    };
+                    let remote_system_prompt = if remote_sigil_context.is_empty() {
+                        base_prompt.clone()
+                    } else {
+                        format!("{}\n\n{}", base_prompt, remote_sigil_context)
+                    };
+                    let fallback_cancel = abort.begin().await;
+                    let fallback_fut = async {
+                        match fallback.provider {
+                            AiProvider::Anthropic => {
+                                stream_anthropic(&app, &history, &fallback, &remote_system_prompt, &editor_ctx, dispatcher.inner()).await
+                            }
+                            AiProvider::OpenAI => {
+                                stream_openai(&app, &history, &fallback, &remote_system_prompt, &editor_ctx, dispatcher.inner()).await
+                            }
+                            AiProvider::Local => {
+                                stream_local(&app, &history, &remote_system_prompt, &editor_ctx, local.inner().clone(), dispatcher.inner()).await
+                            }
+                            AiProvider::Ollama => {
+                                stream_ollama(&app, &history, &fallback, &remote_system_prompt, &editor_ctx, dispatcher.inner()).await
+                            }
+                        }
+                    };
+                    result = tokio::select! {
+                        biased;
+                        _ = fallback_cancel => Err("cancelled by user".into()),
+                        r = fallback_fut => r,
+                    };
+                }
+                let _ = app.emit("resolution-increase:end", ());
+            }
+        }
+    }
 
     abort.finish().await;
 
@@ -625,31 +705,33 @@ async fn stream_openai_compatible(
     dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
-    let tool_defs = tools::tool_definitions();
     let mut accumulated_text = String::new();
 
-    let openai_tools: Vec<serde_json::Value> = tool_defs
-        .iter()
-        .map(|t| serde_json::json!({
-            "type": "function",
-            "function": {
-                "name": t["name"],
-                "description": t["description"],
-                "parameters": t["input_schema"],
-            }
-        }))
-        .collect();
-
-    // Force the function-calling protocol explicitly. Small local models
-    // (Qwen 7B in particular) sometimes write "*Using tool: X*" as prose
-    // instead of emitting a real tool_calls JSON — the UI renders the prose,
-    // the user thinks the tool ran, and nothing actually executes.
-    let tool_use_rule =
-        "\n\nTool-use protocol: when a tool can accomplish what the user asks, you MUST invoke it via the function-calling API (emit tool_calls). Never describe a tool call in prose. Never write 'Using tool: X' as text content. If you write about a tool instead of calling it, no tool runs and you are lying to the user. Only actual tool_calls in your response trigger execution.";
+    // Local @LeftHemisphere perceives and articulates — it does not act.
+    // Tools are not exposed to it. When a turn requires action, local emits
+    // #increase-resolution and the remote face of LH takes the turn with
+    // tools available. This matches Qwen's actual skill shape (strong
+    // language perception, weak structured-output discipline).
+    let tools_enabled = label != "local";
+    let openai_tools: Vec<serde_json::Value> = if tools_enabled {
+        tools::tool_definitions()
+            .iter()
+            .map(|t| serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["input_schema"],
+                }
+            }))
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let mut messages: Vec<serde_json::Value> = vec![serde_json::json!({
         "role": "system",
-        "content": format!("{}{}", system_prompt, tool_use_rule),
+        "content": system_prompt,
     })];
 
     for m in history {
@@ -659,22 +741,20 @@ async fn stream_openai_compatible(
         }));
     }
 
-    // Cap the agentic loop — both real tool-use rounds and hallucination
-    // retries count against the same budget so a misbehaving local model
-    // can't spin indefinitely.
+    // Cap the agentic loop so a misbehaving turn can't spin indefinitely.
     const MAX_ROUNDS: usize = 10;
-    let mut hallucination_retries = 0;
-    const MAX_HALLUCINATION_RETRIES: usize = 2;
 
     for round in 0..MAX_ROUNDS {
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "model": model,
             "messages": messages,
-            "tools": openai_tools,
         });
+        if tools_enabled {
+            body["tools"] = serde_json::Value::Array(openai_tools.clone());
+        }
         eprintln!(
-            "[{}] request round={} messages={} tools={}",
-            label, round, messages.len(), openai_tools.len(),
+            "[sigil:turn] → {} round={} msgs={} tools={}",
+            label, round, messages.len(), tools_enabled,
         );
 
         let mut req = client.post(url).header("Content-Type", "application/json");
@@ -700,19 +780,18 @@ async fn stream_openai_compatible(
         let has_tool_calls = message["tool_calls"].as_array()
             .map(|a| !a.is_empty())
             .unwrap_or(false);
-        let content_preview: String = message["content"]
-            .as_str()
-            .unwrap_or("")
-            .chars()
-            .take(200)
-            .collect();
-        eprintln!(
-            "[{}] response: tool_calls={} content_len={} content_preview={:?}",
-            label,
-            has_tool_calls,
-            message["content"].as_str().map(|s| s.len()).unwrap_or(0),
-            content_preview,
-        );
+        let content_len = message["content"].as_str().map(|s| s.len()).unwrap_or(0);
+        if has_tool_calls {
+            let names: Vec<&str> = message["tool_calls"].as_array()
+                .map(|a| a.iter()
+                    .filter_map(|c| c["function"]["name"].as_str())
+                    .collect())
+                .unwrap_or_default();
+            eprintln!("[sigil:turn] ← {} tool_calls={:?} prose_len={}", label, names, content_len);
+        } else {
+            let preview: String = message["content"].as_str().unwrap_or("").chars().take(160).collect();
+            eprintln!("[sigil:turn] ← {} prose={:?}", label, preview);
+        }
 
         let tool_calls = message["tool_calls"]
             .as_array()
@@ -757,36 +836,8 @@ async fn stream_openai_compatible(
             continue;
         }
 
-        // No tool calls — emit text and finish. But first catch the
-        // small-model failure mode where the model describes a tool call
-        // in prose instead of emitting one. If we see that, push a clear
-        // correction message back as a user turn and retry.
+        // No tool calls — emit text and finish.
         let text = message["content"].as_str().unwrap_or("");
-        let looks_like_hallucinated_call = text.contains("*Using tool:")
-            || text.contains("<tool_call>")
-            || text.starts_with("Using tool:");
-        if looks_like_hallucinated_call {
-            if hallucination_retries >= MAX_HALLUCINATION_RETRIES {
-                eprintln!("[{}] hallucinated tool prose again, giving up after {} retries", label, hallucination_retries);
-                let honest = format!(
-                    "[Model refused to use the function-calling protocol after {} retries. No tool actually ran. Raw model output: {}]",
-                    hallucination_retries,
-                    text.chars().take(200).collect::<String>(),
-                );
-                accumulated_text.push_str(&honest);
-                let _ = app.emit("chat-token", honest);
-                break;
-            }
-            hallucination_retries += 1;
-            eprintln!("[{}] hallucinated tool prose detected (retry {}/{})", label, hallucination_retries, MAX_HALLUCINATION_RETRIES);
-            messages.push(message.clone());
-            messages.push(serde_json::json!({
-                "role": "user",
-                "content": "That was not a real tool call — you wrote about one in text but did not emit tool_calls. No tool ran. Please make the actual tool call using the function-calling protocol now, or tell me plainly you cannot.",
-            }));
-            continue;
-        }
-
         if !text.is_empty() {
             accumulated_text.push_str(text);
             let _ = app.emit("chat-token", text.to_string());

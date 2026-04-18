@@ -9,21 +9,64 @@
 
 use crate::commands::local_inference::LocalInference;
 use crate::models::settings::{AiProfile, AiProvider};
+use tauri::{AppHandle, Emitter};
+
+const ESCALATION_HINT: &str = "\n\nIf the signal exceeds your local capacity, respond with exactly `#increase-resolution` on its own line and nothing else. A larger model will take over.";
+
+fn is_escalation_request(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed == "#increase-resolution" {
+        return true;
+    }
+    trimmed.lines().any(|l| l.trim() == "#increase-resolution") && trimmed.len() < 200
+}
+
+async fn call_profile(
+    client: &reqwest::Client,
+    prompt: &str,
+    profile: &AiProfile,
+    local: &LocalInference,
+) -> Result<String, String> {
+    match profile.provider {
+        AiProvider::Anthropic => invoke_anthropic(client, prompt, profile).await,
+        AiProvider::OpenAI => invoke_openai(client, prompt, profile).await,
+        AiProvider::Local => local.invoke(prompt, 1024).await,
+        AiProvider::Ollama => invoke_ollama(client, prompt, profile).await,
+    }
+}
 
 #[tauri::command]
 pub async fn invoke_left_hemisphere(
+    app: AppHandle,
     prompt: String,
     profile: AiProfile,
+    fallback_profile: Option<AiProfile>,
     local: tauri::State<'_, LocalInference>,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
+    let is_local_tier = matches!(profile.provider, AiProvider::Local | AiProvider::Ollama);
+    let primary_prompt = if is_local_tier {
+        format!("{}{}", prompt, ESCALATION_HINT)
+    } else {
+        prompt.clone()
+    };
 
-    match profile.provider {
-        AiProvider::Anthropic => invoke_anthropic(&client, &prompt, &profile).await,
-        AiProvider::OpenAI => invoke_openai(&client, &prompt, &profile).await,
-        AiProvider::Local => local.invoke(&prompt, 1024).await,
-        AiProvider::Ollama => invoke_ollama(&client, &prompt, &profile).await,
+    let primary = call_profile(&client, &primary_prompt, &profile, local.inner()).await?;
+
+    if is_local_tier && is_escalation_request(&primary) {
+        let _ = app.emit(
+            "resolution-increase:begin",
+            serde_json::json!({ "hasFallback": fallback_profile.is_some() }),
+        );
+        let result = match fallback_profile {
+            Some(fallback) => call_profile(&client, &prompt, &fallback, local.inner()).await,
+            None => Ok(primary),
+        };
+        let _ = app.emit("resolution-increase:end", ());
+        return result;
     }
+
+    Ok(primary)
 }
 
 async fn invoke_ollama(

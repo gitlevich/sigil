@@ -317,6 +317,38 @@ export function SettingsDialog() {
             <button className={styles.addProfileBtn} onClick={addProvider}>
               + Add AI Provider
             </button>
+
+            {providers.filter((p) => p.enabled).length > 1 && (
+              <div className={styles.field} style={{ marginTop: "0.75rem" }}>
+                <label className={styles.label}>
+                  Higher-resolution fallback
+                </label>
+                <select
+                  className={styles.select}
+                  value={local.fallback_provider_id ?? ""}
+                  onChange={(e) =>
+                    setLocal({
+                      ...local,
+                      fallback_provider_id: e.target.value || undefined,
+                    })
+                  }
+                >
+                  <option value="">None — local attempt stays visible but unserved</option>
+                  {providers
+                    .filter((p) => p.enabled && p.id !== local.selected_provider_id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.provider === "anthropic" ? "Anthropic" : p.provider === "openai" ? "OpenAI" : p.provider === "ollama" ? "Ollama" : "Local"})
+                      </option>
+                    ))}
+                </select>
+                <p className={styles.styleHint}>
+                  When the active responder is a local model and it emits{" "}
+                  <code>#increase-resolution</code>, this provider takes the
+                  turn. A small dot by the chat input shows the attempt.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className={styles.section}>

@@ -9,6 +9,7 @@ import { useUpdater } from "./hooks/useUpdater";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
+import { useResolutionIncrease } from "./hooks/useResolutionIncrease";
 import { api, Idea } from "./tauri";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { WorkspaceShell } from "./WorkspaceShell";
@@ -40,6 +41,7 @@ export function App({ initialRootPath }: AppProps) {
   useUpdater();
   useFontZoom();
   useSelectAll();
+  useResolutionIncrease();
 
   const handleOpen = useCallback(async (rootPath: string, overrides: Record<string, unknown> = {}) => {
     const spec = await openDocument(rootPath);

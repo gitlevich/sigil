@@ -7,6 +7,7 @@ import { useChatStreamContext } from "../../state/ChatStreamContext";
 import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
+import { IncreaseResolutionDot } from "./IncreaseResolutionDot";
 import styles from "./ChatPanel.module.css";
 
 function draftKey(rootPath: string, chatId: string): string {
@@ -313,6 +314,7 @@ export function ChatPanel() {
       </div>
 
       <div className={styles.inputArea}>
+        <IncreaseResolutionDot />
         <textarea
           ref={inputRef}
           className={styles.input}

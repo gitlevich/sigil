@@ -34,6 +34,7 @@ interface FrameTickArgs {
   nameMisfits: NameMisfit[];
   compileErrors: RefError[];
   activeProvider: AiProvider | null;
+  fallbackProvider: AiProvider | null;
   onObservation: (text: string, exploration: boolean) => void;
 }
 
@@ -105,7 +106,7 @@ export function useFrameTick(args: FrameTickArgs) {
         dangles: current.compileErrors,
         exploration,
       });
-      const response = await api.invokeLeftHemisphere(prompt, provider);
+      const response = await api.invokeLeftHemisphere(prompt, provider, current.fallbackProvider ?? undefined);
       const text = (response || "").trim();
       if (text && text !== "SILENT") {
         current.onObservation(text, exploration);

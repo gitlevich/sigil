@@ -1,0 +1,32 @@
+.slot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 0.35rem 0.85rem 0.1rem;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  align-self: flex-end;
+  transition: background 0.15s ease, opacity 0.3s ease;
+}
+
+.pulse {
+  animation: pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.unserved {
+  animation: unservedFade 600ms ease-out forwards;
+  box-shadow: 0 0 4px currentColor;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.05); }
+}
+
+@keyframes unservedFade {
+  0%   { opacity: 1;   transform: scale(1); }
+  40%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(0.9); }
+}

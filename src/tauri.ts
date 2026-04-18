@@ -262,6 +262,11 @@ export function toDisplayShortcut(cmKey: string): string {
 export interface Settings {
   ai_providers: AiProvider[];
   selected_provider_id: string;
+  /**
+   * Provider the local @LeftHemisphere reaches for via #increase-resolution.
+   * Omitted → the attempt is visible but nothing runs at higher resolution.
+   */
+  fallback_provider_id?: string;
   system_prompt: string;
   response_style: ResponseStyle;
   keybindings: Keybindings;
@@ -269,6 +274,11 @@ export interface Settings {
 
 export function selectedProvider(settings: Settings): AiProvider | undefined {
   return settings.ai_providers.find((p) => p.id === settings.selected_provider_id);
+}
+
+export function fallbackProvider(settings: Settings): AiProvider | undefined {
+  if (!settings.fallback_provider_id) return undefined;
+  return settings.ai_providers.find((p) => p.id === settings.fallback_provider_id && p.enabled);
 }
 
 export function enabledProviders(settings: Settings): AiProvider[] {
@@ -354,8 +364,8 @@ export const api = {
   renameChat: (rootPath: string, chatId: string, newName: string) =>
     invoke<void>("rename_chat", { rootPath, chatId, newName }),
 
-  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, systemPrompt: string, currentPath: string[]) =>
-    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, systemPrompt, currentPath }),
+  sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, fallbackProfile: AiProvider | undefined, systemPrompt: string, currentPath: string[]) =>
+    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, fallbackProfile: fallbackProfile ?? null, systemPrompt, currentPath }),
   cancelChat: () => invoke<void>("cancel_chat"),
 
   /**
@@ -411,8 +421,8 @@ export const api = {
   listExperienceSessions: (workspacePath: string) =>
     invoke<string[]>("list_experience_sessions", { workspacePath }),
 
-  invokeLeftHemisphere: (prompt: string, profile: AiProvider) =>
-    invoke<string>("invoke_left_hemisphere", { prompt, profile }),
+  invokeLeftHemisphere: (prompt: string, profile: AiProvider, fallbackProfile?: AiProvider) =>
+    invoke<string>("invoke_left_hemisphere", { prompt, profile, fallbackProfile: fallbackProfile ?? null }),
 
   writeLongTermMemory: (workspacePath: string, json: string) =>
     invoke<void>("write_long_term_memory", { workspacePath, json }),
@@ -433,6 +443,20 @@ export const events = {
 
   onChatToolUse: (handler: (tool: { name: string; input: Record<string, unknown> }) => void): Promise<UnlistenFn> =>
     listen("chat-tool-use", (event) => handler(event.payload as { name: string; input: Record<string, unknown> })),
+
+  /**
+   * Mid-turn reset: the local @LeftHemisphere emitted #increase-resolution
+   * and a fallback took over. The in-flight assistant chunk should be
+   * discarded — the replacement stream starts fresh.
+   */
+  onChatResetAssistant: (handler: () => void): Promise<UnlistenFn> =>
+    listen("chat-reset-assistant", () => handler()),
+
+  onResolutionIncreaseBegin: (handler: (info: { hasFallback: boolean }) => void): Promise<UnlistenFn> =>
+    listen("resolution-increase:begin", (event) => handler(event.payload as { hasFallback: boolean })),
+
+  onResolutionIncreaseEnd: (handler: () => void): Promise<UnlistenFn> =>
+    listen("resolution-increase:end", () => handler()),
 
   onSigilChanged: (handler: () => void): Promise<UnlistenFn> =>
     listen("sigil-changed", () => handler()),

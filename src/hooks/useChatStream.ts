@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { api, events, ChatMessage, selectedProvider } from "../tauri";
+import { api, events, ChatMessage, selectedProvider, fallbackProvider } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import { useWorkspaceState, useWorkspaceActions } from "../state/WorkspaceContext";
 import { discardPendingAutoSave } from "./useAutoSave";
@@ -194,6 +194,20 @@ export function useChatStream() {
       }
     });
 
+    // #increase-resolution: local emitted the marker, fallback is taking
+    // over. Drop the in-flight assistant chunk so the replacement stream
+    // starts clean — one voice reaches the @user.
+    const unlistenResetAssistant = events.onChatResetAssistant(() => {
+      accumulatorRef.current = "";
+      const conv = chatRef.current;
+      const msgs = [...conv.chatMessages];
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.role === "assistant") {
+        msgs[msgs.length - 1] = { ...lastMsg, content: "" };
+        chatDispatch({ type: "SET_MESSAGES", messages: msgs });
+      }
+    });
+
     const unlistenEnd = events.onChatStreamEnd(() => {
       const ws = workspaceRef.current;
       const conv = chatRef.current;
@@ -234,6 +248,7 @@ export function useChatStream() {
       unlistenToolWriteVision.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
       unlistenNavigate.then((fn) => fn());
+      unlistenResetAssistant.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
   }, [chatDispatch]);
@@ -336,6 +351,7 @@ export function useChatStream() {
         chatId,
         message,
         provider,
+        fallbackProvider(appState.settings),
         systemPrompt,
         ws.currentPath
       );

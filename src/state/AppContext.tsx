@@ -18,6 +18,17 @@ export interface UIState {
 
 export type ThemePreference = "light" | "dark" | "system";
 
+/**
+ * Visible trace of the @LeftHemisphere's #increase-resolution attempt.
+ *
+ *  - "rest": local capacity was enough, or escalation is not happening.
+ *  - "unserved": local attempted, no fallback configured — the @user sees a
+ *    brief orange glow, nothing runs at higher resolution.
+ *  - "in-flight": fallback is handling the signal; glow pulses in the
+ *    fallback's accent color while the connection is live.
+ */
+export type ResolutionIncreaseState = "rest" | "unserved" | "in-flight";
+
 interface AppState {
   screen: "picker" | "workspace";
   settings: Settings;
@@ -26,6 +37,7 @@ interface AppState {
   helpOpen: boolean;
   themePreference: ThemePreference;
   ui: UIState;
+  resolutionIncrease: ResolutionIncreaseState;
 }
 
 type Action =
@@ -35,7 +47,8 @@ type Action =
   | { type: "SET_ABOUT_OPEN"; open: boolean }
   | { type: "SET_HELP_OPEN"; open: boolean }
   | { type: "SET_THEME"; theme: ThemePreference }
-  | { type: "SET_UI"; ui: Partial<UIState> };
+  | { type: "SET_UI"; ui: Partial<UIState> }
+  | { type: "SET_RESOLUTION_INCREASE"; value: ResolutionIncreaseState };
 
 export const DEFAULT_UI: UIState = {
   ontologyPanelWidth: 260,
@@ -57,6 +70,7 @@ const initialState: AppState = {
   helpOpen: false,
   themePreference: "system",
   ui: DEFAULT_UI,
+  resolutionIncrease: "rest",
 };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -75,6 +89,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, themePreference: action.theme };
     case "SET_UI":
       return { ...state, ui: { ...state.ui, ...action.ui } };
+    case "SET_RESOLUTION_INCREASE":
+      return { ...state, resolutionIncrease: action.value };
     default:
       return state;
   }

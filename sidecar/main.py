@@ -36,7 +36,10 @@ logging.basicConfig(
 )
 log = logging.getLogger("sigil-llm")
 
-# Qwen2.5-7B-Instruct Q4_K_M — ~4.4 GB, strong tool-calling support, runs at
+# Qwen2.5-7B-Instruct Q4_K_M — strong general-purpose small model. Used as
+# the local @LeftHemisphere: its role is perception and articulation, not
+# action. Tools are not exposed to it from the chat loop; when a turn needs
+# action, local emits #increase-resolution and the remote face of LH acts.
 # 15-25 tok/s on Apple Silicon via llama.cpp's Metal backend.
 MODEL_REPO = "bartowski/Qwen2.5-7B-Instruct-GGUF"
 MODEL_FILE = "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
@@ -82,9 +85,10 @@ def main() -> int:
         return 1
 
     endpoint = f"http://{HOST}:{PORT}"
-    # Qwen2.5 uses ChatML; chatml-function-calling adds proper tool-use
-    # support on top. --n_gpu_layers -1 pushes every layer onto Metal on
-    # Apple Silicon.
+    # Qwen2.5 uses ChatML; the chatml-function-calling format is a superset
+    # that handles tool schemas gracefully even when we don't send tools —
+    # which is the local-LH default. --n_gpu_layers -1 pushes every layer
+    # onto Metal on Apple Silicon.
     cmd = [
         sys.executable,
         "-m",
@@ -95,14 +99,21 @@ def main() -> int:
         "--n_ctx", "8192",
         "--n_gpu_layers", "-1",
         "--chat_format", "chatml-function-calling",
+        # Quiet llama.cpp's per-request timing dumps. The sidecar only needs
+        # failures visible; sigil-side logs carry the turn lifecycle.
+        "--verbose", "false",
     ]
     log.info("starting server: %s", " ".join(cmd))
 
+    # Quiet llama.cpp (GGML/llama) stdout+stderr. These come from the C++ side
+    # and bypass Python's logging; redirecting the pipes is the only control.
+    env = {**os.environ, "GGML_LOG_LEVEL": "error", "LLAMA_LOG_LEVEL": "error"}
     proc = subprocess.Popen(
         cmd,
         stdout=sys.stderr,
         stderr=sys.stderr,
         start_new_session=False,
+        env=env,
     )
 
     try:

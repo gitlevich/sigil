@@ -9,7 +9,7 @@
  * WorkspaceShell — the interface is the same, the internals are now bicameral.
  */
 import { useRef, useEffect, useCallback } from "react";
-import { api, selectedProvider } from "../tauri";
+import { api, selectedProvider, fallbackProvider } from "../tauri";
 import type { Idea } from "../tauri";
 import { useAppState } from "../state/AppContext";
 import type { Mind } from "sigil-core/bicameralMind";
@@ -196,7 +196,7 @@ export function useRightHemisphere(spec: Idea, currentPath: string[], callbacks?
       const provider = selectedProvider(settingsRef.current);
       if (provider) {
         console.info("[BicameralMind] Gate passed — invoking LeftHemisphere");
-        api.invokeLeftHemisphere(result.prompt, provider).then(response => {
+        api.invokeLeftHemisphere(result.prompt, provider, fallbackProvider(settingsRef.current)).then(response => {
           const [turnResult, afterTurn] = completeTurn(
             mindRef.current!, response, newSpec.root, newSpec.importedOntologies ?? null,
           );

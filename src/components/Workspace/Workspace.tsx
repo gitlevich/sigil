@@ -21,7 +21,7 @@ import { useHearing, type HearingEvent } from "../../hooks/useHearing";
 import { useSpellbook } from "../../hooks/useSpellbook";
 import { useDPCurated } from "../../hooks/useDPCurated";
 import { useFrameTick } from "../../hooks/useFrameTick";
-import { selectedProvider } from "../../tauri";
+import { selectedProvider, fallbackProvider } from "../../tauri";
 import { useExperience } from "../../state/ExperienceContext";
 import { ObservationChip, type Observation } from "../DesignPartner/ObservationChip";
 import { SigilFolder, DEFAULT_KEYBINDINGS } from "../../tauri";
@@ -354,6 +354,7 @@ export function Workspace() {
     nameMisfits,
     compileErrors: compileResult.errors,
     activeProvider: selectedProvider(appState.settings) ?? null,
+    fallbackProvider: fallbackProvider(appState.settings) ?? null,
     onObservation: (text, exploration) => {
       experience.recordObservation(text, exploration);
       setChipObservation({
