@@ -10,14 +10,13 @@ import {
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { SigilFolder } from "../../tauri";
-import { colorForSigilName } from "../../lib/sigilColor";
 import {
-  resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
-  flattenName, fromDashForm, buildNameIndex,
+  resolveRefName, nameMatches, findAffordance, findInvariantInScope, findAffordanceInScope,
+  fromDashForm, buildNameIndex,
   resolve,
   allRefsPattern, isInCodeSpan,
 } from "sigil-core";
-import type { ScopeKind } from "sigil-core";
+import type { NameIndex, ScopeKind } from "sigil-core";
 
 export interface ScopeEntry {
   name: string;
@@ -36,7 +35,7 @@ export interface ScopeEntry {
 export interface EditorScope {
   scope: ScopeEntry[];
   scopeNames: string[];
-  nameIndex: Map<string, string>;
+  nameIndex: NameIndex;
   sigilRoot: SigilFolder | null;
   importedOntologies: SigilFolder | null;
   currentContext: SigilFolder | null;
@@ -76,22 +75,7 @@ export function getGlobalCurrentPath() { return editorScope.currentPath; }
 
 // ── Decoration marks ──
 
-/**
- * Cache per-child color marks so identical references reuse the same
- * Decoration instance across rebuilds.
- */
-const childColorMarkCache = new Map<string, Decoration>();
-function childColorMark(childName: string): Decoration {
-  let mark = childColorMarkCache.get(childName);
-  if (mark) return mark;
-  const color = colorForSigilName(childName);
-  mark = Decoration.mark({
-    class: "cm-ref-contained cm-ref-child-colored",
-    attributes: { style: `color: ${color}; border-bottom-color: ${color};` },
-  });
-  childColorMarkCache.set(childName, mark);
-  return mark;
-}
+const containedMark = Decoration.mark({ class: "cm-ref-contained" });
 const siblingMark = Decoration.mark({ class: "cm-ref-sibling" });
 const libMark = Decoration.mark({ class: "cm-ref-lib" });
 const unresolvedMark = Decoration.mark({ class: "cm-ref-unresolved" });
@@ -134,15 +118,13 @@ export function extractSummary(domainLanguage: string): string {
 }
 
 export function findInScope(name: string): ScopeEntry | undefined {
-  const fast = editorScope.nameIndex.get(name.toLowerCase()) ?? editorScope.nameIndex.get(flattenName(name));
-  if (fast) return editorScope.scope.find((s) => s.name === fast);
-  const canonical = resolveRefName(name, editorScope.scopeNames);
+  const canonical = resolveRefName(name, editorScope.nameIndex);
   return canonical ? editorScope.scope.find((s) => s.name === canonical) : undefined;
 }
 
 export function walkTree(segments: string[], ctx: SigilFolder): string[] | null {
   if (segments.length === 0) return [];
-  const canonical = resolveRefName(segments[0], ctx.children.map((c) => c.name));
+  const canonical = resolveRefName(segments[0], buildNameIndex(ctx.children.map((c) => c.name)));
   if (!canonical) return null;
   const child = ctx.children.find((c) => c.name === canonical)!;
   const rest = walkTree(segments.slice(1), child);
@@ -295,7 +277,11 @@ export function refCompletion(context: CompletionContext) {
 }
 
 function scopeCompletionBody(context: CompletionContext) {
-  const ancestorProps = collectAncestorProperties(editorScope.sigilRoot, editorScope.currentPath);
+  // Lazy: ancestor walk only fires when a #/! is actually at cursor. Previously
+  // this ran per keystroke regardless, which made typing feel heavy.
+  let ancestorPropsCache: ReturnType<typeof collectAncestorProperties> | null = null;
+  const ancestorProps = () =>
+    (ancestorPropsCache ??= collectAncestorProperties(editorScope.sigilRoot, editorScope.currentPath));
 
   // Case 0: standalone #partial — offer affordances
   const standaloneHash = context.matchBefore(context.explicit ? /#(?:[a-zA-Z_][\w-]*)?/ : /#[a-zA-Z_][\w-]*/);
@@ -304,10 +290,11 @@ function scopeCompletionBody(context: CompletionContext) {
     const colOfHash = standaloneHash.from - context.state.doc.lineAt(standaloneHash.from).from;
     const charBefore = colOfHash > 0 ? lineText[colOfHash - 1] : "";
     const isAfterSigil = /[\w-]/.test(charBefore);
-    if (!isAfterSigil && ancestorProps.affordances.length > 0) {
+    const affs = ancestorProps().affordances;
+    if (!isAfterSigil && affs.length > 0) {
       return {
         from: standaloneHash.from + 1,
-        options: ancestorProps.affordances.map((a) => {
+        options: affs.map((a) => {
           const dash = toDashForm(a.name);
           return {
             label: dash,
@@ -328,10 +315,11 @@ function scopeCompletionBody(context: CompletionContext) {
     const colOfBang = standaloneBang.from - context.state.doc.lineAt(standaloneBang.from).from;
     const charBefore = colOfBang > 0 ? lineText[colOfBang - 1] : "";
     const isAfterWord = /[\w-]/.test(charBefore);
-    if (!isAfterWord && ancestorProps.invariants.length > 0) {
+    const invs = ancestorProps().invariants;
+    if (!isAfterWord && invs.length > 0) {
       return {
         from: standaloneBang.from + 1,
-        options: ancestorProps.invariants.map((d) => {
+        options: invs.map((d) => {
           const dash = toDashForm(d.name);
           return {
             label: dash,
@@ -564,7 +552,11 @@ export function buildCollapsibleFrontmatter() {
 
   const decorations = StateField.define<DecorationSet>({
     create(state) { return buildDecos(state, true); },
-    update(_, tr) {
+    update(value, tr) {
+      // Pure selection/view transactions don't touch the frontmatter; keep the
+      // prior decoration set instead of rebuilding each keystroke's tail effects.
+      const collapseToggled = tr.effects.some((e) => e.is(toggleFrontmatter));
+      if (!tr.docChanged && !collapseToggled) return value;
       return buildDecos(tr.state, tr.state.field(collapsed));
     },
     provide: (f) => EditorView.decorations.from(f),
@@ -632,7 +624,7 @@ export function findRefAtCursor(view: EditorView): { name: string; from: number;
     const to = from + match[0].length;
     if (pos >= from && pos <= to) {
       const raw = match[1];
-      const canonical = resolveRefName(raw, editorScope.scope.map((s) => s.name));
+      const canonical = resolveRefName(raw, editorScope.nameIndex);
       const known = canonical !== undefined;
       return { name: canonical ?? raw, from, known };
     }
@@ -734,21 +726,12 @@ export function buildScopeHighlighter(
                 if (propIdx === -1) {
                   const resolution = resolveFromEditor(matchText);
                   let mark: Decoration;
-                  if (resolution.kind === "contained") {
-                    // Per-child color-signature: tint the @Child's name with the child's own hue.
-                    const childName = matchText.slice(1); // strip leading '@'
-                    mark = childColorMark(childName);
-                  } else if (resolution.kind === "sibling") {
-                    mark = siblingMark;
-                  } else if (resolution.kind === "lib") {
-                    mark = libMark;
-                  } else if (resolution.kind === "absolute") {
-                    mark = absoluteMark;
-                  } else if (resolution.kind === "external") {
-                    mark = externalMark;
-                  } else {
-                    mark = unresolvedMark;
-                  }
+                  if (resolution.kind === "contained") mark = containedMark;
+                  else if (resolution.kind === "sibling") mark = siblingMark;
+                  else if (resolution.kind === "lib") mark = libMark;
+                  else if (resolution.kind === "absolute") mark = absoluteMark;
+                  else if (resolution.kind === "external") mark = externalMark;
+                  else mark = unresolvedMark;
                   builder.add(abs, abs + matchText.length, mark);
                 } else {
                   const propChar = matchText[propIdx];
@@ -757,36 +740,17 @@ export function buildScopeHighlighter(
                   const targetCtx = resolve(editorScope.sigilRoot!, editorScope.currentPath, sigilRef, editorScope.importedOntologies)?.target as SigilFolder | null;
                   let propExists = false;
                   if (targetCtx) {
-                    if (propChar === "#") {
-                      propExists = !!findAffordance(targetCtx, propName);
-                    } else {
-                      propExists = targetCtx.invariants.some((inv) => inv.name === propName || inv.name === fromDashForm(propName));
-                    }
+                    if (propChar === "#") propExists = !!findAffordance(targetCtx, propName);
+                    else propExists = targetCtx.invariants.some((inv) => inv.name === propName || inv.name === fromDashForm(propName));
                   }
                   const mark = propExists ? (propChar === "!" ? invariantMark : affordanceMark) : unresolvedMark;
                   builder.add(abs, abs + matchText.length, mark);
                 }
               } else if (matchText.startsWith("!")) {
-                const invariantName = matchText.slice(1);
-                const invariantExists = findInvariantFromEditor(invariantName) !== null;
-                if (!invariantExists) {
-                  console.warn("[sigil-debug] Unresolved invariant:", invariantName,
-                    "| root:", editorScope.sigilRoot?.name,
-                    "| path:", editorScope.currentPath,
-                    "| ctx invariants:", editorScope.currentContext?.invariants?.map((i: {name: string}) => i.name),
-                  );
-                }
+                const invariantExists = findInvariantFromEditor(matchText.slice(1)) !== null;
                 builder.add(abs, abs + matchText.length, invariantExists ? invariantMark : unresolvedMark);
               } else {
-                const affName = matchText.slice(1);
-                const affExists = findAffordanceFromEditor(affName) !== null;
-                if (!affExists) {
-                  console.warn("[sigil-debug] Unresolved affordance:", affName,
-                    "| root:", editorScope.sigilRoot?.name,
-                    "| path:", editorScope.currentPath,
-                    "| ctx affordances:", editorScope.currentContext?.affordances?.map((a: {name: string}) => a.name),
-                  );
-                }
+                const affExists = findAffordanceFromEditor(matchText.slice(1)) !== null;
                 builder.add(abs, abs + matchText.length, affExists ? affordanceMark : unresolvedMark);
               }
             }
@@ -1262,7 +1226,7 @@ export function findAllReferencesInTree(ctx: SigilFolder, symbolName: string, pa
       } else {
         refName = fromDashForm(text.slice(1));
       }
-      if (flattenName(refName) === flattenName(symbolName) || resolveRefName(refName, [symbolName]) !== undefined) {
+      if (nameMatches(refName, symbolName)) {
         results.push({ contextName: ctx.name, contextPath: path, line: line.trim() });
         break;
       }

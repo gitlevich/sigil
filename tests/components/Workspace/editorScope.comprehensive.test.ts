@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { CompletionContext } from "@codemirror/autocomplete";
+import { buildNameIndex } from "sigil-core";
 import type { SigilFolder } from "../../../src/tauri";
 import {
   getEditorScope,
@@ -115,11 +116,10 @@ describe("editor context accessors", () => {
 
 describe("findInScope", () => {
   beforeEach(() => {
-    const nameIndex = new Map([["observer", "Observer"], ["lexicalscope", "LexicalScope"]]);
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }, { name: "LexicalScope", summary: "scope" }],
       scopeNames: ["Observer", "LexicalScope"],
-      nameIndex,
+      nameIndex: buildNameIndex(["Observer", "LexicalScope"]),
       sigilRoot: null, importedOntologies: null, currentContext: null, currentPath: [],
     });
   });
@@ -353,7 +353,7 @@ describe("findRefAtCursor", () => {
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
-      nameIndex: new Map([["observer", "Observer"]]),
+      nameIndex: buildNameIndex(["Observer"]),
       sigilRoot: root,
       currentContext: root,
       currentPath: [],

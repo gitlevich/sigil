@@ -214,11 +214,10 @@ describe("fromDashForm", () => {
 // ── buildNameIndex ──
 
 describe("buildNameIndex", () => {
-  it("maps lowercase and flattened forms to canonical names", () => {
+  it("registers every canonical under its flattened form", () => {
     const idx = buildNameIndex(["Hello World", "FooBar"]);
-    expect(idx.get("hello world")).toBe("Hello World");
-    expect(idx.get("helloworld")).toBe("Hello World");
-    expect(idx.get("foobar")).toBe("FooBar");
+    expect(idx.get("helloworld")).toEqual(["Hello World"]);
+    expect(idx.get("foobar")).toEqual(["FooBar"]);
   });
 
   it("empty input yields empty map", () => {
@@ -229,55 +228,50 @@ describe("buildNameIndex", () => {
 // ── resolveRefName ──
 
 describe("resolveRefName", () => {
-  const names = ["Observer", "Collapse", "beauty", "Attend"];
+  const index = buildNameIndex(["Observer", "Collapse", "beauty", "Attend"]);
 
   it("exact match (case-insensitive)", () => {
-    expect(resolveRefName("observer", names)).toBe("Observer");
+    expect(resolveRefName("observer", index)).toBe("Observer");
   });
 
   it("flattened match", () => {
-    expect(resolveRefName("OBSERVER", names)).toBe("Observer");
+    expect(resolveRefName("OBSERVER", index)).toBe("Observer");
   });
 
   it("plural -ies to -y", () => {
-    // "beauties" → "beauty"
-    expect(resolveRefName("beauties", ["beauty"])).toBe("beauty");
+    expect(resolveRefName("beauties", buildNameIndex(["beauty"]))).toBe("beauty");
   });
 
   it("plural -s", () => {
-    expect(resolveRefName("Observers", names)).toBe("Observer");
+    expect(resolveRefName("Observers", index)).toBe("Observer");
   });
 
-  it("past tense -ed", () => {
-    // "Collapsed" → "Collapse" (strip -d)
-    expect(resolveRefName("Collapsed", names)).toBe("Collapse");
+  it("past tense -ed (ends in e)", () => {
+    expect(resolveRefName("Collapsed", index)).toBe("Collapse");
   });
 
-  it("past tense -ed (strip -ed)", () => {
-    // "Attended" → "Attend" (strip -ed)
-    expect(resolveRefName("Attended", names)).toBe("Attend");
+  it("past tense -ed (consonant stem)", () => {
+    expect(resolveRefName("Attended", index)).toBe("Attend");
   });
 
-  it("present continuous -ing", () => {
-    // "Collapsing" → "Collapse" (strip -ing, add -e)
-    expect(resolveRefName("Collapsing", names)).toBe("Collapse");
+  it("present continuous -ing (ends in e)", () => {
+    expect(resolveRefName("Collapsing", index)).toBe("Collapse");
   });
 
-  it("present continuous -ing (direct strip)", () => {
-    // "Attending" → "Attend" (strip -ing)
-    expect(resolveRefName("Attending", names)).toBe("Attend");
+  it("present continuous -ing (consonant stem)", () => {
+    expect(resolveRefName("Attending", index)).toBe("Attend");
   });
 
   it("adjective -iful to -y", () => {
-    expect(resolveRefName("beautiful", names)).toBe("beauty");
+    expect(resolveRefName("beautiful", index)).toBe("beauty");
   });
 
   it("noun -y to adjective -iful", () => {
-    expect(resolveRefName("beauty", ["beautiful"])).toBe("beautiful");
+    expect(resolveRefName("beauty", buildNameIndex(["beautiful"]))).toBe("beautiful");
   });
 
   it("returns undefined for unknown", () => {
-    expect(resolveRefName("Unknown", names)).toBeUndefined();
+    expect(resolveRefName("Unknown", index)).toBeUndefined();
   });
 });
 

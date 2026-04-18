@@ -312,7 +312,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
         autocompletion({
           override: [scopeCompletion],
           activateOnTyping: true,
-          activateOnTypingDelay: 0,
+          activateOnTypingDelay: 150,
         }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -599,8 +599,24 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     // base===null path falls through: no snapshot tracked (e.g., in tests or transient states),
     // so we accept the content prop. This matches pre-reconcile behavior.
 
+    // Absolute integrity: never blow the editor away under a live cursor. If the
+    // editor is focused, skip the silent adopt — the user is inside this buffer.
+    // The next keystroke will re-dispatch and the sync settles on pause.
+    if (view.hasFocus) return;
+
+    // Minimal diff — preserves caret and scroll through CodeMirror's position
+    // mapping. A full { from:0, to:end } replace resets the caret to 0 and can
+    // appear as "my last edit vanished" under upstream races.
+    let prefix = 0;
+    const maxCommon = Math.min(currentDoc.length, content.length);
+    while (prefix < maxCommon && currentDoc.charCodeAt(prefix) === content.charCodeAt(prefix)) prefix++;
+    let oldEnd = currentDoc.length;
+    let newEnd = content.length;
+    while (oldEnd > prefix && newEnd > prefix && currentDoc.charCodeAt(oldEnd - 1) === content.charCodeAt(newEnd - 1)) {
+      oldEnd--; newEnd--;
+    }
     view.dispatch({
-      changes: { from: 0, to: currentDoc.length, insert: content },
+      changes: { from: prefix, to: oldEnd, insert: content.slice(prefix, newEnd) },
       annotations: [Transaction.addToHistory.of(false)],
     });
     if (filePath) setBase(filePath, content);

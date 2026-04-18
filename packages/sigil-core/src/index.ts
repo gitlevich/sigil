@@ -1,14 +1,18 @@
 export type { Affordance, Invariant, Sigil, Context } from "./types";
 export { findContext, buildBreadcrumb, flattenPaths, buildPath, makeSummary } from "./tree";
 export { stripFrontmatter } from "./frontmatter";
-export type { Ref } from "./refs";
+export type { NameIndex, Ref } from "./refs";
 export {
   flattenName,
   fromDashForm,
+  inflectionsOf,
+  nameMatches,
   buildNameIndex,
   resolveRefName,
   resolveRefNameAll,
   findAffordance,
+  findChildrenByName,
+  findDescendantsByName,
   findInvariantInScope,
   findAffordanceInScope,
   buildLexicalScope,

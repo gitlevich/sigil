@@ -33,3 +33,4 @@ A @sigil has recursive structure: it is contained inside its parent @sigil, is s
 
 **Door**: A @sigil is like a door: it affords entry into an unbounded world of another. A door can be named and recognized.
 **Predicate + Functor**: because the @invariants work like a predicate, and the @affordances as a function on the values expressed in terms of @contrasts the @sigil deems relevant.
+

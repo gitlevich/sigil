@@ -10,7 +10,7 @@ export interface Ref {
   navigateTo?: string;
 }
 
-/** Strip spaces, dashes, underscores and lowercase — for fuzzy sigil name matching. */
+/** Strip spaces, dashes, underscores and lowercase — the canonical lookup form. */
 export function flattenName(s: string): string {
   return s.toLowerCase().replace(/[\s\-_]+/g, "");
 }
@@ -20,140 +20,181 @@ export function fromDashForm(dashed: string): string {
   return dashed.replace(/-/g, " ");
 }
 
-/** Build an index mapping lowercased and flattened names to canonical names. */
-export function buildNameIndex(names: string[]): Map<string, string> {
-  const index = new Map<string, string>();
-  for (const n of names) {
-    index.set(n.toLowerCase(), n);
-    index.set(flattenName(n), n);
+/**
+ * All written forms that should resolve to this canonical name:
+ * the name itself, its plural, its verb conjugations, and its adjective/noun
+ * dual. Returned flattened, so a single {@link flattenName} on the lookup key
+ * is enough to match. Computed once per canonical at registration time;
+ * recognition then never inflects.
+ */
+export function inflectionsOf(canonical: string): string[] {
+  const lower = canonical.toLowerCase();
+  const forms = new Set<string>();
+  const add = (s: string) => forms.add(flattenName(s));
+  add(lower);
+  add(lower + "s");
+  if (lower.endsWith("y") && lower.length > 2) {
+    const stem = lower.slice(0, -1);
+    add(stem + "ies");
+    add(stem + "iful");
+  }
+  if (lower.endsWith("iful") && lower.length > 5) {
+    add(lower.slice(0, -4) + "y");
+  }
+  if (lower.endsWith("e")) {
+    add(lower + "d");
+    add(lower.slice(0, -1) + "ing");
+  } else {
+    add(lower + "ed");
+    add(lower + "ing");
+  }
+  return [...forms];
+}
+
+/**
+ * Map from any recognized written form to the canonical(s) that registered it.
+ * Multi-valued: ambiguity is the shape of the data, not a separate concern.
+ */
+export type NameIndex = Map<string, string[]>;
+
+export function buildNameIndex(canonicalNames: string[]): NameIndex {
+  const index: NameIndex = new Map();
+  for (const canonical of canonicalNames) {
+    for (const form of inflectionsOf(canonical)) {
+      const list = index.get(form);
+      if (list) {
+        if (!list.includes(canonical)) list.push(canonical);
+      } else {
+        index.set(form, [canonical]);
+      }
+    }
   }
   return index;
 }
 
-/** Resolve a (possibly inflected) ref name to the canonical name, or undefined if unknown. */
-export function resolveRefName(refName: string, knownNames: string[]): string | undefined {
-  const lower = refName.toLowerCase();
-  let match = knownNames.find((n) => n.toLowerCase() === lower);
-  if (match) return match;
-
-  const flat = flattenName(refName);
-  match = knownNames.find((n) => flattenName(n) === flat);
-  if (match) return match;
-
-  // Plurals: -ies → -y
-  if (lower.endsWith("ies") && lower.length > 3) {
-    const stem = lower.slice(0, -3) + "y";
-    match = knownNames.find((n) => n.toLowerCase() === stem);
-    if (match) return match;
-  }
-
-  // Plurals: -s
-  if (lower.endsWith("s") && lower.length > 1) {
-    const stem = lower.slice(0, -1);
-    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-    if (match) return match;
-  }
-
-  // Past tense: -ed (collapsed → collapse, attended → attend)
-  if (lower.endsWith("ed") && lower.length > 3) {
-    const stems = [lower.slice(0, -2), lower.slice(0, -1)];
-    for (const stem of stems) {
-      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-      if (match) return match;
-    }
-  }
-
-  // Present continuous: -ing (collapsing → collapse, attending → attend)
-  if (lower.endsWith("ing") && lower.length > 4) {
-    const stems = [lower.slice(0, -3), lower.slice(0, -3) + "e"];
-    for (const stem of stems) {
-      match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-      if (match) return match;
-    }
-  }
-
-  // Adjective ↔ noun: beautiful → beauty, beauty → beautiful
-  if (lower.endsWith("iful") && lower.length > 5) {
-    const stem = lower.slice(0, -4) + "y";
-    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-    if (match) return match;
-  }
-  if (lower.endsWith("y") && lower.length > 2) {
-    const stem = lower.slice(0, -1) + "iful";
-    match = knownNames.find((n) => n.toLowerCase() === stem || flattenName(n) === flattenName(stem));
-    if (match) return match;
-  }
-
-  return undefined;
+/** Resolve a (possibly inflected) written ref to its canonical name, or undefined. */
+export function resolveRefName(refName: string, index: NameIndex): string | undefined {
+  return index.get(flattenName(refName))?.[0];
 }
 
-/** Like resolveRefName but returns ALL matching names. Used for ambiguity detection. */
-export function resolveRefNameAll(refName: string, knownNames: string[]): string[] {
-  const matches = new Set<string>();
-  const lower = refName.toLowerCase();
-  const flat = flattenName(refName);
-
-  for (const n of knownNames) {
-    if (n.toLowerCase() === lower || flattenName(n) === flat) {
-      matches.add(n);
-      continue;
-    }
-    // Plurals
-    if (lower.endsWith("ies") && lower.length > 3 && n.toLowerCase() === lower.slice(0, -3) + "y") { matches.add(n); continue; }
-    if (lower.endsWith("s") && lower.length > 1) {
-      const stem = lower.slice(0, -1);
-      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
-    }
-    // Past tense
-    if (lower.endsWith("ed") && lower.length > 3) {
-      for (const stem of [lower.slice(0, -2), lower.slice(0, -1)]) {
-        if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); break; }
-      }
-      if (matches.has(n)) continue;
-    }
-    // Present continuous
-    if (lower.endsWith("ing") && lower.length > 4) {
-      for (const stem of [lower.slice(0, -3), lower.slice(0, -3) + "e"]) {
-        if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); break; }
-      }
-      if (matches.has(n)) continue;
-    }
-    // Adjective ↔ noun
-    if (lower.endsWith("iful") && lower.length > 5) {
-      const stem = lower.slice(0, -4) + "y";
-      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
-    }
-    if (lower.endsWith("y") && lower.length > 2) {
-      const stem = lower.slice(0, -1) + "iful";
-      if (n.toLowerCase() === stem || flattenName(n) === flattenName(stem)) { matches.add(n); continue; }
-    }
-  }
-  return [...matches];
+/** All canonical names that accept this written form. Empty array if none. */
+export function resolveRefNameAll(refName: string, index: NameIndex): string[] {
+  const matches = index.get(flattenName(refName));
+  return matches ? [...matches] : [];
 }
 
-/** Find an affordance by its dash-form name, with fuzzy matching. */
+/** Does `refName` resolve to `canonical`? Thin wrapper over {@link inflectionsOf}. */
+export function nameMatches(refName: string, canonical: string): boolean {
+  return inflectionsOf(canonical).includes(flattenName(refName));
+}
+
+// ── Per-sigil and per-tree index caches ────────────────────────────────────
+//
+// Sigil trees are immutable — on UPDATE_SPEC the whole tree is replaced, so
+// old entries GC naturally. We key by Sigil identity via WeakMap.
+
+interface SigilIndex {
+  children: NameIndex;
+  affordances: NameIndex;
+  invariants: NameIndex;
+}
+
+const sigilIndexCache = new WeakMap<Sigil, SigilIndex>();
+
+function indexOf(sigil: Sigil): SigilIndex {
+  let cached = sigilIndexCache.get(sigil);
+  if (!cached) {
+    cached = {
+      children: buildNameIndex(sigil.children.map((c) => c.name)),
+      affordances: buildNameIndex(sigil.affordances.map((a) => a.name)),
+      invariants: buildNameIndex(sigil.invariants.map((i) => i.name)),
+    };
+    sigilIndexCache.set(sigil, cached);
+  }
+  return cached;
+}
+
+interface TreeIndex {
+  sigils: Map<string, { target: Sigil; path: string[] }[]>;
+  affordances: Map<string, { content: string; ownerPath: string[] }[]>;
+  invariants: Map<string, { content: string; ownerPath: string[] }[]>;
+}
+
+const treeIndexCache = new WeakMap<Sigil, TreeIndex>();
+
+function flatIndexOf(root: Sigil): TreeIndex {
+  let cached = treeIndexCache.get(root);
+  if (cached) return cached;
+  const tree: TreeIndex = { sigils: new Map(), affordances: new Map(), invariants: new Map() };
+  const push = <T>(map: Map<string, T[]>, key: string, value: T) => {
+    const list = map.get(key);
+    if (list) list.push(value);
+    else map.set(key, [value]);
+  };
+  const walk = (sigil: Sigil, path: string[]) => {
+    for (const a of sigil.affordances) {
+      for (const form of inflectionsOf(a.name)) {
+        push(tree.affordances, form, { content: a.content, ownerPath: path });
+      }
+    }
+    for (const inv of sigil.invariants) {
+      for (const form of inflectionsOf(inv.name)) {
+        push(tree.invariants, form, { content: inv.content, ownerPath: path });
+      }
+    }
+    for (const child of sigil.children) {
+      const childPath = [...path, child.name];
+      for (const form of inflectionsOf(child.name)) {
+        push(tree.sigils, form, { target: child, path: childPath });
+      }
+      walk(child, childPath);
+    }
+  };
+  walk(root, []);
+  treeIndexCache.set(root, tree);
+  return tree;
+}
+
+/** Direct children of `parent` whose name matches `name` (inflection-aware). */
+export function findChildrenByName(parent: Sigil, name: string): Sigil[] {
+  const canonicals = indexOf(parent).children.get(flattenName(name));
+  if (!canonicals) return [];
+  const out: Sigil[] = [];
+  for (const n of canonicals) {
+    const match = parent.children.find((c) => c.name === n);
+    if (match) out.push(match);
+  }
+  return out;
+}
+
+/** All descendants of `root` (excluding `root` itself) whose name matches `name`. */
+export function findDescendantsByName(root: Sigil, name: string): { target: Sigil; path: string[] }[] {
+  const hits = flatIndexOf(root).sigils.get(flattenName(name));
+  return hits ? hits.slice() : [];
+}
+
+// ── Find ────────────────────────────────────────────────────────────────────
+
 export function findAffordance(sigil: Sigil | undefined, dashedName: string): Affordance | undefined {
   if (!sigil?.affordances) return undefined;
-  const spacedName = fromDashForm(dashedName);
-  const exact = sigil.affordances.find((a) => a.name === spacedName || a.name === dashedName);
+  const spaced = fromDashForm(dashedName);
+  const exact = sigil.affordances.find((a) => a.name === spaced || a.name === dashedName);
   if (exact) return exact;
-  const names = sigil.affordances.map((a) => a.name);
-  const resolved = resolveRefName(dashedName, names);
-  return resolved ? sigil.affordances.find((a) => a.name === resolved) : undefined;
+  const canonical = resolveRefName(dashedName, indexOf(sigil).affordances);
+  return canonical ? sigil.affordances.find((a) => a.name === canonical) : undefined;
 }
 
-/** Find an invariant by name, returning its content and owning path. */
 function findInvariantOn(sigil: Sigil, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  const dashed = fromDashForm(name);
-  let inv = sigil.invariants.find((s) => s.name === name || s.name === dashed);
+  const spaced = fromDashForm(name);
+  let inv = sigil.invariants.find((i) => i.name === name || i.name === spaced);
   if (!inv) {
-    const resolved = resolveRefName(name, sigil.invariants.map((s) => s.name));
-    if (resolved) inv = sigil.invariants.find((s) => s.name === resolved);
+    const canonical = resolveRefName(name, indexOf(sigil).invariants);
+    if (canonical) inv = sigil.invariants.find((i) => i.name === canonical);
   }
   return inv ? { content: inv.content, ownerPath: path } : null;
 }
 
-/** Find an invariant in lexical scope: self, children, siblings, ancestors (each with their children one level deep), imported ontologies. */
+/** Find an invariant in lexical scope: self, children, ancestors with their children, imported ontologies. */
 export function findInvariantInScope(
   root: Sigil,
   currentPath: string[],
@@ -161,52 +202,30 @@ export function findInvariantInScope(
   importedOntologies?: Sigil | null,
 ): { content: string; ownerPath: string[] } | null {
   const currentSigil = findContext(root, currentPath);
-
-  // Current sigil
   const own = findInvariantOn(currentSigil, currentPath, name);
   if (own) return own;
-
-  // Children
   for (const child of currentSigil.children) {
     const result = findInvariantOn(child, [...currentPath, child.name], name);
     if (result) return result;
   }
-
-  // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelSigil = findContext(root, levelPath);
     const result = findInvariantOn(levelSigil, levelPath, name);
     if (result) return result;
     for (const child of levelSigil.children) {
-      const childPath = [...levelPath, child.name];
-      const childResult = findInvariantOn(child, childPath, name);
+      const childResult = findInvariantOn(child, [...levelPath, child.name], name);
       if (childResult) return childResult;
     }
   }
-
-  // Imported ontologies (ambient scope per spec)
   if (importedOntologies) {
-    for (const ontology of importedOntologies.children) {
-      const result = searchInvariantRecursive(ontology, [ontology.name], name);
-      if (result) return result;
-    }
-  }
-
-  return null;
-}
-
-function searchInvariantRecursive(ctx: Sigil, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  const result = findInvariantOn(ctx, path, name);
-  if (result) return result;
-  for (const child of ctx.children) {
-    const found = searchInvariantRecursive(child, [...path, child.name], name);
-    if (found) return found;
+    const hit = flatIndexOf(importedOntologies).invariants.get(flattenName(name))?.[0];
+    if (hit) return hit;
   }
   return null;
 }
 
-/** Find an affordance in lexical scope: self, children, siblings, ancestors (each with their children one level deep), imported ontologies. */
+/** Find an affordance in lexical scope: self, children, ancestors with their children, imported ontologies. */
 export function findAffordanceInScope(
   root: Sigil,
   currentPath: string[],
@@ -214,18 +233,12 @@ export function findAffordanceInScope(
   importedOntologies?: Sigil | null,
 ): { content: string; ownerPath: string[] } | null {
   const currentSigil = findContext(root, currentPath);
-
-  // Current sigil
   const own = findAffordance(currentSigil, name);
   if (own) return { content: own.content, ownerPath: currentPath };
-
-  // Children
   for (const child of currentSigil.children) {
     const aff = findAffordance(child, name);
     if (aff) return { content: aff.content, ownerPath: [...currentPath, child.name] };
   }
-
-  // Walk up: each ancestor and its children (one level deep) — includes siblings
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelSigil = findContext(root, levelPath);
@@ -236,34 +249,21 @@ export function findAffordanceInScope(
       if (childAff) return { content: childAff.content, ownerPath: [...levelPath, child.name] };
     }
   }
-
-  // Imported ontologies (ambient scope per spec)
   if (importedOntologies) {
-    for (const ontology of importedOntologies.children) {
-      const result = searchAffordanceRecursive(ontology, [ontology.name], name);
-      if (result) return result;
-    }
-  }
-
-  return null;
-}
-
-function searchAffordanceRecursive(ctx: Sigil, path: string[], name: string): { content: string; ownerPath: string[] } | null {
-  const aff = findAffordance(ctx, name);
-  if (aff) return { content: aff.content, ownerPath: path };
-  for (const child of ctx.children) {
-    const found = searchAffordanceRecursive(child, [...path, child.name], name);
-    if (found) return found;
+    const hit = flatIndexOf(importedOntologies).affordances.get(flattenName(name))?.[0];
+    if (hit) return hit;
   }
   return null;
 }
+
+// ── Lexical scope enumeration ───────────────────────────────────────────────
 
 const ONTOLOGIES_NAME = "Libs";
 
 /** Build the full lexical scope for the current path: sigils (@), affordances (#), invariants (!). */
 export function buildLexicalScope(
   root: Sigil,
-  currentPath: string[]
+  currentPath: string[],
 ): Ref[] {
   const refs: Ref[] = [];
   const seen = new Set<string>();
@@ -277,30 +277,20 @@ export function buildLexicalScope(
     }
   };
 
-  // Children of current sigil
-  for (const c of currentSigil.children) {
-    addSigil(c.name, c, true);
-  }
+  for (const c of currentSigil.children) addSigil(c.name, c, true);
 
-  // Walk up ancestry
   for (let depth = currentPath.length; depth > 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelSigil = findContext(root, levelPath);
-    const parentPath = levelPath.slice(0, -1);
-    const parentSigil = findContext(root, parentPath);
-
+    const parentSigil = findContext(root, levelPath.slice(0, -1));
     addSigil(levelSigil.name, levelSigil, true);
-
     for (const c of parentSigil.children) {
-      if (c.name !== levelSigil.name) {
-        addSigil(c.name, c, true);
-      }
+      if (c.name !== levelSigil.name) addSigil(c.name, c, true);
     }
   }
 
   addSigil(root.name, root, true);
 
-  // Flatten ontology refs
   const ontologiesSigil = root.children.find((c) => c.name === ONTOLOGIES_NAME);
   if (ontologiesSigil) {
     for (const ontology of ontologiesSigil.children) {
@@ -309,7 +299,6 @@ export function buildLexicalScope(
     }
   }
 
-  // Affordances and invariants — current sigil, ancestors, children, and siblings at each level
   const addProperties = (sigil: Sigil, navigable: boolean) => {
     const ownerName = sigil.name;
     for (const a of sigil.affordances) {
@@ -328,32 +317,19 @@ export function buildLexicalScope(
     }
   };
 
-  // Current sigil's own affordances/invariants
   addProperties(currentSigil, false);
-
-  // Children's affordances/invariants
-  for (const child of currentSigil.children) {
-    addProperties(child, true);
-  }
-
-  // Walk up: each ancestor and its children (one level deep) — includes siblings
+  for (const child of currentSigil.children) addProperties(child, true);
   for (let depth = currentPath.length - 1; depth >= 0; depth--) {
     const levelPath = currentPath.slice(0, depth);
     const levelSigil = findContext(root, levelPath);
     addProperties(levelSigil, true);
-    for (const child of levelSigil.children) {
-      addProperties(child, true);
-    }
+    for (const child of levelSigil.children) addProperties(child, true);
   }
 
   return refs;
 }
 
-function flattenOntologyRefs(
-  sigil: Sigil,
-  seen: Set<string>,
-  refs: Ref[]
-): void {
+function flattenOntologyRefs(sigil: Sigil, seen: Set<string>, refs: Ref[]): void {
   for (const child of sigil.children) {
     const key = `@${child.name}`;
     if (!seen.has(key)) {

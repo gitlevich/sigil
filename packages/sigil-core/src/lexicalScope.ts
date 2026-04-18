@@ -13,7 +13,7 @@
  */
 import type { Sigil } from "./types";
 import { findContext } from "./tree";
-import { resolveRefName, resolveRefNameAll } from "./refs";
+import { findChildrenByName, findDescendantsByName, nameMatches } from "./refs";
 
 export type ScopeKind = "contained" | "sibling" | "ancestor" | "lib" | "proximity" | "unresolved";
 
@@ -39,31 +39,23 @@ export interface ScopeItem {
 // ── Internal helpers ──
 
 function findChild(parent: Sigil, name: string): Sigil | undefined {
-  const matches = resolveRefNameAll(name, parent.children.map(c => c.name));
-  if (matches.length !== 1) return undefined;
-  return parent.children.find(c => c.name === matches[0]);
+  const matches = findChildrenByName(parent, name);
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function findChildrenAll(parent: Sigil, name: string): Sigil[] {
-  const matches = resolveRefNameAll(name, parent.children.map(c => c.name));
-  return matches.map(m => parent.children.find(c => c.name === m)!);
-}
-
-function nameMatches(name: string, candidate: string): boolean {
-  return resolveRefName(name, [candidate]) !== undefined;
+  return findChildrenByName(parent, name);
 }
 
 function findAllInSubtree(
   node: Sigil, name: string, basePath: string[], exclude: Set<string>,
 ): { target: Sigil; path: string[] }[] {
+  const hits = findDescendantsByName(node, name);
   const results: { target: Sigil; path: string[] }[] = [];
-  for (const child of node.children) {
-    const childPath = [...basePath, child.name];
-    const pathKey = childPath.join("/");
-    if (!exclude.has(pathKey) && nameMatches(name, child.name)) {
-      results.push({ target: child, path: childPath });
-    }
-    results.push(...findAllInSubtree(child, name, childPath, exclude));
+  for (const hit of hits) {
+    const fullPath = basePath.length === 0 ? hit.path : [...basePath, ...hit.path];
+    const pathKey = fullPath.join("/");
+    if (!exclude.has(pathKey)) results.push({ target: hit.target, path: fullPath });
   }
   return results;
 }
