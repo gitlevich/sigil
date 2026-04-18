@@ -488,6 +488,21 @@
   bottom: 26px;
 }
 
+/* Edge-aware rowLabel anchoring so tooltips near the row ends don't clip
+ * off the viewport. First couple items anchor left, last couple right. */
+.affordanceRow .rowItem:nth-child(-n+2) .rowLabel,
+.invariantRow .rowItem:nth-child(-n+2) .rowLabel {
+  left: 0;
+  transform: none;
+}
+
+.affordanceRow .rowItem:nth-last-child(-n+2) .rowLabel,
+.invariantRow .rowItem:nth-last-child(-n+2) .rowLabel {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 
 .rowItem:hover .rowLabel {
   opacity: 1;
@@ -497,8 +512,10 @@
  * thesis sentence plus its #affordances and !invariants as chips. */
 .peek {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 50%;
+  /* Keep the peek within the viewport: translate by -50% to center, but
+   * anchored inside the icon so flicker doesn't strand the cursor. */
   transform: translateX(-50%);
   min-width: 220px;
   max-width: 320px;
@@ -508,7 +525,11 @@
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   opacity: 0;
-  pointer-events: none;
+  /* pointer-events auto so hovering the peek itself keeps .icon:hover alive
+   * (descendant counts). Without this, moving the cursor from glyph toward
+   * peek passes through a pointer-events:none zone, hover drops, peek
+   * vanishes — hence the enter-then-immediately-off flicker. */
+  pointer-events: auto;
   transition: opacity 80ms ease-out;
   z-index: 30;
   text-align: left;
@@ -516,7 +537,18 @@
 
 .icon:hover .peek {
   opacity: 1;
-  transition-delay: 120ms;
+}
+
+/* Edge-aware anchoring so the peek never clips off the viewport. */
+.peekLeft {
+  left: 0;
+  transform: none;
+}
+
+.peekRight {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 .peekTitle {

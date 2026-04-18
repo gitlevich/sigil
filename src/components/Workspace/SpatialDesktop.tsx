@@ -470,6 +470,13 @@ export function SpatialDesktop() {
         {icons.map((icon) => {
           const pos = positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
+          // Peek edge-anchor: flip to keep it visible when icon is near the
+          // canvas's left or right edge. PEEK_WIDTH is the peek's max-width.
+          const PEEK_HALF = 160;
+          const MARGIN = 12;
+          const nearLeft = pos.x - PEEK_HALF < MARGIN;
+          const nearRight = pos.x + PEEK_HALF > contentBounds.w - MARGIN;
+          const peekClass = nearLeft ? styles.peekLeft : nearRight ? styles.peekRight : "";
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
@@ -491,7 +498,7 @@ export function SpatialDesktop() {
               </div>
               <div className={styles.label}>{icon.name}</div>
               {icon.peek && (icon.peek.thesis || icon.peek.affordances.length > 0 || icon.peek.invariants.length > 0) && (
-                <div className={styles.peek}>
+                <div className={`${styles.peek} ${peekClass}`}>
                   <div className={styles.peekTitle}>{icon.name}</div>
                   {icon.peek.thesis && <div className={styles.peekThesis}>{icon.peek.thesis}</div>}
                   {icon.peek.affordances.length > 0 && (
