@@ -542,6 +542,10 @@ function FloatingPeek({ icon, rect, onPeekEnter, onPeekLeave }: FloatingPeekProp
     ? { bottom: vh - aboveBottom, top: "auto" as const }
     : { top: belowTop, bottom: "auto" as const };
 
+  // Narrative peek is just the text — the icon IS the sigil's language,
+  // and the sigil's own affordances/invariants already live in their rows.
+  const showFacets = icon.kind !== "narrative";
+
   return createPortal(
     <div
       className={styles.peek}
@@ -551,14 +555,14 @@ function FloatingPeek({ icon, rect, onPeekEnter, onPeekLeave }: FloatingPeekProp
     >
       <div className={styles.peekTitle}>{icon.name}</div>
       {peek.thesis && <div className={styles.peekThesis}>{peek.thesis}</div>}
-      {peek.affordances.length > 0 && (
+      {showFacets && peek.affordances.length > 0 && (
         <div className={styles.peekSection}>
           {peek.affordances.map((a) => (
             <span key={`aff:${a}`} className={`${styles.peekChip} ${styles.peekChipAff}`}>#{a}</span>
           ))}
         </div>
       )}
-      {peek.invariants.length > 0 && (
+      {showFacets && peek.invariants.length > 0 && (
         <div className={styles.peekSection}>
           {peek.invariants.map((i) => (
             <span key={`inv:${i}`} className={`${styles.peekChip} ${styles.peekChipInv}`}>!{i}</span>
