@@ -76,7 +76,7 @@ export function WorkspaceShell() {
     },
   }), [chatDispatch, addToast]);
 
-  const { perceive, getExperience, recordChat, getMemory } = useRightHemisphere(ws.spec, ws.currentPath, bicameralCallbacks);
+  const { perceive, getExperience, recordChat, recordObservation, getMemory } = useRightHemisphere(ws.spec, ws.currentPath, bicameralCallbacks);
   const { sendMessage } = useChatStream();
 
   useFileWatcher(ws.spec.rootPath, async (_rootPath, event: FsChangeEvent) => {
@@ -174,7 +174,7 @@ export function WorkspaceShell() {
   useSettingsPersistence(ws, layout);
 
   return (
-    <ExperienceProvider handle={{ getExperience, recordChat, getMemory }}>
+    <ExperienceProvider handle={{ getExperience, recordChat, recordObservation, getMemory }}>
       <ChatStreamProvider handle={{ sendMessage }}>
         <Workspace />
       </ChatStreamProvider>
