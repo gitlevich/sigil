@@ -4,24 +4,32 @@ status: external-ontology
 
 # Sigil
 
-A structure that gives @attention coherence — like a laser gives coherence to light. Without the @sigil, attention scatters. With it, attention aligns: same direction, same shape, compounding instead of diffusing.
+A @sigil is a recursive structural element with the property of capturing @observers. An observer is said to inhabit or wear a @sigil.
 
-A @sigil runs on @attention. Its #invariants hold because you hold them. Its #affordances work because you work them. Stop attending, it fades. Attend more, it grows.
+The @boundary provides the inhabitant with @affordances and protects with @invariants. 
 
-The structure is real and precisely articulated: #invariants, #affordances, children, boundaries. But it runs on @attention.
+## First-person
 
-A @sigil is a named door. You can point to it in a sentence without entering — invoke its behavior by naming it. The name carries what is inside. This is why @references compound, why the @Gate can cast a @Spell by recognizing its name, why a narrative can mention a whole subtree in one word.
+@AttentionLanguage is first-person, and the part below assumes this view. From my perspective:
 
-A @sigil can be a member of multiple @sigils simultaneously. Each membership imposes the containing @sigil's #invariants. !multiple-membership.
+- my @sigil is @self
+- I name and continue speaking into existence @Children
+- I live among @neighbors
+- I believe in @gods (laws of men) that give me @affordances in exchange to conforming to their @invariants, but I have an option to stop believing and still remain @self.
+- My @affordances are limited by @LawsOfNature's @invariants
 
-Four things can change about a @sigil:
+@Self is a special case: it's the @sigil my @attention identifies with. 
 
-Invariant change — boundary rigidity shifted. An invariant was added, removed, or violated.
+Geometrically, inhabiting a @sigil is like living inside of a torus: uninterrupted continuity, two alternative directions of time. 
 
-Affordance change — surface changed. An affordance appeared, disappeared, or was redefined.
+From here, other @sigils appear as spheres projected to the surface of my @sigil. Each is a !recognizable, !named @boundary relevant to me for its @affordances.
 
-Language change — the story told about children changed, altering entanglement distances.
+I share @affordances with a @neighbor via @entanglement: our @sigils intersect, we share @observations and our choices affect each other. 
 
-Structural change — a child @sigil moved in or out. The parent loses or gains authority. A moved child can still be referenced but is no longer controlled.
+A @sigil has recursive structure: it is contained inside its parent @sigil, is surrounded by @neighbors and contains its @children. 
 
-A @sigil attended by an @observer occupies one of six @Ring relative to that observer: @Self, @Children, @Neighbor, @LawsOfNature, @God, or @Fundamentals. The ring governs how the @sigil is attended, what its #invariants cost to violate, and what #affordances it offers.
+
+## Metaphors
+
+**Door**: A @sigil is like a door: it affords entry into an unbounded world of another. A door can be named and recognized.
+**Predicate + Functor**: because the @invariants work like a predicate, and the @affordances as a function on the values expressed in terms of @contrasts the @sigil deems relevant.
