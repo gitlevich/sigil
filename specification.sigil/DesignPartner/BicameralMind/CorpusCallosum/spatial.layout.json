@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "icons": {
+    "RightHemisphere": {
+      "x": 565.26171875,
+      "y": 301.2578125
+    },
+    "EscalationThreshold": {
+      "x": 300.83163464563086,
+      "y": 166.25
+    }
+  }
+}
