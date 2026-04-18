@@ -390,11 +390,6 @@ export function SpatialDesktop() {
       )}
       <div className={styles.modeBar}>
         <button
-          className={`${styles.modeBtn} ${arcScope === "sentence" ? styles.active : ""}`}
-          onClick={() => setArcScope(arcScope === "sentence" ? "paragraph" : "sentence")}
-          title={`Arc scope: ${arcScope}. Click to toggle.`}
-        >{arcScope === "sentence" ? "Sentence" : "Paragraph"}</button>
-        <button
           className={`${styles.modeBtn} ${mode === "inside" ? styles.active : ""}`}
           onClick={() => setMode("inside")}
         >Inside</button>
@@ -404,6 +399,16 @@ export function SpatialDesktop() {
           disabled
           title="3D atlas — Phase B"
         >Outside</button>
+      </div>
+      <div className={styles.arcScopeBar}>
+        <button
+          className={`${styles.arcScopeBtn} ${arcScope === "sentence" ? styles.active : ""}`}
+          onClick={() => setArcScope("sentence")}
+        >Sentence</button>
+        <button
+          className={`${styles.arcScopeBtn} ${arcScope === "paragraph" ? styles.active : ""}`}
+          onClick={() => setArcScope("paragraph")}
+        >Paragraph</button>
       </div>
       <LanguageScrollPanel
         open={scrollOpen}

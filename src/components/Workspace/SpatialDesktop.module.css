@@ -431,13 +431,55 @@
 
 .affordanceRow {
   top: 12px;
-  left: 56px; /* leave room for the UP button that sits before the row */
+  left: 56px;   /* leave room for the UP button that sits before the row */
+  right: 156px; /* leave room for the Inside/Outside mode bar on the right */
   z-index: 7;
   border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }
 
 .invariantRow {
+  right: 180px; /* leave room for the Sentence/Paragraph scope toggle */
   z-index: 7;
+}
+
+/* Arc-scope toggle — lives at the bottom-right of the canvas, matching the
+ * top-right mode bar's style but separate because it governs arc rendering,
+ * not the high-level Inside/Outside view. */
+.arcScopeBar {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 8;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  letter-spacing: 0.02em;
+}
+
+.arcScopeBtn {
+  padding: 3px 9px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 140ms ease-out, background 140ms ease-out;
+}
+
+.arcScopeBtn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.arcScopeBtn.active {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .invariantRow {
