@@ -432,7 +432,18 @@ export function Workspace() {
               onRenameProperty={handleRenameProperty}
               onRenameStatus={handleRenameStatus}
               onNavigateToSigil={handleNavigateToSigil}
-              onNavigateToAbsPath={(path) => navigate(path)}
+              onNavigateToAbsPath={(path) => {
+                // The editor resolves refs against its local scopeRoot, which
+                // is the imported-ontologies subtree when the user is inside
+                // a library. Paths returned from that resolution are local to
+                // that subtree — add the "Imported Ontologies" prefix to put
+                // them in the workspace's absolute-path convention. Without
+                // this, clicking a @ref inside a library falls through to the
+                // main spec tree and resolves to root.
+                const inImported = isImportedPath(ws);
+                const alreadyPrefixed = path[0] === "Imported Ontologies";
+                navigate(inImported && !alreadyPrefixed ? ["Imported Ontologies", ...path] : path);
+              }}
               findReferencesName={findReferencesNameRef.current}
               onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
               goToLine={ws.targetLine}
