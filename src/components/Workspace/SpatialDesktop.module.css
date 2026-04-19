@@ -506,11 +506,11 @@
 .rowItem:hover .affordance,
 .rowItem:hover .invariant { color: var(--text-primary); }
 
-.rowItem .rowLabel {
-  position: absolute;
-  top: 26px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Row tooltip — portal-rendered at document.body, fixed-positioned in
+ * viewport coords so no ancestor's overflow: hidden can clip it. Visibility
+ * is driven entirely by React state; no CSS :hover. */
+.rowTooltip {
+  position: fixed;
   font-size: 0.82rem;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: color-mix(in srgb, var(--text-primary) 90%, transparent);
@@ -519,36 +519,9 @@
   padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease-out;
-  z-index: 20;
+  z-index: 1000;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.invariantRow .rowLabel {
-  top: auto;
-  bottom: 26px;
-}
-
-/* Edge-aware rowLabel anchoring so tooltips near the row ends don't clip
- * off the viewport. First couple items anchor left, last couple right. */
-.affordanceRow .rowItem:nth-child(-n+2) .rowLabel,
-.invariantRow .rowItem:nth-child(-n+2) .rowLabel {
-  left: 0;
-  transform: none;
-}
-
-.affordanceRow .rowItem:nth-last-child(-n+2) .rowLabel,
-.invariantRow .rowItem:nth-last-child(-n+2) .rowLabel {
-  left: auto;
-  right: 0;
-  transform: none;
-}
-
-
-.rowItem:hover .rowLabel {
-  opacity: 1;
 }
 
 /* Peek panel — portal-rendered at document.body, fixed-positioned in

@@ -108,6 +108,10 @@ export function SpatialDesktop() {
   const [scrollOpen, setScrollOpen] = useState<boolean>(false);
   const [arcScope, setArcScope] = useState<ArcScope>("sentence");
   const [hoveredIcon, setHoveredIcon] = useState<{ icon: IconSpec; rect: DOMRect } | null>(null);
+  // Row-tooltip hover state lives in React so the tooltip can be portal-rendered
+  // at document.body and escape .root's overflow: hidden. CSS :hover can't do
+  // that — a tooltip inside a clipped container is always clipped.
+  const [rowTip, setRowTip] = useState<{ text: string; rect: DOMRect } | null>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
@@ -419,21 +423,29 @@ export function SpatialDesktop() {
       />
       <div className={styles.affordanceRow} aria-label="Affordances">
         {affordances.map((aff) => (
-          <div key={`aff:${aff.name}`} className={styles.rowItem}>
+          <div
+            key={`aff:${aff.name}`}
+            className={styles.rowItem}
+            onPointerEnter={(e) => setRowTip({ text: `#${aff.name}`, rect: e.currentTarget.getBoundingClientRect() })}
+            onPointerLeave={() => setRowTip(null)}
+          >
             <div className={`${styles.glyph} ${styles.affordance}`}>
               <AffordanceGlyph />
             </div>
-            <div className={styles.rowLabel}>#{aff.name}</div>
           </div>
         ))}
       </div>
       <div className={styles.invariantRow} aria-label="Invariants">
         {invariants.map((inv) => (
-          <div key={`inv:${inv.name}`} className={styles.rowItem}>
+          <div
+            key={`inv:${inv.name}`}
+            className={styles.rowItem}
+            onPointerEnter={(e) => setRowTip({ text: `!${inv.name}`, rect: e.currentTarget.getBoundingClientRect() })}
+            onPointerLeave={() => setRowTip(null)}
+          >
             <div className={`${styles.glyph} ${styles.invariant}`}>
               <InvariantGlyph />
             </div>
-            <div className={styles.rowLabel}>!{inv.name}</div>
           </div>
         ))}
       </div>
@@ -503,7 +515,44 @@ export function SpatialDesktop() {
         onPeekEnter={cancelHoverLeave}
         onPeekLeave={scheduleHoverLeave}
       />}
+      {rowTip && <RowTooltip text={rowTip.text} rect={rowTip.rect} />}
     </div>
+  );
+}
+
+/**
+ * Portal-rendered tooltip for affordance/invariant row items. Lives at
+ * document.body so no panel's overflow clip can swallow it, fixed-positioned
+ * in viewport coords above the glyph, with horizontal clamp to the viewport.
+ */
+function RowTooltip({ text, rect }: { text: string; rect: DOMRect }) {
+  const VIEWPORT_MARGIN = 8;
+  const GAP = 6;
+  const centerX = rect.left + rect.width / 2;
+  const vw = window.innerWidth;
+
+  let left = centerX;
+  // Clamp so the translated (-50%) tooltip stays inside the viewport.
+  // Estimate width by the text length; the tooltip shrinks to fit, so this
+  // is a soft upper bound used only to decide when to flip alignment.
+  const estWidth = Math.min(240, Math.max(48, text.length * 7 + 16));
+  const half = estWidth / 2;
+  let transform = "translate(-50%, -100%)";
+  if (left - half < VIEWPORT_MARGIN) {
+    left = VIEWPORT_MARGIN;
+    transform = "translateY(-100%)";
+  } else if (left + half > vw - VIEWPORT_MARGIN) {
+    left = vw - VIEWPORT_MARGIN;
+    transform = "translate(-100%, -100%)";
+  }
+
+  const top = rect.top - GAP;
+
+  return createPortal(
+    <div className={styles.rowTooltip} style={{ left, top, transform }}>
+      {text}
+    </div>,
+    document.body,
   );
 }
 
