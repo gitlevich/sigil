@@ -20,6 +20,15 @@
 //! relative to the project root. Production bundling (PyInstaller) comes
 //! later; the path layout will be overridable then.
 //!
+//! Resolution order for the sidecar directory:
+//!   1. `SIGIL_SIDECAR_DIR` environment variable, if set.
+//!   2. The first line of `~/Library/Application Support/com.sigilengineering.sigil/sidecar-path`.
+//!   3. Walks up from the current working directory (works in `cargo tauri dev`).
+//!   4. Walks up from the running executable (works for the bundled .app when
+//!      the sidecar sits next to or above the binary).
+//! The bundled .app starts with cwd=`/`, so (1) or (2) is what makes chat work
+//! from Finder until PyInstaller bundling lands.
+//!
 //! The sidecar's stderr is inherited so logs surface in the Tauri console.
 
 use std::path::PathBuf;
@@ -138,18 +147,46 @@ impl LocalInference {
 }
 
 fn sidecar_dir() -> PathBuf {
-    // In dev, cwd at run time is src-tauri/. Walk up one level to find sidecar/.
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let candidates = [
-        cwd.join("sidecar"),
-        cwd.join("../sidecar"),
-        cwd.parent().map(|p| p.join("sidecar")).unwrap_or_default(),
-    ];
-    for c in candidates.iter() {
-        if c.join("main.py").exists() {
-            return c.clone();
+    if let Ok(explicit) = std::env::var("SIGIL_SIDECAR_DIR") {
+        let p = PathBuf::from(explicit);
+        if p.join("main.py").exists() {
+            return p;
         }
     }
+
+    if let Ok(home) = std::env::var("HOME") {
+        let pointer = PathBuf::from(&home)
+            .join("Library/Application Support/com.sigilengineering.sigil/sidecar-path");
+        if let Ok(contents) = std::fs::read_to_string(&pointer) {
+            let trimmed = contents.trim();
+            if !trimmed.is_empty() {
+                let p = PathBuf::from(trimmed);
+                if p.join("main.py").exists() {
+                    return p;
+                }
+            }
+        }
+    }
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let exe = std::env::current_exe().ok();
+    let mut roots: Vec<PathBuf> = vec![cwd.clone()];
+    if let Some(e) = exe.as_ref() {
+        let mut cursor = e.parent().map(PathBuf::from);
+        while let Some(dir) = cursor {
+            roots.push(dir.clone());
+            cursor = dir.parent().map(PathBuf::from);
+        }
+    }
+    for root in &roots {
+        for rel in ["sidecar", "../sidecar", "../../sidecar", "../../../sidecar"] {
+            let candidate = root.join(rel);
+            if candidate.join("main.py").exists() {
+                return candidate;
+            }
+        }
+    }
+
     cwd.join("sidecar")
 }
 
@@ -160,7 +197,7 @@ async fn spawn_sidecar() -> Result<Session, String> {
 
     if !python.exists() {
         return Err(format!(
-            "sidecar Python not found at {}. Run `cd sidecar && uv venv && uv pip install -e .` first.",
+            "sidecar Python not found at {}. Set SIGIL_SIDECAR_DIR or write the sidecar path to ~/Library/Application Support/com.sigilengineering.sigil/sidecar-path, then run `cd sidecar && uv venv && uv pip install -e .`.",
             python.display()
         ));
     }
