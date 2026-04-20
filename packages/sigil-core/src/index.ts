@@ -32,6 +32,10 @@ export {
 } from "./sigilSpace";
 export type { NameMisfit, NameMisfitOptions } from "./nameMisfit";
 export { detectNameMisfits } from "./nameMisfit";
+export type { OutgrownPlacement, OutgrownPlacementOptions, Attendant } from "./outgrownPlacement";
+export { detectOutgrownPlacements } from "./outgrownPlacement";
+export type { EmergenceAnchorOptions } from "./emergenceAnchor";
+export { isEmergenceAnchored } from "./emergenceAnchor";
 export type { AwakeningPhase, AwakeningEvent } from "./awakening";
 export {
   AWAKENING_PHASE_ORDER,

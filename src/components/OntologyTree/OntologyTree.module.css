@@ -367,3 +367,68 @@
   color: var(--text-secondary);
   opacity: 0.5;
 }
+
+/* Outgrown-placement nudge — the DP's #sense-outgrown-placement surface.
+   An arrow pointing up, placed just to the right of the sigil's name.
+   It glows subtly to draw the eye without interrupting. */
+.riseNudge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-left: 4px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 3px;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 4px var(--accent));
+  animation: riseNudgeGlow 2.6s ease-in-out infinite;
+}
+
+.riseNudge:hover {
+  opacity: 1;
+  filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 7px var(--accent));
+  animation: none;
+}
+
+.row.active .riseNudge {
+  color: inherit;
+  filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+}
+
+@keyframes riseNudgeGlow {
+  0%, 100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 1px var(--accent)) drop-shadow(0 0 2px var(--accent));
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 5px var(--accent));
+  }
+}
+
+/* Received-glow — the destination row briefly glows after a migration lands,
+   indicating the new arrival has been received. Fades out on its own. */
+.row.riseReceived {
+  animation: riseReceivedGlow 1.8s ease-out 1;
+}
+
+@keyframes riseReceivedGlow {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 10px 2px var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background: transparent;
+  }
+}

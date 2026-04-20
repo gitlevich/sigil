@@ -3,6 +3,7 @@
  * of a sigil's @language. Feeds the Spatial desktop so the prose itself
  * provides layout signal.
  */
+import { flattenName, inflectionsOf } from "sigil-core";
 
 /** One arc connects two child-by-name, labeled with the index and text of the enclosing unit (sentence or paragraph). */
 export interface SentenceArc {
@@ -48,24 +49,38 @@ export function splitParagraphs(text: string): string[] {
 /** Find all arcs among the provided child names in the given text, at the chosen scope. */
 export function extractArcs(text: string, childNames: string[], scope: ArcScope = "sentence"): SentenceArc[] {
   if (childNames.length < 2) return [];
-  const childSet = new Set(childNames);
+  // Flatten each child name together with all its inflections (plurals,
+  // verb forms, adjective/noun duals) so `@am` resolves to `Am`, `@sigils`
+  // to `Sigil`, `@narratives` to `Narrative`. Matches the rest of the
+  // codebase's inflection-aware resolution (sigil-core/refs).
+  const inflectedIndex = new Map<string, string>();
+  for (const canonical of childNames) {
+    for (const form of inflectionsOf(canonical)) {
+      inflectedIndex.set(form, canonical);
+    }
+  }
   const units = scope === "paragraph" ? splitParagraphs(text) : splitSentences(text);
   const arcs: SentenceArc[] = [];
   const refRe = /@([A-Za-z][A-Za-z0-9_]*)/g;
   units.forEach((unit, i) => {
+    // Collect child refs in reading order. Collapse runs of the same ref
+    // (e.g. "@A @A @B" → [A, B]) so they don't produce self-arcs.
     refRe.lastIndex = 0;
-    const seen = new Set<string>();
+    const sequence: string[] = [];
     let match: RegExpExecArray | null;
     while ((match = refRe.exec(unit)) !== null) {
-      const name = match[1];
-      if (childSet.has(name)) seen.add(name);
-    }
-    if (seen.size < 2) return;
-    const names = [...seen].sort();
-    for (let x = 0; x < names.length; x++) {
-      for (let y = x + 1; y < names.length; y++) {
-        arcs.push({ a: names[x], b: names[y], sentenceIndex: i, sentence: unit });
+      const canonical = inflectedIndex.get(flattenName(match[1]));
+      if (!canonical) continue;
+      if (sequence.length === 0 || sequence[sequence.length - 1] !== canonical) {
+        sequence.push(canonical);
       }
+    }
+    if (sequence.length < 2) return;
+    // Adjacency-only: each ref connects to its immediate neighbor in reading
+    // order. A sentence becomes a chain, not a clique — the sentence's
+    // structure is what decides who is whose neighbor, not mere co-presence.
+    for (let k = 0; k + 1 < sequence.length; k++) {
+      arcs.push({ a: sequence[k], b: sequence[k + 1], sentenceIndex: i, sentence: unit });
     }
   });
   return arcs;

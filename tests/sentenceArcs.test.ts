@@ -42,18 +42,19 @@ describe("extractArcs", () => {
     expect(arcs[0].sentenceIndex).toBe(0);
   });
 
-  it("emits all pairs when three children share a sentence", () => {
+  it("chains neighboring refs — three children in a sentence make a path, not a clique", () => {
     const text = "@A @B and @C together.";
     const arcs = extractArcs(text, ["A", "B", "C"]);
-    expect(arcs).toHaveLength(3);
-    const pairs = arcs.map((a) => [a.a, a.b].sort().join("-")).sort();
-    expect(pairs).toEqual(["A-B", "A-C", "B-C"]);
+    expect(arcs).toHaveLength(2);
+    const pairs = arcs.map((a) => [a.a, a.b].sort().join("-"));
+    expect(pairs).toEqual(["A-B", "B-C"]);
   });
 
-  it("deduplicates same child named twice in a sentence", () => {
+  it("collapses consecutive repeats so a ref does not link to itself", () => {
     const text = "@A and @A again with @B.";
     const arcs = extractArcs(text, ["A", "B"]);
     expect(arcs).toHaveLength(1);
+    expect([arcs[0].a, arcs[0].b].sort()).toEqual(["A", "B"]);
   });
 
   it("separates sentences — cross-sentence co-occurrence produces no arc", () => {
@@ -66,6 +67,36 @@ describe("extractArcs", () => {
     const text = "@ExternalGod grants @A power.";
     const arcs = extractArcs(text, ["A"]);
     expect(arcs).toEqual([]);
+  });
+
+  it("treats refs as adjacent when no other child ref lives between them, regardless of prose", () => {
+    // Plenty of words between @A and @B, but no other reference — they are
+    // still neighbors in the reference sequence.
+    const arcs1 = extractArcs("@A wanders through a long clause of commentary before @B.", ["A", "B"]);
+    expect(arcs1).toHaveLength(1);
+    expect([arcs1[0].a, arcs1[0].b].sort()).toEqual(["A", "B"]);
+
+    // A non-child @External ref does NOT break adjacency between @A and @B
+    // — only refs that resolve to children count as structural neighbors.
+    const arcs2 = extractArcs("@A through @External arrives at @B.", ["A", "B"]);
+    expect(arcs2).toHaveLength(1);
+    expect([arcs2[0].a, arcs2[0].b].sort()).toEqual(["A", "B"]);
+
+    // A child ref BETWEEN @A and @B does break the direct link: adjacency
+    // becomes A–M and M–B, not A–B.
+    const arcs3 = extractArcs("@A passes @M and reaches @B.", ["A", "M", "B"]);
+    const pairs3 = arcs3.map((a) => [a.a, a.b].sort().join("-")).sort();
+    expect(pairs3).toEqual(["A-M", "B-M"]);
+  });
+
+  it("resolves lowercase and inflected refs and chains them in reading order", () => {
+    // @i → I, @am → Am, @sigils → Sigil (plural), @speaking → Speaking,
+    // @this → This. Adjacency only: five refs in order make a four-link chain.
+    const text = "@i @am @speaking @this @sigils into existence.";
+    const arcs = extractArcs(text, ["I", "Am", "Speaking", "This", "Sigil"]);
+    expect(arcs).toHaveLength(4);
+    const pairs = arcs.map((a) => [a.a, a.b].sort().join("-"));
+    expect(pairs).toEqual(["Am-I", "Am-Speaking", "Speaking-This", "Sigil-This"]);
   });
 });
 
@@ -82,10 +113,12 @@ describe("splitParagraphs", () => {
 });
 
 describe("extractArcs with paragraph scope", () => {
-  it("connects children in the same paragraph even when split across sentences", () => {
+  it("chains children in the same paragraph in reading order across sentences", () => {
     const text = "I have a @A. I have a @B. I have a @C.";
     const arcs = extractArcs(text, ["A", "B", "C"], "paragraph");
-    expect(arcs).toHaveLength(3);
+    expect(arcs).toHaveLength(2);
+    const pairs = arcs.map((a) => [a.a, a.b].sort().join("-"));
+    expect(pairs).toEqual(["A-B", "B-C"]);
   });
 
   it("respects paragraph boundaries", () => {

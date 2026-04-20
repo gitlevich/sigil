@@ -7,6 +7,7 @@ import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
 import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
+import { useOutgrownPlacements, type OutgrownPlacement } from "../../hooks/useOutgrownPlacements";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
 import { findAllReferencesInTree } from "../Workspace/editorScope";
 import { RefsDropdown } from "../shared/RefsDropdown";
@@ -154,6 +155,8 @@ function OntologyItem({
   collapsedPaths,
   dragState,
   propertyDropTarget,
+  outgrownByPathKey,
+  recentlyReceivedKey,
   onNavigate,
   onDefinitionChange,
   onContextMenu,
@@ -167,6 +170,7 @@ function OntologyItem({
   onPeerSubmit,
   onPeerAbort,
   onToggleCollapse,
+  onRiseNudge,
   actionDeps,
 }: {
   node: OntologyNode;
@@ -177,6 +181,8 @@ function OntologyItem({
   collapsedPaths: Set<string>;
   dragState: DragState;
   propertyDropTarget: string | null;
+  outgrownByPathKey: Map<string, OutgrownPlacement>;
+  recentlyReceivedKey: string | null;
   onNavigate: (path: string[]) => void;
   onDefinitionChange: (fsPath: string, value: string) => void;
   onContextMenu: (e: React.MouseEvent, node: OntologyNode) => void;
@@ -190,6 +196,7 @@ function OntologyItem({
   onPeerSubmit: () => void;
   onPeerAbort: () => void;
   onToggleCollapse: (path: string[]) => void;
+  onRiseNudge: (node: OntologyNode, placement: OutgrownPlacement) => void;
   actionDeps: ActionDeps;
 }) {
   const hasChildren = node.children.length > 0;
@@ -223,11 +230,15 @@ function OntologyItem({
     ? node.children.filter((c) => nodeMatches(c, search))
     : node.children;
 
+  const pathKeyStr = pathKey(node.path);
+  const outgrown = outgrownByPathKey.get(pathKeyStr);
+  const received = recentlyReceivedKey === pathKeyStr;
+
   return (
     <div className={styles.item}>
       <div
         ref={rowRef}
-        className={`${styles.row} ${isActive ? styles.active : ""} ${isDropTarget ? styles.dropTarget : ""}`}
+        className={`${styles.row} ${isActive ? styles.active : ""} ${isDropTarget ? styles.dropTarget : ""} ${received ? styles.riseReceived : ""}`}
         onMouseDown={(e) => { if (node.path.length > 0) onDragStart(e, node.fsPath); }}
         onMouseEnter={() => {
           if (dragState.sourcePath) onTargetEnter(node.fsPath);
@@ -262,6 +273,18 @@ function OntologyItem({
           <span className={styles.chevronPlaceholder} />
         )}
         <span className={`${styles.term} ${node.isImported ? styles.imported : ""}`}>{node.name}</span>
+        {outgrown && (
+          <button
+            className={styles.riseNudge}
+            title={`I want to go up to @${outgrown.optimalParentName}`}
+            onClick={(e) => { e.stopPropagation(); onRiseNudge(node, outgrown); }}
+            aria-label={`Rise to ${outgrown.optimalParentName}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M5 1 L5 9 M2 4 L5 1 L8 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         {(() => {
           const band = childCountBand(node.children.length);
           if (!band) return null;
@@ -327,6 +350,8 @@ function OntologyItem({
                 collapsedPaths={collapsedPaths}
                 dragState={dragState}
                 propertyDropTarget={propertyDropTarget}
+                outgrownByPathKey={outgrownByPathKey}
+                recentlyReceivedKey={recentlyReceivedKey}
                 onNavigate={onNavigate}
                 onDefinitionChange={onDefinitionChange}
                 onContextMenu={onContextMenu}
@@ -340,6 +365,7 @@ function OntologyItem({
                 onPeerSubmit={onPeerSubmit}
                 onPeerAbort={onPeerAbort}
                 onToggleCollapse={onToggleCollapse}
+                onRiseNudge={onRiseNudge}
                 actionDeps={actionDeps}
               />
               {addingPeerAfterPath && pathsEqual(child.path, addingPeerAfterPath) && (
@@ -502,6 +528,37 @@ export function OntologyTree() {
   }, [root, importedOntologies]);
   allNodesRef.current = allNodes;
 
+  // #sense-outgrown-placement — sigils whose attendants pull them shallower.
+  const outgrown = useOutgrownPlacements(ws.spec.root, ws.spec.importedOntologies ?? null);
+  const outgrownByPathKey = useMemo(() => {
+    const m = new Map<string, OutgrownPlacement>();
+    for (const p of outgrown) m.set(p.path.join("/"), p);
+    return m;
+  }, [outgrown]);
+
+  const [recentlyReceivedKey, setRecentlyReceivedKey] = useState<string | null>(null);
+  const receivedTimerRef = useRef<number | null>(null);
+
+  const handleRiseNudge = useCallback(async (node: OntologyNode, placement: OutgrownPlacement) => {
+    const targetNode = allNodesRef.current.find((n) => pathsEqual(n.path, placement.optimalParent));
+    if (!targetNode) return;
+    await actions.moveSigil(node.fsPath, targetNode.fsPath, actionDeps);
+    const spec = await reload();
+    if (spec) await reloadDefinitions(spec.root);
+    // The sigil landed as a child of the optimal parent; glow it there briefly.
+    const receivedPath = [...placement.optimalParent, node.name].join("/");
+    setRecentlyReceivedKey(receivedPath);
+    if (receivedTimerRef.current) window.clearTimeout(receivedTimerRef.current);
+    receivedTimerRef.current = window.setTimeout(() => {
+      setRecentlyReceivedKey(null);
+      receivedTimerRef.current = null;
+    }, 1900);
+  }, [actionDeps, reload, reloadDefinitions]);
+
+  useEffect(() => () => {
+    if (receivedTimerRef.current) window.clearTimeout(receivedTimerRef.current);
+  }, []);
+
   const query = search.toLowerCase().trim();
   const rootVisible = !query || nodeMatches(root, query);
   const importedVisible = importedOntologies && (!query || nodeMatches(importedOntologies, query));
@@ -521,6 +578,8 @@ export function OntologyTree() {
     collapsedPaths: collapsedSet,
     dragState,
     propertyDropTarget,
+    outgrownByPathKey,
+    recentlyReceivedKey,
     onNavigate: (path: string[]) => navigate(path),
     onDefinitionChange: handleDefinitionChange,
     onContextMenu: (e: React.MouseEvent, node: OntologyNode) => setContextMenu({ x: e.clientX, y: e.clientY, node }),
@@ -534,6 +593,7 @@ export function OntologyTree() {
     onPeerSubmit: handlePeerSubmit,
     onPeerAbort: () => setAddingPeerOf(null),
     onToggleCollapse: handleToggleCollapse,
+    onRiseNudge: handleRiseNudge,
     actionDeps,
   };
 
