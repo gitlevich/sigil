@@ -177,6 +177,9 @@
   height: 100%;
   min-height: 100%;
   cursor: default;
+  /* A sweep across the canvas composes a cluster, not a text selection. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .arcs {
@@ -257,6 +260,33 @@
 .icon.hovered {
   transform: scale(1.04);
   filter: brightness(1.05);
+}
+
+/* Selected — the icon is caught in the current sweep, ready to travel as
+ * part of a cluster. A subtle neutral halo in the UI's own ink, matching
+ * the glyph strokes. Stacks naturally on every shape; the label firms up
+ * so the cluster reads at a glance without shouting. */
+.icon.selected {
+  filter:
+    drop-shadow(0 0 1px color-mix(in srgb, var(--text-primary) 45%, transparent))
+    drop-shadow(0 0 5px color-mix(in srgb, var(--text-primary) 22%, transparent));
+}
+
+.icon.selected .label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Rubber-band rectangle — the sweep that composes a cluster from the
+ * canvas. A soft accent-tinted fill with a thin outline; no animation so
+ * the geometry is honest while the pointer drags. */
+.marquee {
+  position: absolute;
+  z-index: 5;
+  background: color-mix(in srgb, var(--accent, #5b9bd5) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #5b9bd5) 55%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
 }
 
 .glyph {

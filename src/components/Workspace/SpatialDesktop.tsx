@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
-import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type IconKindForLayout } from "../../lib/spatialLayout";
+import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../../lib/spatialLayout";
 import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type ArcScope } from "../../lib/sentenceArcs";
 import { extractEntanglements } from "../../lib/entanglements";
@@ -104,15 +104,29 @@ export function SpatialDesktop() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [layout, setLayout] = useState<SpatialLayout | null>(null);
+  // Which sigil's path does the loaded layout belong to? Used to gate the
+  // LanguageScrollPanel so it only renders once the layout in memory matches
+  // the current folder — otherwise navigating between sigils briefly mounts
+  // the panel with the previous sigil's scroll, overwriting its local state.
+  const [layoutPath, setLayoutPath] = useState<string | null>(null);
   const [mode, setMode] = useState<"inside" | "outside">("inside");
   const [scrollOpen, setScrollOpen] = useState<boolean>(false);
   const [arcScope, setArcScope] = useState<ArcScope>("sentence");
   const [hoveredIcon, setHoveredIcon] = useState<{ icon: IconSpec; rect: DOMRect } | null>(null);
+  // Desktop selection — a cluster of icons I've caught inside a rubber-band
+  // sweep, or a single icon I've pressed. Dragging any selected icon carries
+  // the whole cluster by the same translation. A plain click on empty canvas
+  // dissolves the cluster; a drag on empty canvas composes a new one. A
+  // shift or meta modifier during the sweep extends the existing cluster
+  // rather than replacing it, the way macOS Finder does.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   // Row-tooltip hover state lives in React so the tooltip can be portal-rendered
   // at document.body and escape .root's overflow: hidden. CSS :hover can't do
   // that — a tooltip inside a clipped container is always clipped.
   const [rowTip, setRowTip] = useState<{ text: string; rect: DOMRect } | null>(null);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverEnterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
   const folder = resolveCurrentFolder(ws);
@@ -128,13 +142,23 @@ export function SpatialDesktop() {
     return () => ro.disconnect();
   }, []);
 
-  // Load layout when the inhabited sigil changes.
+  // Load layout when the inhabited sigil changes. Each sigil carries its own
+  // memory: icon positions, scroll size and position, and whether the scroll
+  // was open when I last left. Opening state flows from the loaded layout.
   useEffect(() => {
-    if (!folder) { setLayout(null); return; }
+    if (!folder) { setLayout(null); setLayoutPath(null); return; }
     let cancelled = false;
-    readLayout(folder.path).then((l) => { if (!cancelled) setLayout(l); });
+    readLayout(folder.path).then((l) => {
+      if (cancelled) return;
+      setLayout(l);
+      setLayoutPath(folder.path);
+      setScrollOpen(l.scroll?.open ?? false);
+    });
     return () => { cancelled = true; };
   }, [folder?.path]);
+
+  // A cluster belongs to the sigil it was composed in. Leave this sigil, drop it.
+  useEffect(() => { setSelected(new Set()); setMarquee(null); }, [folder?.path]);
 
   // Debounced save: whenever the layout changes, write it out after a pause.
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,7 +233,18 @@ export function SpatialDesktop() {
         peek: buildPeek(resolveFolder(ent.path)),
       });
     }
-    return list;
+    // A sigil I'm entangled with is one sigil regardless of how I relate
+    // to it. If the same name has already been placed (as narrative,
+    // child, or an earlier entanglement), the later classification is a
+    // duplicate relation, not a new body on the desktop. Keep the first.
+    const seenNames = new Set<string>();
+    const unique: IconSpec[] = [];
+    for (const icon of list) {
+      if (seenNames.has(icon.name)) continue;
+      seenNames.add(icon.name);
+      unique.push(icon);
+    }
+    return unique;
   }, [folder, ws.currentPath, ws.spec.name, ws.spec.root, ws.spec.importedOntologies]);
 
   // Per-kind indices for region-based placement. Preserves appearance order
@@ -322,21 +357,45 @@ export function SpatialDesktop() {
     isDraggingRef.current = true;
     setHoveredIcon(null);
     if (hoverLeaveTimer.current) { clearTimeout(hoverLeaveTimer.current); hoverLeaveTimer.current = null; }
+    if (hoverEnterTimer.current) { clearTimeout(hoverEnterTimer.current); hoverEnterTimer.current = null; }
+
+    // If the pressed icon is already part of a cluster, the cluster travels
+    // together. Otherwise just this icon moves; selection resets to it on
+    // release so a later click on empty canvas reads as "dissolve".
+    const pressedInSelection = selected.has(icon.name) && selected.size > 0;
+    const dragGroup: string[] = pressedInSelection ? Array.from(selected) : [icon.name];
+    const starts = new Map<string, IconPosition>();
+    for (const name of dragGroup) starts.set(name, positionFor(name));
+    const anchor = starts.get(icon.name) ?? positionFor(icon.name);
 
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
-    const start = positionFor(icon.name);
-    const offsetX = e.clientX - start.x;
-    const offsetY = e.clientY - start.y;
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const offsetX = e.clientX - anchor.x;
+    const offsetY = e.clientY - anchor.y;
+    const DRAG_THRESHOLD = 3;
     let moved = false;
 
     const onMove = (ev: PointerEvent) => {
-      const x = ev.clientX - offsetX;
-      const y = ev.clientY - offsetY;
-      moved = true;
+      if (!moved) {
+        if (Math.abs(ev.clientX - startClientX) < DRAG_THRESHOLD && Math.abs(ev.clientY - startClientY) < DRAG_THRESHOLD) return;
+        moved = true;
+        if (!pressedInSelection) setSelected(new Set([icon.name]));
+      }
+      const targetX = ev.clientX - offsetX;
+      const targetY = ev.clientY - offsetY;
+      const dx = targetX - anchor.x;
+      const dy = targetY - anchor.y;
       setLayout((prev) => {
         if (!prev) return prev;
-        const next: SpatialLayout = { ...prev, icons: { ...prev.icons, [icon.name]: { x, y } } };
+        const nextIcons = { ...prev.icons };
+        for (const name of dragGroup) {
+          const s = starts.get(name);
+          if (!s) continue;
+          nextIcons[name] = { x: s.x + dx, y: s.y + dy };
+        }
+        const next: SpatialLayout = { ...prev, icons: nextIcons };
         queueSave(folder.path, next);
         return next;
       });
@@ -346,37 +405,133 @@ export function SpatialDesktop() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       isDraggingRef.current = false;
-      if (!moved) { /* click semantics live in onDoubleClick */ }
+      // Plain click (no motion): the cluster dissolves to just this icon.
+      // A following click on empty canvas will clear it entirely.
+      if (!moved) setSelected(new Set([icon.name]));
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [folder, layout, positionFor, queueSave]);
+  }, [folder, layout, positionFor, queueSave, selected]);
+
+  // Rubber-band selection on empty canvas. Press on the canvas itself —
+  // no icon or arc intercepts — starts a sweep. Icons whose positions fall
+  // inside the rectangle join the cluster as the sweep grows. Shift or
+  // meta extends the prior cluster rather than replacing it. A plain click
+  // (no motion) on empty canvas clears the cluster.
+  const onCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Block the browser's native drag-to-select-text. Without this, sweeping
+    // the rubber band across labels highlights their DOM text in blue.
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const startX = e.clientX - rect.left;
+    const startY = e.clientY - rect.top;
+    const extend = e.shiftKey || e.metaKey || e.ctrlKey;
+    const base = extend ? new Set(selected) : new Set<string>();
+
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    setMarquee({ x0: startX, y0: startY, x1: startX, y1: startY });
+    isDraggingRef.current = true;
+    let moved = false;
+    const DRAG_THRESHOLD = 3;
+
+    const onMove = (ev: PointerEvent) => {
+      const r = canvasRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const cx = ev.clientX - r.left;
+      const cy = ev.clientY - r.top;
+      if (!moved) {
+        if (Math.abs(cx - startX) < DRAG_THRESHOLD && Math.abs(cy - startY) < DRAG_THRESHOLD) return;
+        moved = true;
+      }
+      setMarquee({ x0: startX, y0: startY, x1: cx, y1: cy });
+      const bx0 = Math.min(startX, cx), by0 = Math.min(startY, cy);
+      const bx1 = Math.max(startX, cx), by1 = Math.max(startY, cy);
+      const next = new Set(base);
+      for (const spec of icons) {
+        if (spec.kind === "affordance" || spec.kind === "invariant") continue;
+        const p = positionFor(spec.name);
+        if (p.x >= bx0 && p.x <= bx1 && p.y >= by0 && p.y <= by1) next.add(spec.name);
+      }
+      setSelected(next);
+    };
+    const onUp = () => {
+      handle.releasePointerCapture(e.pointerId);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setMarquee(null);
+      isDraggingRef.current = false;
+      // Plain click on empty canvas (no motion) dissolves the cluster.
+      if (!moved && !extend) setSelected(new Set());
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [icons, positionFor, selected]);
 
   const onIconDoubleClick = useCallback((icon: IconSpec) => {
     if (icon.kind === "narrative") {
-      setScrollOpen((v) => !v);
+      const next = !scrollOpen;
+      setScrollOpen(next);
+      if (!folder) return;
+      // Persist the open/closed state per-sigil so each sigil remembers
+      // whether its scroll was open the last time I was here.
+      setLayout((prev) => {
+        const base = prev ?? { version: 1 as const, icons: {} };
+        const prevScroll = base.scroll;
+        const mergedScroll = prevScroll
+          ? { ...prevScroll, open: next }
+          : {
+              x: SCROLL_DEFAULT_X,
+              y: SCROLL_DEFAULT_Y,
+              w: SCROLL_DEFAULT_W,
+              h: SCROLL_DEFAULT_H,
+              open: next,
+            };
+        const merged: SpatialLayout = { ...base, scroll: mergedScroll };
+        queueSave(folder.path, merged);
+        return merged;
+      });
       return;
     }
     if (icon.navigateTo) navigate(icon.navigateTo);
-  }, [navigate]);
+  }, [navigate, folder, queueSave, scrollOpen]);
 
   const cancelHoverLeave = useCallback(() => {
     if (hoverLeaveTimer.current) { clearTimeout(hoverLeaveTimer.current); hoverLeaveTimer.current = null; }
   }, []);
 
+  const cancelHoverEnter = useCallback(() => {
+    if (hoverEnterTimer.current) { clearTimeout(hoverEnterTimer.current); hoverEnterTimer.current = null; }
+  }, []);
+
   const scheduleHoverLeave = useCallback(() => {
     cancelHoverLeave();
+    cancelHoverEnter();
     hoverLeaveTimer.current = setTimeout(() => setHoveredIcon(null), 60);
-  }, [cancelHoverLeave]);
+  }, [cancelHoverLeave, cancelHoverEnter]);
+
+  // Peek appears only when attention actually rests on an icon. A casual
+  // fly-through never pauses long enough to pop anything; a brief, deliberate
+  // hover does. 260ms reads as intent without feeling laggy.
+  const HOVER_DELAY_MS = 260;
 
   const onIconPointerEnter = useCallback((e: React.PointerEvent<HTMLDivElement>, icon: IconSpec) => {
     if (isDraggingRef.current) return; // suppress peek during a drag
     if (!icon.peek) return;
     if (!icon.peek.thesis && icon.peek.affordances.length === 0 && icon.peek.invariants.length === 0) return;
     cancelHoverLeave();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setHoveredIcon({ icon, rect });
-  }, [cancelHoverLeave]);
+    cancelHoverEnter();
+    const target = e.currentTarget;
+    hoverEnterTimer.current = setTimeout(() => {
+      hoverEnterTimer.current = null;
+      if (isDraggingRef.current) return;
+      const rect = target.getBoundingClientRect();
+      setHoveredIcon({ icon, rect });
+    }, HOVER_DELAY_MS);
+  }, [cancelHoverLeave, cancelHoverEnter]);
 
   return (
     <div className={styles.root}>
@@ -414,13 +569,40 @@ export function SpatialDesktop() {
           onClick={() => setArcScope("paragraph")}
         >Paragraph</button>
       </div>
-      <LanguageScrollPanel
-        open={scrollOpen}
-        onClose={() => setScrollOpen(false)}
-        title={folder ? folder.name : ""}
-        text={folder?.language ?? ""}
-        childNames={folder ? folder.children.map((c) => c.name) : []}
-      />
+      {folder && layout && layoutPath === folder.path && (
+        <LanguageScrollPanel
+          key={folder.path}
+          open={scrollOpen}
+          onClose={() => {
+            setScrollOpen(false);
+            if (!folder) return;
+            setLayout((prev) => {
+              const base = prev ?? { version: 1 as const, icons: {} };
+              const prevScroll = base.scroll;
+              if (!prevScroll) return base;
+              const merged: SpatialLayout = { ...base, scroll: { ...prevScroll, open: false } };
+              queueSave(folder.path, merged);
+              return merged;
+            });
+          }}
+          title={folder.name}
+          text={stripFrontmatter(folder.language ?? "")}
+          childNames={folder.children.map((c) => c.name)}
+          initial={layout.scroll}
+          onCommit={(next) => {
+            setLayout((prev) => {
+              const base = prev ?? { version: 1 as const, icons: {} };
+              // Preserve the current open state when persisting position/size.
+              const merged: SpatialLayout = {
+                ...base,
+                scroll: { ...next, open: base.scroll?.open ?? true },
+              };
+              queueSave(folder.path, merged);
+              return merged;
+            });
+          }}
+        />
+      )}
       <div className={styles.affordanceRow} aria-label="Affordances">
         {affordances.map((aff) => (
           <div
@@ -454,8 +636,20 @@ export function SpatialDesktop() {
         ref={canvasRef}
         className={styles.canvas}
         style={{ minWidth: contentBounds.w, minHeight: contentBounds.h }}
+        onPointerDown={onCanvasPointerDown}
       >
         <div className={styles.parentBar} />
+        {marquee && (
+          <div
+            className={styles.marquee}
+            style={{
+              left: Math.min(marquee.x0, marquee.x1),
+              top: Math.min(marquee.y0, marquee.y1),
+              width: Math.abs(marquee.x1 - marquee.x0),
+              height: Math.abs(marquee.y1 - marquee.y0),
+            }}
+          />
+        )}
         {arcEndpoints.length > 0 && (
           <svg className={styles.arcs} width={contentBounds.w} height={contentBounds.h}>
             {arcEndpoints.map(({ arc, pa, pb }, i) => {
@@ -482,10 +676,11 @@ export function SpatialDesktop() {
           const pos = positionFor(icon.name);
           const { w, h } = glyphSize(icon.kind);
           const isHovered = hoveredIcon?.icon.name === icon.name && hoveredIcon?.icon.kind === icon.kind;
+          const isSelected = selected.has(icon.name);
           return (
             <div
               key={`${icon.kind}:${icon.name}`}
-              className={`${styles.icon} ${isHovered ? styles.hovered : ""}`}
+              className={`${styles.icon} ${isHovered ? styles.hovered : ""} ${isSelected ? styles.selected : ""}`}
               style={{ left: pos.x - w / 2, top: pos.y - h / 2 }}
               onPointerDown={(e) => onIconPointerDown(e, icon)}
               onDoubleClick={() => onIconDoubleClick(icon)}
@@ -726,69 +921,51 @@ interface LanguageScrollPanelProps {
   title: string;
   text: string;
   childNames: string[];
+  initial?: ScrollPanelLayout;
+  onCommit: (layout: ScrollPanelLayout) => void;
 }
 
-const SCROLL_SIZE_STORAGE_KEY = "sigil.spatial.scrollSize";
 const SCROLL_MIN_W = 260;
 const SCROLL_MIN_H = 180;
 const SCROLL_MAX_W_FRAC = 0.92;
 const SCROLL_MAX_H_OFFSET = 80;
 const SCROLL_DEFAULT_W = 420;
 const SCROLL_DEFAULT_H = 520;
+const SCROLL_DEFAULT_X = 16;
+const SCROLL_DEFAULT_Y = 64;
 
 interface ScrollSize { w: number; h: number }
-
-function loadScrollSize(): ScrollSize {
-  try {
-    const raw = localStorage.getItem(SCROLL_SIZE_STORAGE_KEY);
-    if (!raw) return { w: SCROLL_DEFAULT_W, h: SCROLL_DEFAULT_H };
-    const parsed = JSON.parse(raw) as Partial<ScrollSize>;
-    const w = Number.isFinite(parsed.w) ? (parsed.w as number) : SCROLL_DEFAULT_W;
-    const h = Number.isFinite(parsed.h) ? (parsed.h as number) : SCROLL_DEFAULT_H;
-    return { w: Math.max(SCROLL_MIN_W, w), h: Math.max(SCROLL_MIN_H, h) };
-  } catch {
-    return { w: SCROLL_DEFAULT_W, h: SCROLL_DEFAULT_H };
-  }
-}
-
-function saveScrollSize(size: ScrollSize): void {
-  try { localStorage.setItem(SCROLL_SIZE_STORAGE_KEY, JSON.stringify({ w: Math.round(size.w), h: Math.round(size.h) })); } catch { /* ignore */ }
-}
-
-const SCROLL_POS_STORAGE_KEY = "sigil.spatial.scrollPos";
-
 interface ScrollPos { x: number; y: number }
-
-function loadScrollPos(): ScrollPos {
-  try {
-    const raw = localStorage.getItem(SCROLL_POS_STORAGE_KEY);
-    if (!raw) return { x: 16, y: 64 };
-    const parsed = JSON.parse(raw) as Partial<ScrollPos>;
-    const x = Number.isFinite(parsed.x) ? (parsed.x as number) : 16;
-    const y = Number.isFinite(parsed.y) ? (parsed.y as number) : 64;
-    return { x, y };
-  } catch {
-    return { x: 16, y: 64 };
-  }
-}
-
-function saveScrollPos(pos: ScrollPos): void {
-  try { localStorage.setItem(SCROLL_POS_STORAGE_KEY, JSON.stringify({ x: Math.round(pos.x), y: Math.round(pos.y) })); } catch { /* ignore */ }
-}
 
 /**
  * Foldable scroll showing the current sigil's language.md with @-refs that
- * resolve to a child rendered in the child's own color. The right edge is
- * a drag handle for width; width persists to localStorage.
+ * resolve to a child rendered in the child's own color. Size and position
+ * persist per-sigil in spatial.layout.json — each sigil remembers how its
+ * scroll was arranged. Remounted (via key) when the inhabited sigil changes.
  */
-function LanguageScrollPanel({ open, onClose, title, text, childNames }: LanguageScrollPanelProps) {
+function LanguageScrollPanel({ open, onClose, title, text, childNames, initial, onCommit }: LanguageScrollPanelProps) {
   const childSet = useMemo(() => new Set(childNames), [childNames]);
   const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<ScrollSize>(() => loadScrollSize());
-  const [pos, setPos] = useState<ScrollPos>(() => loadScrollPos());
+  const [size, setSize] = useState<ScrollSize>(() => ({
+    w: Math.max(SCROLL_MIN_W, initial?.w ?? SCROLL_DEFAULT_W),
+    h: Math.max(SCROLL_MIN_H, initial?.h ?? SCROLL_DEFAULT_H),
+  }));
+  const [pos, setPos] = useState<ScrollPos>(() => ({
+    x: initial?.x ?? SCROLL_DEFAULT_X,
+    y: initial?.y ?? SCROLL_DEFAULT_Y,
+  }));
   const [resizing, setResizing] = useState<boolean>(false);
   const [dragging, setDragging] = useState<boolean>(false);
+
+  const commit = useCallback((nextSize: ScrollSize, nextPos: ScrollPos) => {
+    onCommit({
+      x: Math.round(nextPos.x),
+      y: Math.round(nextPos.y),
+      w: Math.round(nextSize.w),
+      h: Math.round(nextSize.h),
+    });
+  }, [onCommit]);
 
   const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -813,11 +990,11 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       setResizing(false);
-      setSize((s) => { saveScrollSize(s); return s; });
+      setSize((s) => { commit(s, pos); return s; });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, []);
+  }, [commit, pos]);
 
   const onHeaderDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // Don't start drag when the click is on the close button.
@@ -845,11 +1022,11 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames }: Languag
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       setDragging(false);
-      setPos((p) => { saveScrollPos(p); return p; });
+      setPos((p) => { commit(size, p); return p; });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [pos, size]);
+  }, [commit, pos, size]);
 
   const activeTransition = resizing || dragging;
 

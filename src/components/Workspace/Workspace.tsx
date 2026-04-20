@@ -108,12 +108,11 @@ export function Workspace() {
 
   const actionDeps = useActionDeps();
 
-  // Invariant: open sigil is always visible and selected in ontology tree.
-  // Ensures panel is open, on ontology tab, and all ancestor nodes are expanded.
+  // Keep the ontology tree's expansion in sync with the inhabited sigil, so
+  // that whenever the panel is next opened the current sigil is already
+  // revealed. Do NOT force the panel open or switch tabs — the user's choice
+  // to fold the panel for flow is authoritative and must survive navigation.
   useEffect(() => {
-    if (!layout.ontologyPanelOpen || layout.ontologyPanelTab !== "ontology") {
-      layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
-    }
     // Expand all ancestors of currentPath in the tree.
     // The root node has pathKey "" (from [].join("/")), imported paths start with "Imported Ontologies".
     const ancestorKeys: string[] = [];

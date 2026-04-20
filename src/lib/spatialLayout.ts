@@ -16,9 +16,19 @@ export interface IconPosition {
   y: number;
 }
 
+export interface ScrollPanelLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Was the scroll open when I last left this sigil? Per-sigil memory. */
+  open?: boolean;
+}
+
 export interface SpatialLayout {
   version: 1;
   icons: Record<string, IconPosition>;
+  scroll?: ScrollPanelLayout;
 }
 
 export function emptyLayout(): SpatialLayout {
