@@ -189,6 +189,25 @@
   overflow: visible;
 }
 
+/* Tethers — definitional links from a canvas affordance to each sigil its
+ * body names. Drawn beneath the narrative arcs so a co-occurrence arc always
+ * reads on top of an affordance tether. Styled as a thin accent-tinted
+ * line — quiet, but distinct enough from the narrative arcs that the eye
+ * separates the two layers (definitional vs. timelike). */
+.tethers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tetherPath {
+  fill: none;
+  stroke: #3d9e8c; /* matches .peekChipAff */
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
 .arcPath {
   fill: none;
   stroke: var(--text-secondary);

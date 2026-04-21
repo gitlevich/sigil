@@ -40,7 +40,16 @@ export function extractEntanglements(
     const resolution = coreResolve(root, currentPath, `@${name}`, importedOntologies);
     if (!resolution) continue;
     if (resolution.kind === "unresolved" || resolution.kind === "ancestor" || resolution.kind === "contained") continue;
-    if (resolution.kind === "proximity") continue; // Co-occurrence isn't an explicit reference; skip.
+    // Proximity — an explicit @ref that the resolver located by searching
+    // the subtree. It's still an explicit reference, just not a sibling or a
+    // child, so surface it as a neighbor-shaped icon pointing at the resolved
+    // path. (Previously skipped by conflation with co-occurrence.)
+    if (resolution.kind === "proximity") {
+      const canonical = resolution.target?.name ?? name;
+      if (seen.has(canonical)) continue;
+      seen.set(canonical, { name: canonical, kind: "neighbor", path: resolution.path });
+      continue;
+    }
     if (resolution.kind === "lib") {
       // Collapse the ref to its top-level imported ontology — the god itself,
       // not the specific blessing it offers. A reference like @Narration (which
@@ -58,4 +67,41 @@ export function extractEntanglements(
     seen.set(name, { name, kind: "neighbor", path: resolution.path });
   }
   return [...seen.values()];
+}
+
+/**
+ * Names of sigils referenced by a block of text (an affordance body). Unlike
+ * `extractEntanglements`, children are retained — an affordance pointing at
+ * a child is the strongest signal of where that affordance reaches. The
+ * returned names correspond to icon names on the current desktop:
+ * children by their own name, neighbors by their own name, gods collapsed
+ * to the top-level imported ontology's name.
+ */
+export function extractAffordanceTargets(
+  text: string,
+  root: Sigil,
+  currentPath: string[],
+  importedOntologies: Sigil | null,
+): string[] {
+  const seen = new Set<string>();
+  const refRe = /@([A-Za-z][A-Za-z0-9_]*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = refRe.exec(text)) !== null) {
+    const name = match[1];
+    const resolution = coreResolve(root, currentPath, `@${name}`, importedOntologies);
+    if (!resolution) continue;
+    if (resolution.kind === "unresolved") continue;
+    if (resolution.kind === "ancestor") continue; // parent has its own UP button
+    if (resolution.kind === "lib") {
+      // Collapse to the top-level imported ontology (the god on the desktop).
+      const godName = resolution.path[0];
+      if (godName) seen.add(godName);
+      continue;
+    }
+    // Use the resolved target's canonical name, not the raw ref text.
+    // @user (lowercase) must match the canonical sibling "User" on the desktop.
+    const canonical = resolution.target?.name;
+    if (canonical) seen.add(canonical);
+  }
+  return [...seen];
 }

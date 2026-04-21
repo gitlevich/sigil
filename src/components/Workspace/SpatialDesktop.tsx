@@ -14,9 +14,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../../lib/spatialLayout";
-import { colorForSigilName } from "../../lib/sigilColor";
 import { extractArcs, arcLabel, type ArcScope } from "../../lib/sentenceArcs";
-import { extractEntanglements } from "../../lib/entanglements";
+import { extractAffordanceTargets, extractEntanglements } from "../../lib/entanglements";
 import type { Sigil } from "sigil-core";
 import { findContext, stripFrontmatter } from "sigil-core";
 import type { SigilFolder } from "../../tauri";
@@ -29,6 +28,13 @@ interface IconSpec {
   kind: IconKind;
   navigateTo?: string[]; // absolute path in the workspace tree — undefined for body-facet icons
   peek?: PeekData | null; // summary + facets shown on hover
+  /**
+   * For a canvas-affordance — the names of sigil icons (children, neighbors,
+   * gods) that this affordance's body explicitly references. An affordance
+   * that names other sigils is reaching toward them; the glyph leaves the
+   * row and settles at the centroid of its targets, tethered to each.
+   */
+  targets?: string[];
 }
 
 interface PeekData {
@@ -244,8 +250,51 @@ export function SpatialDesktop() {
       seenNames.add(icon.name);
       unique.push(icon);
     }
+
+    // Canvas affordances. An affordance whose body names another sigil is
+    // reaching toward it — a stronger, definitional signal than the narrative
+    // co-occurrence already shown as arcs. Lift such affordances off the row
+    // and place them on the canvas at the centroid of their targets. Keep
+    // only targets that correspond to sigil icons already on this desktop.
+    const sigilIconNames = new Set(unique.filter((i) => i.kind !== "narrative").map((i) => i.name));
+    for (const aff of folder.affordances ?? []) {
+      const raw = extractAffordanceTargets(
+        aff.content ?? "",
+        entanglementRoot,
+        resolvedCurrentPath,
+        importedRoot ?? null,
+      );
+      const targets = raw.filter((n) => sigilIconNames.has(n));
+      if (targets.length === 0) continue;
+      const displayName = `#${aff.name}`;
+      if (seenNames.has(displayName)) continue;
+      seenNames.add(displayName);
+      unique.push({
+        name: displayName,
+        kind: "affordance",
+        peek: {
+          thesis: extractThesisSentence(aff.content ?? ""),
+          affordances: [],
+          invariants: [],
+        },
+        targets,
+      });
+    }
+
     return unique;
   }, [folder, ws.currentPath, ws.spec.name, ws.spec.root, ws.spec.importedOntologies]);
+
+  // Affordance display names that have been pulled onto the canvas; used to
+  // filter them out of the bottom row.
+  const canvasAffordanceNames = useMemo(() => {
+    const s = new Set<string>();
+    for (const icon of icons) {
+      if (icon.kind === "affordance" && icon.targets && icon.targets.length > 0) {
+        s.add(icon.name);
+      }
+    }
+    return s;
+  }, [icons]);
 
   // Per-kind indices for region-based placement. Preserves appearance order
   // inside each kind so new items fall at the next slot, not random.
@@ -253,8 +302,10 @@ export function SpatialDesktop() {
     const counters: Record<string, number> = {};
     const byName = new Map<string, { kind: IconKind; index: number }>();
     for (const icon of icons) {
-      // Affordances and invariants live in fixed rows, not on the canvas.
-      if (icon.kind === "affordance" || icon.kind === "invariant") continue;
+      // Invariants live in a fixed row. Affordances do too — unless they've
+      // been lifted to the canvas because their body names another sigil.
+      if (icon.kind === "invariant") continue;
+      if (icon.kind === "affordance" && !(icon.targets && icon.targets.length > 0)) continue;
       const n = counters[icon.kind] ?? 0;
       byName.set(icon.name, { kind: icon.kind, index: n });
       counters[icon.kind] = n + 1;
@@ -262,17 +313,42 @@ export function SpatialDesktop() {
     return { byName, counters };
   }, [icons]);
 
+  // Name → IconSpec for fast lookup inside positionFor (needed for canvas
+  // affordances whose default position is the centroid of their targets).
+  const iconByName = useMemo(() => {
+    const m = new Map<string, IconSpec>();
+    for (const icon of icons) m.set(icon.name, icon);
+    return m;
+  }, [icons]);
+
   const positionFor = useCallback((name: string): IconPosition => {
     const entry = kindIndex.byName.get(name);
     if (!entry) return { x: size.w / 2, y: size.h / 2 };
-    // User-dragged positions win for every icon. The region default is only
-    // the initial placement; once dragged, the sigil owns its layout.
+    // User-dragged positions win for every icon. The default is only the
+    // initial placement; once dragged, the icon owns its layout.
     const stored = layout?.icons[name];
     if (stored) return stored;
+    // A canvas affordance settles at the centroid of the sigils it names.
+    const icon = iconByName.get(name);
+    if (icon && icon.kind === "affordance" && icon.targets && icon.targets.length > 0) {
+      let sx = 0, sy = 0, n = 0;
+      for (const t of icon.targets) {
+        const tEntry = kindIndex.byName.get(t);
+        if (!tEntry) continue;
+        const tStored = layout?.icons[t];
+        if (tStored) { sx += tStored.x; sy += tStored.y; n++; continue; }
+        const kindForLayout = tEntry.kind as IconKindForLayout;
+        const count = kindIndex.counters[tEntry.kind] ?? 1;
+        const p = regionPosition(kindForLayout, tEntry.index, count, size.w, size.h);
+        sx += p.x; sy += p.y; n++;
+      }
+      if (n > 0) return { x: sx / n, y: sy / n };
+      return { x: size.w / 2, y: size.h / 2 };
+    }
     const kindForLayout = entry.kind as IconKindForLayout;
     const count = kindIndex.counters[entry.kind] ?? 1;
     return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
-  }, [layout, size, kindIndex]);
+  }, [layout, size, kindIndex, iconByName]);
 
   // Content bounds — grow the canvas to contain every positioned icon so the
   // root can scroll when content exceeds the visible viewport.
@@ -289,7 +365,12 @@ export function SpatialDesktop() {
   }, [icons, positionFor, size]);
 
   // Body facets — affordances and invariants — rendered in fixed top/bottom rows.
-  const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
+  // Affordances that were lifted onto the canvas (because their body names
+  // other sigils) are excluded from the row: each affordance appears once.
+  const affordances = useMemo(
+    () => (folder?.affordances ?? []).filter((a) => !canvasAffordanceNames.has(`#${a.name}`)),
+    [folder, canvasAffordanceNames],
+  );
   const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
 
   // Arcs between children that co-occur — deduped per pair, with per-arc
@@ -330,6 +411,25 @@ export function SpatialDesktop() {
         : `${p.sentences.length} sentences: ${p.sentences.join(" ⧫ ")}`,
     }));
   }, [folder, arcScope]);
+
+  // Tethers — the definitional links a canvas affordance owes to each sigil
+  // it names. One line per (affordance, target) pair. Drawn alongside the
+  // co-occurrence arcs but styled differently: the arcs are narrative
+  // (timelike), the tethers are definitional (spacelike).
+  const tetherEndpoints = useMemo(() => {
+    const out: Array<{ affName: string; target: string; pa: { x: number; y: number }; pb: { x: number; y: number } }> = [];
+    for (const icon of icons) {
+      if (icon.kind !== "affordance") continue;
+      if (!icon.targets || icon.targets.length === 0) continue;
+      const pa = positionFor(icon.name);
+      for (const t of icon.targets) {
+        if (!kindIndex.byName.has(t)) continue;
+        const pb = positionFor(t);
+        out.push({ affName: icon.name, target: t, pa, pb });
+      }
+    }
+    return out;
+  }, [icons, kindIndex, positionFor]);
 
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
@@ -587,7 +687,6 @@ export function SpatialDesktop() {
           }}
           title={folder.name}
           text={stripFrontmatter(folder.language ?? "")}
-          childNames={folder.children.map((c) => c.name)}
           initial={layout.scroll}
           onCommit={(next) => {
             setLayout((prev) => {
@@ -650,6 +749,20 @@ export function SpatialDesktop() {
             }}
           />
         )}
+        {tetherEndpoints.length > 0 && (
+          <svg className={styles.tethers} width={contentBounds.w} height={contentBounds.h}>
+            {tetherEndpoints.map(({ affName, target, pa, pb }, i) => {
+              const d = `M ${pa.x} ${pa.y} L ${pb.x} ${pb.y}`;
+              return (
+                <path
+                  key={`${affName}->${target}-${i}`}
+                  className={styles.tetherPath}
+                  d={d}
+                />
+              );
+            })}
+          </svg>
+        )}
         {arcEndpoints.length > 0 && (
           <svg className={styles.arcs} width={contentBounds.w} height={contentBounds.h}>
             {arcEndpoints.map(({ arc, pa, pb }, i) => {
@@ -689,14 +802,12 @@ export function SpatialDesktop() {
             >
               <div
                 className={`${styles.glyph} ${styles[icon.kind]}`}
-                style={icon.kind === "child"
-                  ? { width: w, height: h, borderColor: colorForSigilName(icon.name) }
-                  : { width: w, height: h }}
+                style={{ width: w, height: h }}
               >
                 {icon.kind === "god" ? <GodGlyph /> :
                  icon.kind === "narrative" ? <span>abc</span> :
-                 icon.kind === "neighbor" ? null :
-                 initials(icon.name)}
+                 icon.kind === "affordance" ? <AffordanceGlyph /> :
+                 null}
               </div>
               <div className={styles.label}>{icon.name}</div>
             </div>
@@ -823,13 +934,6 @@ function FloatingPeek({ icon, rect, onPeekEnter, onPeekLeave }: FloatingPeekProp
   );
 }
 
-function initials(name: string): string {
-  const parts = name.replace(/([a-z])([A-Z])/g, "$1 $2").split(/[\s_-]+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 /**
  * Design language: thin strokes (1.5px), transparent fills, currentColor,
  * gently rounded corners. Each glyph shaped by what it affords or constrains.
@@ -920,7 +1024,6 @@ interface LanguageScrollPanelProps {
   onClose: () => void;
   title: string;
   text: string;
-  childNames: string[];
   initial?: ScrollPanelLayout;
   onCommit: (layout: ScrollPanelLayout) => void;
 }
@@ -938,14 +1041,12 @@ interface ScrollSize { w: number; h: number }
 interface ScrollPos { x: number; y: number }
 
 /**
- * Foldable scroll showing the current sigil's language.md with @-refs that
- * resolve to a child rendered in the child's own color. Size and position
+ * Foldable scroll showing the current sigil's language.md. Size and position
  * persist per-sigil in spatial.layout.json — each sigil remembers how its
  * scroll was arranged. Remounted (via key) when the inhabited sigil changes.
  */
-function LanguageScrollPanel({ open, onClose, title, text, childNames, initial, onCommit }: LanguageScrollPanelProps) {
-  const childSet = useMemo(() => new Set(childNames), [childNames]);
-  const rendered = useMemo(() => renderWithColoredRefs(text, childSet), [text, childSet]);
+function LanguageScrollPanel({ open, onClose, title, text, initial, onCommit }: LanguageScrollPanelProps) {
+  const rendered = useMemo(() => renderWithColoredRefs(text), [text]);
   const panelRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<ScrollSize>(() => ({
     w: Math.max(SCROLL_MIN_W, initial?.w ?? SCROLL_DEFAULT_W),
@@ -1061,11 +1162,11 @@ function LanguageScrollPanel({ open, onClose, title, text, childNames, initial, 
 }
 
 /**
- * Tokenize the text and wrap any `@Name` that resolves to a named child
- * in a span colored with that child's deterministic hue. Everything else
- * is passed through as text.
+ * Tokenize the text, wrapping each `@ref` in a plain span so it can be
+ * styled neutrally. No color, no highlighting — refs are recognizable
+ * from their `@` prefix alone.
  */
-function renderWithColoredRefs(text: string, childSet: Set<string>): ReactNode[] {
+function renderWithColoredRefs(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
   const re = /@([A-Za-z][A-Za-z0-9_]*)/g;
   let last = 0;
@@ -1074,14 +1175,7 @@ function renderWithColoredRefs(text: string, childSet: Set<string>): ReactNode[]
     const start = match.index;
     const end = start + match[0].length;
     if (start > last) parts.push(text.slice(last, start));
-    const name = match[1];
-    if (childSet.has(name)) {
-      parts.push(
-        <span key={start} className={styles.ref} style={{ color: colorForSigilName(name) }}>{match[0]}</span>
-      );
-    } else {
-      parts.push(<span key={start}>{match[0]}</span>);
-    }
+    parts.push(<span key={start}>{match[0]}</span>);
     last = end;
   }
   if (last < text.length) parts.push(text.slice(last));
