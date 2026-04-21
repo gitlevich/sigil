@@ -19,15 +19,29 @@ export interface UIState {
 export type ThemePreference = "light" | "dark" | "system";
 
 /**
- * Visible trace of the @LeftHemisphere's #increase-resolution attempt.
+ * Visible trace of the attention currently spending cycles outside the
+ * embedded local sidecar. Tracks both paths that light the global indicator:
+ * local-tier escalation from embedded to another local model, and any remote
+ * call (direct or via #increase-resolution).
  *
- *  - "rest": local capacity was enough, or escalation is not happening.
- *  - "unserved": local attempted, no fallback configured — the @user sees a
- *    brief orange glow, nothing runs at higher resolution.
- *  - "in-flight": fallback is handling the signal; glow pulses in the
- *    fallback's accent color while the connection is live.
+ *  - "rest":      embedded is handling it, or nothing is running.
+ *  - "unserved":  escalation attempted, no fallback configured — brief glow,
+ *                 nothing runs at higher resolution.
+ *  - "in-flight": a non-embedded attention is active; tier selects the color
+ *                 (local = orange, remote = provider accent).
  */
-export type ResolutionIncreaseState = "rest" | "unserved" | "in-flight";
+export type ResolutionIncreaseKind = "rest" | "unserved" | "in-flight";
+
+export interface ResolutionIncreaseState {
+  kind: ResolutionIncreaseKind;
+  /** Which tier is active. Defined when kind === "in-flight". */
+  tier?: "local" | "remote";
+  /** Provider id ("anthropic", "openai", "ollama", "local") used to pick the
+   *  accent color when tier === "remote". */
+  provider?: string;
+  /** Short human label for the tooltip, e.g. "Ollama · mistral:7b". */
+  label?: string;
+}
 
 interface AppState {
   screen: "picker" | "workspace";
@@ -39,6 +53,8 @@ interface AppState {
   ui: UIState;
   resolutionIncrease: ResolutionIncreaseState;
 }
+
+const REST: ResolutionIncreaseState = { kind: "rest" };
 
 type Action =
   | { type: "SET_SCREEN"; screen: "picker" | "workspace" }
@@ -53,7 +69,7 @@ type Action =
 export const DEFAULT_UI: UIState = {
   ontologyPanelWidth: 260,
   designPartnerPanelWidth: 400,
-  fontSize: 16,
+  fontSize: 18,
 };
 
 const initialState: AppState = {
@@ -70,7 +86,7 @@ const initialState: AppState = {
   helpOpen: false,
   themePreference: "system",
   ui: DEFAULT_UI,
-  resolutionIncrease: "rest",
+  resolutionIncrease: REST,
 };
 
 function reducer(state: AppState, action: Action): AppState {

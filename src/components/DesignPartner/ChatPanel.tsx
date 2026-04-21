@@ -8,7 +8,27 @@ import { api } from "../../tauri";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import { IncreaseResolutionDot } from "./IncreaseResolutionDot";
+import { useToast } from "../../hooks/useToast";
 import styles from "./ChatPanel.module.css";
+
+/**
+ * Copy text to the system clipboard. Tries the web-standard navigator API
+ * first (works inside the Tauri webview without round-tripping to Rust),
+ * then falls back to the Tauri plugin if the navigator path is unavailable
+ * or denied. Surfaces success and failure as a toast so the @user knows
+ * what happened — silent failure was the previous behavior.
+ */
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (err) {
+      console.warn("navigator.clipboard.writeText failed, falling back:", err);
+    }
+  }
+  await writeText(text);
+}
 
 function draftKey(rootPath: string, chatId: string): string {
   return `sigil-draft:${rootPath}:${chatId}`;
@@ -22,6 +42,7 @@ export function ChatPanel() {
   const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { sendMessage } = useChatStreamContext();
+  const { addToast } = useToast();
   const [input, setInput] = useState(() => {
     try { return localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || ""; }
     catch { return ""; }
@@ -146,6 +167,23 @@ export function ChatPanel() {
     }
   };
 
+  /**
+   * Snapshot the current chat into a numbered sibling and continue from
+   * here. Active chat keeps its name and history; the snapshot wears
+   * "{name} N". Backend assigns N. List refreshes; user stays on this chat.
+   */
+  const forkChat = async (chatId: string) => {
+    try {
+      const snapshot = await api.forkChat(ws.spec.rootPath, chatId);
+      const refreshed = await api.listChats(ws.spec.rootPath);
+      chatDispatch({ type: "SET_CHATS", chats: refreshed });
+      addToast(`Snapshotted as ${snapshot.name}`, "info");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast(`Fork failed: ${msg}`, "error");
+    }
+  };
+
   const renameChat = async (chatId: string) => {
     const found = chat.chats.find((c) => c.id === chatId);
     if (!found) return;
@@ -186,6 +224,32 @@ export function ChatPanel() {
           >
             {activeChatName || "AI Review"}
           </span>
+        )}
+        {(appState.settings.fork_enabled ?? true) && chat.activeChatId && (
+          <button
+            className={styles.newChatBtn}
+            onClick={() => chat.activeChatId && forkChat(chat.activeChatId)}
+            title="Fork: snapshot the current chat into a numbered sibling and continue from here"
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="4.5" cy="3.5" r="1.5" />
+              <circle cx="11.5" cy="3.5" r="1.5" />
+              <circle cx="8" cy="12.5" r="1.5" />
+              <path d="M4.5 5 L4.5 7 Q4.5 9 6.5 9 L9.5 9 Q11.5 9 11.5 7 L11.5 5" />
+              <path d="M8 9 L8 11" />
+            </svg>
+          </button>
         )}
         <button
           className={styles.newChatBtn}
@@ -287,7 +351,14 @@ export function ChatPanel() {
               </span>
               <button
                 className={styles.copyBtn}
-                onClick={() => writeText(msg.content).catch(console.error)}
+                onClick={() => {
+                  copyToClipboard(msg.content)
+                    .then(() => addToast("Copied", "info"))
+                    .catch((err) => {
+                      console.error("Copy failed:", err);
+                      addToast("Copy failed", "error");
+                    });
+                }}
                 title="Copy to clipboard"
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -308,7 +379,7 @@ export function ChatPanel() {
           <div className={`${styles.message} ${styles.assistantMsg}`}>
             <div className={styles.messageRole}>AI</div>
             <div className={styles.typing}>
-              {appState.resolutionIncrease === "in-flight" || appState.resolutionIncrease === "unserved"
+              {appState.resolutionIncrease.kind === "in-flight" || appState.resolutionIncrease.kind === "unserved"
                 ? <IncreaseResolutionDot variant="inline" />
                 : "Thinking..."}
             </div>

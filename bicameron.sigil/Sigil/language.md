@@ -1,5 +1,0 @@
----
-status: seed
----
-
-# Sigil

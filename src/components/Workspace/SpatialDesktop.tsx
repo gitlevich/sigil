@@ -16,6 +16,7 @@ import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "..
 import { regionPosition, readLayout, writeLayout, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../../lib/spatialLayout";
 import { extractArcs, arcLabel, type ArcScope } from "../../lib/sentenceArcs";
 import { extractAffordanceTargets, extractEntanglements } from "../../lib/entanglements";
+import { StructuralView3D } from "./StructuralView3D";
 import type { Sigil } from "sigil-core";
 import { findContext, stripFrontmatter } from "sigil-core";
 import type { SigilFolder } from "../../tauri";
@@ -633,6 +634,18 @@ export function SpatialDesktop() {
     }, HOVER_DELAY_MS);
   }, [cancelHoverLeave, cancelHoverEnter]);
 
+  if (mode === "outside") {
+    return (
+      <div className={styles.root}>
+        <div className={styles.modeBar}>
+          <button className={styles.modeBtn} onClick={() => setMode("inside")}>Inside</button>
+          <button className={`${styles.modeBtn} ${styles.active}`} onClick={() => setMode("outside")}>Outside</button>
+        </div>
+        <StructuralView3D />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.root}>
       {ascend && (
@@ -649,14 +662,13 @@ export function SpatialDesktop() {
       )}
       <div className={styles.modeBar}>
         <button
-          className={`${styles.modeBtn} ${mode === "inside" ? styles.active : ""}`}
+          className={`${styles.modeBtn} ${styles.active}`}
           onClick={() => setMode("inside")}
         >Inside</button>
         <button
-          className={`${styles.modeBtn} ${mode === "outside" ? styles.active : ""}`}
+          className={styles.modeBtn}
           onClick={() => setMode("outside")}
-          disabled
-          title="3D atlas — Phase B"
+          title="Structural view — sigil as a sphere with an opening"
         >Outside</button>
       </div>
       <div className={styles.arcScopeBar}>

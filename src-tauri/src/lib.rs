@@ -103,6 +103,7 @@ pub fn run() {
             commands::chat::write_chat,
             commands::chat::delete_chat,
             commands::chat::rename_chat,
+            commands::chat::fork_chat,
             commands::chat::send_chat_message,
             commands::chat_abort::cancel_chat,
             commands::tool_dispatcher::tool_result,

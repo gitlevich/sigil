@@ -1,7 +1,7 @@
 .container {
   position: fixed;
   bottom: 1rem;
-  right: 1rem;
+  left: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -16,21 +16,24 @@
   cursor: pointer;
   animation: slideIn 0.2s ease-out;
   box-shadow: 0 2px 12px var(--shadow);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 .error {
-  background: var(--danger);
-  color: #fff;
+  background: color-mix(in srgb, var(--danger) 35%, transparent);
+  color: var(--text-primary);
 }
 
 .info {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--text-primary);
 }
 
 @keyframes slideIn {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
     opacity: 0;
   }
   to {

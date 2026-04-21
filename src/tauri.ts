@@ -270,6 +270,8 @@ export interface Settings {
   system_prompt: string;
   response_style: ResponseStyle;
   keybindings: Keybindings;
+  /** When true, a fork action is exposed in the chat header. Defaults true. */
+  fork_enabled?: boolean;
 }
 
 export function selectedProvider(settings: Settings): AiProvider | undefined {
@@ -363,6 +365,9 @@ export const api = {
 
   renameChat: (rootPath: string, chatId: string, newName: string) =>
     invoke<void>("rename_chat", { rootPath, chatId, newName }),
+
+  forkChat: (rootPath: string, chatId: string) =>
+    invoke<ChatInfo>("fork_chat", { rootPath, chatId }),
 
   sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, fallbackProfile: AiProvider | undefined, systemPrompt: string, currentPath: string[]) =>
     invoke<void>("send_chat_message", { rootPath, chatId, message, profile, fallbackProfile: fallbackProfile ?? null, systemPrompt, currentPath }),
@@ -521,6 +526,11 @@ export const events = {
     handler: (req: { request_id: string; payload: { content: string } }) => void,
   ): Promise<UnlistenFn> =>
     listen("tool:write_vision", (event) => handler(event.payload as { request_id: string; payload: { content: string } })),
+
+  onToolMarkPlacement: (
+    handler: (req: { request_id: string; payload: { sigil_path: string; abs_path: string; category: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:mark_placement", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string; abs_path: string; category: string } })),
 
   onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
     listen<string>("select-text", (event) => handler(event.payload)),

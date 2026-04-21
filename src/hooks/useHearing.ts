@@ -173,23 +173,25 @@ function diffCompileErrors(
   // Newly dangling: present now but not before.
   for (const [key, err] of nextKeys) {
     if (prevKeys.has(key)) continue;
+    const sigilName = err.path.length > 0 ? err.path[err.path.length - 1] : "root";
     ctx.events.push({
       id: ctx.nextId++,
       timestamp: ctx.now,
       kind: "language",
       path: err.path,
-      summary: `${err.ref} in ${err.file}:${err.line} now dangles — ${err.reason}`,
+      summary: `${err.ref} in @${sigilName}/${err.file}:${err.line} now dangles — ${err.reason}`,
     });
   }
   // Newly resolved: present before but not now.
   for (const [key, err] of prevKeys) {
     if (nextKeys.has(key)) continue;
+    const sigilName = err.path.length > 0 ? err.path[err.path.length - 1] : "root";
     ctx.events.push({
       id: ctx.nextId++,
       timestamp: ctx.now,
       kind: "language",
       path: err.path,
-      summary: `${err.ref} in ${err.file}:${err.line} now resolves`,
+      summary: `${err.ref} in @${sigilName}/${err.file}:${err.line} now resolves`,
     });
   }
   return ctx.events;
@@ -201,10 +203,69 @@ function prependAndRoll(existing: HearingEvent[], incoming: HearingEvent[]): Hea
   return [...incoming, ...existing].slice(0, MAX_EVENTS);
 }
 
+/** ~500ms — long enough that an active typist's spec updates settle into one
+ *  diff per pause, short enough that completed edits surface promptly. */
+const DIFF_DEBOUNCE_MS = 500;
+
+/** ~3s — a reference that dangled and resolved within this window was a
+ *  transient mid-typing state and is dropped from both sides. */
+const TRANSIENT_REF_WINDOW_MS = 3000;
+
+/** Stable key for a "ref X at file:line" event, regardless of dangle/resolve
+ *  direction. Used to recognize a resolve as the partner of an earlier dangle
+ *  (or vice versa) and drop the pair as transient. */
+function refEventKey(summary: string): string | null {
+  // diffCompileErrors emits exactly two summary shapes; key them by everything
+  // except the "now dangles | now resolves" verb so a pair matches.
+  const danglesIdx = summary.indexOf(" now dangles");
+  if (danglesIdx >= 0) return summary.slice(0, danglesIdx);
+  const resolvesIdx = summary.indexOf(" now resolves");
+  if (resolvesIdx >= 0) return summary.slice(0, resolvesIdx);
+  return null;
+}
+
+/** Cancel ref events that pair (dangle ↔ resolve) within the transient window.
+ *  Tree events pass through untouched. The buffer holds recently-emitted ref
+ *  keys with their timestamps so the next incoming event can recognize itself
+ *  as a partner. */
+function dropTransientRefPairs(
+  incoming: HearingEvent[],
+  recentRefs: Map<string, number>,
+  now: number,
+): HearingEvent[] {
+  // Expire old entries.
+  for (const [key, ts] of recentRefs) {
+    if (now - ts > TRANSIENT_REF_WINDOW_MS) recentRefs.delete(key);
+  }
+  const kept: HearingEvent[] = [];
+  const cancelledKeys = new Set<string>();
+  for (const ev of incoming) {
+    const key = refEventKey(ev.summary);
+    if (key === null) {
+      kept.push(ev);
+      continue;
+    }
+    if (recentRefs.has(key)) {
+      // Partner found in the window — both sides are transient. Mark the
+      // earlier event for removal too (it may already be in the events list).
+      cancelledKeys.add(key);
+      recentRefs.delete(key);
+      continue;
+    }
+    recentRefs.set(key, now);
+    kept.push(ev);
+  }
+  // Caller filters the existing events list against cancelledKeys.
+  (kept as HearingEvent[] & { __cancelledKeys?: Set<string> }).__cancelledKeys = cancelledKeys;
+  return kept;
+}
+
 export function useHearing(root: Sigil | null, compileErrors: RefError[] = []): HearingEvent[] {
   const prevRef = useRef<Sigil | null>(null);
   const prevErrorsRef = useRef<RefError[] | null>(null);
   const nextIdRef = useRef(1);
+  const recentRefsRef = useRef<Map<string, number>>(new Map());
+  const debounceTimerRef = useRef<number | null>(null);
   const [events, setEvents] = useState<HearingEvent[]>([]);
 
   useEffect(() => {
@@ -213,20 +274,52 @@ export function useHearing(root: Sigil | null, compileErrors: RefError[] = []): 
       prevErrorsRef.current = null;
       return;
     }
-    const prevRoot = prevRef.current;
-    const prevErrors = prevErrorsRef.current;
-    prevRef.current = root;
-    prevErrorsRef.current = compileErrors;
-    if (!prevRoot) return; // First load: nothing to diff against.
+    // Debounce: defer the diff until the spec has been stable for a moment.
+    // While the @user is mid-typing every keystroke produces a spec update;
+    // diffing each one echoes their typing back as "language changed" plus
+    // a flicker of dangling references. Wait for the burst to settle, then
+    // compare against the last stable snapshot — one event per real change.
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = window.setTimeout(() => {
+      debounceTimerRef.current = null;
+      const prevRoot = prevRef.current;
+      const prevErrors = prevErrorsRef.current;
+      prevRef.current = root;
+      prevErrorsRef.current = compileErrors;
+      if (!prevRoot) return;
 
-    const treeEvents = diffTrees(prevRoot, root, nextIdRef.current);
-    nextIdRef.current += treeEvents.length;
-    const refEvents = diffCompileErrors(prevErrors ?? [], compileErrors, nextIdRef.current);
-    nextIdRef.current += refEvents.length;
+      const treeEvents = diffTrees(prevRoot, root, nextIdRef.current);
+      nextIdRef.current += treeEvents.length;
+      const refEvents = diffCompileErrors(prevErrors ?? [], compileErrors, nextIdRef.current);
+      nextIdRef.current += refEvents.length;
 
-    const incoming = [...treeEvents, ...refEvents];
-    if (incoming.length === 0) return;
-    setEvents((cur) => prependAndRoll(cur, incoming));
+      const incoming = [...treeEvents, ...refEvents];
+      if (incoming.length === 0) return;
+
+      const filtered = dropTransientRefPairs(incoming, recentRefsRef.current, Date.now());
+      const cancelledKeys = (filtered as HearingEvent[] & {
+        __cancelledKeys?: Set<string>;
+      }).__cancelledKeys ?? new Set<string>();
+
+      setEvents((cur) => {
+        const pruned = cancelledKeys.size === 0
+          ? cur
+          : cur.filter((ev) => {
+              const k = refEventKey(ev.summary);
+              return k === null || !cancelledKeys.has(k);
+            });
+        return prependAndRoll(pruned, filtered);
+      });
+    }, DIFF_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
   }, [root, compileErrors]);
 
   return events;

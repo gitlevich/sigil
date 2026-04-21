@@ -375,6 +375,27 @@ export function SettingsDialog() {
               </p>
             </div>
           </div>
+
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Conversation Forking</h3>
+            <div className={styles.field}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={local.fork_enabled ?? true}
+                  onChange={(e) => setLocal({ ...local, fork_enabled: e.target.checked })}
+                />
+                <span>Show fork action in chat header</span>
+              </label>
+              <p className={styles.styleHint}>
+                Fork snapshots the current chat into a numbered sibling and
+                continues from where you are. The active chat keeps its name;
+                the snapshot wears <code>name N</code> with N cycling 0 to
+                1,000,000. Useful for branching exploration without losing
+                where the thread was.
+              </p>
+            </div>
+          </div>
           </>)}
 
           {settingsTab === "shortcuts" && (

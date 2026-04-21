@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useRef } from "react";
 import { api, events, ChatMessage, selectedProvider, fallbackProvider } from "../tauri";
-import { useAppState } from "../state/AppContext";
+import { useAppState, useAppDispatch } from "../state/AppContext";
 import { useWorkspaceState, useWorkspaceActions } from "../state/WorkspaceContext";
 import { discardPendingAutoSave } from "./useAutoSave";
 import { useChatState, useChatDispatch } from "../state/ChatContext";
 import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
-import { useNameMisfits, type NameMisfit } from "./useNameMisfits";
 import { useHearing, type HearingEvent } from "./useHearing";
 import { useCompileCheck, type RefError } from "./useCompileCheck";
 import { useSpellbook } from "./useSpellbook";
-import { consultSpellbook, compressSigil, type Disturbance } from "sigil-core";
+import { consultSpellbook, compressSigil, allRefsPattern, type Disturbance } from "sigil-core";
+import type { Sigil } from "sigil-core";
 import { useActionDeps } from "./useActionDeps";
 import * as actions from "../actions/workspace";
 
+/**
+ * A provider whose stream costs the @user money. The remote-call indicator
+ * in the GlobalStatusBar tracks any call to one of these, whether it arrived
+ * via #increase-resolution or a direct chat with a remote model.
+ */
+function isRemoteProvider(provider: string | undefined): boolean {
+  return provider === "anthropic" || provider === "openai";
+}
+
 export function useChatStream() {
   const appState = useAppState();
+  const appDispatch = useAppDispatch();
   const workspace = useWorkspaceState();
   const { navigate, reload } = useWorkspaceActions();
   const navigateRef = useRef(navigate);
@@ -37,19 +47,14 @@ export function useChatStream() {
   workspaceRef.current = workspace;
   chatRef.current = chat;
 
-  // The RightHemisphere's #senses-name-misfit and Hearing are kept current
-  // so they can be woven into the DP's system prompt when a message is sent.
-  // Per spec: #probe-name-misfit pulls from #senses-name-misfit; the DP
-  // should see the list, not only the User.
-  const nameMisfits = useNameMisfits(workspace.spec.root, workspace.spec.importedOntologies ?? null);
+  // Hearing and compile errors are kept current so they can be woven into
+  // the DP's system prompt when a message is sent.
   const compileResult = useCompileCheck(workspace.spec.root, workspace.spec.importedOntologies ?? null, workspace.currentPath);
   const hearingEvents = useHearing(workspace.spec.root, compileResult.errors);
   const spellbook = useSpellbook(workspace.spec.rootPath);
-  const nameMisfitsRef = useRef(nameMisfits);
   const compileErrorsRef = useRef(compileResult.errors);
   const hearingEventsRef = useRef(hearingEvents);
   const spellbookRef = useRef(spellbook);
-  nameMisfitsRef.current = nameMisfits;
   compileErrorsRef.current = compileResult.errors;
   hearingEventsRef.current = hearingEvents;
   spellbookRef.current = spellbook;
@@ -71,6 +76,7 @@ export function useChatStream() {
     const unlistenError = events.onChatError((error) => {
       addToast(error, "error");
       chatDispatch({ type: "SET_STREAMING", streaming: false });
+      appDispatch({ type: "SET_RESOLUTION_INCREASE", value: { kind: "rest" } });
       accumulatorRef.current = "";
     });
 
@@ -173,6 +179,15 @@ export function useChatStream() {
         return `Wrote vision.md.`;
       }));
 
+    const unlistenToolMarkPlacement = events.onToolMarkPlacement(({ request_id, payload }) =>
+      handleTool(request_id, "tool:mark_placement", async () => {
+        const langPath = `${payload.abs_path}/language.md`;
+        const existing = await api.readFile(langPath).catch(() => "");
+        const updated = upsertFrontmatterField(existing, "placement", payload.category);
+        await api.writeFile(langPath, updated);
+        return `Marked @${payload.sigil_path} placement as ${payload.category}.`;
+      }));
+
     const unlistenSigilChanged = events.onSigilChanged(() => {
       console.info("[sigil-changed] discarding pending autosave and reloading spec");
       // Kill any in-flight autosave first. If the user was editing the
@@ -212,6 +227,7 @@ export function useChatStream() {
       const ws = workspaceRef.current;
       const conv = chatRef.current;
       chatDispatch({ type: "SET_STREAMING", streaming: false });
+      appDispatch({ type: "SET_RESOLUTION_INCREASE", value: { kind: "rest" } });
       if (conv.activeChatId && accumulatorRef.current) {
         const msgs = [...conv.chatMessages];
         const lastMsg = msgs[msgs.length - 1];
@@ -246,12 +262,13 @@ export function useChatStream() {
       unlistenToolWriteInv.then((fn) => fn());
       unlistenToolDeleteInv.then((fn) => fn());
       unlistenToolWriteVision.then((fn) => fn());
+      unlistenToolMarkPlacement.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
       unlistenNavigate.then((fn) => fn());
       unlistenResetAssistant.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };
-  }, [chatDispatch]);
+  }, [chatDispatch, appDispatch]);
 
   const sendMessage = useCallback(async (message: string) => {
     const ws = workspaceRef.current;
@@ -305,7 +322,6 @@ export function useChatStream() {
       payload: {
         message,
         currentPath: ws.currentPath,
-        misfitCount: nameMisfitsRef.current.length,
         recentEventCount: hearingEventsRef.current.length,
       },
     };
@@ -332,7 +348,13 @@ export function useChatStream() {
     const stylePrefix = appState.settings.response_style === "detailed"
       ? ""
       : "CRITICAL STYLE RULES YOU MUST FOLLOW:\n- NEVER use bullet points, numbered lists, or any list formatting.\n- NEVER use headers or bold text.\n- Maximum 3 sentences per response.\n- Write plain short paragraphs only.\n- You are in a conversation. Talk, don't lecture.\n\n";
-    const sensorySuffix = composeSensorySection(nameMisfitsRef.current, hearingEventsRef.current, compileErrorsRef.current);
+    const sensorySuffix = composeSensorySection(hearingEventsRef.current, compileErrorsRef.current);
+    // Structural sense — the connections and proximities the @user perceives
+    // visually. Skipped for the embedded sidecar (it leaks structured prose);
+    // included for any tier that can read aggregate prompts.
+    const structuralSuffix = !isRemoteProvider(provider.provider) && provider.provider === "local"
+      ? ""
+      : composeStructuralSection(ws.spec.root);
 
     // Local tiers (Local sidecar, Ollama) get a compressed view of the sigil
     // tree so the model knows what paths actually exist — otherwise it
@@ -343,7 +365,33 @@ export function useChatStream() {
       ? "\n\n# Sigils that exist in this workspace\n\nThese are the only sigil paths you can reference. Use exactly these names — do not invent paths.\n\n" + compressSigil(ws.spec.root) + "\n"
       : "";
 
-    const systemPrompt = stylePrefix + appState.settings.system_prompt + sigilAtlas + sensorySuffix;
+    const systemPrompt = stylePrefix + appState.settings.system_prompt + sigilAtlas + sensorySuffix + structuralSuffix;
+
+    // Light the tray indicator before any byte leaves this machine, so the
+    // @user sees the tier of attention spending cycles. Embedded local stays
+    // dark (no indicator); Ollama lights orange; remote lights accent.
+    // The stream-end and error handlers above clear it; keep both in sync.
+    if (isRemoteProvider(provider.provider)) {
+      appDispatch({
+        type: "SET_RESOLUTION_INCREASE",
+        value: {
+          kind: "in-flight",
+          tier: "remote",
+          provider: provider.provider,
+          label: `${provider.provider} · ${provider.model}`,
+        },
+      });
+    } else if (provider.provider === "ollama") {
+      appDispatch({
+        type: "SET_RESOLUTION_INCREASE",
+        value: {
+          kind: "in-flight",
+          tier: "local",
+          provider: provider.provider,
+          label: `${provider.provider} · ${provider.model}`,
+        },
+      });
+    }
 
     try {
       await api.sendChatMessage(
@@ -360,21 +408,147 @@ export function useChatStream() {
       console.error("Chat error:", errorMsg);
       addToast(errorMsg, "error");
       chatDispatch({ type: "SET_STREAMING", streaming: false });
+      appDispatch({ type: "SET_RESOLUTION_INCREASE", value: { kind: "rest" } });
     }
-  }, [appState.settings, chatDispatch, addToast]);
+  }, [appState.settings, chatDispatch, addToast, appDispatch]);
 
   return { sendMessage };
 }
 
 /**
- * Weave current RightHemisphere signals into the DesignPartner's system prompt.
- * Per spec: #probe-name-misfit pulls from RightHemisphere/#senses-name-misfit,
- * and Hearing reports located events. Both should reach the DP's context, not
- * only the User's UI — otherwise the statistical signal never meets semantic
- * judgment.
+ * Insert or replace a single key/value in a markdown file's YAML frontmatter.
+ *
+ * The frontmatter is a `---\n…\n---` block at the very top of the file. If
+ * absent, one is created. If the key exists, its value is replaced; otherwise
+ * the key is appended to the end of the existing block. The body below the
+ * frontmatter is untouched.
+ *
+ * Used by the mark_placement tool to set `placement: <category>` on a sigil's
+ * language.md without disturbing its narrative or other metadata.
  */
-function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[], compileErrors: RefError[]): string {
-  if (misfits.length === 0 && events.length === 0 && compileErrors.length === 0) return "";
+function upsertFrontmatterField(content: string, key: string, value: string): string {
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!fmMatch) {
+    // No frontmatter — synthesize one.
+    return `---\n${key}: ${value}\n---\n\n${content}`;
+  }
+  const fmBody = fmMatch[1];
+  const after = content.slice(fmMatch[0].length);
+  const lineRe = new RegExp(`^${key}:\\s*.*$`, "m");
+  const newFmBody = lineRe.test(fmBody)
+    ? fmBody.replace(lineRe, `${key}: ${value}`)
+    : `${fmBody}\n${key}: ${value}`;
+  return `---\n${newFmBody}\n---\n${after.startsWith("\n") ? "" : "\n"}${after}`;
+}
+
+/**
+ * Walk the @sigil tree and collect what the @user sees visually as structure:
+ * the reference graph (who points at whom), the containment graph (parent/
+ * child density), and the leaves. Returns a markdown section the Protector
+ * carries in his prompt as a structural sense — the analog of looking at the
+ * tree in the OntologyPanel and feeling its connections and proximities.
+ *
+ * Kept compact: top hubs, scattered orphans, dense parents. Goal is signal,
+ * not exhaustive listing — the Protector's other context already carries the
+ * full tree.
+ */
+function composeStructuralSection(root: Sigil): string {
+  interface Walker {
+    paths: Map<string, string>;        // sigil name → "/"-joined path
+    languages: { name: string; path: string; language: string }[];
+    childCounts: { name: string; path: string; count: number }[];
+    maxDepth: number;
+    total: number;
+    leaves: number;
+  }
+  const w: Walker = {
+    paths: new Map(), languages: [], childCounts: [],
+    maxDepth: 0, total: 0, leaves: 0,
+  };
+
+  function walk(node: Sigil, ancestors: string[]) {
+    const pathStr = [...ancestors, node.name].join("/");
+    w.paths.set(node.name, pathStr);
+    w.languages.push({ name: node.name, path: pathStr, language: node.language });
+    w.childCounts.push({ name: node.name, path: pathStr, count: node.children.length });
+    w.total += 1;
+    w.maxDepth = Math.max(w.maxDepth, ancestors.length);
+    if (node.children.length === 0) w.leaves += 1;
+    for (const c of node.children) walk(c, [...ancestors, node.name]);
+  }
+  walk(root, []);
+
+  // Reference graph — count @-references TO each name.
+  const inDegree = new Map<string, number>();
+  for (const { language } of w.languages) {
+    if (!language) continue;
+    const re = new RegExp(allRefsPattern.source, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(language)) !== null) {
+      const ref = m[0];
+      // Take only @-refs (sigil names), ignore # and !.
+      if (!ref.startsWith("@")) continue;
+      const name = ref.slice(1).split(/[@#!]/)[0];
+      if (!w.paths.has(name)) continue;  // only known sigils
+      inDegree.set(name, (inDegree.get(name) ?? 0) + 1);
+    }
+  }
+
+  const hubs = [...inDegree.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  const orphans = w.languages
+    .map(l => l.name)
+    .filter(n => !inDegree.has(n) && n !== root.name)
+    .slice(0, 8);
+  const dense = w.childCounts
+    .filter(c => c.count > 5)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  const parts: string[] = [
+    "\n\n# Structural sense",
+    "",
+    "What I perceive of the tree's shape — the connections and proximities the @user sees visually.",
+    "",
+    `Tree: ${w.total} sigils, max depth ${w.maxDepth}, ${w.leaves} leaves.`,
+    "",
+  ];
+
+  if (hubs.length > 0) {
+    parts.push(
+      "Hubs (most referenced — pulling attention through them):",
+      hubs.map(([name, n]) => `  @${name} (${n})`).join("\n"),
+      "",
+    );
+  }
+
+  if (orphans.length > 0) {
+    parts.push(
+      "Unreferenced (no @-refs point to them — they sit alone):",
+      "  " + orphans.map(n => `@${n}`).join(", "),
+      "",
+    );
+  }
+
+  if (dense.length > 0) {
+    parts.push(
+      "Dense parents (>5 children — crowding may be outgrowing the parent):",
+      dense.map(c => `  @${c.name} (${c.count})`).join("\n"),
+      "",
+    );
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * Weave current RightHemisphere signals into the DesignPartner's system prompt.
+ * Hearing reports located events and the compile-check surfaces unresolved
+ * @references. Both should reach the DP's context, not only the User's UI.
+ */
+function composeSensorySection(events: HearingEvent[], compileErrors: RefError[]): string {
+  if (events.length === 0 && compileErrors.length === 0) return "";
 
   const parts: string[] = [
     "\n\n# Your current senses",
@@ -394,21 +568,6 @@ function composeSensorySection(misfits: NameMisfit[], events: HearingEvent[], co
     }
     if (compileErrors.length > 30) {
       parts.push(`- …and ${compileErrors.length - 30} more`);
-    }
-    parts.push("");
-  }
-
-  if (misfits.length > 0) {
-    parts.push(
-      "\n## #senses-name-misfit — names that feel out of place\n\n" +
-      "Suspected mis-placed @references. These resolve, but the resolved sigil's co-occurrence neighborhood does not match the surrounding line. Suspicion, not conviction — apply your semantic judgment.\n",
-    );
-    for (const m of misfits.slice(0, 20)) {
-      const loc = m.path.join("/") + "/" + m.file;
-      parts.push(`- ${loc}:${m.line} ${m.ref} — ${m.reason}`);
-    }
-    if (misfits.length > 20) {
-      parts.push(`- …and ${misfits.length - 20} more`);
     }
     parts.push("");
   }

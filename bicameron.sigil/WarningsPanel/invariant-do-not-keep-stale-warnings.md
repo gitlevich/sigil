@@ -1,1 +1,0 @@
-An entry exists only while the sense that named it still names the pull. When the underlying condition resolves — the migration happens, the name is corrected, the invariant is repaired — the sense stops naming and the entry leaves the panel in the same tick. I never show a warning whose pull no longer exists.

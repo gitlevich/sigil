@@ -22,7 +22,6 @@ import { api, type AiProvider } from "../tauri";
 import type { Sigil } from "sigil-core/types";
 import { compressSigil, sinceLast, filterByPull } from "sigil-core";
 import type { HearingEvent } from "./useHearing";
-import type { NameMisfit } from "./useNameMisfits";
 import type { RefError } from "./useCompileCheck";
 
 const TICK_INTERVAL_MS = 45_000;
@@ -31,7 +30,6 @@ const IDLE_TICKS_BEFORE_EXPLORATION = 10;
 interface FrameTickArgs {
   root: Sigil | null;
   hearingEvents: HearingEvent[];
-  nameMisfits: NameMisfit[];
   compileErrors: RefError[];
   activeProvider: AiProvider | null;
   fallbackProvider: AiProvider | null;
@@ -45,11 +43,8 @@ export function useFrameTick(args: FrameTickArgs) {
   const inFlightRef = useRef(false);
   const lastTickTsRef = useRef<number | null>(null);
   const idleRef = useRef(0);
-  // Counts used to detect delta in misfits/dangles since last tick.
-  const lastSnapshotRef = useRef<{ misfits: number; dangles: number }>({
-    misfits: 0,
-    dangles: 0,
-  });
+  // Count used to detect delta in dangles since last tick.
+  const lastSnapshotRef = useRef<{ dangles: number }>({ dangles: 0 });
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -64,10 +59,9 @@ export function useFrameTick(args: FrameTickArgs) {
       const newEvents = sinceLast(current.hearingEvents, since);
       const pullWorthy = filterByPull(newEvents);
 
-      const misfitsNow = current.nameMisfits.length;
       const danglesNow = current.compileErrors.length;
       const snap = lastSnapshotRef.current;
-      const deltaChanged = misfitsNow !== snap.misfits || danglesNow !== snap.dangles;
+      const deltaChanged = danglesNow !== snap.dangles;
 
       const somethingPulls = pullWorthy.length > 0 || deltaChanged;
 
@@ -83,7 +77,7 @@ export function useFrameTick(args: FrameTickArgs) {
 
       idleRef.current = 0;
       lastTickTsRef.current = Date.now();
-      lastSnapshotRef.current = { misfits: misfitsNow, dangles: danglesNow };
+      lastSnapshotRef.current = { dangles: danglesNow };
       await fire({ exploration: false, events: pullWorthy });
     }, TICK_INTERVAL_MS);
     return () => clearInterval(id);
@@ -102,7 +96,6 @@ export function useFrameTick(args: FrameTickArgs) {
       const prompt = assembleFramePrompt({
         compressed,
         events,
-        misfits: current.nameMisfits,
         dangles: current.compileErrors,
         exploration,
       });
@@ -122,13 +115,11 @@ export function useFrameTick(args: FrameTickArgs) {
 function assembleFramePrompt({
   compressed,
   events,
-  misfits,
   dangles,
   exploration,
 }: {
   compressed: string;
   events: HearingEvent[];
-  misfits: NameMisfit[];
   dangles: RefError[];
   exploration: boolean;
 }): string {
@@ -150,16 +141,6 @@ function assembleFramePrompt({
     }
     parts.push("");
   }
-  if (misfits.length > 0) {
-    parts.push(
-      `Names that feel out of place (${misfits.length} total, up to 20 shown):`,
-    );
-    for (const m of misfits.slice(0, 20)) {
-      parts.push(`- ${m.path.join("/")}/${m.file}:${m.line} ${m.ref} — ${m.reason}`);
-    }
-    parts.push("");
-  }
-
   if (!exploration && events.length > 0) {
     parts.push("What just shifted in your shape:");
     for (const e of events.slice(0, 15)) {

@@ -1,9 +1,17 @@
 .shell {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
   background: var(--bg-primary);
   color: var(--text-primary);
+}
+
+.panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .center {

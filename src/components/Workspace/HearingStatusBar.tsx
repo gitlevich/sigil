@@ -36,21 +36,24 @@ export function HearingStatusBar({ events, onNavigateToEvent }: HearingStatusBar
   const now = Date.now();
   const mostRecent = events[0];
 
+  // Silence as default. An idle hearing is not information — show the bar
+  // only when there is something heard. Prevents "everything is the same as
+  // it was" noise in the @user's ambient field.
+  if (!hasEvents) return null;
+
   return (
     <div className={styles.container}>
       <div
-        className={`${styles.bar} ${hasEvents ? styles.barHearing : styles.barQuiet}`}
-        onClick={() => hasEvents && setExpanded(!expanded)}
+        className={`${styles.bar} ${styles.barHearing}`}
+        onClick={() => setExpanded(!expanded)}
       >
         <span className={styles.indicator}>
           <span className={styles.dot} />
-          {hasEvents
-            ? <>heard: {mostRecent.summary} <span className={styles.ts}>({formatRelative(mostRecent.timestamp, now)})</span></>
-            : <>listening — nothing yet</>}
+          Protector heard: {mostRecent.summary} <span className={styles.ts}>({formatRelative(mostRecent.timestamp, now)})</span>
         </span>
       </div>
 
-      {expanded && hasEvents && (
+      {expanded && (
         <div className={styles.panel}>
           {events.map((e) => (
             <div

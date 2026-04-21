@@ -309,6 +309,30 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                 "required": ["sigil_path", "name"]
             }
         }),
+        // ── Placement category ──
+        // Marks a sigil's placement within its parent with a category that
+        // names the kind of truth the placement carries. Persists as a
+        // `placement` field in the sigil's language.md frontmatter so
+        // reorganization can preserve the right thing per branch.
+        serde_json::json!({
+            "name": "mark_placement",
+            "description": "Mark a sigil's placement within its parent with the kind of truth it carries. Three categories: 'ontological' (placement reflects how things really relate — this sigil belongs HERE structurally), 'narrative-historical' (placement is where it landed because of how things came to be, not where it most naturally belongs), 'provisional' (placement is a working guess, expected to move). Use when you notice a placement and want to mark which kind of truth it carries — so later reorganization can preserve ontological structure, respect narrative-historical placements as artifacts, and freely move provisional ones. Persisted in the sigil's language.md frontmatter.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "sigil_path": {
+                        "type": "string",
+                        "description": "Sigil path relative to the workspace root (e.g. 'Scratch', 'DesignPartner/BicameralMind/Memory'). Use names from the actual tree, not invented paths."
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": ["ontological", "narrative-historical", "provisional"],
+                        "description": "The kind of truth this placement carries."
+                    }
+                },
+                "required": ["sigil_path", "category"]
+            }
+        }),
         serde_json::json!({
             "name": "browser_state_inspection",
             "description": "See what the user currently has open in the editor. Returns the current sigil path and its content.",
@@ -631,6 +655,30 @@ async fn execute_tool_inner(
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "name": prop_name,
+                }),
+                30,
+            ).await
+        }
+        "mark_placement" => {
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
+            let category = input["category"].as_str().ok_or("Missing category")?.to_string();
+            if !matches!(
+                category.as_str(),
+                "ontological" | "narrative-historical" | "provisional"
+            ) {
+                return Err(format!(
+                    "Invalid category '{}'. Must be ontological, narrative-historical, or provisional.",
+                    category
+                ));
+            }
+            let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher, app, "tool:mark_placement",
+                serde_json::json!({
+                    "sigil_path": sigil_path,
+                    "abs_path": abs.to_string_lossy(),
+                    "category": category,
                 }),
                 30,
             ).await

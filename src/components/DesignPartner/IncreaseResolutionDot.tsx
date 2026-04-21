@@ -1,58 +1,75 @@
 /**
- * Visible trace of the @LeftHemisphere's #increase-resolution attempt.
+ * Visible trace of the attention currently spending cycles outside the
+ * embedded local sidecar. Reads `appState.resolutionIncrease` which carries
+ * tier + provider + label.
  *
- * Three states rendered from `appState.resolutionIncrease`:
- *   rest      — invisible, zero footprint, no repaint.
- *   unserved  — orange flash for UNSERVED_FADE_MS (managed by the hook),
- *               no pulse: attempt made, no fallback configured.
- *   in-flight — fallback's accent color, slow sine pulse while the remote
- *               connection is live.
+ *   kind === "rest"       — invisible slot, zero repaint.
+ *   kind === "unserved"   — brief orange fade (attempt made, no fallback).
+ *   kind === "in-flight"  — pulse. Color depends on tier:
+ *                           "local"  → orange (non-embedded local attention).
+ *                           "remote" → provider accent (network call, money).
  *
  * Two render modes: `variant="dot"` places just the colored dot; `variant="inline"`
  * renders the dot plus a short label, suitable for the streaming "Thinking..."
  * indicator where the @user's attention already sits.
  */
 import { useAppState } from "../../state/AppContext";
-import { fallbackProvider } from "../../tauri";
 import styles from "./IncreaseResolutionDot.module.css";
 
-const PROVIDER_ACCENT: Record<string, string> = {
+const REMOTE_ACCENT: Record<string, string> = {
   anthropic: "#c0744a",
   openai: "#10a37f",
-  local: "#7a5cbd",
-  ollama: "#4a90e2",
 };
 
-const UNSERVED_COLOR = "#e08a3c";
+const LOCAL_TIER_COLOR = "#e8871a";  // saturated orange for local escalation
+const UNSERVED_COLOR = "#e08a3c";    // muted orange for the unserved flash
 
 interface Props {
   variant?: "dot" | "inline";
+}
+
+function colorFor(state: { kind: string; tier?: string; provider?: string }): string {
+  if (state.kind === "unserved") return UNSERVED_COLOR;
+  if (state.kind !== "in-flight") return UNSERVED_COLOR;
+  if (state.tier === "local") return LOCAL_TIER_COLOR;
+  return REMOTE_ACCENT[state.provider ?? ""] ?? UNSERVED_COLOR;
+}
+
+function titleFor(state: { kind: string; tier?: string; label?: string }): string {
+  if (state.kind === "unserved") {
+    return "Tried to escalate — no fallback model configured.";
+  }
+  if (state.kind === "in-flight") {
+    if (state.tier === "local") {
+      return `Local attention running${state.label ? ` (${state.label})` : ""}. No network cost.`;
+    }
+    return `Remote attention running${state.label ? ` (${state.label})` : ""}. You are spending.`;
+  }
+  return "";
+}
+
+function labelFor(state: { kind: string; tier?: string }): string {
+  if (state.kind === "unserved") return "couldn't reach further";
+  if (state.tier === "local") return "local attention";
+  return "remote attention";
 }
 
 export function IncreaseResolutionDot({ variant = "dot" }: Props) {
   const app = useAppState();
   const state = app.resolutionIncrease;
 
-  if (state === "rest") {
+  if (state.kind === "rest") {
     if (variant === "inline") return null;
     return <span className={styles.slot} aria-hidden="true" />;
   }
 
-  const color = state === "unserved"
-    ? UNSERVED_COLOR
-    : PROVIDER_ACCENT[fallbackProvider(app.settings)?.provider ?? ""] ?? UNSERVED_COLOR;
-
-  const title = state === "unserved"
-    ? "Local reached for more resolution — no higher-resolution model configured."
-    : "Local is reaching for higher resolution.";
-
-  const label = state === "unserved"
-    ? "couldn't reach further"
-    : "reaching for higher resolution";
+  const color = colorFor(state);
+  const title = titleFor(state);
+  const label = labelFor(state);
 
   const dot = (
     <span
-      className={`${styles.slot} ${state === "in-flight" ? styles.pulse : styles.unserved}`}
+      className={`${styles.slot} ${state.kind === "in-flight" ? styles.pulse : styles.unserved}`}
       style={{ background: color, color }}
       title={title}
       aria-label={title}

@@ -10,13 +10,12 @@ import { DesignPartnerPanel } from "../DesignPartner/DesignPartnerPanel";
 import { Breadcrumb } from "./Breadcrumb";
 import type { ScopeEntry } from "./editorScope";
 import { CompileStatusBar } from "./CompileStatusBar";
-import { NameMisfitStatusBar } from "./NameMisfitStatusBar";
 import { HearingStatusBar } from "./HearingStatusBar";
 import { ConflictBanner } from "./ConflictBanner";
 import { ConflictToast } from "./ConflictToast";
 import { ConflictStatusBar } from "./ConflictStatusBar";
+import { GlobalStatusBar } from "./GlobalStatusBar";
 import { useCompileCheck, type RefError } from "../../hooks/useCompileCheck";
-import { useNameMisfits, type NameMisfit } from "../../hooks/useNameMisfits";
 import { useHearing, type HearingEvent } from "../../hooks/useHearing";
 import { useSpellbook } from "../../hooks/useSpellbook";
 import { useDPCurated } from "../../hooks/useDPCurated";
@@ -333,13 +332,11 @@ export function Workspace() {
   const { scopeRoot, scopePath } = scopeInfo(ws);
 
   const compileResult = useCompileCheck(ws.spec.root, ws.spec.importedOntologies ?? null, ws.currentPath);
-  const rawNameMisfits = useNameMisfits(ws.spec.root, ws.spec.importedOntologies ?? null);
   const rawHearingEvents = useHearing(ws.spec.root, compileResult.errors);
   // DP-curation: the DesignPartner's filtering eye sits between raw sensory
   // streams and the User's UI. The Spellbook holds the rules; useDPCurated
   // applies them per-item. Items with no matching Spell pass through.
   const spellbook = useSpellbook(ws.spec.rootPath);
-  const nameMisfits = useDPCurated(rawNameMisfits, spellbook, "misfits");
   const hearingEvents = useDPCurated(rawHearingEvents, spellbook, "hearing");
 
   // Continuous attention — the DP wakes at a regular tempo (substrate only;
@@ -350,7 +347,6 @@ export function Workspace() {
   useFrameTick({
     root: ws.spec.root,
     hearingEvents,
-    nameMisfits,
     compileErrors: compileResult.errors,
     activeProvider: selectedProvider(appState.settings) ?? null,
     fallbackProvider: fallbackProvider(appState.settings) ?? null,
@@ -402,6 +398,7 @@ export function Workspace() {
 
   return (
     <div className={styles.shell}>
+      <div className={styles.panes}>
       <OntologyPanel />
       <div className={styles.center}>
         <Breadcrumb
@@ -461,16 +458,14 @@ export function Workspace() {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(err.path, err.file === "language.md" ? err.line : undefined);
         }} />
-        <NameMisfitStatusBar misfits={nameMisfits} onNavigateToMisfit={(m: NameMisfit) => {
-          layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
-          navigate(m.path, m.file === "language.md" ? m.line : undefined);
-        }} />
         <HearingStatusBar events={hearingEvents} onNavigateToEvent={(e: HearingEvent) => {
           layoutDispatch({ type: "SET_CONTENT_TAB", tab: "language" });
           navigate(e.path);
         }} />
       </div>
       <DesignPartnerPanel />
+      </div>
+      <GlobalStatusBar />
 
       <ObservationChip
         observation={chipObservation}

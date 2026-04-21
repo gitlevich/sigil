@@ -16,6 +16,9 @@
   background: var(--bg-secondary);
   cursor: pointer;
   flex-shrink: 0;
+  align-self: stretch;
+  height: 100%;
+  min-height: 100%;
 }
 
 .collapsed:hover {

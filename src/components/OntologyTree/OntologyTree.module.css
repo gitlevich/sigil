@@ -432,3 +432,40 @@
     background: transparent;
   }
 }
+
+/* ── Placement marks ─────────────────────────────────────────────────────
+   A small circle to the left of the name indicates the kind of truth the
+   sigil's placement carries. Set by the mark_placement tool, read from
+   language.md frontmatter. Unmarked nodes show no circle (default). */
+.placementMark {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.placementOntological {
+  /* Structural truth: solid, calm green. */
+  background: #6ba368;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #6ba368 60%, transparent);
+}
+
+.placementHistorical {
+  /* Landed here through narrative-historical contingency: solid amber. */
+  background: #d4a017;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #d4a017 60%, transparent);
+}
+
+.placementProvisional {
+  /* Working guess: outlined-only, dim. */
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--text-secondary) 70%, transparent);
+}
+
+.termProvisional {
+  font-style: italic;
+  color: color-mix(in srgb, var(--text-primary) 78%, transparent);
+}

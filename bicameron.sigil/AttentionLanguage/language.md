@@ -1,5 +1,0 @@
----
-status: seed
----
-
-# Attention Language

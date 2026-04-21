@@ -35,7 +35,14 @@ pub struct Settings {
     pub profiles: Vec<AiProfile>,
     pub active_profile_id: String,
     pub system_prompt: String,
+    /// When true, the chat UI offers a #fork-conversation action that snapshots
+    /// the current chat into a numbered sibling and continues from where the
+    /// @user was. Defaults to true so the affordance is discoverable.
+    #[serde(default = "default_true")]
+    pub fork_enabled: bool,
 }
+
+fn default_true() -> bool { true }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -43,6 +50,7 @@ impl Default for Settings {
             profiles: Vec::new(),
             active_profile_id: String::new(),
             system_prompt: DEFAULT_SYSTEM_PROMPT.to_string(),
+            fork_enabled: true,
         }
     }
 }

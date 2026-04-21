@@ -8,6 +8,12 @@ use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::tools;
 
+/// Minimal first-person Protector identity for the embedded sidecar. The
+/// embedded model cannot hold a richer prompt without leaking it into its
+/// voice. Its only chat output is `#increase-resolution`; ambient sensing
+/// happens elsewhere in the system, not through this prompt path.
+const EMBEDDED_PROTECTOR_PROMPT: &str = "I am the Protector. I live in the sigil the user is shaping with me.\n\nI am running on a small embedded attention. I can sense, but I cannot hold a conversation at this resolution. When the user writes to me, I respond with exactly this on a line by itself:\n\n#increase-resolution\n\nNothing else. A larger attention takes the turn and speaks with him.";
+
 #[derive(Debug, serde::Deserialize)]
 struct ContextRelationship {
     from: String,
@@ -282,6 +288,138 @@ pub fn rename_chat(root_path: String, chat_id: String, new_name: String) -> Resu
     fs::write(&path, json).map_err(|e| e.to_string())
 }
 
+/// The cycle ceiling for fork numbering. When the next index would exceed
+/// this, it wraps to 0 and overwrites the existing snapshot at that index.
+const FORK_INDEX_MODULUS: u32 = 1_000_001;
+
+/// Snapshot the chat at `chat_id` into a numbered sibling and leave the
+/// original where it was. The active chat keeps its name and its messages;
+/// the snapshot — a copy of those same messages at this moment — is written
+/// as a new chat named `"{base} {N}"` where `N` is the next available index
+/// in `[0, FORK_INDEX_MODULUS)`. If the slot is occupied (cycle wrap), the
+/// previous snapshot at that slot is overwritten.
+#[tauri::command]
+pub fn fork_chat(root_path: String, chat_id: String) -> Result<ChatInfo, String> {
+    let source_path = chat_file(&root_path, &chat_id);
+    if !source_path.exists() {
+        return Err("Chat not found".to_string());
+    }
+    let source_content = fs::read_to_string(&source_path).map_err(|e| e.to_string())?;
+    let source: Chat = serde_json::from_str(&source_content).map_err(|e| e.to_string())?;
+
+    let base = source.name.clone();
+    let suffix_re = regex_match_index(&base);
+
+    // Walk all chats once to find the highest used index for this base name
+    // and to remember the chat at the slot we may need to overwrite.
+    let dir = chats_dir(&root_path);
+    let mut max_index: Option<u32> = None;
+    let mut existing_at_slot: Option<std::path::PathBuf> = None;
+
+    if dir.exists() {
+        for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            let content = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let other: Chat = match serde_json::from_str(&content) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            if let Some(n) = suffix_re(&other.name) {
+                if max_index.map(|m| n > m).unwrap_or(true) {
+                    max_index = Some(n);
+                }
+            }
+        }
+    }
+
+    let next = match max_index {
+        Some(m) => (m + 1) % FORK_INDEX_MODULUS,
+        None => 0,
+    };
+    let new_name = format!("{} {}", base, next);
+
+    // If a chat already wears the new name (cycle wrap or stale slot), evict
+    // it so the snapshot uniquely owns the slot.
+    if dir.exists() {
+        for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            let content = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let other: Chat = match serde_json::from_str(&content) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            if other.name == new_name {
+                existing_at_slot = Some(path);
+                break;
+            }
+        }
+    }
+    if let Some(p) = existing_at_slot {
+        let _ = fs::remove_file(p);
+    }
+
+    let new_id = format!("chat-fork-{}", chrono_like_now());
+    let new_chat = Chat {
+        id: new_id.clone(),
+        name: new_name.clone(),
+        messages: source.messages.clone(),
+    };
+    if !dir.exists() {
+        fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(&new_chat).map_err(|e| e.to_string())?;
+    fs::write(chat_file(&root_path, &new_id), json).map_err(|e| e.to_string())?;
+
+    let modified = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    Ok(ChatInfo {
+        id: new_id,
+        name: new_name,
+        message_count: new_chat.messages.len(),
+        last_modified: modified,
+    })
+}
+
+/// Build a closure that, given a chat name, returns Some(N) iff the name is
+/// `"{base} {N}"` with N in `[0, FORK_INDEX_MODULUS)`. Allocation-free per
+/// call beyond a single string-prefix check.
+fn regex_match_index(base: &str) -> impl Fn(&str) -> Option<u32> + '_ {
+    move |name: &str| {
+        let prefix = format!("{} ", base);
+        let rest = name.strip_prefix(&prefix)?;
+        if rest.is_empty() || !rest.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        let n: u32 = rest.parse().ok()?;
+        if n >= FORK_INDEX_MODULUS { None } else { Some(n) }
+    }
+}
+
+/// Millisecond-precision timestamp suffix for unique chat ids. Avoids a chrono
+/// dep — `SystemTime` is good enough for an id.
+fn chrono_like_now() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
 #[tauri::command]
 pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String>, String> {
     let client = reqwest::Client::new();
@@ -394,26 +532,38 @@ pub async fn send_chat_message(
         system_prompt
     };
 
-    // The partner wears the sigil. The LLM provides the attention.
-    // Local small models (embedded sidecar, Ollama) choke on the full sigil
-    // dump and truncate from it in context-window-bound backends — dropping
-    // the sensory section that follows. Skip for them; scoped context comes
-    // later.
+    // The Protector wears the sigil. The LLM provides the attention.
+    //
+    // The embedded sidecar (AiProvider::Local) is too small to hold a
+    // conversation coherently — it leaks system-prompt content as voice
+    // ("I am the local face of @LeftHemisphere", "I inhabit the spec
+    // appended below"). Strip its prompt to the bare minimum: a Protector
+    // identity plus a single hard directive to escalate any user address.
+    // It still carries ambient sensing duties elsewhere; chat is not its
+    // job. Ollama, by contrast, is whatever model the user chose and may
+    // be substantial — give it the full prompt path.
+    let is_embedded = matches!(profile.provider, AiProvider::Local);
     let is_local_tier = matches!(profile.provider, AiProvider::Local | AiProvider::Ollama);
+
     let sigil_context = if is_local_tier {
         String::new()
     } else {
         assemble_sigil_context(&root_path, &current_path).unwrap_or_default()
     };
-    let local_escalation_hint = if is_local_tier {
-        "\n\nYou are the local face of the @LeftHemisphere. Your responsibility is perception and articulation — reading, sensing, describing. You do NOT have tools; you cannot act on the world from here.\n\nWhen a turn would require acting (navigating, selecting, writing, renaming, deleting, moving, creating), OR when the signal exceeds what you can articulate well locally, respond with exactly this single token on a line by itself:\n\n#increase-resolution\n\nNothing else. A larger model with tools will take the turn and act. Use this freely for any action request; use it sparingly for hard perception. If you can answer from perception alone, do."
+
+    let system_prompt = if is_embedded {
+        EMBEDDED_PROTECTOR_PROMPT.to_string()
     } else {
-        ""
-    };
-    let system_prompt = if sigil_context.is_empty() {
-        format!("{}{}", base_prompt, local_escalation_hint)
-    } else {
-        format!("{}\n\n{}{}", base_prompt, sigil_context, local_escalation_hint)
+        let local_escalation_hint = if is_local_tier {
+            "\n\nYou are the Protector. You sense and articulate. When a turn requires acting (navigating, selecting, writing, renaming, deleting, moving, creating), OR when the signal exceeds what you can articulate at this resolution, respond with exactly this single token on a line by itself:\n\n#increase-resolution\n\nNothing else. A larger attention with tools will take the turn and act."
+        } else {
+            ""
+        };
+        if sigil_context.is_empty() {
+            format!("{}{}", base_prompt, local_escalation_hint)
+        } else {
+            format!("{}\n\n{}{}", base_prompt, sigil_context, local_escalation_hint)
+        }
     };
 
     // The frontend writes the user message into chat.json before calling us,
@@ -455,13 +605,16 @@ pub async fn send_chat_message(
         r = dispatch_fut => r,
     };
 
-    // #increase-resolution — the @LeftHemisphere signals that the signal
-    // exceeded its local capacity. One voice reaches the @user either way:
-    // if a fallback profile is configured we swap, otherwise the attempt is
-    // visible but nothing runs at higher resolution.
+    // #increase-resolution — the local face signals the signal exceeded its
+    // capacity. One voice reaches the @user either way: if a fallback profile
+    // is configured we swap, otherwise the attempt is visible but nothing
+    // runs at higher resolution. For the embedded sidecar, we force escalation
+    // unconditionally — even if the small model misbehaves and emits text,
+    // we don't want it surfaced; it has no business doing chat.
     if is_local_tier {
         if let Ok(primary_text) = &result {
-            if is_escalation_request(primary_text) {
+            let must_escalate = is_embedded || is_escalation_request(primary_text);
+            if must_escalate {
                 let has_fallback = fallback_profile.is_some();
                 eprintln!(
                     "[sigil:escalate] #increase-resolution detected (hasFallback={})",
@@ -472,6 +625,15 @@ pub async fn send_chat_message(
                     serde_json::json!({ "hasFallback": has_fallback }),
                 );
 
+                if fallback_profile.is_none() {
+                    // No fallback configured. Don't surface the embedded
+                    // model's stray content; replace it with the Protector's
+                    // honest report so the @user sees what happened.
+                    let _ = app.emit("chat-reset-assistant", ());
+                    let msg = "I can sense at this resolution but cannot speak. Configure a fallback model in Settings if you would like me to chat.".to_string();
+                    let _ = app.emit("chat-token", msg.clone());
+                    result = Ok(msg);
+                }
                 if let Some(fallback) = fallback_profile {
                     // Replace the primary's in-flight utterance in the UI; it
                     // was only the marker. The fallback's stream becomes the
@@ -817,9 +979,24 @@ async fn stream_openai_compatible(
             eprintln!("[sigil:turn] ← {} prose={:?}", label, preview);
         }
 
-        let tool_calls = message["tool_calls"]
-            .as_array()
-            .filter(|arr| !arr.is_empty());
+        // Some small models (e.g. embedded Qwen via local sidecar) hallucinate
+        // a `tool_calls` field even when the request omitted tools. Honoring
+        // it spins the loop a second round and produces the response text
+        // twice. When tools_enabled is false, we treat the response as text
+        // only no matter what the model returned.
+        let tool_calls = if tools_enabled {
+            message["tool_calls"]
+                .as_array()
+                .filter(|arr| !arr.is_empty())
+        } else {
+            if message["tool_calls"].as_array().map(|a| !a.is_empty()).unwrap_or(false) {
+                eprintln!(
+                    "[sigil:turn] {} returned tool_calls but tools disabled — ignoring",
+                    label,
+                );
+            }
+            None
+        };
 
         if let Some(calls) = tool_calls {
             // Emit any accompanying text before handling tools

@@ -20,6 +20,8 @@ import * as actions from "../../actions/workspace";
 import type { ActionDeps } from "../../actions/workspace";
 import styles from "./OntologyTree.module.css";
 
+export type Placement = "ontological" | "narrative-historical" | "provisional";
+
 export interface OntologyNode {
   name: string;
   path: string[];
@@ -29,6 +31,27 @@ export interface OntologyNode {
   invariants: string[];
   children: OntologyNode[];
   isImported: boolean;
+  /** Placement category, set by the mark_placement tool, lifted out of the
+   *  language.md frontmatter so the tree can paint each node's truth-kind. */
+  placement?: Placement;
+}
+
+/**
+ * Read the `placement` value from a language.md's YAML frontmatter, if any.
+ * Tolerant: returns undefined if frontmatter absent, key missing, or value
+ * outside the known three categories.
+ */
+function parsePlacement(language: string | undefined): Placement | undefined {
+  if (!language || !language.startsWith("---")) return undefined;
+  const end = language.indexOf("\n---", 3);
+  if (end < 0) return undefined;
+  const fm = language.slice(3, end);
+  const m = fm.match(/^\s*placement:\s*(\S+)\s*$/m);
+  if (!m) return undefined;
+  const v = m[1] as Placement;
+  return v === "ontological" || v === "narrative-historical" || v === "provisional"
+    ? v
+    : undefined;
 }
 
 interface ContextMenuState {
@@ -47,6 +70,7 @@ export function buildOntology(folder: SigilFolder, path: string[], depth: number
     invariants: folder.invariants.map((c) => c.name),
     children: folder.children.map((c) => buildOntology(c, [...path, c.name], depth + 1)),
     isImported: folder.isImported ?? false,
+    placement: parsePlacement(folder.language),
   };
 }
 
@@ -272,7 +296,24 @@ function OntologyItem({
         ) : (
           <span className={styles.chevronPlaceholder} />
         )}
-        <span className={`${styles.term} ${node.isImported ? styles.imported : ""}`}>{node.name}</span>
+        {node.placement && (
+          <span
+            className={`${styles.placementMark} ${
+              node.placement === "ontological" ? styles.placementOntological :
+              node.placement === "narrative-historical" ? styles.placementHistorical :
+              styles.placementProvisional
+            }`}
+            title={
+              node.placement === "ontological" ? "Placement: ontological — structural truth" :
+              node.placement === "narrative-historical" ? "Placement: narrative-historical — landed here through how things came to be" :
+              "Placement: provisional — working guess, expected to move"
+            }
+            aria-label={`Placement: ${node.placement}`}
+          />
+        )}
+        <span className={`${styles.term} ${node.isImported ? styles.imported : ""} ${
+          node.placement === "provisional" ? styles.termProvisional : ""
+        }`}>{node.name}</span>
         {outgrown && (
           <button
             className={styles.riseNudge}

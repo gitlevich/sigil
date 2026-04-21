@@ -1,1 +1,0 @@
-The @user opens me from the @Workspace. I show each live entry: the named pull, the @sigil it concerns, the room where it was felt, and the sense that named it. Nothing else. He can walk to any room from here.
