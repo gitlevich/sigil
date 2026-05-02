@@ -47,6 +47,27 @@ export function useChatStream() {
   workspaceRef.current = workspace;
   chatRef.current = chat;
 
+  /// Pending tool:navigate request awaiting confirmation. The dispatcher
+  /// reply is held until workspace.currentPath reflects the requested
+  /// target (see effect below). At most one navigation is in flight at a
+  /// time because tools dispatch sequentially within a single chat turn.
+  const pendingNavigateRef = useRef<{ target: string; requestId: string } | null>(null);
+
+  useEffect(() => {
+    const pending = pendingNavigateRef.current;
+    if (!pending) return;
+    const current = workspace.currentPath.join("/");
+    if (current !== pending.target) return;
+    pendingNavigateRef.current = null;
+    // Defer one frame so LanguageEditor's navigation useEffect has a
+    // chance to mount the new content before any subsequent select-text
+    // event arrives. Without this, the dispatcher returns and the next
+    // tool's emit can outrun the editor's content sync.
+    requestAnimationFrame(() => {
+      api.toolResult(pending.requestId, true, `Navigated to ${pending.target}`);
+    });
+  }, [workspace.currentPath]);
+
   // Hearing and compile errors are kept current so they can be woven into
   // the DP's system prompt when a message is sent.
   const compileResult = useCompileCheck(workspace.spec.root, workspace.spec.importedOntologies ?? null, workspace.currentPath);
@@ -198,15 +219,29 @@ export function useChatStream() {
         console.error("[sigil-changed] reload failed:", err);
       });
     });
-    const unlistenNavigate = events.onNavigateTo((sigilPath) => {
-      console.info("[navigate-to] received payload:", JSON.stringify(sigilPath));
-      const segments = sigilPath.split("/").filter((s) => s.length > 0);
-      if (segments.length > 0) {
-        console.info("[navigate-to] dispatching navigate to:", segments);
-        navigateRef.current(segments);
-      } else {
-        console.warn("[navigate-to] empty segments after split");
+    // tool:navigate is a dispatcher round-trip: the navigate tool blocks
+    // until the frontend has dispatched the navigation AND the new sigil's
+    // currentPath is reflected in workspace state. That guarantee is what
+    // makes navigate safe as a setup step for select_text /
+    // replace_selected_text — those tools target the active editor and
+    // would otherwise race the not-yet-mounted target.
+    const unlistenToolNavigate = events.onToolNavigate(({ request_id, payload }) => {
+      console.info("[tool:navigate] dispatched", payload.sigil_path);
+      const segments = payload.sigil_path.split("/").filter((s) => s.length > 0);
+      if (segments.length === 0) {
+        api.toolResult(request_id, false, "empty sigil path");
+        return;
       }
+      const target = segments.join("/");
+      const current = workspaceRef.current.currentPath.join("/");
+      if (current === target) {
+        api.toolResult(request_id, true, `Already at ${target}`);
+        return;
+      }
+      // Stash the request and let the workspace.currentPath effect below
+      // resolve it once React has flushed the navigation.
+      pendingNavigateRef.current = { target, requestId: request_id };
+      navigateRef.current(segments);
     });
 
     // #increase-resolution: local emitted the marker, fallback is taking
@@ -264,7 +299,7 @@ export function useChatStream() {
       unlistenToolWriteVision.then((fn) => fn());
       unlistenToolMarkPlacement.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
-      unlistenNavigate.then((fn) => fn());
+      unlistenToolNavigate.then((fn) => fn());
       unlistenResetAssistant.then((fn) => fn());
       unlistenEnd.then((fn) => fn());
     };

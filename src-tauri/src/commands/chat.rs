@@ -602,10 +602,7 @@ pub async fn send_chat_message(
     let mut history = chat.messages.clone();
     let _ = message; // kept in the signature for logging/back-compat
 
-    let editor_ctx = tools::EditorContext {
-        root_path: root_path.clone(),
-        current_path: current_path.clone(),
-    };
+    let editor_ctx = tools::EditorContext::new(root_path.clone(), current_path.clone());
 
     let cancel_rx = abort.begin().await;
 

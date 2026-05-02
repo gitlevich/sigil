@@ -469,8 +469,10 @@ export const events = {
   onOpenSigil: (handler: (path: string) => void): Promise<UnlistenFn> =>
     listen<string>("open-sigil", (event) => handler(event.payload)),
 
-  onNavigateTo: (handler: (sigilPath: string) => void): Promise<UnlistenFn> =>
-    listen<string>("navigate-to", (event) => handler(event.payload)),
+  onToolNavigate: (
+    handler: (req: { request_id: string; payload: { sigil_path: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:navigate", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string } })),
 
   /**
    * Tool-dispatch events: mutating tools ask the frontend to perform the

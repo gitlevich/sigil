@@ -47,9 +47,39 @@ use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::chat::render_context;
 
 /// Context about the editor state, passed from the chat handler.
+///
+/// `current_path` is interior-mutable because the `navigate` tool can move
+/// the active sigil mid-turn. Subsequent same-turn tools
+/// (`browser_state_inspection`, `select_text`, etc.) must read the updated
+/// path so they target the navigated sigil rather than the turn's starting
+/// path. Holding the lock is cheap — it's only ever taken to clone the
+/// short path vector or replace it.
 pub struct EditorContext {
     pub root_path: String,
-    pub current_path: Vec<String>,
+    current_path: std::sync::Mutex<Vec<String>>,
+}
+
+impl EditorContext {
+    pub fn new(root_path: String, current_path: Vec<String>) -> Self {
+        Self {
+            root_path,
+            current_path: std::sync::Mutex::new(current_path),
+        }
+    }
+
+    pub fn current_path(&self) -> Vec<String> {
+        self.current_path
+            .lock()
+            .expect("current_path lock poisoned")
+            .clone()
+    }
+
+    pub fn set_current_path(&self, path: Vec<String>) {
+        *self
+            .current_path
+            .lock()
+            .expect("current_path lock poisoned") = path;
+    }
 }
 
 /// Define the tools available to the AI agent
@@ -399,10 +429,33 @@ async fn execute_tool_inner(
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            if let Some(app) = app {
-                let _ = app.emit("navigate-to", sigil_path.clone());
+            let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+            // Round-trip through the frontend so navigate only returns once
+            // the new sigil is actually mounted in the active editor. This
+            // is what makes navigate safe as a setup step for select_text /
+            // replace_selected_text — they operate on the active editor and
+            // would otherwise race the not-yet-mounted target.
+            let result = crate::commands::tool_dispatcher::dispatch(
+                dispatcher_h,
+                app_h,
+                "tool:navigate",
+                serde_json::json!({ "sigil_path": sigil_path.clone() }),
+                10,
+            )
+            .await?;
+            // Confirmed mounted — propagate to shared editor state so any
+            // subsequent same-turn tool that reads current_path
+            // (browser_state_inspection, select_text validation) targets the
+            // navigated sigil rather than the turn's starting path.
+            if let Some(ctx) = editor_ctx {
+                let segments: Vec<String> = sigil_path
+                    .split('/')
+                    .filter(|s| !s.is_empty())
+                    .map(String::from)
+                    .collect();
+                ctx.set_current_path(segments);
             }
-            Ok(format!("Navigated to {}", sigil_path))
+            Ok(result)
         }
         "select_text" => {
             let payload = serde_json::json!({
@@ -416,7 +469,8 @@ async fn execute_tool_inner(
             // Return the selected text so the partner can see what was selected
             if let Some(ctx) = editor_ctx {
                 let mut sigil_dir = Path::new(&ctx.root_path).to_path_buf();
-                for seg in &ctx.current_path {
+                let cp = ctx.current_path();
+                for seg in &cp {
                     sigil_dir = sigil_dir.join(seg);
                 }
                 let lang_file = sigil_dir.join("language.md");
@@ -685,14 +739,15 @@ async fn execute_tool_inner(
         }
         "browser_state_inspection" => {
             if let Some(ctx) = editor_ctx {
+                let cp = ctx.current_path();
                 let mut sigil_dir = Path::new(&ctx.root_path).to_path_buf();
-                for seg in &ctx.current_path {
+                for seg in &cp {
                     sigil_dir = sigil_dir.join(seg);
                 }
-                let current_location = if ctx.current_path.is_empty() {
+                let current_location = if cp.is_empty() {
                     "Root".to_string()
                 } else {
-                    ctx.current_path.join(" > ")
+                    cp.join(" > ")
                 };
                 let lang_file = sigil_dir.join("language.md");
                 let content = fs::read_to_string(&lang_file).unwrap_or_default();
@@ -799,10 +854,7 @@ mod tests {
         let root = tmp.path();
         fs::create_dir(root.join("Scratch")).unwrap();
         fs::write(root.join("Scratch/language.md"), "# Scratch\n\nA throwaway.\n").unwrap();
-        let ctx = EditorContext {
-            root_path: root.to_string_lossy().to_string(),
-            current_path: Vec::new(),
-        };
+        let ctx = EditorContext::new(root.to_string_lossy().to_string(), Vec::new());
         (tmp, ctx)
     }
 
@@ -844,6 +896,115 @@ mod tests {
         let input = serde_json::json!({ "sigil_path": "Scratch" });
         let result = execute_tool("delete_sigil", &input, None, Some(&ctx), None).await;
         assert!(result.is_err(), "no dispatcher means dispatch cannot route");
+        let _ = tmp;
+    }
+
+    /// Build a workspace with two sigils whose `language.md` content is
+    /// distinct, so any tool that targets the wrong one is immediately
+    /// detectable from its output.
+    fn workspace_with_two_sigils() -> (TempDir, EditorContext) {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir(root.join("Origin")).unwrap();
+        fs::write(
+            root.join("Origin/language.md"),
+            "# Origin\n\nThe starting sigil.\n",
+        )
+        .unwrap();
+        fs::create_dir(root.join("ToolAudit")).unwrap();
+        fs::write(
+            root.join("ToolAudit/language.md"),
+            "# ToolAudit\n\nA disposable sigil for tool tests.\n",
+        )
+        .unwrap();
+        let ctx = EditorContext::new(
+            root.to_string_lossy().to_string(),
+            vec!["Origin".to_string()],
+        );
+        (tmp, ctx)
+    }
+
+    /// Editor state must follow `set_current_path`. After the navigate tool
+    /// confirms, it calls `ctx.set_current_path(target)`. Subsequent tools
+    /// that read `ctx.current_path()` (browser_state_inspection,
+    /// select_text excerpt validation) must observe the new path, not the
+    /// prior one. Regression for the desync where these tools kept
+    /// targeting the previously-open sigil after navigate succeeded.
+    #[tokio::test]
+    async fn navigated_path_is_visible_to_subsequent_tools() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+
+        // Pre-condition: we are on Origin, browser inspection sees Origin.
+        let pre = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("browser_state_inspection should succeed on Origin");
+        assert!(
+            pre.contains("Origin") && pre.contains("starting sigil"),
+            "pre-navigate state should describe Origin, got: {}",
+            pre
+        );
+
+        // Simulate the post-confirmation step the navigate tool performs.
+        ctx.set_current_path(vec!["ToolAudit".to_string()]);
+
+        // browser_state_inspection now sees ToolAudit, not Origin.
+        let post = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("browser_state_inspection should succeed on ToolAudit");
+        assert!(
+            post.contains("ToolAudit") && post.contains("disposable sigil"),
+            "post-navigate state should describe ToolAudit, got: {}",
+            post
+        );
+        assert!(
+            !post.contains("starting sigil"),
+            "post-navigate state must not leak Origin's content, got: {}",
+            post
+        );
+
+        // select_text excerpt validation reads from the navigated sigil.
+        // An excerpt unique to ToolAudit must validate; one unique to
+        // Origin must fail because the active sigil is no longer Origin.
+        let select_audit = execute_tool(
+            "select_text",
+            &serde_json::json!({ "excerpt": "disposable sigil for tool tests" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            select_audit.is_ok(),
+            "excerpt from ToolAudit should validate after navigate, got: {:?}",
+            select_audit
+        );
+
+        let select_origin = execute_tool(
+            "select_text",
+            &serde_json::json!({ "excerpt": "The starting sigil." }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            select_origin.is_err(),
+            "excerpt from Origin must NOT validate after navigating away, got: {:?}",
+            select_origin
+        );
+
         let _ = tmp;
     }
 }
