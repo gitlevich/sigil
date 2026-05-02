@@ -524,6 +524,38 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "begin_test_namespace",
+            "description": "Create a uniquely-named disposable sigil under the workspace root for an audit. Returns the namespace's sigil_path. The name is suffixed with a millisecond timestamp so concurrent audits don't collide. The created sigil carries `status: temporary` and `placement: provisional` frontmatter so it's visibly distinct from real sigils. Use end_test_namespace to clean up when done.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "prefix": {
+                        "type": "string",
+                        "description": "Optional name prefix. Must be alphanumeric/dash/underscore. Defaults to 'audit'. The final sigil name is '{prefix}-{millisecond_timestamp}'."
+                    }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
+            "name": "end_test_namespace",
+            "description": "Remove a test namespace created by begin_test_namespace. Refuses to delete anything that isn't an immediate child of the workspace root and isn't named with an audit prefix ('audit-' or 'test-'). This is the safety net that prevents the harness from being misused to delete real sigils. For general deletion use delete_sigil.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "sigil_path": {
+                        "type": "string",
+                        "description": "The namespace sigil path (the value returned by begin_test_namespace)."
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "When true, validate the path against the audit-prefix safety check and report what would be removed without performing the delete."
+                    }
+                },
+                "required": ["sigil_path"]
+            }
+        }),
+        serde_json::json!({
             "name": "browser_state_inspection",
             "description": "See what the user currently has open in the editor. Returns the current sigil path and its content.",
             "input_schema": {
@@ -1077,6 +1109,126 @@ async fn execute_tool_inner(
                 30,
             ).await
         }
+        "begin_test_namespace" => {
+            let prefix = input
+                .get("prefix")
+                .and_then(|v| v.as_str())
+                .unwrap_or("audit");
+            if prefix.is_empty()
+                || !prefix
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
+                return Err(
+                    "prefix must be non-empty and contain only alphanumeric, dash, or underscore characters".into(),
+                );
+            }
+            // Reject prefixes that would not pass the end_test_namespace
+            // safety check, otherwise a successful begin would create a
+            // namespace the agent could not clean up via end.
+            if !(prefix.starts_with("audit") || prefix.starts_with("test")) {
+                return Err(format!(
+                    "prefix '{}' must start with 'audit' or 'test' so end_test_namespace recognizes it as disposable",
+                    prefix
+                ));
+            }
+            let root = editor_ctx
+                .map(|c| c.root_path.as_str())
+                .ok_or("No workspace root available")?;
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            let name = format!("{}-{}", prefix, timestamp);
+            let abs = Path::new(root).join(&name);
+            if abs.exists() {
+                return Err(format!(
+                    "test namespace name collision: {} already exists",
+                    name
+                ));
+            }
+            let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+            let create = crate::commands::tool_dispatcher::dispatch(
+                dispatcher_h,
+                app_h,
+                "tool:create_sigil",
+                serde_json::json!({
+                    "parent_sigil_path": "",
+                    "parent_abs_path": root,
+                    "name": name.clone(),
+                    "content": "---\nstatus: temporary\nplacement: provisional\n---\n\nDisposable audit namespace. Safe to delete via end_test_namespace.\n",
+                }),
+                30,
+            )
+            .await?;
+            Ok(format!("test namespace ready at @{}\n{}", name, create))
+        }
+        "end_test_namespace" => {
+            let raw = input["sigil_path"]
+                .as_str()
+                .ok_or("Missing sigil_path")?;
+            let cleaned = raw.trim_matches('/').to_string();
+            if cleaned.is_empty() {
+                return Err("Refusing to remove workspace root as test namespace".into());
+            }
+            if cleaned.contains('/') {
+                return Err(
+                    "end_test_namespace only removes top-level audit namespaces; nested paths refused. Use delete_sigil for nested deletion.".into(),
+                );
+            }
+            // Safety: refuse anything that doesn't look like a disposable
+            // audit namespace. Without this, end_test_namespace could be
+            // used to bypass the dispatcher's user-action symmetry on a
+            // real sigil. Two prefixes are allowed: 'audit-' (default
+            // begin) and 'test-' (alternative).
+            let prefix_ok = cleaned.starts_with("audit-") || cleaned.starts_with("test-");
+            if !prefix_ok {
+                return Err(format!(
+                    "end_test_namespace refused: '{}' does not start with 'audit-' or 'test-'. Use delete_sigil for general deletion.",
+                    cleaned
+                ));
+            }
+            let root = editor_ctx
+                .map(|c| c.root_path.as_str())
+                .ok_or("No workspace root available")?;
+            let abs = Path::new(root).join(&cleaned);
+            if !abs.exists() {
+                return Err(format!(
+                    "test namespace '{}' not found at {}",
+                    cleaned,
+                    abs.to_string_lossy()
+                ));
+            }
+            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let mut entries: Vec<String> = Vec::new();
+                let mut total_bytes: u64 = 0;
+                walk_for_preview(&abs, &abs, &mut entries, &mut total_bytes);
+                return Ok(format!(
+                    "DRY RUN: would remove test namespace @{} ({} entries, {} bytes)\n{}",
+                    cleaned,
+                    entries.len(),
+                    total_bytes,
+                    if entries.is_empty() {
+                        "(empty directory)".to_string()
+                    } else {
+                        entries.join("\n")
+                    }
+                ));
+            }
+            let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+            let result = crate::commands::tool_dispatcher::dispatch(
+                dispatcher_h,
+                app_h,
+                "tool:delete_sigil",
+                serde_json::json!({
+                    "sigil_path": cleaned,
+                    "abs_path": abs.to_string_lossy(),
+                }),
+                30,
+            )
+            .await?;
+            Ok(format!("test namespace @{} removed\n{}", cleaned, result))
+        }
         "browser_state_inspection" => {
             if let Some(ctx) = editor_ctx {
                 let cp = ctx.current_path();
@@ -1280,6 +1432,149 @@ mod tests {
             vec!["Origin".to_string()],
         );
         (tmp, ctx)
+    }
+
+    /// begin_test_namespace and end_test_namespace are the audit
+    /// harness. Validation happens before the dispatcher round-trip and
+    /// is therefore unit-testable. The dispatcher itself requires a
+    /// Tauri app handle, which these tests do not provide; we cover
+    /// the failure paths instead.
+    #[tokio::test]
+    async fn begin_test_namespace_refuses_unsafe_prefix() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "begin_test_namespace",
+            &serde_json::json!({ "prefix": "../escape" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(result.is_err(), "non-alphanumeric prefix must be rejected");
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn begin_test_namespace_refuses_non_audit_prefix() {
+        let (_tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "begin_test_namespace",
+            &serde_json::json!({ "prefix": "production" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("a non-audit prefix must be rejected so end_ can clean up");
+        assert!(err.contains("audit") || err.contains("test"), "got: {}", err);
+    }
+
+    #[tokio::test]
+    async fn begin_test_namespace_refuses_without_dispatcher() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "begin_test_namespace",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            result.is_err(),
+            "begin_test_namespace must round-trip through the dispatcher"
+        );
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn end_test_namespace_refuses_non_audit_path() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        // Origin is a real sigil — must not be removable via the harness.
+        let result = execute_tool(
+            "end_test_namespace",
+            &serde_json::json!({ "sigil_path": "Origin" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("non-audit-prefixed path must be refused");
+        assert!(
+            err.contains("audit") || err.contains("test"),
+            "error must mention the safety prefix, got: {}",
+            err
+        );
+        // Filesystem untouched.
+        assert!(tmp.path().join("Origin").exists());
+    }
+
+    #[tokio::test]
+    async fn end_test_namespace_refuses_workspace_root() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "end_test_namespace",
+            &serde_json::json!({ "sigil_path": "" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(result.is_err(), "empty path must be refused");
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn end_test_namespace_refuses_nested_path() {
+        let (_tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "end_test_namespace",
+            &serde_json::json!({ "sigil_path": "audit-123/Inner" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("nested paths must be refused");
+        assert!(err.contains("nested") || err.contains("/"), "got: {}", err);
+    }
+
+    #[tokio::test]
+    async fn end_test_namespace_refuses_missing_namespace() {
+        let (_tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "end_test_namespace",
+            &serde_json::json!({ "sigil_path": "audit-99999" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("missing namespace must be reported");
+        assert!(err.contains("not found"), "got: {}", err);
+    }
+
+    #[tokio::test]
+    async fn end_test_namespace_dry_run_previews_real_namespace() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let root = tmp.path();
+        // Simulate a previously-created audit namespace on disk.
+        fs::create_dir(root.join("audit-12345")).unwrap();
+        fs::write(root.join("audit-12345/language.md"), "audit doc\n").unwrap();
+        let result = execute_tool(
+            "end_test_namespace",
+            &serde_json::json!({ "sigil_path": "audit-12345", "dry_run": true }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("dry_run must not require a dispatcher");
+        assert!(result.contains("DRY RUN"));
+        assert!(result.contains("audit-12345"));
+        assert!(result.contains("language.md"));
+        // Disk untouched.
+        assert!(root.join("audit-12345/language.md").exists());
     }
 
     /// delete_sigil dry-run must enumerate the contents that would be
