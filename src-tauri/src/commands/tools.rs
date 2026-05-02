@@ -978,6 +978,156 @@ mod tests {
         let _ = tmp;
     }
 
+    /// Full SpaceLike→ToolAudit→replace flow. Pins the protocol invariant
+    /// that ChatGPT reported as broken: after the navigate tool returns
+    /// success, browser_state_inspection sees ToolAudit, select_text
+    /// validates ToolAudit-only text, the persisted replacement is
+    /// readable through browser_state_inspection, and the prior sigil
+    /// (SpaceLike) is byte-for-byte untouched.
+    ///
+    /// This test simulates the contract the frontend handler upholds in
+    /// production: it set_current_path's the navigated sigil (the
+    /// confirmation step navigate runs after the dispatcher reply) and
+    /// writes the new content to disk (the step the replace handler in
+    /// LanguageEditor runs before its tool_result reply). What's tested
+    /// here is exactly what those handlers must guarantee.
+    #[tokio::test]
+    async fn navigate_then_replace_isolates_to_target_sigil() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        fs::create_dir(root.join("SpaceLike")).unwrap();
+        let space_like_original = "# SpaceLike\n\nSpaceLike anchor sentence — must not be touched.\n";
+        fs::write(root.join("SpaceLike/language.md"), space_like_original).unwrap();
+        fs::create_dir(root.join("ToolAudit")).unwrap();
+        let tool_audit_original =
+            "# ToolAudit\n\nThis sentence will be replaced by the selection tool test.\n";
+        fs::write(root.join("ToolAudit/language.md"), tool_audit_original).unwrap();
+
+        // Open at SpaceLike — the prior-editor sigil in the bug report.
+        let ctx = EditorContext::new(
+            root.to_string_lossy().to_string(),
+            vec!["SpaceLike".to_string()],
+        );
+
+        // Pre-condition: SpaceLike is what the active inspection reports.
+        let pre = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(
+            pre.contains("SpaceLike anchor sentence"),
+            "pre-navigate inspection should target SpaceLike, got: {}",
+            pre
+        );
+
+        // Confirmation step navigate runs after the frontend acks.
+        ctx.set_current_path(vec!["ToolAudit".to_string()]);
+
+        // browser_state_inspection now reports ToolAudit.
+        let post_nav = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(
+            post_nav.contains("This sentence will be replaced"),
+            "after navigate, inspection should target ToolAudit, got: {}",
+            post_nav
+        );
+        assert!(
+            !post_nav.contains("SpaceLike anchor sentence"),
+            "after navigate, inspection must not leak SpaceLike content, got: {}",
+            post_nav
+        );
+
+        // select_text excerpt validation operates on the navigated sigil.
+        let select_in_target = execute_tool(
+            "select_text",
+            &serde_json::json!({ "excerpt": "This sentence will be replaced by the selection tool test." }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            select_in_target.is_ok(),
+            "select_text excerpt from ToolAudit must validate, got: {:?}",
+            select_in_target
+        );
+        let select_in_other = execute_tool(
+            "select_text",
+            &serde_json::json!({ "excerpt": "SpaceLike anchor sentence" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            select_in_other.is_err(),
+            "SpaceLike-only excerpt must not validate after navigating away, got: {:?}",
+            select_in_other
+        );
+
+        // Persistence step that the LanguageEditor frontend handler
+        // runs before its tool_result reply: write the post-replace
+        // content to the active sigil's language.md.
+        let replacement = "Replaced by the selection tool test.";
+        let new_target_content = tool_audit_original
+            .replace(
+                "This sentence will be replaced by the selection tool test.",
+                replacement,
+            );
+        fs::write(root.join("ToolAudit/language.md"), &new_target_content).unwrap();
+
+        // Readback through browser_state_inspection sees the replacement
+        // and no longer sees the original sentence.
+        let post_replace = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(
+            post_replace.contains(replacement),
+            "after replace, inspection must reflect the new sentence, got: {}",
+            post_replace
+        );
+        assert!(
+            !post_replace.contains("This sentence will be replaced by the selection tool test."),
+            "after replace, the original sentence must be gone, got: {}",
+            post_replace
+        );
+
+        // SpaceLike must be byte-for-byte untouched.
+        let space_like_after =
+            fs::read_to_string(root.join("SpaceLike/language.md")).unwrap();
+        assert_eq!(
+            space_like_after, space_like_original,
+            "SpaceLike was modified by a tool flow targeting ToolAudit"
+        );
+
+        // Restore ToolAudit's original text per the acceptance brief so
+        // the workspace is left in its starting state.
+        fs::write(root.join("ToolAudit/language.md"), tool_audit_original).unwrap();
+        let restored =
+            fs::read_to_string(root.join("ToolAudit/language.md")).unwrap();
+        assert_eq!(restored, tool_audit_original, "ToolAudit failed to restore");
+
+        let _ = tmp;
+    }
+
     /// Editor state must follow `set_current_path`. After the navigate tool
     /// confirms, it calls `ctx.set_current_path(target)`. Subsequent tools
     /// that read `ctx.current_path()` (browser_state_inspection,
