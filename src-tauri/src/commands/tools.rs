@@ -45,6 +45,120 @@ fn resolve_sigil_arg(
 }
 use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::chat::render_context;
+use crate::models::sigil::SigilFolder;
+
+/// Recursively enumerate everything under `root` and append a relative
+/// path string per file/dir to `entries`. Used by delete_sigil dry-run
+/// so the agent can see exactly what bytes would be removed before
+/// running the destructive op.
+fn walk_for_preview(
+    root: &Path,
+    current: &Path,
+    entries: &mut Vec<String>,
+    total_bytes: &mut u64,
+) {
+    let read = match fs::read_dir(current) {
+        Ok(rd) => rd,
+        Err(_) => return,
+    };
+    for entry in read.flatten() {
+        let path = entry.path();
+        let rel = path
+            .strip_prefix(root)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string_lossy().to_string());
+        if path.is_dir() {
+            entries.push(format!("  {}/", rel));
+            walk_for_preview(root, &path, entries, total_bytes);
+        } else {
+            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            *total_bytes += size;
+            entries.push(format!("  {} ({} bytes)", rel, size));
+        }
+    }
+}
+
+/// Resolve a relative segment path against a sigil tree by walking
+/// children whose `name` matches each segment in turn.
+fn find_subtree<'a>(root: &'a SigilFolder, segments: &[&str]) -> Option<&'a SigilFolder> {
+    let mut current = root;
+    for seg in segments {
+        let next = current.children.iter().find(|c| c.name == *seg)?;
+        current = next;
+    }
+    Some(current)
+}
+
+/// Render a sigil subtree with optional depth and summary bounds.
+///
+/// `max_depth`: when Some(n), recursion stops at depth n — children at
+/// depth n are listed by name only and their interiors are not expanded.
+/// None recurses unconditionally.
+///
+/// `summary_only`: when true, omits the full language/invariant/affordance
+/// text and emits only the structural skeleton — name, path, child
+/// names, and counts. Useful for getting the shape without the volume.
+fn render_context_bounded(
+    ctx: &SigilFolder,
+    depth: usize,
+    max_depth: Option<usize>,
+    summary_only: bool,
+    output: &mut String,
+) {
+    let prefix = "#".repeat(depth + 2);
+    output.push_str(&format!("{} {} (path: {})\n\n", prefix, ctx.name, ctx.path));
+    if summary_only {
+        output.push_str(&format!(
+            "- {} affordances, {} invariants, {} children\n\n",
+            ctx.affordances.len(),
+            ctx.invariants.len(),
+            ctx.children.iter().filter(|c| c.sigil_type.as_deref() != Some("implementation")).count(),
+        ));
+    } else {
+        let detail_prefix = "#".repeat(depth + 3);
+        output.push_str(&format!("{} Domain Language\n\n", detail_prefix));
+        if ctx.language.trim().is_empty() {
+            output.push_str("_empty_\n\n");
+        } else {
+            output.push_str(&ctx.language);
+            output.push_str("\n\n");
+        }
+        output.push_str(&format!("{} Invariants\n\n", detail_prefix));
+        if ctx.invariants.is_empty() {
+            output.push_str("- none\n\n");
+        } else {
+            for inv in &ctx.invariants {
+                output.push_str(&format!("- !{}: {}\n", inv.name, inv.content.trim()));
+            }
+            output.push('\n');
+        }
+        output.push_str(&format!("{} Affordances\n\n", detail_prefix));
+        if ctx.affordances.is_empty() {
+            output.push_str("- none\n\n");
+        } else {
+            for aff in &ctx.affordances {
+                output.push_str(&format!("- #{}: {}\n", aff.name, aff.content.trim()));
+            }
+            output.push('\n');
+        }
+    }
+    let visible_children: Vec<&SigilFolder> = ctx
+        .children
+        .iter()
+        .filter(|c| c.sigil_type.as_deref() != Some("implementation"))
+        .collect();
+    let at_depth_limit = matches!(max_depth, Some(limit) if depth >= limit);
+    if at_depth_limit {
+        if !visible_children.is_empty() {
+            let names: Vec<&str> = visible_children.iter().map(|c| c.name.as_str()).collect();
+            output.push_str(&format!("Children (not expanded): {}\n\n", names.join(", ")));
+        }
+        return;
+    }
+    for child in &visible_children {
+        render_context_bounded(child, depth + 1, max_depth, summary_only, output);
+    }
+}
 
 /// Context about the editor state, passed from the chat handler.
 ///
@@ -183,13 +297,25 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "read_tree",
-            "description": "Read the entire sigil tree from root — vision, all sigils, affordances, invariants, recursively. Use to understand the full spec. Call with no arguments to read the current sigil.",
+            "description": "Read the sigil tree — vision, sigils, affordances, invariants, children. Defaults to the full tree from the workspace root, which can be noisy. Use `path` to scope to a subtree, `depth` to bound recursion, and `summary_only` to get just the structural skeleton (names and child names) without full content. These three combine: e.g. depth=1 + summary_only=true returns a one-page topographic overview.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "root_path": {
                         "type": "string",
                         "description": "Optional — omit to use the current workspace root."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Optional sigil path to scope the read to a subtree (e.g. 'DesignPartner/BicameralMind'). Omit or pass empty string to read from the workspace root."
+                    },
+                    "depth": {
+                        "type": "integer",
+                        "description": "Optional max recursion depth. 0 returns only the root sigil itself with no children expanded. 1 includes immediate children, and so on. Omit for unlimited."
+                    },
+                    "summary_only": {
+                        "type": "boolean",
+                        "description": "Optional. When true, returns only structural information: each sigil's name, path, child names, and counts of affordances/invariants — without the full language/affordance/invariant text. Useful for understanding shape before pulling content. Defaults to false."
                     }
                 },
                 "required": []
@@ -197,7 +323,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "rename_sigil",
-            "description": "Rename a sigil and update all @references across the entire sigil tree.",
+            "description": "Rename a sigil and update all @references across the entire sigil tree. Pass dry_run=true to preview the rename — confirms preconditions and reports source/target paths without mutating. Note: the preview cannot enumerate every @reference that would update because that scan happens frontend-side; use dry_run primarily to validate paths and the new_name before letting the rename run.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -212,6 +338,10 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                     "new_name": {
                         "type": "string",
                         "description": "The new name"
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "When true, validate preconditions (source exists, no sibling collision) and report the planned source/target paths without performing the rename."
                     }
                 },
                 "required": ["root_path", "sigil_path", "new_name"]
@@ -219,7 +349,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "move_sigil",
-            "description": "Move a sigil to a different parent. Interior stays intact.",
+            "description": "Move a sigil to a different parent. Interior stays intact. Pass dry_run=true to preview — confirms preconditions and reports the source and resulting paths without mutating.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -234,6 +364,10 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                     "new_parent_path": {
                         "type": "string",
                         "description": "Sigil path of the new parent, relative to workspace root. Omit to move to root."
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "When true, validate preconditions (source exists, parent exists, no name collision under new parent) and report the planned source/target paths without performing the move."
                     }
                 },
                 "required": ["root_path", "sigil_path", "new_parent_path"]
@@ -241,13 +375,17 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "delete_sigil",
-            "description": "Delete a sigil and all its children. Destructive.",
+            "description": "Delete a sigil and all its children. Destructive. Pass dry_run=true to preview the files and directories that would be removed without mutating anything.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "sigil_path": {
                         "type": "string",
                         "description": "Sigil path relative to the workspace root (e.g. 'Scratch'). This sigil must exist."
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "When true, validate target and list everything that would be deleted (files, child directories) without performing the delete. Use to confirm a destructive operation before letting it run."
                     }
                 },
                 "required": ["sigil_path"]
@@ -255,7 +393,7 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
         }),
         serde_json::json!({
             "name": "write_vision",
-            "description": "Write or replace the vision statement (vision.md) at the sigil root.",
+            "description": "Write or replace the vision statement (vision.md) at the sigil root. The vision is global and easy to clobber — pass dry_run=true to preview byte counts and the first lines of current and proposed content before letting the write run. Pass no_op_if_unchanged=true to skip the write entirely (and report so) if the proposed content equals what's already on disk.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -266,6 +404,14 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
                     "content": {
                         "type": "string",
                         "description": "Vision statement in markdown"
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "When true, do not write — return a preview comparing current vision.md to the proposed content (byte counts, first line of each, change kind)."
+                    },
+                    "no_op_if_unchanged": {
+                        "type": "boolean",
+                        "description": "When true, the tool refuses to write if the proposed content is byte-identical to what's already on disk. Returns a no-op message instead. Defaults to false to preserve existing call shape."
                     }
                 },
                 "required": ["root_path", "content"]
@@ -616,16 +762,41 @@ async fn execute_tool_inner(
                 .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
                 .ok_or("Missing root_path")?;
             let sigil = read_sigil_with_libs(root_path.to_string())?;
+            let scope_path = input
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim_matches('/');
+            let max_depth = input
+                .get("depth")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize);
+            let summary_only = input
+                .get("summary_only")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let mut output = String::new();
-            output.push_str(&format!("Sigil root: {}\n\n", root_path));
-            output.push_str("# Vision\n\n");
-            output.push_str(&sigil.vision);
-            output.push_str("\n\n");
-            render_context(&sigil.root, 0, &mut output);
-            // Include imported ontologies in the tree output
-            if let Some(ref imported) = sigil.imported_ontologies {
-                output.push_str("\n\n");
-                render_context(imported, 0, &mut output);
+            if scope_path.is_empty() {
+                output.push_str(&format!("Sigil root: {}\n\n", root_path));
+                if !summary_only {
+                    output.push_str("# Vision\n\n");
+                    output.push_str(&sigil.vision);
+                    output.push_str("\n\n");
+                }
+                render_context_bounded(&sigil.root, 0, max_depth, summary_only, &mut output);
+                // Imported ontologies are only included when the read is
+                // unscoped, so a subtree request stays focused.
+                if let Some(ref imported) = sigil.imported_ontologies {
+                    output.push_str("\n\n");
+                    render_context_bounded(imported, 0, max_depth, summary_only, &mut output);
+                }
+            } else {
+                let segments: Vec<&str> = scope_path.split('/').filter(|s| !s.is_empty()).collect();
+                let subtree = find_subtree(&sigil.root, &segments).ok_or_else(|| {
+                    format!("Subtree path '{}' does not resolve in the sigil tree", scope_path)
+                })?;
+                output.push_str(&format!("Subtree: {}\n\n", scope_path));
+                render_context_bounded(subtree, 0, max_depth, summary_only, &mut output);
             }
             Ok(output)
         }
@@ -639,6 +810,28 @@ async fn execute_tool_inner(
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
             let new_name = input["new_name"].as_str().ok_or("Missing new_name")?.to_string();
+            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let parent = abs.parent().ok_or("Source has no parent directory")?;
+                let target = parent.join(&new_name);
+                if target.exists() {
+                    return Err(format!(
+                        "DRY RUN: target name '{}' already exists at {} — rename would collide",
+                        new_name, target.to_string_lossy()
+                    ));
+                }
+                let target_sigil_path = if let Some(slash_idx) = sigil_path.rfind('/') {
+                    format!("{}/{}", &sigil_path[..slash_idx], new_name)
+                } else {
+                    new_name.clone()
+                };
+                return Ok(format!(
+                    "DRY RUN: would rename {} -> {}\n  source dir: {}\n  target dir: {}\n  Note: @reference updates across the tree fire frontend-side and are not enumerated here.",
+                    sigil_path,
+                    target_sigil_path,
+                    abs.to_string_lossy(),
+                    target.to_string_lossy()
+                ));
+            }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
                 dispatcher, app, "tool:rename_sigil",
@@ -661,6 +854,37 @@ async fn execute_tool_inner(
             }
             let new_parent_raw = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
             let (new_parent_path, new_parent_abs) = resolve_sigil_arg(new_parent_raw, editor_ctx)?;
+            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+                if !new_parent_abs.exists() && !new_parent_path.is_empty() {
+                    return Err(format!(
+                        "DRY RUN: new parent '{}' does not exist", new_parent_path
+                    ));
+                }
+                let leaf = abs
+                    .file_name()
+                    .ok_or("Source has no leaf name")?
+                    .to_string_lossy()
+                    .to_string();
+                let target_abs = new_parent_abs.join(&leaf);
+                if target_abs.exists() {
+                    return Err(format!(
+                        "DRY RUN: target '{}' already exists at the new parent — move would collide",
+                        target_abs.to_string_lossy()
+                    ));
+                }
+                let target_sigil_path = if new_parent_path.is_empty() {
+                    leaf.clone()
+                } else {
+                    format!("{}/{}", new_parent_path, leaf)
+                };
+                return Ok(format!(
+                    "DRY RUN: would move {} -> {}\n  source dir: {}\n  target dir: {}\n  Note: @reference updates fire frontend-side and are not enumerated here.",
+                    sigil_path,
+                    target_sigil_path,
+                    abs.to_string_lossy(),
+                    target_abs.to_string_lossy()
+                ));
+            }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
                 dispatcher, app, "tool:move_sigil",
@@ -686,6 +910,23 @@ async fn execute_tool_inner(
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
+            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let mut entries: Vec<String> = Vec::new();
+                let mut total_bytes: u64 = 0;
+                walk_for_preview(&abs, &abs, &mut entries, &mut total_bytes);
+                let preview = if entries.is_empty() {
+                    "(empty directory)".to_string()
+                } else {
+                    entries.join("\n")
+                };
+                return Ok(format!(
+                    "DRY RUN: would delete @{} ({} entries, {} bytes total)\n{}",
+                    sigil_path,
+                    entries.len(),
+                    total_bytes,
+                    preview
+                ));
+            }
 
             // Route through the frontend's deleteSigil action — same path
             // a user click takes. See ToolDispatcher for the protocol.
@@ -703,6 +944,44 @@ async fn execute_tool_inner(
         }
         "write_vision" => {
             let content = input["content"].as_str().ok_or("Missing content")?.to_string();
+            let dry_run = input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+            let no_op_if_unchanged = input
+                .get("no_op_if_unchanged")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            // Read the current vision so dry_run can describe the diff
+            // and no_op_if_unchanged can skip identical writes. Locating
+            // vision.md uses the editor_ctx root since write_vision is
+            // root-scoped.
+            let root = editor_ctx
+                .map(|c| c.root_path.as_str())
+                .ok_or("No workspace root available for write_vision")?;
+            let vision_path = Path::new(root).join("vision.md");
+            let current = fs::read_to_string(&vision_path).unwrap_or_default();
+            if no_op_if_unchanged && current == content && !dry_run {
+                return Ok(format!(
+                    "no-op: proposed vision.md is byte-identical to the existing one ({} bytes)",
+                    content.len()
+                ));
+            }
+            if dry_run {
+                let first_line = |s: &str| s.lines().next().unwrap_or("(empty)").to_string();
+                let kind = if current.is_empty() {
+                    "create"
+                } else if current == content {
+                    "unchanged"
+                } else {
+                    "replace"
+                };
+                return Ok(format!(
+                    "DRY RUN: would {} vision.md\n  current: {} bytes — first line: {}\n  proposed: {} bytes — first line: {}",
+                    kind,
+                    current.len(),
+                    first_line(&current),
+                    content.len(),
+                    first_line(&content)
+                ));
+            }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
                 dispatcher, app, "tool:write_vision",
@@ -1001,6 +1280,220 @@ mod tests {
             vec!["Origin".to_string()],
         );
         (tmp, ctx)
+    }
+
+    /// delete_sigil dry-run must enumerate the contents that would be
+    /// removed, must NOT touch the filesystem, and must use the same
+    /// validation chain as a real delete (so an invalid target — empty
+    /// path, missing — fails the same way before any I/O).
+    #[tokio::test]
+    async fn delete_sigil_dry_run_enumerates_without_mutating() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let root = tmp.path();
+        // Add a child so the preview is non-trivial.
+        fs::create_dir(root.join("ToolAudit/Inner")).unwrap();
+        fs::write(root.join("ToolAudit/Inner/language.md"), "child\n").unwrap();
+        let result = execute_tool(
+            "delete_sigil",
+            &serde_json::json!({ "sigil_path": "ToolAudit", "dry_run": true }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("dry_run should not need a dispatcher");
+        assert!(result.contains("DRY RUN"));
+        assert!(result.contains("ToolAudit"));
+        assert!(result.contains("Inner"));
+        assert!(result.contains("language.md"));
+        // Disk untouched.
+        assert!(root.join("ToolAudit").exists());
+        assert!(root.join("ToolAudit/Inner/language.md").exists());
+    }
+
+    #[tokio::test]
+    async fn rename_sigil_dry_run_reports_collision() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        // Try to rename Origin -> ToolAudit; ToolAudit already exists.
+        let result = execute_tool(
+            "rename_sigil",
+            &serde_json::json!({
+                "root_path": tmp.path().to_string_lossy().to_string(),
+                "sigil_path": "Origin",
+                "new_name": "ToolAudit",
+                "dry_run": true,
+            }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("collision should fail dry-run");
+        assert!(err.contains("DRY RUN"));
+        assert!(err.contains("collide") || err.contains("already exists"));
+    }
+
+    #[tokio::test]
+    async fn rename_sigil_dry_run_describes_clean_rename() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "rename_sigil",
+            &serde_json::json!({
+                "root_path": tmp.path().to_string_lossy().to_string(),
+                "sigil_path": "Origin",
+                "new_name": "OriginPrime",
+                "dry_run": true,
+            }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("clean rename dry-run should pass");
+        assert!(result.contains("DRY RUN"));
+        assert!(result.contains("Origin"));
+        assert!(result.contains("OriginPrime"));
+        // Disk untouched.
+        assert!(tmp.path().join("Origin").exists());
+        assert!(!tmp.path().join("OriginPrime").exists());
+    }
+
+    #[tokio::test]
+    async fn move_sigil_dry_run_reports_planned_target() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "move_sigil",
+            &serde_json::json!({
+                "root_path": tmp.path().to_string_lossy().to_string(),
+                "sigil_path": "Origin",
+                "new_parent_path": "ToolAudit",
+                "dry_run": true,
+            }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("clean move dry-run should pass");
+        assert!(result.contains("DRY RUN"));
+        assert!(result.contains("ToolAudit/Origin"));
+        // Disk untouched.
+        assert!(tmp.path().join("Origin").exists());
+        assert!(!tmp.path().join("ToolAudit/Origin").exists());
+    }
+
+    /// write_vision dry-run reports a diff summary; no_op_if_unchanged
+    /// makes the tool refuse identical-content writes loudly. The
+    /// vision.md path is global, so silent over-writes are particularly
+    /// dangerous — these flags exist so the agent never clobbers the
+    /// vision by accident during a write_vision audit.
+    #[tokio::test]
+    async fn write_vision_dry_run_reports_change_summary() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        fs::write(tmp.path().join("vision.md"), "# Vision\n\nOld vision.\n").unwrap();
+        let result = execute_tool(
+            "write_vision",
+            &serde_json::json!({
+                "root_path": tmp.path().to_string_lossy().to_string(),
+                "content": "# Vision\n\nNew vision text.\n",
+                "dry_run": true,
+            }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("dry-run should not require a dispatcher");
+        assert!(result.contains("DRY RUN"));
+        assert!(result.contains("replace"));
+        // Disk untouched.
+        let on_disk = fs::read_to_string(tmp.path().join("vision.md")).unwrap();
+        assert!(on_disk.contains("Old vision"));
+    }
+
+    #[tokio::test]
+    async fn write_vision_no_op_skips_identical_content() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let identical = "# Vision\n\nSame.\n";
+        fs::write(tmp.path().join("vision.md"), identical).unwrap();
+        let result = execute_tool(
+            "write_vision",
+            &serde_json::json!({
+                "root_path": tmp.path().to_string_lossy().to_string(),
+                "content": identical,
+                "no_op_if_unchanged": true,
+            }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("no-op path must not require a dispatcher");
+        assert!(result.contains("no-op"));
+        assert!(result.contains("byte-identical"));
+    }
+
+    /// read_tree's scoped/depth/summary modes give the audit agent a
+    /// sharp tool: scope to a subtree, bound recursion, optionally
+    /// drop content. Without these the agent has to fetch the whole
+    /// spec to look at one branch.
+    #[tokio::test]
+    async fn read_tree_scopes_to_subtree() {
+        let (_tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "read_tree",
+            &serde_json::json!({ "path": "ToolAudit" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("subtree read should succeed");
+        assert!(result.contains("Subtree: ToolAudit"));
+        assert!(result.contains("ToolAudit"));
+        assert!(
+            !result.contains("Origin"),
+            "subtree read must not include sibling Origin's content, got: {}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn read_tree_summary_only_omits_content() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        // Origin has a unique sentence that must be absent from summary.
+        let result = execute_tool(
+            "read_tree",
+            &serde_json::json!({ "path": "Origin", "summary_only": true }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("summary read should succeed");
+        assert!(result.contains("Origin"));
+        assert!(result.contains("affordances"));
+        assert!(
+            !result.contains("The starting sigil"),
+            "summary_only must omit language content, got: {}",
+            result
+        );
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn read_tree_unknown_subtree_path_fails() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "read_tree",
+            &serde_json::json!({ "path": "DoesNotExist" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(result.is_err(), "unknown path should fail loudly");
+        let _ = tmp;
     }
 
     #[tokio::test]
