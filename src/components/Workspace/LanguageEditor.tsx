@@ -514,10 +514,18 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
       }
     });
 
-    const unlistenReplace = events.onReplaceSelectedText((text: string) => {
+    const unlistenReplace = events.onToolReplaceSelectedText(async ({ request_id, payload }) => {
+      const reply = (ok: boolean, message: string) => {
+        api.toolResult(request_id, ok, message).catch((err) => {
+          console.error("[tool:replace_selected_text] toolResult failed:", err);
+        });
+      };
       const view = viewRef.current;
-      if (!view) return;
-      // Use AI highlight range if present, fall back to selection
+      if (!view) {
+        reply(false, "no active editor for the current sigil");
+        return;
+      }
+      // Use AI highlight range if present, fall back to user selection.
       const highlight = view.state.field(aiHighlightField);
       let from = -1, to = -1;
       highlight.between(0, view.state.doc.length, (a, b) => { from = a; to = b; return false; });
@@ -525,12 +533,36 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
         from = view.state.selection.main.from;
         to = view.state.selection.main.to;
       }
-      if (from === to) return;
+      if (from === to) {
+        reply(false, "no selection to replace — call select_text first");
+        return;
+      }
+      const replacedLen = to - from;
       view.dispatch({
-        changes: { from, to, insert: text },
+        changes: { from, to, insert: payload.text },
         effects: setAiHighlight.of(null),
       });
       view.focus();
+      // Persist immediately. The autosave debounce (500ms) is too slow:
+      // the next tool in the same turn (browser_state_inspection,
+      // another select_text) reads language.md from disk and would see
+      // the pre-replace content. Update the autosave base in lockstep
+      // so the editor's reconcile loop doesn't see an apparent disk
+      // divergence and re-trigger conflict UI.
+      const filePath = sigilDirRef.current ? `${sigilDirRef.current}/language.md` : null;
+      if (!filePath) {
+        reply(false, "active editor has no sigil path");
+        return;
+      }
+      const newContent = view.state.doc.toString();
+      try {
+        await api.writeFile(filePath, newContent);
+        setBase(filePath, newContent);
+        reply(true, `Replaced ${replacedLen} characters with ${payload.text.length}.`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        reply(false, `wrote-back failed: ${msg}`);
+      }
     });
 
     return () => {

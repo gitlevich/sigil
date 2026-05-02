@@ -537,8 +537,10 @@ export const events = {
   onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
     listen<string>("select-text", (event) => handler(event.payload)),
 
-  onReplaceSelectedText: (handler: (text: string) => void): Promise<UnlistenFn> =>
-    listen<string>("replace-selected-text", (event) => handler(event.payload)),
+  onToolReplaceSelectedText: (
+    handler: (req: { request_id: string; payload: { text: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:replace_selected_text", (event) => handler(event.payload as { request_id: string; payload: { text: string } })),
 
   onFsChange: (handler: (event: FsChangeEvent) => void): Promise<UnlistenFn> =>
     listen<FsChangeEvent>("fs-change", (event) => handler(event.payload)),

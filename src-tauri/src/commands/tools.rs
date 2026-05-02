@@ -498,10 +498,22 @@ async fn execute_tool_inner(
         }
         "replace_selected_text" => {
             let text = input["text"].as_str().ok_or("Missing text")?;
-            if let Some(app) = app {
-                let _ = app.emit("replace-selected-text", text.to_string());
-            }
-            Ok("Text replaced".to_string())
+            let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+            // Round-trip so the tool returns only after the change has been
+            // applied to the active editor AND persisted to disk. The old
+            // fire-and-forget emit returned success while the autosave
+            // debounce was still pending — subsequent tools that read
+            // language.md (browser_state_inspection, select_text) saw the
+            // pre-replace content and the replacement looked silently
+            // ignored.
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher_h,
+                app_h,
+                "tool:replace_selected_text",
+                serde_json::json!({ "text": text }),
+                10,
+            )
+            .await
         }
         "write_sigil" | "create_context" | "write_language" | "create_sigil" => {
             let raw = input.get("sigil_path")
@@ -922,6 +934,48 @@ mod tests {
             vec!["Origin".to_string()],
         );
         (tmp, ctx)
+    }
+
+    /// replace_selected_text must NOT silently succeed. Before, it fired
+    /// the event-and-forget path and returned "Text replaced" regardless
+    /// of whether the frontend received the event, found a selection,
+    /// applied the change, or persisted to disk. The model would call
+    /// browser_state_inspection next and see the unchanged document.
+    ///
+    /// The dispatcher round-trip removed the silent path: the tool now
+    /// refuses to run without an app handle and dispatcher, because
+    /// without them the frontend cannot reply with a real outcome.
+    #[tokio::test]
+    async fn replace_selected_text_refuses_without_dispatcher() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "replace_selected_text",
+            &serde_json::json!({ "text": "new" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(
+            result.is_err(),
+            "no dispatcher means the frontend cannot confirm — must Err, never silent Ok",
+        );
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn replace_selected_text_refuses_missing_text() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "replace_selected_text",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        assert!(result.is_err(), "missing text param should be rejected");
+        let _ = tmp;
     }
 
     /// Editor state must follow `set_current_path`. After the navigate tool
