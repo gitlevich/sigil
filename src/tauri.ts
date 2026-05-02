@@ -348,8 +348,8 @@ export const api = {
   deleteContext: (path: string) =>
     invoke<void>("delete_context", { path }),
 
-  listModels: (provider: string, apiKey: string) =>
-    invoke<string[]>("list_models", { provider, apiKey }),
+  listModels: (provider: string, apiKey: string, showAll: boolean) =>
+    invoke<string[]>("list_models", { provider, apiKey, showAll }),
 
   listChats: (rootPath: string) =>
     invoke<ChatInfo[]>("list_chats", { rootPath }),

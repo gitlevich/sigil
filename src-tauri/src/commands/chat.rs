@@ -420,8 +420,41 @@ fn chrono_like_now() -> u128 {
         .unwrap_or(0)
 }
 
+/// True if `id` looks like a chat-capable OpenAI model.
+///
+/// Allow-list by family prefix: `gpt-*` and reasoning models `o<digit>*`
+/// (handles o1, o3, o4, and any future o5/o6/...). Then exclude
+/// substrings that mark non-chat modalities (audio/tts/embedding/etc.)
+/// even when the family prefix matches — e.g. `gpt-audio-1.5` is realtime
+/// audio, not a chat completion model.
+fn is_openai_chat_model(id: &str) -> bool {
+    let family_match = id.starts_with("gpt-")
+        || (id.starts_with('o')
+            && id.chars().nth(1).map(|c| c.is_ascii_digit()).unwrap_or(false));
+    if !family_match {
+        return false;
+    }
+    const NON_CHAT: &[&str] = &[
+        "audio",
+        "embed",
+        "whisper",
+        "tts",
+        "dall",
+        "image",
+        "moderation",
+        "realtime",
+        "transcribe",
+        "search-preview",
+    ];
+    !NON_CHAT.iter().any(|p| id.contains(p))
+}
+
 #[tauri::command]
-pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String>, String> {
+pub async fn list_models(
+    provider: String,
+    api_key: String,
+    show_all: bool,
+) -> Result<Vec<String>, String> {
     let client = reqwest::Client::new();
 
     match provider.as_str() {
@@ -469,19 +502,16 @@ pub async fn list_models(provider: String, api_key: String) -> Result<Vec<String
             }
 
             let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-            let models = body["data"]
+            let mut models: Vec<String> = body["data"]
                 .as_array()
                 .map(|arr| {
-                    let mut ids: Vec<String> = arr
-                        .iter()
+                    arr.iter()
                         .filter_map(|m| m["id"].as_str().map(String::from))
-                        // Filter to chat-capable models
-                        .filter(|id| id.starts_with("gpt-") || id.starts_with("o1") || id.starts_with("o3") || id.starts_with("o4"))
-                        .collect();
-                    ids.sort();
-                    ids
+                        .filter(|id| show_all || is_openai_chat_model(id))
+                        .collect()
                 })
                 .unwrap_or_default();
+            models.sort();
             Ok(models)
         }
         _ => Err(format!("Unknown provider: {}", provider)),

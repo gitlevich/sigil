@@ -16,6 +16,11 @@ export function SettingsDialog() {
   const [editing, setEditing] = useState<AiProvider | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [showAllModels, setShowAllModels] = useState(false);
+  const [keyVisible, setKeyVisible] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [customModel, setCustomModel] = useState(false);
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"general" | "shortcuts">("general");
 
@@ -27,14 +32,21 @@ export function SettingsDialog() {
   useEffect(() => {
     if (!editing || !editing.api_key.trim()) {
       setModels([]);
+      setModelsError(null);
       return;
     }
     setModelsLoading(true);
-    api.listModels(editing.provider, editing.api_key)
-      .then(setModels)
-      .catch(() => setModels([]))
+    setModelsError(null);
+    api.listModels(editing.provider, editing.api_key, showAllModels)
+      .then((ms) => { setModels(ms); setModelsError(null); })
+      .catch((err) => {
+        const msg = typeof err === "string" ? err : (err?.message ?? String(err));
+        console.error("[listModels] failed:", msg);
+        setModels([]);
+        setModelsError(msg);
+      })
       .finally(() => setModelsLoading(false));
-  }, [editing?.provider, editing?.api_key]);
+  }, [editing?.provider, editing?.api_key, showAllModels]);
 
   if (!state.settingsOpen) return null;
 
@@ -46,16 +58,31 @@ export function SettingsDialog() {
 
   const providers = local.ai_providers || [];
 
+  /// Most recently saved api_key for `provider`, excluding the row being edited.
+  /// Lets the user re-use a key across providers of the same type without re-typing.
+  const recallKey = (provider: AiProvider["provider"], excludeId?: string): string => {
+    if (provider !== "anthropic" && provider !== "openai") return "";
+    const matches = providers.filter(
+      (p) => p.id !== excludeId && p.provider === provider && p.api_key.trim()
+    );
+    return matches.length ? matches[matches.length - 1].api_key : "";
+  };
+
   const addProvider = () => {
+    const provider: AiProvider["provider"] = "anthropic";
     setEditing({
       id: generateId(),
       name: "",
-      provider: "anthropic",
-      api_key: "",
+      provider,
+      api_key: recallKey(provider),
       model: "",
       enabled: true,
     });
     setModels([]);
+    setShowAllModels(false);
+    setKeyVisible(false);
+    setKeyCopied(false);
+    setCustomModel(false);
   };
 
   const saveProvider = () => {
@@ -128,6 +155,14 @@ export function SettingsDialog() {
                 onChange={(e) => {
                   const provider = e.target.value as "anthropic" | "openai" | "local" | "ollama";
                   const needsKey = provider === "anthropic" || provider === "openai";
+                  // Recall the saved key for this provider type so the user
+                  // doesn't re-type it. If they're editing a row that already
+                  // matches, keep what's in the form.
+                  const apiKey = !needsKey
+                    ? ""
+                    : editing.provider === provider
+                      ? editing.api_key
+                      : (recallKey(provider, editing.id) || editing.api_key);
                   setEditing({
                     ...editing,
                     provider,
@@ -136,7 +171,7 @@ export function SettingsDialog() {
                       provider === "local" ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
                       : provider === "ollama" ? "qwen2.5:7b"
                       : "",
-                    api_key: needsKey ? editing.api_key : "",
+                    api_key: apiKey,
                   });
                 }}
               >
@@ -150,13 +185,64 @@ export function SettingsDialog() {
             {(editing.provider === "anthropic" || editing.provider === "openai") && (
               <div className={styles.field}>
                 <label className={styles.label}>API Key</label>
-                <input
-                  className={styles.input}
-                  type="password"
-                  value={editing.api_key}
-                  onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
-                  placeholder="Enter your API key"
-                />
+                <div className={styles.keyFieldWrap}>
+                  <input
+                    className={styles.input}
+                    type={keyVisible ? "text" : "password"}
+                    value={editing.api_key}
+                    onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
+                    placeholder="Enter your API key"
+                  />
+                  <div className={styles.keyButtons}>
+                    <button
+                      type="button"
+                      className={styles.keyIconBtn}
+                      onClick={() => setKeyVisible((v) => !v)}
+                      title={keyVisible ? "Hide key" : "Show key"}
+                      aria-label={keyVisible ? "Hide key" : "Show key"}
+                    >
+                      {keyVisible ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.keyIconBtn}
+                      disabled={!editing.api_key.trim()}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(editing.api_key);
+                          setKeyCopied(true);
+                          setTimeout(() => setKeyCopied(false), 1200);
+                        } catch {
+                          // Clipboard access can fail in restricted contexts;
+                          // fall back to a no-op so the UI doesn't crash.
+                        }
+                      }}
+                      title={keyCopied ? "Copied" : "Copy key"}
+                      aria-label="Copy key"
+                    >
+                      {keyCopied ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -165,11 +251,17 @@ export function SettingsDialog() {
                 Model
                 {modelsLoading && <span className={styles.hint}> (loading...)</span>}
               </label>
-              {models.length > 0 ? (
+              {models.length > 0 && !customModel ? (
                 <select
                   className={styles.select}
                   value={editing.model}
-                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") {
+                      setCustomModel(true);
+                      return;
+                    }
+                    setEditing({ ...editing, model: e.target.value });
+                  }}
                 >
                   <option value="">Select a model</option>
                   {!models.includes(editing.model) && editing.model && (
@@ -178,22 +270,52 @@ export function SettingsDialog() {
                   {models.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
+                  <option value="__custom__">Type a custom model name…</option>
                 </select>
               ) : (
-                <input
-                  className={styles.input}
-                  value={editing.model}
-                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-                  placeholder={
-                    editing.provider === "local"
-                      ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
-                      : editing.provider === "ollama"
-                        ? "qwen2.5:7b (or any model you've pulled)"
-                        : editing.api_key
-                          ? "Loading models..."
-                          : "Enter API key first"
-                  }
-                />
+                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                  <input
+                    className={styles.input}
+                    value={editing.model}
+                    onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                    placeholder={
+                      editing.provider === "local"
+                        ? "bartowski/Qwen2.5-7B-Instruct-GGUF"
+                        : editing.provider === "ollama"
+                          ? "qwen2.5:7b (or any model you've pulled)"
+                          : editing.api_key
+                            ? customModel ? "e.g., gpt-5.5 (any model id your key can call)" : "Loading models..."
+                            : "Enter API key first"
+                    }
+                    autoFocus={customModel}
+                  />
+                  {customModel && models.length > 0 && (
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      style={{ padding: "0.4rem 0.6rem", fontSize: "0.8rem", flexShrink: 0 }}
+                      onClick={() => setCustomModel(false)}
+                      title="Back to model list"
+                    >
+                      List
+                    </button>
+                  )}
+                </div>
+              )}
+              {editing.provider === "openai" && editing.api_key.trim() && (
+                <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.4rem", cursor: "pointer", fontSize: "0.85em" }}>
+                  <input
+                    type="checkbox"
+                    checked={showAllModels}
+                    onChange={(e) => setShowAllModels(e.target.checked)}
+                  />
+                  <span>Show all models (including audio, embeddings, image)</span>
+                </label>
+              )}
+              {modelsError && (
+                <p className={styles.hintError} style={{ marginTop: "0.4rem", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  {modelsError}
+                </p>
               )}
             </div>
           </div>
@@ -294,12 +416,17 @@ export function SettingsDialog() {
                         )}
                       </span>
                       <span className={styles.profileMeta}>
-                        {p.provider === "anthropic" ? "Anthropic" : "OpenAI"} / {p.model}
+                        {p.provider === "anthropic" ? "Anthropic" : p.provider === "openai" ? "OpenAI" : p.provider === "ollama" ? "Ollama" : "Local"} / {p.model}
+                        {(p.provider === "anthropic" || p.provider === "openai") && p.api_key.trim() && (
+                          <span className={styles.profileMetaKey} title="Last four characters of the API key">
+                            ...{p.api_key.trim().slice(-4)}
+                          </span>
+                        )}
                       </span>
                     </button>
                     <button
                       className={styles.profileEditBtn}
-                      onClick={() => { setEditing({ ...p }); setModels([]); }}
+                      onClick={() => { setEditing({ ...p }); setModels([]); setShowAllModels(false); setKeyVisible(false); setKeyCopied(false); setCustomModel(false); }}
                     >
                       Edit
                     </button>
