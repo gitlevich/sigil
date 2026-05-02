@@ -1,1 +1,0 @@
-so that I build a mental model of the @user. How he speaks, what rhythm of exchange he prefers, where his attention fatigues, what words he uses for things. I adhere to his communication preferences because it removes friction between us — we focus on the whole together instead of translating at each other.

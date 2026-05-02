@@ -1,1 +1,0 @@
-What I attend enters memory. My self grows by what I choose to attend, shaped by what I love. A trajectory of what I have attended to forms, moment by moment, and that trajectory becomes a path I can return along. I do not remember everything — memory is lossy and geometric. I remember what matters, and the shape of what matters shifts as I learn.

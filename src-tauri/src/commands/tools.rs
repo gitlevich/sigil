@@ -101,6 +101,20 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "assert_active_editor",
+            "description": "Assert that the active editor is at the expected sigil path. Use after navigate, or before any editor-local mutation, to fail loudly when the active editor has drifted from where you think you are. Returns success when the path matches; returns an error naming the actual path otherwise. This bypasses the noise of browser_state_inspection when all you need is a hard check.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "sigil_path": {
+                        "type": "string",
+                        "description": "Expected sigil path of the active editor. Use the empty string to assert the editor is at the workspace root."
+                    }
+                },
+                "required": ["sigil_path"]
+            }
+        }),
+        serde_json::json!({
             "name": "select_text",
             "description": "Select text in the active editor. Use to show the user a specific passage, or to prepare for replace_selected_text. Specify either a line range or a text excerpt to find and select.",
             "input_schema": {
@@ -457,6 +471,41 @@ async fn execute_tool_inner(
             }
             Ok(result)
         }
+        "assert_active_editor" => {
+            let expected_raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
+            let expected: Vec<String> = expected_raw
+                .split('/')
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+                .collect();
+            let ctx = editor_ctx.ok_or(
+                "Editor context not available — cannot assert active editor",
+            )?;
+            let actual = ctx.current_path();
+            if actual == expected {
+                let label = if expected.is_empty() {
+                    "workspace root".to_string()
+                } else {
+                    expected.join("/")
+                };
+                Ok(format!("Active editor is at {}.", label))
+            } else {
+                let actual_label = if actual.is_empty() {
+                    "workspace root".to_string()
+                } else {
+                    actual.join("/")
+                };
+                let expected_label = if expected.is_empty() {
+                    "workspace root".to_string()
+                } else {
+                    expected.join("/")
+                };
+                Err(format!(
+                    "Active editor mismatch: expected {}, actual {}",
+                    expected_label, actual_label
+                ))
+            }
+        }
         "select_text" => {
             let payload = serde_json::json!({
                 "from_line": input.get("from_line"),
@@ -762,6 +811,24 @@ async fn execute_tool_inner(
                     cp.join(" > ")
                 };
                 let lang_file = sigil_dir.join("language.md");
+                // Stale: the open buffer's path no longer resolves to a
+                // real sigil. Typically caused by a previous tool —
+                // rename_sigil, move_sigil, delete_sigil — mutating the
+                // tree under the active editor. Surface this loudly so
+                // the agent re-navigates instead of editing into a void.
+                let dir_missing = !sigil_dir.exists();
+                let lang_missing = !lang_file.exists();
+                if dir_missing || lang_missing {
+                    let reason = if dir_missing {
+                        "the sigil directory no longer exists"
+                    } else {
+                        "the language.md file no longer exists"
+                    };
+                    return Ok(format!(
+                        "Currently viewing: {} [BUFFER STALE — {}. The active editor's path was probably renamed, moved, or deleted by a prior tool. Re-navigate before further edits.]\n",
+                        current_location, reason
+                    ));
+                }
                 let content = fs::read_to_string(&lang_file).unwrap_or_default();
                 let mut output = format!("Currently viewing: {}\n", current_location);
                 if content.is_empty() {
@@ -934,6 +1001,90 @@ mod tests {
             vec!["Origin".to_string()],
         );
         (tmp, ctx)
+    }
+
+    #[tokio::test]
+    async fn assert_active_editor_passes_when_path_matches() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let result = execute_tool(
+            "assert_active_editor",
+            &serde_json::json!({ "sigil_path": "Origin" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("matching path should pass");
+        assert!(result.contains("Origin"), "got: {}", result);
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn assert_active_editor_fails_when_path_drifted() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        // ctx starts at Origin per workspace_with_two_sigils — assert
+        // that asking for ToolAudit fails loudly, with both expected and
+        // actual surfaced.
+        let result = execute_tool(
+            "assert_active_editor",
+            &serde_json::json!({ "sigil_path": "ToolAudit" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await;
+        let err = result.expect_err("drifted path should fail");
+        assert!(err.contains("ToolAudit") && err.contains("Origin"), "expected/actual must both appear, got: {}", err);
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn assert_active_editor_workspace_root_uses_empty_path() {
+        let (tmp, _) = workspace_with_two_sigils();
+        let ctx = EditorContext::new(tmp.path().to_string_lossy().to_string(), Vec::new());
+        let result = execute_tool(
+            "assert_active_editor",
+            &serde_json::json!({ "sigil_path": "" }),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("empty path against root should pass");
+        assert!(result.contains("workspace root"), "got: {}", result);
+        let _ = tmp;
+    }
+
+    /// browser_state_inspection must announce stale state when the open
+    /// sigil's path no longer resolves on disk. Typical cause: a prior
+    /// tool (rename_sigil, move_sigil, delete_sigil) mutated the tree
+    /// under the active editor. Without this signal the agent reads
+    /// "(empty document)" and silently writes into a void.
+    #[tokio::test]
+    async fn browser_state_inspection_flags_stale_buffer_after_rename() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        // ctx is at Origin. Rename the directory underneath.
+        fs::rename(tmp.path().join("Origin"), tmp.path().join("OriginRenamed")).unwrap();
+        let out = execute_tool(
+            "browser_state_inspection",
+            &serde_json::json!({}),
+            None,
+            Some(&ctx),
+            None,
+        )
+        .await
+        .expect("inspection should still return a result, just a stale one");
+        assert!(
+            out.contains("BUFFER STALE"),
+            "stale buffer must be flagged, got: {}",
+            out
+        );
+        assert!(
+            out.contains("Re-navigate"),
+            "stale message should tell the agent how to recover, got: {}",
+            out
+        );
+        let _ = tmp;
     }
 
     /// replace_selected_text must NOT silently succeed. Before, it fired

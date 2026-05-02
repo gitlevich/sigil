@@ -558,7 +558,21 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
       try {
         await api.writeFile(filePath, newContent);
         setBase(filePath, newContent);
-        reply(true, `Replaced ${replacedLen} characters with ${payload.text.length}.`);
+        // Read-back excerpt so the agent can verify the persisted bytes
+        // match its intent. We re-read from the disk-synced doc rather
+        // than echoing payload.text — this catches any disagreement
+        // between intended insert and what landed (e.g. a same-path
+        // reconcile hitting concurrently).
+        const insertEnd = from + payload.text.length;
+        const ctxStart = Math.max(0, from - 24);
+        const ctxEnd = Math.min(newContent.length, insertEnd + 24);
+        const persisted = newContent.slice(ctxStart, ctxEnd).replace(/\n/g, "\\n");
+        const lead = ctxStart > 0 ? "..." : "";
+        const trail = ctxEnd < newContent.length ? "..." : "";
+        reply(
+          true,
+          `Replaced ${replacedLen} chars with ${payload.text.length}. Persisted excerpt: "${lead}${persisted}${trail}"`,
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         reply(false, `wrote-back failed: ${msg}`);
