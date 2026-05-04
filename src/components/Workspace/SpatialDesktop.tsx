@@ -231,6 +231,7 @@ export function SpatialDesktop() {
       resolvedCurrentPath,
       importedRoot ?? null,
       childNames,
+      isImported ? ["Imported Ontologies"] : [],
     );
     for (const ent of entanglements) {
       list.push({

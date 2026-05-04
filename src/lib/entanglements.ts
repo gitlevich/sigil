@@ -8,7 +8,7 @@
 import type { Sigil } from "sigil-core";
 import { resolve as coreResolve } from "sigil-core";
 
-export type EntanglementKind = "neighbor" | "god";
+export type EntanglementKind = "neighbor" | "god" | "landmark";
 
 export interface Entanglement {
   name: string;
@@ -21,6 +21,12 @@ export interface Entanglement {
  * Parse a block of markdown for top-level `@Name` references, resolve each
  * against the spec, and return deduplicated entanglements — neighbors and
  * gods only. Children, ancestors, and unresolved refs are filtered out.
+ *
+ * `pathPrefix` is prepended to sibling and proximity paths so the returned
+ * `path` is always absolute in the workspace tree — the resolver's paths are
+ * relative to the `root` it was given, but the @user navigates by absolute
+ * path. When `root` is the imported-ontologies subtree, pass
+ * `["Imported Ontologies"]`. From the main spec, leave it empty.
  */
 export function extractEntanglements(
   text: string,
@@ -28,6 +34,7 @@ export function extractEntanglements(
   currentPath: string[],
   importedOntologies: Sigil | null,
   childNames: string[],
+  pathPrefix: string[] = [],
 ): Entanglement[] {
   const childSet = new Set(childNames);
   const seen = new Map<string, Entanglement>();
@@ -40,14 +47,14 @@ export function extractEntanglements(
     const resolution = coreResolve(root, currentPath, `@${name}`, importedOntologies);
     if (!resolution) continue;
     if (resolution.kind === "unresolved" || resolution.kind === "ancestor" || resolution.kind === "contained") continue;
-    // Proximity — an explicit @ref that the resolver located by searching
-    // the subtree. It's still an explicit reference, just not a sibling or a
-    // child, so surface it as a neighbor-shaped icon pointing at the resolved
-    // path. (Previously skipped by conflation with co-occurrence.)
+    // Proximity — a match the resolver found somewhere in the subtree,
+    // often via inflection (e.g. @beautiful → Beauty). It's a real reference
+    // to a known sigil, just not a sibling, child, or god — somewhere else
+    // in the territory. Give it its own icon kind so the shape doesn't lie.
     if (resolution.kind === "proximity") {
       const canonical = resolution.target?.name ?? name;
       if (seen.has(canonical)) continue;
-      seen.set(canonical, { name: canonical, kind: "neighbor", path: resolution.path });
+      seen.set(canonical, { name: canonical, kind: "landmark", path: [...pathPrefix, ...resolution.path] });
       continue;
     }
     if (resolution.kind === "lib") {
@@ -62,9 +69,9 @@ export function extractEntanglements(
       seen.set(key, { name: godName, kind: "god", path: ["Imported Ontologies", godName] });
       continue;
     }
-    // Sibling — a peer neighbor in the main spec tree.
+    // Sibling — a peer neighbor in the same scope as the @user.
     if (seen.has(name)) continue;
-    seen.set(name, { name, kind: "neighbor", path: resolution.path });
+    seen.set(name, { name, kind: "neighbor", path: [...pathPrefix, ...resolution.path] });
   }
   return [...seen.values()];
 }
