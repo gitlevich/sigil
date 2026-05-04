@@ -189,25 +189,6 @@
   overflow: visible;
 }
 
-/* Tethers — definitional links from a canvas affordance to each sigil its
- * body names. Drawn beneath the narrative arcs so a co-occurrence arc always
- * reads on top of an affordance tether. Styled as a thin accent-tinted
- * line — quiet, but distinct enough from the narrative arcs that the eye
- * separates the two layers (definitional vs. timelike). */
-.tethers {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-}
-
-.tetherPath {
-  fill: none;
-  stroke: #3d9e8c; /* matches .peekChipAff */
-  stroke-width: 1;
-  opacity: 0.5;
-}
-
 .arcPath {
   fill: none;
   stroke: var(--text-secondary);
@@ -354,6 +335,25 @@
   height: 4px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--text-primary) 55%, transparent);
+}
+
+/* Landmark — a diamond. A named sigil somewhere else in the territory:
+ * not a sibling, not a child, not a god — a place I gestured toward from
+ * here. Thin outline, same stroke weight as god. */
+.landmark {
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+.landmark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: var(--bg-primary);
 }
 
 /* God and parent glyphs are SVG so they render as outlined triangles, not

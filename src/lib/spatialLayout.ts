@@ -71,7 +71,7 @@ export function defaultPosition(name: string, index: number, canvasWidth: number
   return { x, y };
 }
 
-export type IconKindForLayout = "child" | "neighbor" | "god" | "narrative" | "parent";
+export type IconKindForLayout = "child" | "neighbor" | "god" | "narrative" | "parent" | "landmark";
 
 /**
  * Region-based placement. Each kind lives in a dedicated zone of the canvas
@@ -129,6 +129,14 @@ export function regionPosition(
     const slotHeight = 136;
     const firstY = interiorTop + 30;
     return { x: leftWall, y: firstY + indexInKind * slotHeight };
+  }
+
+  if (kind === "landmark") {
+    // Diamonds along the right wall — distant sigils I named but that don't
+    // live next door. Mirrors the neighbor column on the opposite side.
+    const slotHeight = 100;
+    const firstY = interiorTop + 30;
+    return { x: rightWall, y: firstY + indexInKind * slotHeight };
   }
 
   // Children: golden-angle spiral from the interior center.

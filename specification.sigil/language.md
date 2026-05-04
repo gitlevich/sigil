@@ -19,7 +19,7 @@ When I can't name something easily, I try to sense the shape of the absence. It 
 
 Once I named 5 @sigils, I ask myself this question:
 
-__Have I described all @affordances with enough @resolution to enable a simple coding agent weave the app, top-down, into a coherent structure?__
+Have I described all @affordances with enough @resolution to enable a simple coding agent weave the app, top-down, into a coherent structure?
 
 The answer is no. So I descend into each @sigil I defined on this page and recurse.
 

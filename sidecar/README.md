@@ -1,58 +1,51 @@
-# sigil-llm — local inference sidecar
+# sigil-llm - local inference sidecar
 
 Runs as a child process of the Sigil Tauri app. Loads Phi-3 once and serves
-inference requests over stdin/stdout JSON. Used by `@LeftHemisphere` when
-the `local` provider is selected.
+Qwen2.5-7B-Instruct through `llama-cpp-python`'s OpenAI-compatible HTTP
+server. Used by `@LeftHemisphere` when the `local` provider is selected.
 
 ## Setup for development
 
-Requires Python 3.11+ and Apple Silicon (`mlx-lm` needs Metal). Install uv if
-you don't have it already, then:
+Requires Python 3.11+; the repo pins Python 3.13 for local development through
+`.python-version`. Install `uv` if you don't have it already, then:
 
 ```
 cd sidecar
-uv venv
-uv pip install -e .
+uv sync --frozen
 ```
+
+The Tauri dev app expects the interpreter at `sidecar/.venv/bin/python3`.
 
 ## Try it locally
 
 ```
-echo '{"id":"1","prompt":"Hello, who are you?"}' | uv run python main.py
+uv run python main.py
 ```
 
 First run downloads the model (~2.5 GB) into `~/.cache/huggingface/hub/`.
-Subsequent runs load from cache.
+Subsequent runs load from cache. Startup prints one readiness JSON object to
+stdout, then the process keeps the HTTP server alive until it is terminated.
 
 ## Protocol
 
-One JSON object per line, in both directions.
+One JSON object on stdout at startup.
 
 Startup:
 
 ```
-{"ready": true, "model": "mlx-community/Phi-3.5-mini-instruct-4bit"}
+{"ready": true, "endpoint": "http://127.0.0.1:8765", "model": "..."}
 ```
 
-Request:
-
-```
-{"id": "req-1", "prompt": "...", "max_tokens": 1024}
-```
-
-Response:
-
-```
-{"id": "req-1", "content": "..."}
-```
+After startup, the Tauri app sends OpenAI-compatible chat completion requests
+to the advertised endpoint.
 
 Error:
 
 ```
-{"id": "req-1", "error": "..."}
+{"ready": false, "error": "..."}
 ```
 
-Stderr carries logs — stdout is protocol-only.
+Stderr carries logs; stdout is protocol-only.
 
 ## Packaging (coming)
 
