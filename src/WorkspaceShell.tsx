@@ -21,33 +21,7 @@ import { ExperienceProvider } from "./state/ExperienceContext";
 import { ChatStreamProvider } from "./state/ChatStreamContext";
 import { findContext } from "sigil-core";
 import type { Sigil } from "sigil-core";
-import type { WorkspaceState } from "./state/WorkspaceContext";
-
-/** Patch a disk-read spec: replace the language of the node at `scopePath` with local content. */
-function graftLanguage(
-  diskSpec: Idea,
-  currentWs: WorkspaceState,
-  scopePath: string[],
-  localLanguage: string,
-): Idea {
-  const isImported = currentWs.currentPath[0] === "Imported Ontologies";
-  const tree = isImported ? diskSpec.importedOntologies : diskSpec.root;
-  if (!tree) return diskSpec;
-  const patched = patchNode(tree, scopePath, localLanguage);
-  if (isImported) return { ...diskSpec, importedOntologies: patched };
-  return { ...diskSpec, root: patched };
-}
-
-function patchNode(node: SigilFolder, path: string[], language: string): SigilFolder {
-  if (path.length === 0) return { ...node, language };
-  const [head, ...rest] = path;
-  return {
-    ...node,
-    children: node.children.map((child) =>
-      child.name === head ? patchNode(child, rest, language) : child
-    ),
-  };
-}
+import { graftDirtyPendingBuffer } from "./workspaceReload";
 
 export function WorkspaceShell() {
   const ws = useWorkspaceState();
@@ -95,27 +69,20 @@ export function WorkspaceShell() {
     // Read fresh spec from disk, but do NOT dispatch yet.
     const diskSpec = await readSpec();
 
-    // Graft: preserve the currently-edited node's language from the local spec tree ONLY
-    // when the buffer is dirty. A clean buffer has no unsaved work to protect — letting
-    // fresh disk content flow through is the silent-adopt path.
+    // Graft: preserve the dirty local buffer. A clean buffer has no unsaved
+    // work to protect, so fresh disk content can flow through silently.
     const currentWs = ws;
     const { scopeRoot, scopePath } = scopeInfo(currentWs);
     const localFolder = findContext(scopeRoot as Sigil, scopePath) as SigilFolder | null;
-
-    let spec: Idea;
-    if (localFolder && isBufferDirty && scopePath.length > 0) {
-      spec = graftLanguage(diskSpec, currentWs, scopePath, localFolder.language);
-    } else if (localFolder && isBufferDirty && scopePath.length === 0) {
-      // Editing the root — graft its language directly
-      const isImported = currentWs.currentPath[0] === "Imported Ontologies";
-      if (isImported && diskSpec.importedOntologies) {
-        spec = { ...diskSpec, importedOntologies: { ...diskSpec.importedOntologies, language: localFolder.language } };
-      } else {
-        spec = { ...diskSpec, root: { ...diskSpec.root, language: localFolder.language } };
-      }
-    } else {
-      spec = diskSpec;
-    }
+    const spec: Idea = graftDirtyPendingBuffer(
+      diskSpec,
+      currentWs,
+      pendingPath,
+      pendingContent,
+      isBufferDirty,
+      localFolder,
+      scopePath,
+    );
 
     dispatch({ type: "UPDATE_SPEC", spec });
 

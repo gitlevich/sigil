@@ -6,7 +6,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { useWorkspaceState, useWorkspaceDispatch } from "../../state/WorkspaceContext";
-import { useAutoSave } from "../../hooks/useAutoSave";
+import { getBase, setBase, useAutoSave } from "../../hooks/useAutoSave";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
 import { MarkdownPreview } from "../Workspace/MarkdownPreview";
 import {
@@ -36,25 +36,45 @@ function buildVisionHighlighter() {
   return buildScopeHighlighter(names, scope, root, ctx, path);
 }
 
+function minimalChange(current: string, next: string) {
+  let prefix = 0;
+  const maxCommon = Math.min(current.length, next.length);
+  while (prefix < maxCommon && current.charCodeAt(prefix) === next.charCodeAt(prefix)) {
+    prefix++;
+  }
+
+  let oldEnd = current.length;
+  let newEnd = next.length;
+  while (
+    oldEnd > prefix &&
+    newEnd > prefix &&
+    current.charCodeAt(oldEnd - 1) === next.charCodeAt(newEnd - 1)
+  ) {
+    oldEnd--;
+    newEnd--;
+  }
+
+  return { from: prefix, to: oldEnd, insert: next.slice(prefix, newEnd) };
+}
+
 export function VisionEditor() {
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
   const { save } = useAutoSave();
   const actionDeps = useActionDeps();
+  const visionPath = `${ws.spec.rootPath}/vision.md`;
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef<(value: string) => void>(() => {});
-  const localEditRef = useRef(false);
+  const prevVisionPathRef = useRef(visionPath);
   const wsRef = useRef(ws);
   wsRef.current = ws;
   const actionDepsRef = useRef(actionDeps);
   actionDepsRef.current = actionDeps;
 
   const handleChange = (value: string) => {
-    const path = `${ws.spec.rootPath}/vision.md`;
-    localEditRef.current = true;
-    save(path, value);
+    save(visionPath, value);
     wsDispatch({
       type: "UPDATE_SPEC",
       spec: { ...ws.spec, vision: value },
@@ -66,6 +86,8 @@ export function VisionEditor() {
   // Create CodeMirror instance
   useEffect(() => {
     if (!containerRef.current) return;
+
+    setBase(visionPath, ws.spec.vision ?? "");
 
     const state = EditorState.create({
       doc: ws.spec.vision ?? "",
@@ -134,23 +156,35 @@ export function VisionEditor() {
 
   useThemeObserver(viewRef, themeCompartment);
 
-  // Sync external content (e.g. navigation to different sigil, or tree reload).
-  // Skip if user has local edits — those take precedence until saved.
+  // Sync external content from disk reloads. Dirty local buffers take
+  // precedence so a reload cannot overwrite active typing.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
-    const incoming = ws.spec.vision;
+    const incoming = ws.spec.vision ?? "";
+    const pathChanged = visionPath !== prevVisionPathRef.current;
+    prevVisionPathRef.current = visionPath;
+
     if (current === incoming) {
-      localEditRef.current = false;
+      if (getBase(visionPath) === null) setBase(visionPath, incoming);
       return;
     }
-    if (localEditRef.current) return;
+
+    if (!pathChanged) {
+      const base = getBase(visionPath);
+      if (base !== null && current !== base) return;
+      if (view.hasFocus) return;
+    }
+
     view.dispatch({
-      changes: { from: 0, to: current.length, insert: incoming },
+      changes: pathChanged
+        ? { from: 0, to: current.length, insert: incoming }
+        : minimalChange(current, incoming),
       annotations: [Transaction.addToHistory.of(false)],
     });
-  }, [ws.spec.vision]);
+    setBase(visionPath, incoming);
+  }, [ws.spec.vision, visionPath]);
 
   // Refresh sigil reference highlighting when context changes
   useEffect(() => {
