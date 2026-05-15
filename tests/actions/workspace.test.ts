@@ -5,7 +5,7 @@ import type { SigilFolder } from "../../src/tauri";
 // Mock the tauri api module
 vi.mock("../../src/tauri", () => ({
   api: {
-    createContext: vi.fn().mockResolvedValue({ path: "/mock/new-context" }),
+    createSigil: vi.fn().mockResolvedValue({ path: "/mock/new-context" }),
     writeFile: vi.fn().mockResolvedValue(undefined),
     deleteFile: vi.fn().mockResolvedValue(undefined),
     readFile: vi.fn().mockResolvedValue(""),
@@ -52,14 +52,14 @@ describe("createSigil", () => {
     const deps = makeDeps();
     await actions.createSigil(makeContext(), "  ", deps);
     expect(deps.addToast).toHaveBeenCalledWith("Sigil name cannot be empty", "error");
-    expect(api.createContext).not.toHaveBeenCalled();
+    expect(api.createSigil).not.toHaveBeenCalled();
   });
 
   it("creates context and writes language.md on success", async () => {
     const deps = makeDeps();
     const ctx = makeContext({ language: "---\nstatus: implemented\n---\n# Test" });
     await actions.createSigil(ctx, "NewChild", deps);
-    expect(api.createContext).toHaveBeenCalledWith(ctx.path, "NewChild");
+    expect(api.createSigil).toHaveBeenCalledWith(ctx.path, "NewChild");
     expect(api.writeFile).toHaveBeenCalledWith(
       "/mock/new-context/language.md",
       expect.stringContaining("status: implemented"),
@@ -339,18 +339,18 @@ describe("deleteProperty", () => {
   });
 });
 
-describe("createContext", () => {
+describe("createChildSigil", () => {
   it("rejects empty name", async () => {
     const deps = makeDeps();
-    await actions.createContext("/mock/parent", "", deps);
-    expect(deps.addToast).toHaveBeenCalledWith("Context name cannot be empty", "error");
-    expect(api.createContext).not.toHaveBeenCalled();
+    await actions.createChildSigil("/mock/parent", "", deps);
+    expect(deps.addToast).toHaveBeenCalledWith("Sigil name cannot be empty", "error");
+    expect(api.createSigil).not.toHaveBeenCalled();
   });
 
   it("creates and reloads", async () => {
     const deps = makeDeps();
-    await actions.createContext("/mock/parent", "NewChild", deps);
-    expect(api.createContext).toHaveBeenCalledWith("/mock/parent", "NewChild");
+    await actions.createChildSigil("/mock/parent", "NewChild", deps);
+    expect(api.createSigil).toHaveBeenCalledWith("/mock/parent", "NewChild");
     expect(deps.reload).toHaveBeenCalled();
   });
 });
@@ -367,9 +367,9 @@ describe("error handling", () => {
   });
 
   it("toasts non-Error values", async () => {
-    vi.mocked(api.createContext).mockRejectedValueOnce("string error");
+    vi.mocked(api.createSigil).mockRejectedValueOnce("string error");
     const deps = makeDeps();
-    await actions.createContext("/mock/parent", "Test", deps);
+    await actions.createChildSigil("/mock/parent", "Test", deps);
     expect(deps.addToast).toHaveBeenCalledWith("string error", "error");
   });
 });

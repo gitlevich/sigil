@@ -4,10 +4,15 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../../../src/tauri", () => ({
-  api: { writeImageBytes: vi.fn().mockResolvedValue(""), readFile: vi.fn().mockResolvedValue(""), readSigil: vi.fn() },
+  api: {
+    writeImageBytes: vi.fn().mockResolvedValue(""),
+    readFile: vi.fn().mockResolvedValue(""),
+    readSigil: vi.fn(),
+    toolResult: vi.fn().mockResolvedValue(undefined),
+  },
   events: {
     onSelectText: vi.fn().mockResolvedValue(() => {}),
-    onReplaceSelectedText: vi.fn().mockResolvedValue(() => {}),
+    onToolReplaceSelectedText: vi.fn().mockResolvedValue(() => {}),
   },
 }));
 

@@ -22,7 +22,7 @@ vi.mock("../../../src/tauri", () => ({
     readFile: vi.fn().mockResolvedValue(""),
     writeFile: vi.fn().mockResolvedValue(undefined),
     deleteFile: vi.fn().mockResolvedValue(undefined),
-    createContext: vi.fn().mockResolvedValue({ path: "/mock/new", name: "New", language: "", affordances: [], invariants: [], children: [], images: [] }),
+    createSigil: vi.fn().mockResolvedValue({ path: "/mock/new", name: "New", language: "", affordances: [], invariants: [], children: [], images: [] }),
     renameSigil: vi.fn().mockResolvedValue("1"),
     renameContext: vi.fn().mockResolvedValue("/mock/renamed"),
     moveSigil: vi.fn().mockResolvedValue("/mock/moved"),

@@ -4,7 +4,7 @@ import type { SigilFolder } from "../../src/tauri";
 
 vi.mock("../../src/tauri", () => ({
   api: {
-    createContext: vi.fn().mockResolvedValue({ path: "/mock/new" }),
+    createSigil: vi.fn().mockResolvedValue({ path: "/mock/new" }),
     writeFile: vi.fn().mockResolvedValue(undefined),
     deleteFile: vi.fn().mockResolvedValue(undefined),
     readFile: vi.fn().mockResolvedValue(""),

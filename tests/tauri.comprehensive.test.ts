@@ -94,7 +94,7 @@ describe("api", () => {
     ["copyImage", () => api.copyImage("/s", "/d"), "copy_image", { sourcePath: "/s", destDir: "/d" }],
     ["writeImageBytes", () => api.writeImageBytes("/d", [1, 2]), "write_image_bytes", { destPath: "/d", data: [1, 2] }],
     ["readImageBase64", () => api.readImageBase64("/f"), "read_image_base64", { path: "/f" }],
-    ["createContext", () => api.createContext("/p", "n"), "create_context", { parentPath: "/p", name: "n" }],
+    ["createSigil", () => api.createSigil("/p", "n"), "create_sigil", { parentPath: "/p", name: "n" }],
     ["renameContext", () => api.renameContext("/r", "/p", "n"), "rename_context", { rootPath: "/r", path: "/p", newName: "n" }],
     ["renameSigil", () => api.renameSigil("/r", "/p", "n"), "rename_sigil", { rootPath: "/r", path: "/p", newName: "n" }],
     ["moveSigil", () => api.moveSigil("/r", "/p", "/np"), "move_sigil", { rootPath: "/r", path: "/p", newParentPath: "/np" }],
@@ -134,9 +134,10 @@ describe("api", () => {
   it("sendChatMessage passes all arguments", async () => {
     mockInvoke.mockResolvedValue(undefined);
     const profile = { id: "1", name: "Claude", provider: "anthropic" as const, api_key: "k", model: "m", enabled: true };
-    await api.sendChatMessage("/r", "c1", "hi", profile, "sys", ["A"]);
+    const fallbackProfile = { id: "2", name: "GPT", provider: "openai" as const, api_key: "k2", model: "m2", enabled: true };
+    await api.sendChatMessage("/r", "c1", "hi", profile, fallbackProfile, "sys", ["A"]);
     expect(mockInvoke).toHaveBeenCalledWith("send_chat_message", {
-      rootPath: "/r", chatId: "c1", message: "hi", profile, systemPrompt: "sys", currentPath: ["A"],
+      rootPath: "/r", chatId: "c1", message: "hi", profile, fallbackProfile, systemPrompt: "sys", currentPath: ["A"],
     });
   });
 });
@@ -189,11 +190,14 @@ describe("events", () => {
     expect(handler).toHaveBeenCalledWith("/path");
   });
 
-  it("onNavigateTo forwards payload", async () => {
+  it("onToolNavigate forwards payload", async () => {
     const handler = vi.fn();
-    await events.onNavigateTo(handler);
-    mockListen.mock.calls[0][1]({ payload: "/sigil" });
-    expect(handler).toHaveBeenCalledWith("/sigil");
+    await events.onToolNavigate(handler);
+    expect(mockListen).toHaveBeenCalledWith("tool:navigate", expect.any(Function));
+    mockListen.mock.calls[0][1]({
+      payload: { request_id: "req-1", payload: { sigil_path: "/sigil" } },
+    });
+    expect(handler).toHaveBeenCalledWith({ request_id: "req-1", payload: { sigil_path: "/sigil" } });
   });
 
   it("onSelectText forwards payload", async () => {
@@ -203,11 +207,14 @@ describe("events", () => {
     expect(handler).toHaveBeenCalledWith("selected");
   });
 
-  it("onReplaceSelectedText forwards payload", async () => {
+  it("onToolReplaceSelectedText forwards payload", async () => {
     const handler = vi.fn();
-    await events.onReplaceSelectedText(handler);
-    mockListen.mock.calls[0][1]({ payload: "replacement" });
-    expect(handler).toHaveBeenCalledWith("replacement");
+    await events.onToolReplaceSelectedText(handler);
+    expect(mockListen).toHaveBeenCalledWith("tool:replace_selected_text", expect.any(Function));
+    mockListen.mock.calls[0][1]({
+      payload: { request_id: "req-2", payload: { text: "replacement" } },
+    });
+    expect(handler).toHaveBeenCalledWith({ request_id: "req-2", payload: { text: "replacement" } });
   });
 
   it("onFsChange forwards paths array", async () => {

@@ -5,20 +5,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup, fireEvent } from "@testing-library/react";
 
 const selectTextListeners: Array<(payload: string) => void> = [];
-const replaceTextListeners: Array<(text: string) => void> = [];
+const replaceTextListeners: Array<(req: { request_id: string; payload: { text: string } }) => void> = [];
 
 vi.mock("../../../src/tauri", () => ({
   api: {
     writeImageBytes: vi.fn().mockResolvedValue("/mock/img.png"),
     readFile: vi.fn().mockResolvedValue(""),
     readSigil: vi.fn(),
+    toolResult: vi.fn().mockResolvedValue(undefined),
   },
   events: {
     onSelectText: vi.fn((cb: (payload: string) => void) => {
       selectTextListeners.push(cb);
       return Promise.resolve(() => {});
     }),
-    onReplaceSelectedText: vi.fn((cb: (text: string) => void) => {
+    onToolReplaceSelectedText: vi.fn((cb: (req: { request_id: string; payload: { text: string } }) => void) => {
       replaceTextListeners.push(cb);
       return Promise.resolve(() => {});
     }),
@@ -730,7 +731,7 @@ describe("LanguageEditor component", () => {
 
     // Then replace
     await act(async () => {
-      replaceTextListeners[0]("Universe");
+      replaceTextListeners[0]({ request_id: "req-1", payload: { text: "Universe" } });
     });
 
     // The change should have been dispatched
