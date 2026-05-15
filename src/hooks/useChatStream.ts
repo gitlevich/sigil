@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { api, events, ChatMessage, selectedProvider, fallbackProvider } from "../tauri";
+import { api, events, ChatMessage, ChatAttachment, selectedProvider, fallbackProvider } from "../tauri";
 import { useAppState, useAppDispatch } from "../state/AppContext";
 import { useWorkspaceState, useWorkspaceActions } from "../state/WorkspaceContext";
 import { discardPendingAutoSave } from "./useAutoSave";
@@ -305,7 +305,7 @@ export function useChatStream() {
     };
   }, [chatDispatch, appDispatch]);
 
-  const sendMessage = useCallback(async (message: string) => {
+  const sendMessage = useCallback(async (message: string, attachments?: ChatAttachment[]) => {
     const ws = workspaceRef.current;
     const conv = chatRef.current;
 
@@ -319,10 +319,11 @@ export function useChatStream() {
       chatDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: conv.chatMessages });
     }
 
-    const newMessages: ChatMessage[] = [
-      ...conv.chatMessages,
-      { role: "user", content: message },
-    ];
+    const userMessage: ChatMessage = { role: "user", content: message };
+    if (attachments && attachments.length > 0) {
+      userMessage.attachments = attachments;
+    }
+    const newMessages: ChatMessage[] = [...conv.chatMessages, userMessage];
 
     chatDispatch({ type: "SET_MESSAGES", messages: newMessages });
     chatDispatch({ type: "SET_STREAMING", streaming: true });

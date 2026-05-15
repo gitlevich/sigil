@@ -6,9 +6,10 @@
  * ChatPanel can send messages without owning the stream lifecycle.
  */
 import { createContext, useContext, ReactNode } from "react";
+import type { ChatAttachment } from "../tauri";
 
 interface ChatStreamHandle {
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, attachments?: ChatAttachment[]) => Promise<void>;
 }
 
 const ChatStreamContext = createContext<ChatStreamHandle>({

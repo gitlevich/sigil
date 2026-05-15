@@ -96,6 +96,8 @@ pub fn run() {
             commands::file_ops::copy_image,
             commands::file_ops::write_image_bytes,
             commands::file_ops::read_image_base64,
+            commands::file_ops::save_chat_attachment_from_path,
+            commands::file_ops::save_chat_attachment_from_bytes,
             commands::file_ops::reveal_in_finder,
             commands::chat::list_models,
             commands::chat::list_chats,

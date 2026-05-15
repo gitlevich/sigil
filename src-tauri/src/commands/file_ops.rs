@@ -253,6 +253,81 @@ pub fn read_image_base64(path: String) -> Result<String, String> {
     Ok(format!("data:{};base64,{}", mime, b64))
 }
 
+/// One image the @user has shown @DesignPartner through @Chat. The path is
+/// absolute inside the @sigil's `.private/chats/attachments/<chatId>/`
+/// directory; mime is derived from the file extension.
+#[derive(serde::Serialize)]
+pub struct SavedChatAttachment {
+    pub path: String,
+    pub mime_type: String,
+}
+
+fn mime_for_extension(ext: &str) -> &'static str {
+    match ext.to_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    }
+}
+
+fn chat_attachments_dir(root_path: &str, chat_id: &str) -> PathBuf {
+    Path::new(root_path)
+        .join(".private")
+        .join("chats")
+        .join("attachments")
+        .join(chat_id)
+}
+
+/// Copy an image the @user has chosen via file picker into the chat's
+/// attachments directory. Reuses the collision-avoidance from #copy_image.
+#[tauri::command]
+pub fn save_chat_attachment_from_path(
+    root_path: String,
+    chat_id: String,
+    source_path: String,
+) -> Result<SavedChatAttachment, String> {
+    let dest_dir = chat_attachments_dir(&root_path, &chat_id);
+    let filename = copy_image(source_path, dest_dir.to_string_lossy().to_string())?;
+    let saved = dest_dir.join(&filename);
+    let ext = Path::new(&filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    Ok(SavedChatAttachment {
+        path: saved.to_string_lossy().to_string(),
+        mime_type: mime_for_extension(ext).to_string(),
+    })
+}
+
+/// Save bytes the @user has dropped or pasted into the chat input. Used for
+/// clipboard images that have no source path on disk.
+#[tauri::command]
+pub fn save_chat_attachment_from_bytes(
+    root_path: String,
+    chat_id: String,
+    filename: String,
+    data: Vec<u8>,
+) -> Result<SavedChatAttachment, String> {
+    let dest_dir = chat_attachments_dir(&root_path, &chat_id);
+    let dest_path = dest_dir.join(&filename);
+    let saved_name = write_image_bytes(
+        dest_path.to_string_lossy().to_string(),
+        data,
+    )?;
+    let saved = dest_dir.join(&saved_name);
+    let ext = Path::new(&saved_name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    Ok(SavedChatAttachment {
+        path: saved.to_string_lossy().to_string(),
+        mime_type: mime_for_extension(ext).to_string(),
+    })
+}
+
 #[tauri::command]
 pub fn reveal_in_finder(path: String) -> Result<(), String> {
     Command::new("open")

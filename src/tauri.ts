@@ -115,9 +115,20 @@ export type SpellAction =
   | { type: "reply"; content: string }
   | { type: "suppress" };
 
+/**
+ * One image the @user has shown @DesignPartner through @Chat. The path is
+ * absolute on disk; the bytes live under
+ * `<rootPath>/.private/chats/attachments/<chatId>/`.
+ */
+export interface ChatAttachment {
+  path: string;
+  mime_type: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 export interface Chat {
@@ -326,6 +337,18 @@ export const api = {
 
   readImageBase64: (path: string) =>
     invoke<string>("read_image_base64", { path }),
+
+  /**
+   * Persist an image the @user is showing @DesignPartner through @Chat.
+   * Bytes are copied into the @sigil's `.private/chats/attachments/<chatId>/`
+   * with collision-safe naming; the resolved absolute path and MIME type
+   * come back so the @ChatMessage can carry them.
+   */
+  saveChatAttachmentFromPath: (rootPath: string, chatId: string, sourcePath: string) =>
+    invoke<ChatAttachment>("save_chat_attachment_from_path", { rootPath, chatId, sourcePath }),
+
+  saveChatAttachmentFromBytes: (rootPath: string, chatId: string, filename: string, data: number[]) =>
+    invoke<ChatAttachment>("save_chat_attachment_from_bytes", { rootPath, chatId, filename, data }),
 
   createSigil: (parentPath: string, name: string) =>
     invoke<SigilFolder>("create_sigil", { parentPath, name }),

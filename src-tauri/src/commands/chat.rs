@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::Path;
 
+use base64::Engine as _;
 use tauri::{AppHandle, Emitter};
-use crate::models::chat::{Chat, ChatInfo, ChatMessage, ChatRole};
+use crate::models::chat::{Chat, ChatInfo, ChatAttachment, ChatMessage, ChatRole};
 use crate::models::sigil::SigilFolder;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil_with_libs;
@@ -720,6 +721,7 @@ pub async fn send_chat_message(
                 history.push(ChatMessage {
                     role: ChatRole::Assistant,
                     content: assistant_text.clone(),
+                    attachments: Vec::new(),
                 });
             }
             let updated_chat = Chat {
@@ -743,6 +745,90 @@ pub async fn send_chat_message(
     result.map(|_| ())
 }
 
+/// Read an attachment from disk and return its base64 payload (no data: prefix).
+/// Used to splice the @user's shown images into the provider request body.
+fn read_attachment_base64(att: &ChatAttachment) -> Result<String, String> {
+    let data = fs::read(&att.path)
+        .map_err(|e| format!("failed to read attachment {}: {}", att.path, e))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+}
+
+/// MIME types both Anthropic and OpenAI vision endpoints accept. SVG is
+/// excluded — neither provider renders it.
+fn is_provider_supported_image(mime: &str) -> bool {
+    matches!(mime, "image/png" | "image/jpeg" | "image/gif" | "image/webp")
+}
+
+/// Build an Anthropic `content` array for one ChatMessage. When the message
+/// carries no attachments and is a plain text turn, the content stays a
+/// string for cache-friendliness; otherwise we expand to a content-block
+/// array with `image` blocks ahead of the `text` block.
+fn anthropic_message_content(m: &ChatMessage) -> serde_json::Value {
+    if m.attachments.is_empty() {
+        return serde_json::Value::String(m.content.clone());
+    }
+    let mut blocks: Vec<serde_json::Value> = Vec::new();
+    for att in &m.attachments {
+        if !is_provider_supported_image(&att.mime_type) {
+            eprintln!("[anthropic] skipping attachment {}: unsupported {}", att.path, att.mime_type);
+            continue;
+        }
+        match read_attachment_base64(att) {
+            Ok(b64) => blocks.push(serde_json::json!({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": att.mime_type,
+                    "data": b64,
+                },
+            })),
+            Err(err) => eprintln!("[anthropic] skipping attachment: {}", err),
+        }
+    }
+    if !m.content.is_empty() {
+        blocks.push(serde_json::json!({
+            "type": "text",
+            "text": m.content,
+        }));
+    } else if blocks.is_empty() {
+        blocks.push(serde_json::json!({ "type": "text", "text": "" }));
+    }
+    serde_json::Value::Array(blocks)
+}
+
+/// Build an OpenAI-compatible `content` array for one ChatMessage. Same
+/// pattern as Anthropic, but each image is an `image_url` block carrying a
+/// full data URL.
+fn openai_message_content(m: &ChatMessage) -> serde_json::Value {
+    if m.attachments.is_empty() {
+        return serde_json::Value::String(m.content.clone());
+    }
+    let mut blocks: Vec<serde_json::Value> = Vec::new();
+    if !m.content.is_empty() {
+        blocks.push(serde_json::json!({ "type": "text", "text": m.content }));
+    }
+    for att in &m.attachments {
+        if !is_provider_supported_image(&att.mime_type) {
+            eprintln!("[openai] skipping attachment {}: unsupported {}", att.path, att.mime_type);
+            continue;
+        }
+        match read_attachment_base64(att) {
+            Ok(b64) => {
+                let data_url = format!("data:{};base64,{}", att.mime_type, b64);
+                blocks.push(serde_json::json!({
+                    "type": "image_url",
+                    "image_url": { "url": data_url },
+                }));
+            }
+            Err(err) => eprintln!("[openai] skipping attachment: {}", err),
+        }
+    }
+    if blocks.is_empty() {
+        blocks.push(serde_json::json!({ "type": "text", "text": "" }));
+    }
+    serde_json::Value::Array(blocks)
+}
+
 async fn stream_anthropic(
     app: &AppHandle,
     history: &[ChatMessage],
@@ -760,7 +846,7 @@ async fn stream_anthropic(
         .map(|m| {
             serde_json::json!({
                 "role": match m.role { ChatRole::User => "user", ChatRole::Assistant => "assistant" },
-                "content": m.content,
+                "content": anthropic_message_content(m),
             })
         })
         .collect();
@@ -947,10 +1033,20 @@ async fn stream_openai_compatible(
         "content": system_prompt,
     })];
 
+    // Local tier (the embedded sidecar / generic Ollama) is text-only by
+    // default. It cannot interpret image content blocks; sending them would
+    // confuse the request. Attachments are dropped silently here — the
+    // frontend toasts a notice when the @user attaches on a non-vision tier.
+    let supports_vision = label != "local" && label != "Ollama";
     for m in history {
+        let content = if supports_vision {
+            openai_message_content(m)
+        } else {
+            serde_json::Value::String(m.content.clone())
+        };
         messages.push(serde_json::json!({
             "role": match m.role { ChatRole::User => "user", ChatRole::Assistant => "assistant" },
-            "content": m.content,
+            "content": content,
         }));
     }
 
@@ -1181,6 +1277,81 @@ mod tests {
     }
 
     #[test]
+    fn test_anthropic_message_content_plain_text_stays_string() {
+        let m = ChatMessage {
+            role: ChatRole::User,
+            content: "hello".to_string(),
+            attachments: Vec::new(),
+        };
+        assert_eq!(anthropic_message_content(&m), serde_json::json!("hello"));
+    }
+
+    #[test]
+    fn test_anthropic_message_content_with_image_becomes_blocks() {
+        let tmp = TempDir::new().unwrap();
+        let img = tmp.path().join("a.png");
+        fs::write(&img, b"\x89PNG\r\n\x1a\n").unwrap();
+        let m = ChatMessage {
+            role: ChatRole::User,
+            content: "describe".to_string(),
+            attachments: vec![ChatAttachment {
+                path: img.to_string_lossy().to_string(),
+                mime_type: "image/png".to_string(),
+            }],
+        };
+        let v = anthropic_message_content(&m);
+        let arr = v.as_array().expect("should be array of blocks");
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["type"], "image");
+        assert_eq!(arr[0]["source"]["media_type"], "image/png");
+        assert!(arr[0]["source"]["data"].as_str().unwrap().len() > 0);
+        assert_eq!(arr[1]["type"], "text");
+        assert_eq!(arr[1]["text"], "describe");
+    }
+
+    #[test]
+    fn test_openai_message_content_with_image_uses_data_url() {
+        let tmp = TempDir::new().unwrap();
+        let img = tmp.path().join("a.jpg");
+        fs::write(&img, b"\xFF\xD8\xFF").unwrap();
+        let m = ChatMessage {
+            role: ChatRole::User,
+            content: "what is it".to_string(),
+            attachments: vec![ChatAttachment {
+                path: img.to_string_lossy().to_string(),
+                mime_type: "image/jpeg".to_string(),
+            }],
+        };
+        let v = openai_message_content(&m);
+        let arr = v.as_array().expect("should be array of blocks");
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["type"], "text");
+        assert_eq!(arr[1]["type"], "image_url");
+        let url = arr[1]["image_url"]["url"].as_str().unwrap();
+        assert!(url.starts_with("data:image/jpeg;base64,"));
+    }
+
+    #[test]
+    fn test_unsupported_mime_is_dropped() {
+        let tmp = TempDir::new().unwrap();
+        let img = tmp.path().join("a.svg");
+        fs::write(&img, b"<svg/>").unwrap();
+        let m = ChatMessage {
+            role: ChatRole::User,
+            content: "describe".to_string(),
+            attachments: vec![ChatAttachment {
+                path: img.to_string_lossy().to_string(),
+                mime_type: "image/svg+xml".to_string(),
+            }],
+        };
+        let v = anthropic_message_content(&m);
+        let arr = v.as_array().unwrap();
+        // Only the text block remains; the SVG is dropped.
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["type"], "text");
+    }
+
+    #[test]
     fn test_render_named_entry_empty_content() {
         let mut out = String::new();
         render_named_entry(&mut out, "#", "navigate", "");
@@ -1289,7 +1460,7 @@ mod tests {
         let chat = Chat {
             id: "chat-1".to_string(),
             name: "Test Chat".to_string(),
-            messages: vec![ChatMessage { role: ChatRole::User, content: "hello".to_string() }],
+            messages: vec![ChatMessage { role: ChatRole::User, content: "hello".to_string(), attachments: Vec::new() }],
         };
         write_chat(root.clone(), chat).unwrap();
         let loaded = read_chat(root.clone(), "chat-1".to_string()).unwrap();
@@ -1336,7 +1507,7 @@ mod tests {
         fs::create_dir_all(root.join(".private")).unwrap();
         let legacy = root.join("chat.json");
         let messages = vec![
-            ChatMessage { role: ChatRole::User, content: "hello".to_string() },
+            ChatMessage { role: ChatRole::User, content: "hello".to_string(), attachments: Vec::new() },
         ];
         let json = serde_json::to_string(&messages).unwrap();
         fs::write(&legacy, json).unwrap();

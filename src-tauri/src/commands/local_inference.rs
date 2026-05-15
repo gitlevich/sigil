@@ -9,7 +9,9 @@
 //! llama-cpp-python's server on a local port. On startup it writes one line
 //! to stdout with the endpoint URL:
 //!
-//!     {"ready": true, "endpoint": "http://127.0.0.1:8765", "model": "..."}
+//! ```text
+//! {"ready": true, "endpoint": "http://127.0.0.1:8765", "model": "..."}
+//! ```
 //!
 //! After that, all traffic is OpenAI-compatible HTTP — same protocol the
 //! remote OpenAI path already uses, so tool-calling and streaming come for

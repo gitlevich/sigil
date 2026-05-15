@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -24,90 +25,92 @@
   white-space: nowrap;
 }
 
-.chatSwitch {
+.chatPicker {
+  display: grid;
+  grid-template-columns: minmax(0, 140px) auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.chatCurrent,
+.newChatBtn,
+.chatRenameBtn {
+  min-height: 0;
   padding: 0.15rem 0.35rem;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.chatCurrent {
   outline: none;
+  width: 100%;
   min-width: 0;
-  max-width: 140px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatSwitch {
+  padding-right: 1.15rem;
+}
+
+.chatNameButton {
+  cursor: pointer;
+}
+
+.chatNameButton:disabled {
+  cursor: default;
+}
+
+.chatRenameInput {
+  border-color: color-mix(in srgb, var(--accent, #c0744a) 70%, var(--border));
+  cursor: text;
+}
+
+.chatRenameBtn {
+  min-width: calc(1.2em + 0.7rem + 2px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
 }
 
 .newChatBtn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 3px;
   color: var(--text-secondary);
-  font-size: 0.8rem;
   cursor: pointer;
-  padding: 0.05rem 0.4rem;
   flex-shrink: 0;
 }
 
-.newChatBtn:hover {
+.chatRenameIcon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.chatCurrent:hover:not(:disabled),
+.newChatBtn:hover,
+.chatRenameBtn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-.chatMenuBtn {
-  background: none;
-  border: none;
+.chatCurrent:focus-visible,
+.newChatBtn:focus-visible,
+.chatRenameBtn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #c0744a) 70%, transparent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.chatRenameBtn:disabled {
   color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0 0.25rem;
-  flex-shrink: 0;
-  letter-spacing: 0.1em;
-}
-
-.chatMenuBtn:hover {
-  color: var(--text-primary);
-}
-
-.chatContextMenu {
-  position: absolute;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px var(--shadow);
-  z-index: 100;
-  min-width: 100px;
-  padding: 0.25rem 0;
-}
-
-.chatMenuItem {
-  display: block;
-  width: 100%;
-  padding: 0.35rem 0.75rem;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-primary);
-}
-
-.chatMenuItem:hover {
-  background: var(--bg-hover);
-}
-
-.chatMenuItemDanger {
-  display: block;
-  width: 100%;
-  padding: 0.35rem 0.75rem;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--danger);
-}
-
-.chatMenuItemDanger:hover {
-  background: var(--bg-hover);
+  opacity: 0.45;
+  cursor: default;
 }
 
 .profileSwitch {
@@ -178,7 +181,8 @@
 }
 
 .messages {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 0.5rem;
 }
@@ -248,58 +252,190 @@
 
 .inputArea {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  padding: 0.5rem;
-  border-top: 1px solid var(--border);
+  margin: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-primary);
   flex-shrink: 0;
-  align-items: flex-end;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.inputArea:focus-within {
+  border-color: color-mix(in srgb, var(--accent, #c0744a) 60%, var(--border));
+}
+
+.inputAreaDrop {
+  border-color: var(--accent, #c0744a);
+  background: color-mix(in srgb, var(--accent, #c0744a) 8%, transparent);
 }
 
 .input {
-  flex: 1;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-primary);
+  width: 100%;
+  min-width: 0;
+  padding: 0.2rem 0.1rem;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   font-size: var(--content-font-size, 16px);
   font-family: inherit;
-  line-height: 1.45;
-  resize: vertical;
-  min-height: 7rem;
-  max-height: 18rem;
+  line-height: 1.5;
+  resize: none;
   overflow-y: auto;
   outline: none;
 }
 
-.input:focus {
-  border-color: var(--accent);
-}
-
-.sendBtn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
+.resizeHandle {
+  align-self: center;
+  width: 100%;
+  height: 10px;
+  margin: -0.45rem 0 0.15rem 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #c0744a;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.resizeHandle::before {
+  content: "";
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--text-secondary, #888);
+  opacity: 0.25;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.resizeHandle:hover::before,
+.resizeHandleActive::before {
+  opacity: 0.7;
+  background: var(--accent, #c0744a);
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.sendBtn {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-secondary, #888);
+  border: 0;
+  border-radius: 6px;
   cursor: pointer;
-  align-self: flex-end;
-  flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .sendBtn:disabled {
-  opacity: 0.4;
+  color: color-mix(in srgb, var(--text-secondary, #888) 55%, transparent);
   cursor: not-allowed;
 }
 
 .sendBtn:hover:not(:disabled) {
-  background: #a8603a;
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.sendBtn:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--accent, #c0744a) 70%, var(--border));
+  outline-offset: 2px;
+}
+
+.sendIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.attachmentStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+  margin-bottom: 0.4rem;
+}
+
+.attachmentThumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-secondary, #1c1c1c);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.attachmentThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachmentThumbLoading {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    var(--bg-secondary, #1c1c1c) 0%,
+    color-mix(in srgb, var(--bg-secondary, #1c1c1c) 70%, var(--text-primary, #fff) 30%) 50%,
+    var(--bg-secondary, #1c1c1c) 100%);
+  background-size: 200% 100%;
+  animation: attachmentShimmer 1.2s linear infinite;
+}
+
+@keyframes attachmentShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.attachmentThumbFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.25rem;
+  color: var(--text-secondary, #888);
+  word-break: break-all;
+}
+
+.attachmentRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.attachmentRemove:hover {
+  background: rgba(0, 0, 0, 0.85);
 }
 
 /* Tool-use chips — a subtle trace of what Bicameron did, kept out of
