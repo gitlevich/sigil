@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { open, message } from "@tauri-apps/plugin-dialog";
 import { api, RecentDocument } from "../../tauri";
+import { createNewSigil, chooseNewSigilPath } from "../../actions/newSigil";
 import { useAppDispatch } from "../../state/AppContext";
 import styles from "./DocumentPicker.module.css";
 
@@ -10,8 +11,6 @@ interface DocumentPickerProps {
 
 export function DocumentPicker({ onOpen }: DocumentPickerProps) {
   const [recentDocs, setRecentDocs] = useState<RecentDocument[]>([]);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -19,17 +18,15 @@ export function DocumentPicker({ onOpen }: DocumentPickerProps) {
   }, []);
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
-    const selected = await open({ directory: true, title: "Choose location for new sigil" });
-    if (!selected) return;
+    const rootPath = await chooseNewSigilPath();
+    if (!rootPath) return;
 
-    const rootPath = `${selected}/${newName.trim()}`;
-    await api.scaffoldSigil(rootPath);
-    // Open in the current window (this is the picker window)
     try {
+      await createNewSigil(rootPath);
       await onOpen(rootPath);
     } catch (err) {
-      await message(String(err), { title: "Cannot open workspace", kind: "error" });
+      const detail = err instanceof Error ? err.message : String(err);
+      await message(detail, { title: "Cannot create sigil", kind: "error" });
     }
   };
 
@@ -63,27 +60,9 @@ export function DocumentPicker({ onOpen }: DocumentPickerProps) {
       </div>
 
       <div className={styles.actions}>
-        {!creating ? (
-          <button className={styles.actionBtn} onClick={() => setCreating(true)}>
-            Create New
-          </button>
-        ) : (
-          <div className={styles.createForm}>
-            <input
-              className={styles.nameInput}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Sigil name"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreate();
-                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setCreating(false); }
-              }}
-            />
-            <button className={styles.actionBtn} onClick={handleCreate}>Create</button>
-            <button className={styles.secondaryBtn} onClick={() => setCreating(false)}>Cancel</button>
-          </div>
-        )}
+        <button className={styles.actionBtn} onClick={handleCreate}>
+          Create New
+        </button>
 
         <button className={styles.actionBtn} onClick={handleOpen}>
           Open Existing

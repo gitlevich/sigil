@@ -2,14 +2,14 @@
  * WorkspaceShell — lives inside all three providers.
  * Wires hooks that need workspace and layout state.
  */
-import { useRef, useEffect, useMemo } from "react";
+import { useEffect, useMemo, type RefObject } from "react";
 import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch, scopeInfo } from "./state/WorkspaceContext";
 import { useLayoutState } from "./state/LayoutContext";
 import { useChatDispatch } from "./state/ChatContext";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useRightHemisphere } from "./hooks/useRightHemisphere";
 import type { BicameralCallbacks } from "./hooks/useRightHemisphere";
-import { useAppMenu, MenuWorkspaceRef } from "./hooks/useAppMenu";
+import type { MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { useSettingsPersistence } from "./hooks/useSettingsPersistence";
 import { useToast } from "./hooks/useToast";
 import { getAutoSavePendingPath, getAutoSavePendingContent, getBase, setBase, pauseAutoSaveFor } from "./hooks/useAutoSave";
@@ -23,7 +23,11 @@ import { findContext } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import { graftDirtyPendingBuffer } from "./workspaceReload";
 
-export function WorkspaceShell() {
+interface WorkspaceShellProps {
+  menuWorkspaceRef: RefObject<MenuWorkspaceRef | null>;
+}
+
+export function WorkspaceShell({ menuWorkspaceRef }: WorkspaceShellProps) {
   const ws = useWorkspaceState();
   const layout = useLayoutState();
   const dispatch = useWorkspaceDispatch();
@@ -131,12 +135,12 @@ export function WorkspaceShell() {
     });
   });
 
-  const workspaceRef = useRef<MenuWorkspaceRef | null>(null);
   useEffect(() => {
-    workspaceRef.current = { workspace: ws, layout };
-  }, [ws, layout]);
-
-  useAppMenu(workspaceRef);
+    menuWorkspaceRef.current = { workspace: ws, layout };
+    return () => {
+      menuWorkspaceRef.current = null;
+    };
+  }, [ws, layout, menuWorkspaceRef]);
 
   useSettingsPersistence(ws, layout);
 

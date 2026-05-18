@@ -147,21 +147,29 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Create a new sigil directory with vision.md, language.md, and a copy of Libs.
-#[tauri::command]
-pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
-    let root = Path::new(&root_path);
+fn scaffold_sigil_at(root: &Path, libs_src: Option<&Path>) -> Result<(), String> {
+    if root.exists() {
+        return Err(format!("Sigil already exists: {}", root.display()));
+    }
+
     fs::create_dir_all(root).map_err(|e| format!("Failed to create sigil directory: {e}"))?;
     fs::write(root.join("vision.md"), "").map_err(|e| e.to_string())?;
     fs::write(root.join("language.md"), "").map_err(|e| e.to_string())?;
 
-    // Copy bundled Libs as a template
-    if let Some(libs_src) = bundled_libs(&app) {
+    if let Some(libs_src) = libs_src {
         let libs_dst = root.join("Libs");
         copy_dir_recursive(&libs_src, &libs_dst)?;
     }
 
     Ok(())
+}
+
+/// Create a new sigil directory with vision.md, language.md, and a copy of Libs.
+#[tauri::command]
+pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
+    let root = Path::new(&root_path);
+    let libs_src = bundled_libs(&app);
+    scaffold_sigil_at(root, libs_src.as_deref())
 }
 
 /// Check which bundled ontologies need installing/updating.
@@ -949,6 +957,32 @@ mod tests {
     fn test_read_sigil_nonexistent() {
         let result = read_sigil_with_libs("/nonexistent/path".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_scaffold_sigil_creates_required_files() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("NewSpec.sigil");
+
+        scaffold_sigil_at(&root, None).unwrap();
+
+        assert!(root.is_dir());
+        assert!(root.join("vision.md").exists());
+        assert!(root.join("language.md").exists());
+    }
+
+    #[test]
+    fn test_scaffold_sigil_does_not_overwrite_existing_directory() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Existing.sigil");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("language.md"), "# Existing").unwrap();
+
+        let result = scaffold_sigil_at(&root, None);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already exists"));
+        assert_eq!(fs::read_to_string(root.join("language.md")).unwrap(), "# Existing");
     }
 
     #[test]

@@ -11,6 +11,7 @@ import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
 import { useResolutionIncrease } from "./hooks/useResolutionIncrease";
 import { api, Idea } from "./tauri";
+import { useAppMenu, type MenuWorkspaceRef } from "./hooks/useAppMenu";
 import { DocumentPicker } from "./components/DocumentPicker/DocumentPicker";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
@@ -34,8 +35,10 @@ export function App({ initialRootPath }: AppProps) {
   const dispatch = useAppDispatch();
   const { openDocument } = useSigil();
   const opened = useRef(false);
+  const menuWorkspaceRef = useRef<MenuWorkspaceRef | null>(null);
   const [workspace, setWorkspace] = useState<OpenedWorkspace | null>(null);
 
+  useAppMenu(menuWorkspaceRef);
   useTheme();
   useSettingsPersistence();
   useUpdater();
@@ -132,7 +135,7 @@ export function App({ initialRootPath }: AppProps) {
         >
           <LayoutProvider initial={workspace.initialLayout}>
             <ChatProvider initial={workspace.initialChat}>
-              <WorkspaceShell />
+              <WorkspaceShell menuWorkspaceRef={menuWorkspaceRef} />
             </ChatProvider>
           </LayoutProvider>
         </WorkspaceProvider>

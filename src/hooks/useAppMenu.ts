@@ -5,6 +5,7 @@ import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
 import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
 import { api, SigilFolder, openInNewWindow, toTauriAccelerator, menuAccelerator, DEFAULT_KEYBINDINGS } from "../tauri";
+import { createNewSigilFromMenu } from "../actions/newSigil";
 import { useAppDispatch, useAppState } from "../state/AppContext";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { WorkspaceState } from "../state/WorkspaceContext";
@@ -91,9 +92,9 @@ async function buildMenu(
   });
 
   const newItem = await MenuItem.new({
-    text: "New Window",
+    text: "New...",
     accelerator: "CmdOrCtrl+N",
-    action: () => openInNewWindow(""),
+    action: createNewSigilFromMenu,
   });
 
   const openItem = await MenuItem.new({

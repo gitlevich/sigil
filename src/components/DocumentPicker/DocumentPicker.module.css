@@ -63,22 +63,6 @@
   background: var(--bg-secondary);
 }
 
-.createForm {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.nameInput {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
 .recent {
   width: 320px;
 }
