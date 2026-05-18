@@ -1,6 +1,6 @@
 mod commands;
-mod models;
 pub mod infrastructure;
+mod models;
 
 use commands::watcher::WatcherState;
 use commands::workspace_lock::WorkspaceLocks;
@@ -12,7 +12,11 @@ pub struct PendingOpenPath(pub Mutex<Option<String>>);
 
 #[tauri::command]
 fn take_pending_open_path(state: tauri::State<'_, PendingOpenPath>) -> Option<String> {
-    state.0.lock().expect("PendingOpenPath mutex poisoned").take()
+    state
+        .0
+        .lock()
+        .expect("PendingOpenPath mutex poisoned")
+        .take()
 }
 
 fn urlencoding(s: &str) -> String {
@@ -124,6 +128,8 @@ pub fn run() {
             commands::external_ai_bridge::unregister_external_ai_bridge,
             commands::external_ai_bridge::external_ai_bridge_ack,
             commands::external_ai_bridge::external_ai_bridge_complete,
+            commands::external_ai_bridge::external_ai_bridge_send_to_listener,
+            commands::external_ai_bridge::external_ai_bridge_disconnect_listener,
             commands::left_hemisphere::invoke_left_hemisphere,
             commands::memory::write_long_term_memory,
             commands::memory::read_long_term_memory,
@@ -148,20 +154,25 @@ pub fn run() {
                         let has_windows = app.webview_windows().len() > 0;
                         if has_windows {
                             // App already running — open a new window
-                            let label = format!("editor-{}", std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_millis());
-                            let url_with_root = format!(
-                                "index.html?root={}",
-                                urlencoding(&path_str)
+                            let label = format!(
+                                "editor-{}",
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_millis()
                             );
+                            let url_with_root =
+                                format!("index.html?root={}", urlencoding(&path_str));
                             let _ = tauri::WebviewWindowBuilder::new(
                                 app,
                                 &label,
                                 tauri::WebviewUrl::App(url_with_root.into()),
                             )
-                            .title(path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "Sigil".into()))
+                            .title(
+                                path.file_stem()
+                                    .map(|s| s.to_string_lossy().to_string())
+                                    .unwrap_or_else(|| "Sigil".into()),
+                            )
                             .inner_size(1200.0, 800.0)
                             .min_inner_size(800.0, 600.0)
                             .build();

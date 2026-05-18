@@ -1,7 +1,7 @@
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
-use regex::Regex;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 /// Resolve a sigil-path argument from the model against the workspace root.
 ///
@@ -16,7 +16,13 @@ use tauri::Emitter;
 fn require_app_and_dispatcher<'a>(
     app: Option<&'a tauri::AppHandle>,
     dispatcher: Option<&'a crate::commands::tool_dispatcher::ToolDispatcher>,
-) -> Result<(&'a tauri::AppHandle, &'a crate::commands::tool_dispatcher::ToolDispatcher), String> {
+) -> Result<
+    (
+        &'a tauri::AppHandle,
+        &'a crate::commands::tool_dispatcher::ToolDispatcher,
+    ),
+    String,
+> {
     match (app, dispatcher) {
         (Some(a), Some(d)) => Ok((a, d)),
         _ => Err("Tool dispatch requires app handle and dispatcher".into()),
@@ -43,20 +49,15 @@ fn resolve_sigil_arg(
     let abs = Path::new(root_path).join(&cleaned);
     Ok((cleaned, abs))
 }
-use crate::commands::sigil::read_sigil_with_libs;
 use crate::commands::chat::render_context;
+use crate::commands::sigil::read_sigil_with_libs;
 use crate::models::sigil::SigilFolder;
 
 /// Recursively enumerate everything under `root` and append a relative
 /// path string per file/dir to `entries`. Used by delete_sigil dry-run
 /// so the agent can see exactly what bytes would be removed before
 /// running the destructive op.
-fn walk_for_preview(
-    root: &Path,
-    current: &Path,
-    entries: &mut Vec<String>,
-    total_bytes: &mut u64,
-) {
+fn walk_for_preview(root: &Path, current: &Path, entries: &mut Vec<String>, total_bytes: &mut u64) {
     let read = match fs::read_dir(current) {
         Ok(rd) => rd,
         Err(_) => return,
@@ -112,7 +113,10 @@ fn render_context_bounded(
             "- {} affordances, {} invariants, {} children\n\n",
             ctx.affordances.len(),
             ctx.invariants.len(),
-            ctx.children.iter().filter(|c| c.sigil_type.as_deref() != Some("implementation")).count(),
+            ctx.children
+                .iter()
+                .filter(|c| c.sigil_type.as_deref() != Some("implementation"))
+                .count(),
         ));
     } else {
         let detail_prefix = "#".repeat(depth + 3);
@@ -151,7 +155,10 @@ fn render_context_bounded(
     if at_depth_limit {
         if !visible_children.is_empty() {
             let names: Vec<&str> = visible_children.iter().map(|c| c.name.as_str()).collect();
-            output.push_str(&format!("Children (not expanded): {}\n\n", names.join(", ")));
+            output.push_str(&format!(
+                "Children (not expanded): {}\n\n",
+                names.join(", ")
+            ));
         }
         return;
     }
@@ -564,6 +571,34 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "message_external_ai",
+            "description": "Send a message to the connected external AI listener for this workspace. Use only when the user asks you to talk to Codex or when you need to initiate a conversation with the external coding agent. The message appears on the persistent external bridge session.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "The message to send to the external AI listener."
+                    }
+                },
+                "required": ["message"]
+            }
+        }),
+        serde_json::json!({
+            "name": "disconnect_external_ai",
+            "description": "Disconnect the external AI listener from this workspace. Use when the user asks to disconnect Codex or end the external bridge session.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "Optional short reason shown to the external AI listener."
+                    }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
             "name": "web_search",
             "description": "Search the web for information. Use to research questions or satisfy curiosity.",
             "input_schema": {
@@ -656,9 +691,8 @@ async fn execute_tool_inner(
                 .filter(|s| !s.is_empty())
                 .map(String::from)
                 .collect();
-            let ctx = editor_ctx.ok_or(
-                "Editor context not available — cannot assert active editor",
-            )?;
+            let ctx =
+                editor_ctx.ok_or("Editor context not available — cannot assert active editor")?;
             let actual = ctx.current_path();
             if actual == expected {
                 let label = if expected.is_empty() {
@@ -706,17 +740,26 @@ async fn execute_tool_inner(
                         if content.contains(excerpt) {
                             return Ok(format!("Selected text:\n\n{}", excerpt));
                         } else {
-                            return Err(format!("Excerpt not found in current document: \"{}\"", excerpt));
+                            return Err(format!(
+                                "Excerpt not found in current document: \"{}\"",
+                                excerpt
+                            ));
                         }
                     }
                     if let Some(from_line) = input.get("from_line").and_then(|v| v.as_i64()) {
-                        let to_line = input.get("to_line").and_then(|v| v.as_i64()).unwrap_or(from_line);
+                        let to_line = input
+                            .get("to_line")
+                            .and_then(|v| v.as_i64())
+                            .unwrap_or(from_line);
                         let lines: Vec<&str> = content.lines().collect();
                         let from_idx = (from_line - 1).max(0) as usize;
                         let to_idx = (to_line as usize).min(lines.len());
                         if from_idx < lines.len() {
                             let selected: String = lines[from_idx..to_idx].join("\n");
-                            return Ok(format!("Selected lines {}-{}:\n\n{}", from_line, to_line, selected));
+                            return Ok(format!(
+                                "Selected lines {}-{}:\n\n{}",
+                                from_line, to_line, selected
+                            ));
                         }
                     }
                 }
@@ -743,7 +786,8 @@ async fn execute_tool_inner(
             .await
         }
         "write_sigil" | "create_context" | "write_language" | "create_sigil" => {
-            let raw = input.get("sigil_path")
+            let raw = input
+                .get("sigil_path")
                 .or(input.get("parent_path"))
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
@@ -755,7 +799,9 @@ async fn execute_tool_inner(
             if (name == "create_sigil" || name == "create_context") && input.get("name").is_some() {
                 let ctx_name = input["name"].as_str().ok_or("Missing name")?.to_string();
                 return crate::commands::tool_dispatcher::dispatch(
-                    dispatcher, app, "tool:create_sigil",
+                    dispatcher,
+                    app,
+                    "tool:create_sigil",
                     serde_json::json!({
                         "parent_sigil_path": sigil_path,
                         "parent_abs_path": abs.to_string_lossy(),
@@ -763,24 +809,34 @@ async fn execute_tool_inner(
                         "content": content,
                     }),
                     30,
-                ).await;
+                )
+                .await;
             }
 
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:write_sigil",
+                dispatcher,
+                app,
+                "tool:write_sigil",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "content": content,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "read_sigil" | "read_context" => {
-            let abs = match input.get("sigil_path").or(input.get("context_path")).and_then(|v| v.as_str()) {
+            let abs = match input
+                .get("sigil_path")
+                .or(input.get("context_path"))
+                .and_then(|v| v.as_str())
+            {
                 Some(raw) => resolve_sigil_arg(raw, editor_ctx)?.1,
                 None => {
-                    let root = editor_ctx.map(|c| c.root_path.as_str()).ok_or("Missing sigil_path")?;
+                    let root = editor_ctx
+                        .map(|c| c.root_path.as_str())
+                        .ok_or("Missing sigil_path")?;
                     PathBuf::from(root)
                 }
             };
@@ -790,7 +846,8 @@ async fn execute_tool_inner(
             Ok(output)
         }
         "read_tree" => {
-            let root_path = input["root_path"].as_str()
+            let root_path = input["root_path"]
+                .as_str()
                 .or_else(|| editor_ctx.map(|c| c.root_path.as_str()))
                 .ok_or("Missing root_path")?;
             let sigil = read_sigil_with_libs(root_path.to_string())?;
@@ -825,7 +882,10 @@ async fn execute_tool_inner(
             } else {
                 let segments: Vec<&str> = scope_path.split('/').filter(|s| !s.is_empty()).collect();
                 let subtree = find_subtree(&sigil.root, &segments).ok_or_else(|| {
-                    format!("Subtree path '{}' does not resolve in the sigil tree", scope_path)
+                    format!(
+                        "Subtree path '{}' does not resolve in the sigil tree",
+                        scope_path
+                    )
                 })?;
                 output.push_str(&format!("Subtree: {}\n\n", scope_path));
                 render_context_bounded(subtree, 0, max_depth, summary_only, &mut output);
@@ -833,7 +893,8 @@ async fn execute_tool_inner(
             Ok(output)
         }
         "rename_sigil" | "rename_context" => {
-            let raw = input.get("sigil_path")
+            let raw = input
+                .get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
@@ -841,14 +902,22 @@ async fn execute_tool_inner(
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            let new_name = input["new_name"].as_str().ok_or("Missing new_name")?.to_string();
-            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+            let new_name = input["new_name"]
+                .as_str()
+                .ok_or("Missing new_name")?
+                .to_string();
+            if input
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 let parent = abs.parent().ok_or("Source has no parent directory")?;
                 let target = parent.join(&new_name);
                 if target.exists() {
                     return Err(format!(
                         "DRY RUN: target name '{}' already exists at {} — rename would collide",
-                        new_name, target.to_string_lossy()
+                        new_name,
+                        target.to_string_lossy()
                     ));
                 }
                 let target_sigil_path = if let Some(slash_idx) = sigil_path.rfind('/') {
@@ -866,17 +935,21 @@ async fn execute_tool_inner(
             }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:rename_sigil",
+                dispatcher,
+                app,
+                "tool:rename_sigil",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "new_name": new_name,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "move_sigil" => {
-            let raw = input.get("sigil_path")
+            let raw = input
+                .get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
@@ -884,12 +957,19 @@ async fn execute_tool_inner(
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            let new_parent_raw = input["new_parent_path"].as_str().ok_or("Missing new_parent_path")?;
+            let new_parent_raw = input["new_parent_path"]
+                .as_str()
+                .ok_or("Missing new_parent_path")?;
             let (new_parent_path, new_parent_abs) = resolve_sigil_arg(new_parent_raw, editor_ctx)?;
-            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if input
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 if !new_parent_abs.exists() && !new_parent_path.is_empty() {
                     return Err(format!(
-                        "DRY RUN: new parent '{}' does not exist", new_parent_path
+                        "DRY RUN: new parent '{}' does not exist",
+                        new_parent_path
                     ));
                 }
                 let leaf = abs
@@ -919,7 +999,9 @@ async fn execute_tool_inner(
             }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:move_sigil",
+                dispatcher,
+                app,
+                "tool:move_sigil",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
@@ -927,22 +1009,34 @@ async fn execute_tool_inner(
                     "new_parent_abs_path": new_parent_abs.to_string_lossy(),
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "delete_sigil" | "delete_context" => {
-            let raw = input.get("sigil_path")
+            let raw = input
+                .get("sigil_path")
                 .or(input.get("context_path"))
                 .and_then(|v| v.as_str())
                 .ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            eprintln!("[delete_sigil] raw={:?} cleaned={:?} abs={:?} exists={}", raw, sigil_path, abs, abs.exists());
+            eprintln!(
+                "[delete_sigil] raw={:?} cleaned={:?} abs={:?} exists={}",
+                raw,
+                sigil_path,
+                abs,
+                abs.exists()
+            );
             if sigil_path.is_empty() {
                 return Err("Refusing to delete workspace root".into());
             }
             if !abs.exists() {
                 return Err(format!("Sigil not found at path: {}", sigil_path));
             }
-            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if input
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 let mut entries: Vec<String> = Vec::new();
                 let mut total_bytes: u64 = 0;
                 walk_for_preview(&abs, &abs, &mut entries, &mut total_bytes);
@@ -972,11 +1066,18 @@ async fn execute_tool_inner(
                     "abs_path": abs.to_string_lossy(),
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "write_vision" => {
-            let content = input["content"].as_str().ok_or("Missing content")?.to_string();
-            let dry_run = input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
+            let content = input["content"]
+                .as_str()
+                .ok_or("Missing content")?
+                .to_string();
+            let dry_run = input
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let no_op_if_unchanged = input
                 .get("no_op_if_unchanged")
                 .and_then(|v| v.as_bool())
@@ -1016,10 +1117,13 @@ async fn execute_tool_inner(
             }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:write_vision",
+                dispatcher,
+                app,
+                "tool:write_vision",
                 serde_json::json!({ "content": content }),
                 30,
-            ).await
+            )
+            .await
         }
         "write_affordance" | "create_affordance" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -1028,7 +1132,9 @@ async fn execute_tool_inner(
             let content = input["content"].as_str().unwrap_or("").to_string();
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:write_affordance",
+                dispatcher,
+                app,
+                "tool:write_affordance",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
@@ -1036,7 +1142,8 @@ async fn execute_tool_inner(
                     "content": content,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "delete_affordance" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -1044,14 +1151,17 @@ async fn execute_tool_inner(
             let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:delete_affordance",
+                dispatcher,
+                app,
+                "tool:delete_affordance",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "name": prop_name,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "write_invariant" | "create_invariant" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -1060,7 +1170,9 @@ async fn execute_tool_inner(
             let content = input["content"].as_str().unwrap_or("").to_string();
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:write_invariant",
+                dispatcher,
+                app,
+                "tool:write_invariant",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
@@ -1068,7 +1180,8 @@ async fn execute_tool_inner(
                     "content": content,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "delete_invariant" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
@@ -1076,19 +1189,25 @@ async fn execute_tool_inner(
             let prop_name = input["name"].as_str().ok_or("Missing name")?.to_string();
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:delete_invariant",
+                dispatcher,
+                app,
+                "tool:delete_invariant",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "name": prop_name,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "mark_placement" => {
             let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let (sigil_path, abs) = resolve_sigil_arg(raw, editor_ctx)?;
-            let category = input["category"].as_str().ok_or("Missing category")?.to_string();
+            let category = input["category"]
+                .as_str()
+                .ok_or("Missing category")?
+                .to_string();
             if !matches!(
                 category.as_str(),
                 "ontological" | "narrative-historical" | "provisional"
@@ -1100,14 +1219,17 @@ async fn execute_tool_inner(
             }
             let (app, dispatcher) = require_app_and_dispatcher(app, dispatcher)?;
             crate::commands::tool_dispatcher::dispatch(
-                dispatcher, app, "tool:mark_placement",
+                dispatcher,
+                app,
+                "tool:mark_placement",
                 serde_json::json!({
                     "sigil_path": sigil_path,
                     "abs_path": abs.to_string_lossy(),
                     "category": category,
                 }),
                 30,
-            ).await
+            )
+            .await
         }
         "begin_test_namespace" => {
             let prefix = input
@@ -1164,9 +1286,7 @@ async fn execute_tool_inner(
             Ok(format!("test namespace ready at @{}\n{}", name, create))
         }
         "end_test_namespace" => {
-            let raw = input["sigil_path"]
-                .as_str()
-                .ok_or("Missing sigil_path")?;
+            let raw = input["sigil_path"].as_str().ok_or("Missing sigil_path")?;
             let cleaned = raw.trim_matches('/').to_string();
             if cleaned.is_empty() {
                 return Err("Refusing to remove workspace root as test namespace".into());
@@ -1199,7 +1319,11 @@ async fn execute_tool_inner(
                     abs.to_string_lossy()
                 ));
             }
-            if input.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if input
+                .get("dry_run")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 let mut entries: Vec<String> = Vec::new();
                 let mut total_bytes: u64 = 0;
                 walk_for_preview(&abs, &abs, &mut entries, &mut total_bytes);
@@ -1275,6 +1399,26 @@ async fn execute_tool_inner(
                 Err("Editor context not available".to_string())
             }
         }
+        "message_external_ai" => {
+            let message = input["message"].as_str().ok_or("Missing message")?;
+            let ctx = editor_ctx.ok_or("No workspace root available")?;
+            let app = app.ok_or("App handle not available")?;
+            let bridge = app.state::<crate::commands::external_ai_bridge::ExternalAiBridge>();
+            bridge.send_to_listener(&ctx.root_path, message.to_string())?;
+            Ok("Message sent to the connected external AI listener.".to_string())
+        }
+        "disconnect_external_ai" => {
+            let reason = input
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Disconnected by the Design Partner.")
+                .to_string();
+            let ctx = editor_ctx.ok_or("No workspace root available")?;
+            let app = app.ok_or("App handle not available")?;
+            let bridge = app.state::<crate::commands::external_ai_bridge::ExternalAiBridge>();
+            bridge.disconnect_listener(&ctx.root_path, reason)?;
+            Ok("External AI listener disconnected.".to_string())
+        }
         "web_search" => {
             let query = input["query"].as_str().ok_or("Missing query")?;
             web_search(query).await
@@ -1291,23 +1435,33 @@ async fn web_search(query: &str) -> Result<String, String> {
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
     let url = format!("https://html.duckduckgo.com/html/?q={}", urlencoded(query));
-    let resp = client.get(&url)
+    let resp = client
+        .get(&url)
         .send()
         .await
         .map_err(|e| format!("Search request failed: {}", e))?;
 
-    let html = resp.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    let html = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
 
     // Parse result blocks: each has class="result__snippet" and class="result__a"
     let title_re = Regex::new(r#"class="result__a"[^>]*>([^<]+)</a>"#).unwrap();
     let snippet_re = Regex::new(r#"class="result__snippet"[^>]*>(.*?)</(?:td|span|a)"#).unwrap();
     let tag_re = Regex::new(r"<[^>]+>").unwrap();
 
-    let titles: Vec<String> = title_re.captures_iter(&html)
+    let titles: Vec<String> = title_re
+        .captures_iter(&html)
         .map(|c| decode_entities(&c[1]).trim().to_string())
         .collect();
-    let snippets: Vec<String> = snippet_re.captures_iter(&html)
-        .map(|c| decode_entities(&tag_re.replace_all(&c[1], "")).trim().to_string())
+    let snippets: Vec<String> = snippet_re
+        .captures_iter(&html)
+        .map(|c| {
+            decode_entities(&tag_re.replace_all(&c[1], ""))
+                .trim()
+                .to_string()
+        })
         .collect();
 
     if titles.is_empty() {
@@ -1363,7 +1517,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
         fs::create_dir(root.join("Scratch")).unwrap();
-        fs::write(root.join("Scratch/language.md"), "# Scratch\n\nA throwaway.\n").unwrap();
+        fs::write(
+            root.join("Scratch/language.md"),
+            "# Scratch\n\nA throwaway.\n",
+        )
+        .unwrap();
         let ctx = EditorContext::new(root.to_string_lossy().to_string(), Vec::new());
         (tmp, ctx)
     }
@@ -1466,7 +1624,11 @@ mod tests {
         )
         .await;
         let err = result.expect_err("a non-audit prefix must be rejected so end_ can clean up");
-        assert!(err.contains("audit") || err.contains("test"), "got: {}", err);
+        assert!(
+            err.contains("audit") || err.contains("test"),
+            "got: {}",
+            err
+        );
     }
 
     #[tokio::test]
@@ -1822,7 +1984,11 @@ mod tests {
         )
         .await;
         let err = result.expect_err("drifted path should fail");
-        assert!(err.contains("ToolAudit") && err.contains("Origin"), "expected/actual must both appear, got: {}", err);
+        assert!(
+            err.contains("ToolAudit") && err.contains("Origin"),
+            "expected/actual must both appear, got: {}",
+            err
+        );
         let _ = tmp;
     }
 
@@ -1935,7 +2101,8 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
         fs::create_dir(root.join("SpaceLike")).unwrap();
-        let space_like_original = "# SpaceLike\n\nSpaceLike anchor sentence — must not be touched.\n";
+        let space_like_original =
+            "# SpaceLike\n\nSpaceLike anchor sentence — must not be touched.\n";
         fs::write(root.join("SpaceLike/language.md"), space_like_original).unwrap();
         fs::create_dir(root.join("ToolAudit")).unwrap();
         let tool_audit_original =
@@ -2020,11 +2187,10 @@ mod tests {
         // runs before its tool_result reply: write the post-replace
         // content to the active sigil's language.md.
         let replacement = "Replaced by the selection tool test.";
-        let new_target_content = tool_audit_original
-            .replace(
-                "This sentence will be replaced by the selection tool test.",
-                replacement,
-            );
+        let new_target_content = tool_audit_original.replace(
+            "This sentence will be replaced by the selection tool test.",
+            replacement,
+        );
         fs::write(root.join("ToolAudit/language.md"), &new_target_content).unwrap();
 
         // Readback through browser_state_inspection sees the replacement
@@ -2050,8 +2216,7 @@ mod tests {
         );
 
         // SpaceLike must be byte-for-byte untouched.
-        let space_like_after =
-            fs::read_to_string(root.join("SpaceLike/language.md")).unwrap();
+        let space_like_after = fs::read_to_string(root.join("SpaceLike/language.md")).unwrap();
         assert_eq!(
             space_like_after, space_like_original,
             "SpaceLike was modified by a tool flow targeting ToolAudit"
@@ -2060,8 +2225,7 @@ mod tests {
         // Restore ToolAudit's original text per the acceptance brief so
         // the workspace is left in its starting state.
         fs::write(root.join("ToolAudit/language.md"), tool_audit_original).unwrap();
-        let restored =
-            fs::read_to_string(root.join("ToolAudit/language.md")).unwrap();
+        let restored = fs::read_to_string(root.join("ToolAudit/language.md")).unwrap();
         assert_eq!(restored, tool_audit_original, "ToolAudit failed to restore");
 
         let _ = tmp;

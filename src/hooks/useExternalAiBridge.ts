@@ -22,6 +22,16 @@ function bridgeChatMessage(request: ExternalAiBridgeMessage): string {
   return lines.join("\n");
 }
 
+function normalizeBridgeRootPath(rootPath: string): string {
+  const normalized = rootPath.trim().replace(/\\/g, "/");
+  if (normalized === "/") return normalized;
+  return normalized.replace(/\/+$/, "");
+}
+
+function sameBridgeRootPath(a: string, b: string): boolean {
+  return normalizeBridgeRootPath(a) === normalizeBridgeRootPath(b);
+}
+
 export function useExternalAiBridge(sendMessage: SendMessage) {
   const workspace = useWorkspaceState();
   const chat = useChatState();
@@ -56,7 +66,7 @@ export function useExternalAiBridge(sendMessage: SendMessage) {
 
   useEffect(() => {
     const unlisten = events.onExternalAiBridgeMessage(async (request) => {
-      if (request.rootPath !== workspaceRef.current.spec.rootPath) {
+      if (!sameBridgeRootPath(request.rootPath, workspaceRef.current.spec.rootPath)) {
         return;
       }
 
@@ -92,4 +102,6 @@ export function useExternalAiBridge(sendMessage: SendMessage) {
 
 export const __externalAiBridgeTest = {
   bridgeChatMessage,
+  normalizeBridgeRootPath,
+  sameBridgeRootPath,
 };

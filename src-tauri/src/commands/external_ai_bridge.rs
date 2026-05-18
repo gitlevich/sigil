@@ -25,6 +25,7 @@ struct ExternalAiBridgeInner {
     server: Option<ExternalAiBridgeServer>,
     workspaces: HashMap<String, WorkspaceRegistration>,
     pending: HashMap<String, PendingRequest>,
+    listeners: HashMap<String, ListenerSession>,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +42,11 @@ struct WorkspaceRegistration {
 }
 
 struct PendingRequest {
+    connection_id: String,
+    tx: mpsc::UnboundedSender<String>,
+}
+
+struct ListenerSession {
     connection_id: String,
     tx: mpsc::UnboundedSender<String>,
 }
@@ -146,11 +152,24 @@ impl ExternalAiBridge {
     }
 
     fn unregister_workspace(&self, root_path: &str) {
-        self.inner
-            .lock()
-            .expect("ExternalAiBridge mutex poisoned")
-            .workspaces
-            .remove(root_path);
+        let listener = {
+            let mut inner = self.inner.lock().expect("ExternalAiBridge mutex poisoned");
+            inner.workspaces.remove(root_path);
+            inner
+                .listeners
+                .remove(root_path)
+                .map(|listener| listener.tx)
+        };
+        if let Some(tx) = listener {
+            let _ = send_json(
+                &tx,
+                json!({
+                    "type": "disconnect",
+                    "rootPath": root_path,
+                    "message": "Sigil workspace was closed.",
+                }),
+            );
+        }
     }
 
     fn discovery_for(
@@ -212,11 +231,51 @@ impl ExternalAiBridge {
     }
 
     fn remove_connection_requests(&self, connection_id: &str) {
-        self.inner
-            .lock()
-            .expect("ExternalAiBridge mutex poisoned")
+        let mut inner = self.inner.lock().expect("ExternalAiBridge mutex poisoned");
+        inner
             .pending
             .retain(|_, pending| pending.connection_id != connection_id);
+        inner
+            .listeners
+            .retain(|_, listener| listener.connection_id != connection_id);
+    }
+
+    pub fn send_to_listener(&self, root_path: &str, message: String) -> Result<(), String> {
+        let tx = self
+            .inner
+            .lock()
+            .expect("ExternalAiBridge mutex poisoned")
+            .listeners
+            .get(root_path)
+            .map(|listener| listener.tx.clone())
+            .ok_or_else(|| "No external AI listener is connected for this workspace".to_string())?;
+        send_json(
+            &tx,
+            json!({
+                "type": "agentMessage",
+                "rootPath": root_path,
+                "message": message,
+            }),
+        )
+    }
+
+    pub fn disconnect_listener(&self, root_path: &str, reason: String) -> Result<(), String> {
+        let tx = {
+            let mut inner = self.inner.lock().expect("ExternalAiBridge mutex poisoned");
+            inner
+                .listeners
+                .remove(root_path)
+                .map(|listener| listener.tx)
+        }
+        .ok_or_else(|| "No external AI listener is connected for this workspace".to_string())?;
+        send_json(
+            &tx,
+            json!({
+                "type": "disconnect",
+                "rootPath": root_path,
+                "message": reason,
+            }),
+        )
     }
 
     fn timeout_request(&self, request_id: &str) {
@@ -293,23 +352,48 @@ impl ExternalAiBridge {
         let request = match serde_json::from_str::<ExternalAiClientLine>(line) {
             Ok(request) => request,
             Err(err) => {
-                let _ = send_error(tx, None, format!("Malformed external AI bridge message: {}", err));
+                let _ = send_error(
+                    tx,
+                    None,
+                    format!("Malformed external AI bridge message: {}", err),
+                );
                 return;
             }
         };
-        if request.kind != "send" {
-            let _ = send_error(tx, request.request_id.as_deref(), "Unsupported external AI bridge message type".to_string());
-            return;
-        }
         let server = match self.server() {
             Some(server) => server,
             None => {
-                let _ = send_error(tx, request.request_id.as_deref(), "External AI bridge is not running".to_string());
+                let _ = send_error(
+                    tx,
+                    request.request_id.as_deref(),
+                    "External AI bridge is not running".to_string(),
+                );
                 return;
             }
         };
         if request.token.as_deref() != Some(server.token.as_str()) {
-            let _ = send_error(tx, request.request_id.as_deref(), "Invalid external AI bridge token".to_string());
+            let _ = send_error(
+                tx,
+                request.request_id.as_deref(),
+                "Invalid external AI bridge token".to_string(),
+            );
+            return;
+        }
+
+        if request.kind == "listen" {
+            self.handle_listen(connection_id, tx, request);
+            return;
+        }
+        if request.kind == "disconnect" {
+            self.handle_disconnect(tx, request);
+            return;
+        }
+        if request.kind != "send" {
+            let _ = send_error(
+                tx,
+                request.request_id.as_deref(),
+                "Unsupported external AI bridge message type".to_string(),
+            );
             return;
         }
 
@@ -339,11 +423,19 @@ impl ExternalAiBridge {
         let window_label = {
             let mut inner = self.inner.lock().expect("ExternalAiBridge mutex poisoned");
             if inner.pending.contains_key(&request_id) {
-                let _ = send_error(tx, Some(&request_id), "Duplicate external AI request id".to_string());
+                let _ = send_error(
+                    tx,
+                    Some(&request_id),
+                    "Duplicate external AI request id".to_string(),
+                );
                 return;
             }
             let Some(registration) = inner.workspaces.get(&root_path).cloned() else {
-                let _ = send_error(tx, Some(&request_id), "No open Sigil workspace is registered for rootPath".to_string());
+                let _ = send_error(
+                    tx,
+                    Some(&request_id),
+                    "No open Sigil workspace is registered for rootPath".to_string(),
+                );
                 return;
             };
             inner.pending.insert(
@@ -375,7 +467,10 @@ impl ExternalAiBridge {
             message,
             current_path: request.current_path,
         };
-        if app.emit_to(&window_label, "external-ai:message", payload).is_err() {
+        if app
+            .emit_to(&window_label, "external-ai:message", payload)
+            .is_err()
+        {
             let _ = self.send_final(
                 &request_id,
                 false,
@@ -394,6 +489,95 @@ impl ExternalAiBridge {
             bridge.timeout_request(&request_id);
         });
     }
+
+    fn handle_listen(
+        &self,
+        connection_id: &str,
+        tx: &mpsc::UnboundedSender<String>,
+        request: ExternalAiClientLine,
+    ) {
+        let root_path = match request.root_path {
+            Some(root_path) if !root_path.trim().is_empty() => root_path,
+            _ => {
+                let _ = send_error(
+                    tx,
+                    request.request_id.as_deref(),
+                    "rootPath is required".to_string(),
+                );
+                return;
+            }
+        };
+
+        let replaced = {
+            let mut inner = self.inner.lock().expect("ExternalAiBridge mutex poisoned");
+            if !inner.workspaces.contains_key(&root_path) {
+                let _ = send_error(
+                    tx,
+                    request.request_id.as_deref(),
+                    "No open Sigil workspace is registered for rootPath".to_string(),
+                );
+                return;
+            }
+            inner
+                .listeners
+                .insert(
+                    root_path.clone(),
+                    ListenerSession {
+                        connection_id: connection_id.to_string(),
+                        tx: tx.clone(),
+                    },
+                )
+                .is_some()
+        };
+
+        let _ = send_json(
+            tx,
+            json!({
+                "type": "listening",
+                "rootPath": root_path,
+                "replaced": replaced,
+            }),
+        );
+    }
+
+    fn handle_disconnect(&self, tx: &mpsc::UnboundedSender<String>, request: ExternalAiClientLine) {
+        let root_path = match request.root_path {
+            Some(root_path) if !root_path.trim().is_empty() => root_path,
+            _ => {
+                let _ = send_error(
+                    tx,
+                    request.request_id.as_deref(),
+                    "rootPath is required".to_string(),
+                );
+                return;
+            }
+        };
+        let removed_tx = self
+            .inner
+            .lock()
+            .expect("ExternalAiBridge mutex poisoned")
+            .listeners
+            .remove(&root_path)
+            .map(|listener| listener.tx);
+        if let Some(listener_tx) = &removed_tx {
+            let _ = send_json(
+                listener_tx,
+                json!({
+                    "type": "disconnect",
+                    "rootPath": root_path,
+                    "message": "Disconnected by external AI bridge request.",
+                }),
+            );
+        }
+        let _ = send_json(
+            tx,
+            json!({
+                "type": "disconnected",
+                "rootPath": root_path,
+                "ok": removed_tx.is_some(),
+            }),
+        );
+    }
 }
 
 fn validate_request_id(request_id: &str) -> Result<(), String> {
@@ -407,7 +591,9 @@ fn validate_request_id(request_id: &str) -> Result<(), String> {
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err("requestId must contain only letters, numbers, dash, or underscore".to_string());
+        return Err(
+            "requestId must contain only letters, numbers, dash, or underscore".to_string(),
+        );
     }
     Ok(())
 }
@@ -509,6 +695,24 @@ pub fn external_ai_bridge_complete(
     bridge.send_final(&request_id, ok, message)
 }
 
+#[tauri::command]
+pub fn external_ai_bridge_send_to_listener(
+    root_path: String,
+    message: String,
+    bridge: tauri::State<'_, ExternalAiBridge>,
+) -> Result<(), String> {
+    bridge.send_to_listener(&root_path, message)
+}
+
+#[tauri::command]
+pub fn external_ai_bridge_disconnect_listener(
+    root_path: String,
+    reason: String,
+    bridge: tauri::State<'_, ExternalAiBridge>,
+) -> Result<(), String> {
+    bridge.disconnect_listener(&root_path, reason)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -541,18 +745,13 @@ mod tests {
     fn ack_and_complete_route_to_pending_connection() {
         let bridge = ExternalAiBridge::new();
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-        bridge
-            .inner
-            .lock()
-            .unwrap()
-            .pending
-            .insert(
-                "request-1".to_string(),
-                PendingRequest {
-                    connection_id: "connection-1".to_string(),
-                    tx,
-                },
-            );
+        bridge.inner.lock().unwrap().pending.insert(
+            "request-1".to_string(),
+            PendingRequest {
+                connection_id: "connection-1".to_string(),
+                tx,
+            },
+        );
 
         bridge
             .send_ack("request-1", true, "Accepted".to_string())
@@ -570,7 +769,9 @@ mod tests {
         assert_eq!(final_message["type"], "final");
         assert_eq!(final_message["requestId"], "request-1");
         assert_eq!(final_message["message"], "Done");
-        assert!(bridge.send_final("request-1", true, "Again".to_string()).is_err());
+        assert!(bridge
+            .send_final("request-1", true, "Again".to_string())
+            .is_err());
     }
 
     #[test]
@@ -578,6 +779,8 @@ mod tests {
         let bridge = ExternalAiBridge::new();
         let (tx1, _rx1) = mpsc::unbounded_channel::<String>();
         let (tx2, _rx2) = mpsc::unbounded_channel::<String>();
+        let (listener_tx1, _listener_rx1) = mpsc::unbounded_channel::<String>();
+        let (listener_tx2, _listener_rx2) = mpsc::unbounded_channel::<String>();
         {
             let mut inner = bridge.inner.lock().unwrap();
             inner.pending.insert(
@@ -594,6 +797,20 @@ mod tests {
                     tx: tx2,
                 },
             );
+            inner.listeners.insert(
+                "root-1".to_string(),
+                ListenerSession {
+                    connection_id: "connection-1".to_string(),
+                    tx: listener_tx1,
+                },
+            );
+            inner.listeners.insert(
+                "root-2".to_string(),
+                ListenerSession {
+                    connection_id: "connection-2".to_string(),
+                    tx: listener_tx2,
+                },
+            );
         }
 
         bridge.remove_connection_requests("connection-1");
@@ -601,6 +818,71 @@ mod tests {
         let inner = bridge.inner.lock().unwrap();
         assert!(!inner.pending.contains_key("request-1"));
         assert!(inner.pending.contains_key("request-2"));
+        assert!(!inner.listeners.contains_key("root-1"));
+        assert!(inner.listeners.contains_key("root-2"));
+    }
+
+    #[test]
+    fn listener_receives_agent_messages_and_disconnect() {
+        let bridge = ExternalAiBridge::new();
+        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+        bridge.inner.lock().unwrap().listeners.insert(
+            "root".to_string(),
+            ListenerSession {
+                connection_id: "connection-1".to_string(),
+                tx,
+            },
+        );
+
+        bridge
+            .send_to_listener("root", "hello codex".to_string())
+            .unwrap();
+        let msg: serde_json::Value = serde_json::from_str(&rx.blocking_recv().unwrap()).unwrap();
+        assert_eq!(msg["type"], "agentMessage");
+        assert_eq!(msg["message"], "hello codex");
+
+        bridge
+            .disconnect_listener("root", "done".to_string())
+            .unwrap();
+        let disconnect: serde_json::Value =
+            serde_json::from_str(&rx.blocking_recv().unwrap()).unwrap();
+        assert_eq!(disconnect["type"], "disconnect");
+        assert_eq!(disconnect["message"], "done");
+        assert!(bridge
+            .send_to_listener("root", "again".to_string())
+            .is_err());
+    }
+
+    #[test]
+    fn unregister_workspace_disconnects_listener() {
+        let bridge = ExternalAiBridge::new();
+        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+        {
+            let mut inner = bridge.inner.lock().unwrap();
+            inner.workspaces.insert(
+                "root".to_string(),
+                WorkspaceRegistration {
+                    window_label: "window".to_string(),
+                },
+            );
+            inner.listeners.insert(
+                "root".to_string(),
+                ListenerSession {
+                    connection_id: "connection-1".to_string(),
+                    tx,
+                },
+            );
+        }
+
+        bridge.unregister_workspace("root");
+
+        let disconnect: serde_json::Value =
+            serde_json::from_str(&rx.blocking_recv().unwrap()).unwrap();
+        assert_eq!(disconnect["type"], "disconnect");
+        assert_eq!(disconnect["message"], "Sigil workspace was closed.");
+        let inner = bridge.inner.lock().unwrap();
+        assert!(!inner.workspaces.contains_key("root"));
+        assert!(!inner.listeners.contains_key("root"));
     }
 
     #[test]

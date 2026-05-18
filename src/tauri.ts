@@ -424,6 +424,12 @@ export const api = {
   externalAiBridgeComplete: (requestId: string, ok: boolean, message: string) =>
     invoke<void>("external_ai_bridge_complete", { requestId, ok, message }),
 
+  externalAiBridgeSendToListener: (rootPath: string, message: string) =>
+    invoke<void>("external_ai_bridge_send_to_listener", { rootPath, message }),
+
+  externalAiBridgeDisconnectListener: (rootPath: string, reason: string) =>
+    invoke<void>("external_ai_bridge_disconnect_listener", { rootPath, reason }),
+
   /**
    * Reply to a tool-dispatch request. Called by the frontend listener
    * after it runs the workspace action; the Rust-side tool is awaiting

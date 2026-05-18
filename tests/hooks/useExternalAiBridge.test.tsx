@@ -162,4 +162,11 @@ describe("useExternalAiBridge", () => {
       message: "Hello",
     })).toBe("External AI says:\n\nHello");
   });
+
+  it("matches bridge root paths with trailing slash differences", () => {
+    expect(__externalAiBridgeTest.sameBridgeRootPath(
+      "/tmp/test.sigil/",
+      "/tmp/test.sigil",
+    )).toBe(true);
+  });
 });
