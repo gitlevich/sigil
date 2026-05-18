@@ -105,6 +105,14 @@ describe("isInScope from Q", () => {
     expect(isInScope(root, here, "Root")).toBe(true);
   });
 
+  it("root resolves from a lower-case @reference", () => {
+    const sigilAtlas = sigil("SigilAtlas", { children: [sigil("Sigil")] });
+    const result = resolve(sigilAtlas, ["Sigil"], "@sigilatlas");
+
+    expect(result?.target.name).toBe("SigilAtlas");
+    expect(result?.path).toEqual([]);
+  });
+
   it("self Q is in scope", () => {
     expect(isInScope(root, here, "Q")).toBe(true);
   });

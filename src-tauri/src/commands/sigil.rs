@@ -49,15 +49,23 @@ fn is_context_dir(dir: &Path) -> bool {
     dir.join("language.md").exists() || dir.join("spec.md").exists()
 }
 
-
-fn read_context(dir: &Path, is_imported: bool) -> Result<SigilFolder, String> {
-    use crate::models::sigil::Affordance;
-
+fn sigil_name_from_dir(dir: &Path, is_root: bool) -> String {
     let name = dir
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("Unknown")
-        .to_string();
+        .unwrap_or("Unknown");
+
+    if is_root && name.to_ascii_lowercase().ends_with(".sigil") {
+        name[..name.len() - ".sigil".len()].to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+fn read_context(dir: &Path, is_imported: bool, is_root: bool) -> Result<SigilFolder, String> {
+    use crate::models::sigil::Affordance;
+
+    let name = sigil_name_from_dir(dir, is_root);
 
     let language = fs::read_to_string(&language_file(dir))
         .unwrap_or_default();
@@ -108,7 +116,7 @@ fn read_context(dir: &Path, is_imported: bool) -> Result<SigilFolder, String> {
                     continue;
                 }
                 if is_context_dir(&path) {
-                    children.push(read_context(&path, is_imported)?);
+                    children.push(read_context(&path, is_imported, false)?);
                 }
             }
         }
@@ -266,7 +274,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Idea, String> {
     let vision_path = root.join("vision.md");
     let vision = fs::read_to_string(&vision_path).unwrap_or_default();
 
-    let context = read_context(root, false)?;
+    let context = read_context(root, false, true)?;
 
     // Mount imported ontologies from Libs inside the sigil root, or sibling Libs
     let imported_ontologies = Some(root.join("Libs"))
@@ -274,7 +282,7 @@ pub fn read_sigil_with_libs(root_path: String) -> Result<Idea, String> {
         .or_else(|| root.parent().map(|p| p.join("Libs")))
         .and_then(|libs_dir| {
             if libs_dir.exists() && libs_dir.is_dir() {
-                let mut imported = read_context(&libs_dir, true).ok()?;
+                let mut imported = read_context(&libs_dir, true, false).ok()?;
                 imported.name = "Imported Ontologies".to_string();
                 Some(imported)
             } else {
@@ -951,6 +959,26 @@ mod tests {
         let names: Vec<&str> = sigil.root.children.iter().map(|c| c.name.as_str()).collect();
         assert!(names.contains(&"Auth"));
         assert!(names.contains(&"Billing"));
+    }
+
+    #[test]
+    fn test_read_sigil_uses_directory_stem_as_root_name() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("SigilAtlas.SIGIL");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "# Sigil Atlas").unwrap();
+
+        let child = root.join("Nested.sigil");
+        fs::create_dir(&child).unwrap();
+        fs::write(child.join("language.md"), "# Nested").unwrap();
+
+        let sigil = read_sigil_with_libs(root.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(sigil.name, "SigilAtlas");
+        assert_eq!(sigil.root.name, "SigilAtlas");
+        assert_eq!(sigil.root.path, root.to_string_lossy().to_string());
+        assert_eq!(sigil.root.children[0].name, "Nested.sigil");
     }
 
     #[test]
