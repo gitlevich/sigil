@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "genesis:export": "bash scripts/export_conversations.sh",
+    "talk": "npx tsx scripts/talk-to-design-partner.ts",
     "test:genesis": "python3 scripts/test_export_conversations.py",
     "test": "vitest run",
     "test:watch": "vitest"

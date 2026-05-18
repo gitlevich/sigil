@@ -67,11 +67,11 @@ const spec: Idea = {
 function Providers({
   children,
   initialChat,
-  sendMessage = vi.fn().mockResolvedValue(undefined),
+  sendMessage = vi.fn().mockResolvedValue(""),
 }: {
   children: ReactNode;
   initialChat?: Partial<ChatState>;
-  sendMessage?: (message: string) => Promise<void>;
+  sendMessage?: (message: string) => Promise<string>;
 }) {
   return (
     <AppProvider>
@@ -96,7 +96,7 @@ function Providers({
 
 function renderChatPanel(options?: {
   initialChat?: Partial<ChatState>;
-  sendMessage?: (message: string) => Promise<void>;
+  sendMessage?: (message: string) => Promise<string>;
 }) {
   return render(
     <Providers initialChat={options?.initialChat} sendMessage={options?.sendMessage}>
@@ -127,7 +127,7 @@ describe("ChatPanel composer", () => {
   });
 
   it("sends typed text from the compact control", () => {
-    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    const sendMessage = vi.fn().mockResolvedValue("");
     const { getByRole } = renderChatPanel({ sendMessage });
     const input = getByRole("textbox") as HTMLTextAreaElement;
     const send = getByRole("button", { name: "Send" }) as HTMLButtonElement;

@@ -556,7 +556,7 @@ pub async fn send_chat_message(
     local: tauri::State<'_, crate::commands::local_inference::LocalInference>,
     abort: tauri::State<'_, crate::commands::chat_abort::ChatAbort>,
     dispatcher: tauri::State<'_, crate::commands::tool_dispatcher::ToolDispatcher>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let base_prompt = if system_prompt.trim().is_empty() {
         DEFAULT_SYSTEM_PROMPT.to_string()
     } else {
@@ -742,7 +742,7 @@ pub async fn send_chat_message(
     }
 
     let _ = app.emit("chat-stream-end", ());
-    result.map(|_| ())
+    result
 }
 
 /// Read an attachment from disk and return its base64 payload (no data: prefix).

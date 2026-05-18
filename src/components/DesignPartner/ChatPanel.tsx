@@ -357,7 +357,9 @@ export function ChatPanel() {
       }
     }
 
-    sendMessage(trimmed, hasAttachments ? pendingAttachments : undefined);
+    sendMessage(trimmed, hasAttachments ? pendingAttachments : undefined).catch((err) => {
+      console.error("Send message failed:", err);
+    });
     setInput("");
     setPendingAttachments([]);
     try { localStorage.removeItem(draftKey(ws.spec.rootPath, chat.activeChatId)); }

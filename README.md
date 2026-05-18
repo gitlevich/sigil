@@ -57,6 +57,16 @@ npm run tauri dev
 
 Requires Rust and Node.js. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for platform-specific setup.
 
+## External AI Bridge
+
+When Sigil is open on a workspace, an external assistant can talk to the currently open Design Partner chat through the live local bridge:
+
+```bash
+npm run talk -- --root "/path/to/workspace.sigil" --message "Ask B this"
+```
+
+Sigil writes the live endpoint details to `.private/external-ai/server.json`. The bridge is a local JSONL socket that sends an immediate ack, routes the message into the visible chat, waits for the Design Partner's final response, and returns it to the caller.
+
 ## Building for distribution
 
 ```bash

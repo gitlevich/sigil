@@ -105,6 +105,10 @@ describe("api", () => {
     ["writeChat", () => api.writeChat("/r", { id: "1", name: "t", messages: [] }), "write_chat", { rootPath: "/r", chat: { id: "1", name: "t", messages: [] } }],
     ["deleteChat", () => api.deleteChat("/r", "1"), "delete_chat", { rootPath: "/r", chatId: "1" }],
     ["renameChat", () => api.renameChat("/r", "1", "n"), "rename_chat", { rootPath: "/r", chatId: "1", newName: "n" }],
+    ["registerExternalAiBridge", () => api.registerExternalAiBridge("/r"), "register_external_ai_bridge", { rootPath: "/r" }],
+    ["unregisterExternalAiBridge", () => api.unregisterExternalAiBridge("/r"), "unregister_external_ai_bridge", { rootPath: "/r" }],
+    ["externalAiBridgeAck", () => api.externalAiBridgeAck("request-1", true, "accepted"), "external_ai_bridge_ack", { requestId: "request-1", ok: true, message: "accepted" }],
+    ["externalAiBridgeComplete", () => api.externalAiBridgeComplete("request-1", true, "done"), "external_ai_bridge_complete", { requestId: "request-1", ok: true, message: "done" }],
     ["listRecentDocuments", () => api.listRecentDocuments(), "list_recent_documents", undefined],
     ["addRecentDocument", () => api.addRecentDocument("/p"), "add_recent_document", { path: "/p" }],
     ["removeRecentDocument", () => api.removeRecentDocument("/p"), "remove_recent_document", { path: "/p" }],
@@ -175,6 +179,15 @@ describe("events", () => {
     await events.onChatToolUse(handler);
     mockListen.mock.calls[0][1]({ payload: { name: "tool", input: {} } });
     expect(handler).toHaveBeenCalledWith({ name: "tool", input: {} });
+  });
+
+  it("onExternalAiBridgeMessage forwards payload", async () => {
+    const handler = vi.fn();
+    await events.onExternalAiBridgeMessage(handler);
+    expect(mockListen).toHaveBeenCalledWith("external-ai:message", expect.any(Function));
+    const payload = { requestId: "request-1", rootPath: "/r", message: "hi", currentPath: ["DesignPartner"] };
+    mockListen.mock.calls[0][1]({ payload });
+    expect(handler).toHaveBeenCalledWith(payload);
   });
 
   it("onSigilChanged listens", async () => {

@@ -9,11 +9,11 @@ import { createContext, useContext, ReactNode } from "react";
 import type { ChatAttachment } from "../tauri";
 
 interface ChatStreamHandle {
-  sendMessage: (message: string, attachments?: ChatAttachment[]) => Promise<void>;
+  sendMessage: (message: string, attachments?: ChatAttachment[]) => Promise<string>;
 }
 
 const ChatStreamContext = createContext<ChatStreamHandle>({
-  sendMessage: async () => {},
+  sendMessage: async () => "",
 });
 
 export function ChatStreamProvider({ handle, children }: { handle: ChatStreamHandle; children: ReactNode }) {

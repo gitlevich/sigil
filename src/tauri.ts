@@ -144,6 +144,22 @@ export interface ChatInfo {
   last_modified: number;
 }
 
+export interface ExternalAiBridgeDiscovery {
+  protocol: string;
+  host: string;
+  port: number;
+  token: string;
+  rootPath: string;
+  pid: number;
+}
+
+export interface ExternalAiBridgeMessage {
+  requestId: string;
+  rootPath: string;
+  message: string;
+  currentPath?: string[];
+}
+
 export interface MemoryNode {
   id: string;
   name: string;
@@ -393,8 +409,20 @@ export const api = {
     invoke<ChatInfo>("fork_chat", { rootPath, chatId }),
 
   sendChatMessage: (rootPath: string, chatId: string, message: string, profile: AiProvider, fallbackProfile: AiProvider | undefined, systemPrompt: string, currentPath: string[]) =>
-    invoke<void>("send_chat_message", { rootPath, chatId, message, profile, fallbackProfile: fallbackProfile ?? null, systemPrompt, currentPath }),
+    invoke<string>("send_chat_message", { rootPath, chatId, message, profile, fallbackProfile: fallbackProfile ?? null, systemPrompt, currentPath }),
   cancelChat: () => invoke<void>("cancel_chat"),
+
+  registerExternalAiBridge: (rootPath: string) =>
+    invoke<ExternalAiBridgeDiscovery>("register_external_ai_bridge", { rootPath }),
+
+  unregisterExternalAiBridge: (rootPath: string) =>
+    invoke<void>("unregister_external_ai_bridge", { rootPath }),
+
+  externalAiBridgeAck: (requestId: string, ok: boolean, message: string) =>
+    invoke<void>("external_ai_bridge_ack", { requestId, ok, message }),
+
+  externalAiBridgeComplete: (requestId: string, ok: boolean, message: string) =>
+    invoke<void>("external_ai_bridge_complete", { requestId, ok, message }),
 
   /**
    * Reply to a tool-dispatch request. Called by the frontend listener
@@ -471,6 +499,9 @@ export const events = {
 
   onChatToolUse: (handler: (tool: { name: string; input: Record<string, unknown> }) => void): Promise<UnlistenFn> =>
     listen("chat-tool-use", (event) => handler(event.payload as { name: string; input: Record<string, unknown> })),
+
+  onExternalAiBridgeMessage: (handler: (message: ExternalAiBridgeMessage) => void): Promise<UnlistenFn> =>
+    listen("external-ai:message", (event) => handler(event.payload as ExternalAiBridgeMessage)),
 
   /**
    * Mid-turn reset: the local @LeftHemisphere emitted #increase-resolution

@@ -78,6 +78,7 @@ pub fn run() {
         .manage(commands::local_inference::LocalInference::new())
         .manage(commands::chat_abort::ChatAbort::new())
         .manage(commands::tool_dispatcher::ToolDispatcher::new())
+        .manage(commands::external_ai_bridge::ExternalAiBridge::new())
         .invoke_handler(tauri::generate_handler![
             commands::sigil::scaffold_sigil,
             commands::sigil::check_imported_ontologies,
@@ -119,6 +120,10 @@ pub fn run() {
             commands::workspace_lock::close_workspace,
             commands::experience::append_experience,
             commands::experience::list_experience_sessions,
+            commands::external_ai_bridge::register_external_ai_bridge,
+            commands::external_ai_bridge::unregister_external_ai_bridge,
+            commands::external_ai_bridge::external_ai_bridge_ack,
+            commands::external_ai_bridge::external_ai_bridge_complete,
             commands::left_hemisphere::invoke_left_hemisphere,
             commands::memory::write_long_term_memory,
             commands::memory::read_long_term_memory,

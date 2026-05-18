@@ -305,7 +305,7 @@ export function useChatStream() {
     };
   }, [chatDispatch, appDispatch]);
 
-  const sendMessage = useCallback(async (message: string, attachments?: ChatAttachment[]) => {
+  const sendMessage = useCallback(async (message: string, attachments?: ChatAttachment[]): Promise<string> => {
     const ws = workspaceRef.current;
     const conv = chatRef.current;
 
@@ -341,9 +341,10 @@ export function useChatStream() {
 
     const provider = selectedProvider(appState.settings);
     if (!provider) {
-      addToast("No attention provider enabled. Open Settings to add one.", "error");
+      const msg = "No attention provider enabled. Open Settings to add one.";
+      addToast(msg, "error");
       chatDispatch({ type: "SET_STREAMING", streaming: false });
-      return;
+      throw new Error(msg);
     }
 
     // The @user's message is a disturbance arriving at the @RightHemisphere.
@@ -378,7 +379,7 @@ export function useChatStream() {
         messages: updatedMessages,
       }).catch(console.error);
       console.info(`[Subconscious] cast ${consultation.spell} for user-chat; LH not invoked`);
-      return;
+      return response;
     }
 
     const stylePrefix = appState.settings.response_style === "detailed"
@@ -430,7 +431,7 @@ export function useChatStream() {
     }
 
     try {
-      await api.sendChatMessage(
+      return await api.sendChatMessage(
         ws.spec.rootPath,
         chatId,
         message,
@@ -445,6 +446,7 @@ export function useChatStream() {
       addToast(errorMsg, "error");
       chatDispatch({ type: "SET_STREAMING", streaming: false });
       appDispatch({ type: "SET_RESOLUTION_INCREASE", value: { kind: "rest" } });
+      throw err instanceof Error ? err : new Error(errorMsg);
     }
   }, [appState.settings, chatDispatch, addToast, appDispatch]);
 
