@@ -84,6 +84,7 @@ const externalMark = Decoration.mark({ class: "cm-ref-external" });
 const affordanceMark = Decoration.mark({ class: "cm-ref-affordance" });
 const invariantMark = Decoration.mark({ class: "cm-ref-invariant" });
 const todoMark = Decoration.mark({ class: "cm-todo" });
+export const IMPORTED_ONTOLOGIES_PATH_SEGMENT = "Imported Ontologies";
 
 // ── Patterns (re-exported from sigil-core) ──
 
@@ -152,9 +153,9 @@ export function findAffordanceFromEditor(name: string): { content: string; owner
   return findAffordanceInScope(editorScope.sigilRoot, editorScope.currentPath, name, editorScope.importedOntologies);
 }
 
-type HighlightKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
+export type HighlightKind = "contained" | "sibling" | "lib" | "absolute" | "external" | "unresolved";
 
-interface HighlightResolution {
+export interface HighlightResolution {
   kind: HighlightKind;
   path: string[];
   absolutePath?: string[];
@@ -192,7 +193,14 @@ export function resolveFromEditor(matchText: string): HighlightResolution {
   };
 }
 
-
+export function navigationPathForResolution(resolution: HighlightResolution): string[] | undefined {
+  if (resolution.kind === "unresolved") return undefined;
+  const path = resolution.absolutePath ?? resolution.path;
+  if (resolution.kind === "lib" && path[0] !== IMPORTED_ONTOLOGIES_PATH_SEGMENT) {
+    return [IMPORTED_ONTOLOGIES_PATH_SEGMENT, ...path];
+  }
+  return path;
+}
 
 export function collectAncestorProperties(root: SigilFolder | null, path: string[]) {
   if (!root) return { affordances: [] as { name: string; content: string; source: string }[], invariants: [] as { name: string; content: string; source: string }[] };
@@ -1163,14 +1171,10 @@ export function buildPropertyExtensions(
                 const propIdx = findPropSeparator(matchText);
                 const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
                 const resolution = resolveFromEditor(sigilRef);
-                if (cb.onNavigateToAbsPath && resolution.absolutePath !== undefined) {
+                const navigationPath = navigationPathForResolution(resolution);
+                if (cb.onNavigateToAbsPath && navigationPath) {
                   event.preventDefault();
-                  cb.onNavigateToAbsPath(resolution.absolutePath);
-                  return true;
-                }
-                if (resolution.kind === "absolute" && cb.onNavigateToAbsPath) {
-                  event.preventDefault();
-                  cb.onNavigateToAbsPath(resolution.path);
+                  cb.onNavigateToAbsPath(navigationPath);
                   return true;
                 }
                 if ((resolution.kind === "contained" || resolution.kind === "sibling") && cb.onNavigateToSigil) {

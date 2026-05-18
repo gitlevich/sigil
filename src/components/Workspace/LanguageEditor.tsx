@@ -30,6 +30,7 @@ import {
   findInvariantFromEditor,
   findAffordanceFromEditor,
   findAllReferencesInTree,
+  navigationPathForResolution,
 } from "./editorScope";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
 import styles from "./LanguageEditor.module.css";
@@ -384,14 +385,10 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
                   const propIdx = findPropSeparator(matchText);
                   const sigilRef = propIdx === -1 ? matchText : matchText.slice(0, propIdx);
                   const resolution = resolveFromEditor(sigilRef);
-                  if (onNavigateAbsPathRef.current && resolution.absolutePath !== undefined) {
+                  const navigationPath = navigationPathForResolution(resolution);
+                  if (onNavigateAbsPathRef.current && navigationPath) {
                     event.preventDefault();
-                    onNavigateAbsPathRef.current(resolution.absolutePath);
-                    return true;
-                  }
-                  if (resolution.kind === "absolute" && onNavigateAbsPathRef.current) {
-                    event.preventDefault();
-                    onNavigateAbsPathRef.current(resolution.path);
+                    onNavigateAbsPathRef.current(navigationPath);
                     return true;
                   }
                   if ((resolution.kind === "contained" || resolution.kind === "sibling") && onNavigateRef.current) {

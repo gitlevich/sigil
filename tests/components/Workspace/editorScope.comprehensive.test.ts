@@ -39,6 +39,7 @@ import {
   collectFrontmatterKeys,
   collectFrontmatterValues,
   findAllReferencesInTree,
+  navigationPathForResolution,
 } from "../../../src/components/Workspace/editorScope";
 import type { ScopeEntry } from "../../../src/components/Workspace/editorScope";
 
@@ -209,6 +210,20 @@ describe("resolveFromEditor", () => {
     const r = resolveFromEditor("@Child");
     expect(r.kind).toBe("contained");
     expect(r.path).toEqual(["Child"]);
+  });
+
+  it("returns imported ontology navigation with the workspace prefix", () => {
+    const observer = folder("Observer", { language: "observes" });
+    const attentionLanguage = folder("AttentionLanguage", { children: [observer] });
+    const imported = folder("Imported Ontologies", { children: [attentionLanguage] });
+    const root = folder("Root");
+    setEditorScopeForTest({ sigilRoot: root, currentPath: [], importedOntologies: imported });
+
+    const r = resolveFromEditor("@Observer");
+
+    expect(r.kind).toBe("lib");
+    expect(r.path).toEqual(["AttentionLanguage", "Observer"]);
+    expect(navigationPathForResolution(r)).toEqual(["Imported Ontologies", "AttentionLanguage", "Observer"]);
   });
 
   it("returns unresolved for non-existent ref", () => {
