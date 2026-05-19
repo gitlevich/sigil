@@ -811,7 +811,7 @@ export function ChatPanel() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <rect x="8" y="8" width="8" height="8" rx="1.5" />
+                <rect x="6.5" y="6.5" width="11" height="11" rx="2" />
               </svg>
             </button>
           ) : (
