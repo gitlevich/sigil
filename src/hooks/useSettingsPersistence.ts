@@ -4,6 +4,7 @@ import { useAppState, useAppDispatch, ThemePreference, UIState } from "../state/
 import { Settings, DEFAULT_KEYBINDINGS } from "../tauri";
 import { WorkspaceState } from "../state/WorkspaceContext";
 import { LayoutState } from "../state/LayoutContext";
+import type { ChatState } from "../state/ChatContext";
 
 const STORE_FILE = "settings.json";
 
@@ -24,6 +25,7 @@ interface PersistedDocState {
 export function useSettingsPersistence(
   workspaceState?: WorkspaceState | null,
   layoutState?: LayoutState | null,
+  chatState?: ChatState | null,
 ) {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -171,6 +173,7 @@ export function useSettingsPersistence(
   // Save document UI state (panel open/closed, editor mode, active tab)
   const prevWorkspace = useRef(workspaceState);
   const prevLayout = useRef(layoutState);
+  const prevActiveChatId = useRef(chatState?.activeChatId ?? "");
 
   useEffect(() => {
     if (!loaded.current) return;
@@ -178,6 +181,7 @@ export function useSettingsPersistence(
 
     const ws = workspaceState;
     const nr = layoutState;
+    const activeChatId = chatState?.activeChatId ?? "";
     const prevWs = prevWorkspace.current;
     const prevNr = prevLayout.current;
 
@@ -192,12 +196,14 @@ export function useSettingsPersistence(
       prevNr.wordWrap === nr.wordWrap &&
       JSON.stringify(prevWs.currentPath) === JSON.stringify(ws.currentPath) &&
       JSON.stringify(prevWs.collapsedPaths) === JSON.stringify(ws.collapsedPaths) &&
-      prevWs.spec.rootPath === ws.spec.rootPath
+      prevWs.spec.rootPath === ws.spec.rootPath &&
+      prevActiveChatId.current === activeChatId
     ) {
       return;
     }
     prevWorkspace.current = ws;
     prevLayout.current = nr;
+    prevActiveChatId.current = activeChatId;
 
     const rootPath = ws.spec.rootPath;
     const stateToSave: PersistedDocState = {
@@ -209,7 +215,7 @@ export function useSettingsPersistence(
       designPartnerPanelTab: nr.designPartnerPanelTab,
       editorMode: nr.editorMode,
       contentTab: nr.contentTab,
-      activeChatId: "",
+      activeChatId,
       wordWrap: nr.wordWrap,
       collapsedPaths: ws.collapsedPaths,
     };
@@ -229,7 +235,7 @@ export function useSettingsPersistence(
         console.error("Failed to save doc state:", err);
       }
     })();
-  }, [workspaceState, layoutState]);
+  }, [workspaceState, layoutState, chatState?.activeChatId]);
 }
 
 export async function getPersistedDocState(forRootPath?: string): Promise<PersistedDocState | null> {

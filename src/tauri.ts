@@ -137,6 +137,12 @@ export interface Chat {
   messages: ChatMessage[];
 }
 
+export interface ChatDraft {
+  content: string;
+  attachments?: ChatAttachment[];
+  updatedAt: number;
+}
+
 export interface ChatInfo {
   id: string;
   name: string;
@@ -398,6 +404,12 @@ export const api = {
 
   writeChat: (rootPath: string, chat: Chat) =>
     invoke<void>("write_chat", { rootPath, chat }),
+
+  readChatDraft: (rootPath: string, chatId: string) =>
+    invoke<ChatDraft>("read_chat_draft", { rootPath, chatId }),
+
+  writeChatDraft: (rootPath: string, chatId: string, draft: ChatDraft) =>
+    invoke<void>("write_chat_draft", { rootPath, chatId, draft }),
 
   deleteChat: (rootPath: string, chatId: string) =>
     invoke<void>("delete_chat", { rootPath, chatId }),

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 use tauri::{AppHandle, Manager};
 use tauri::path::BaseDirectory;
+use crate::commands::narrative;
 use crate::commands::workspace_lock::WorkspaceLocks;
 use serde::Serialize;
 use crate::models::sigil::{SigilFolder, Invariant, Idea};
@@ -177,7 +178,8 @@ fn scaffold_sigil_at(root: &Path, libs_src: Option<&Path>) -> Result<(), String>
 pub fn scaffold_sigil(app: AppHandle, root_path: String) -> Result<(), String> {
     let root = Path::new(&root_path);
     let libs_src = bundled_libs(&app);
-    scaffold_sigil_at(root, libs_src.as_deref())
+    scaffold_sigil_at(root, libs_src.as_deref())?;
+    narrative::ensure_workspace_baseline(&root_path)
 }
 
 /// Check which bundled ontologies need installing/updating.
@@ -261,6 +263,7 @@ pub fn install_ontologies(app: AppHandle, root_path: String, names: Vec<String>,
 pub fn read_sigil(app: AppHandle, root_path: String) -> Result<Idea, String> {
     let locks = app.state::<WorkspaceLocks>();
     super::workspace_lock::acquire(&locks, &root_path)?;
+    narrative::ensure_workspace_baseline(&root_path)?;
 
     read_sigil_with_libs(root_path)
 }
@@ -310,6 +313,7 @@ pub fn create_sigil(parent_path: String, name: String) -> Result<SigilFolder, St
 
     fs::create_dir(&context_path).map_err(|e| e.to_string())?;
     fs::write(context_path.join("language.md"), "").map_err(|e| e.to_string())?;
+    narrative::record_created_sigil(&context_path)?;
 
     Ok(SigilFolder {
         name,
@@ -342,6 +346,9 @@ pub fn rename_context(root_path: String, path: String, new_name: String) -> Resu
         return Err(format!("A context named '{}' already exists", new_name));
     }
 
+    let root = Path::new(&root_path);
+    let before = narrative::snapshot_sigil_tree(root, old_path)?;
+
     if case_only {
         let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
         fs::rename(old_path, &tmp_path).map_err(|e| e.to_string())?;
@@ -350,8 +357,8 @@ pub fn rename_context(root_path: String, path: String, new_name: String) -> Resu
         fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
     }
 
-    let root = Path::new(&root_path);
     update_references(root, &old_name, &new_name)?;
+    narrative::record_renamed_sigil(root, before, &new_path)?;
 
     Ok(new_path.to_string_lossy().to_string())
 }
@@ -491,7 +498,7 @@ fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usiz
         };
         let updated = replace_references(&content, old_name, new_name);
         if updated != content {
-            fs::write(path, &updated).map_err(|e| e.to_string())?;
+            narrative::write_text_file(path, &updated, "update-reference")?;
             count += 1;
         }
     }
@@ -544,6 +551,9 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
         return Err(format!("A context named '{}' already exists", new_name));
     }
 
+    let root = Path::new(&root_path);
+    let before = narrative::snapshot_sigil_tree(root, old_path)?;
+
     if case_only {
         let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
         fs::rename(old_path, &tmp_path).map_err(|e| e.to_string())?;
@@ -552,8 +562,8 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
         fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
     }
 
-    let root = Path::new(&root_path);
     let files_updated = update_references(root, &old_name, &new_name)?;
+    narrative::record_renamed_sigil(root, before, &new_path)?;
 
     Ok(serde_json::json!({
         "new_path": new_path.to_string_lossy(),
@@ -728,7 +738,7 @@ pub fn preview_rename_sigil(
 }
 
 #[tauri::command]
-pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
+pub fn move_sigil(root_path: String, path: String, new_parent_path: String) -> Result<String, String> {
     let old_path = Path::new(&path);
     let name = old_path
         .file_name()
@@ -746,7 +756,10 @@ pub fn move_sigil(_root_path: String, path: String, new_parent_path: String) -> 
         return Err(format!("A context named '{}' already exists at the target", name));
     }
 
+    let root = Path::new(&root_path);
+    let before = narrative::snapshot_sigil_tree(root, old_path)?;
     fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+    narrative::record_moved_sigil(root, before, &new_path)?;
 
     Ok(new_path.to_string_lossy().to_string())
 }
@@ -878,6 +891,7 @@ pub fn delete_context(path: String) -> Result<(), String> {
     if !context_path.exists() {
         return Err("Context does not exist".to_string());
     }
+    narrative::record_deleted_sigil(context_path)?;
     fs::remove_dir_all(context_path).map_err(|e| e.to_string())
 }
 

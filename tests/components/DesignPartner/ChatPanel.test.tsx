@@ -30,6 +30,8 @@ vi.mock("../../../src/tauri", async (importOriginal) => {
       ...actual.api,
       listChats: vi.fn().mockResolvedValue([]),
       readChat: vi.fn().mockResolvedValue({ id: "chat-1", name: "Chat 1", messages: [] }),
+      readChatDraft: vi.fn().mockResolvedValue({ content: "", attachments: [], updatedAt: 0 }),
+      writeChatDraft: vi.fn().mockResolvedValue(undefined),
       deleteChat: vi.fn().mockResolvedValue(undefined),
       renameChat: vi.fn().mockResolvedValue(undefined),
       forkChat: vi.fn().mockResolvedValue({
@@ -105,6 +107,16 @@ function renderChatPanel(options?: {
   );
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -139,6 +151,106 @@ describe("ChatPanel composer", () => {
 
     expect(sendMessage).toHaveBeenCalledWith("Review this sigil", undefined);
     expect(input.value).toBe("");
+  });
+
+  it("restores the composer draft from disk", async () => {
+    vi.mocked(api.readChatDraft).mockResolvedValueOnce({
+      content: "persistent paragraph",
+      attachments: [],
+      updatedAt: 7,
+    });
+    const { getByRole } = renderChatPanel();
+    const input = getByRole("textbox") as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(input.value).toBe("persistent paragraph");
+    });
+    expect(api.readChatDraft).toHaveBeenCalledWith("/tmp/test.sigil", "chat-1");
+  });
+
+  it("writes composer drafts through Tauri as the user types", async () => {
+    const { getByRole } = renderChatPanel();
+    const input = getByRole("textbox") as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(api.readChatDraft).toHaveBeenCalledWith("/tmp/test.sigil", "chat-1");
+    });
+    vi.mocked(api.writeChatDraft).mockClear();
+
+    fireEvent.change(input, { target: { value: "draft on disk" } });
+
+    await waitFor(() => {
+      expect(api.writeChatDraft).toHaveBeenCalledWith(
+        "/tmp/test.sigil",
+        "chat-1",
+        expect.objectContaining({
+          content: "draft on disk",
+          attachments: [],
+          updatedAt: expect.any(Number),
+        }),
+      );
+    });
+  });
+
+  it("keeps the disk draft until send resolves", async () => {
+    const pendingSend = deferred<string>();
+    const sendMessage = vi.fn().mockReturnValue(pendingSend.promise);
+    const { getByRole } = renderChatPanel({ sendMessage });
+    const input = getByRole("textbox") as HTMLTextAreaElement;
+    const send = getByRole("button", { name: "Send" }) as HTMLButtonElement;
+
+    await waitFor(() => {
+      expect(api.readChatDraft).toHaveBeenCalledWith("/tmp/test.sigil", "chat-1");
+    });
+    fireEvent.change(input, { target: { value: "draft before send" } });
+    await waitFor(() => {
+      expect(api.writeChatDraft).toHaveBeenCalledWith(
+        "/tmp/test.sigil",
+        "chat-1",
+        expect.objectContaining({ content: "draft before send" }),
+      );
+    });
+
+    vi.mocked(api.writeChatDraft).mockClear();
+    fireEvent.click(send);
+
+    expect(input.value).toBe("");
+    expect(api.writeChatDraft).not.toHaveBeenCalledWith(
+      "/tmp/test.sigil",
+      "chat-1",
+      expect.objectContaining({ content: "" }),
+    );
+
+    pendingSend.resolve("");
+    await waitFor(() => {
+      expect(api.writeChatDraft).toHaveBeenCalledWith(
+        "/tmp/test.sigil",
+        "chat-1",
+        expect.objectContaining({ content: "" }),
+      );
+    });
+  });
+
+  it("keeps a pending no-chat draft visible instead of auto-opening a recent chat", async () => {
+    vi.mocked(api.listChats).mockResolvedValueOnce([
+      { id: "chat-1", name: "Chat 1", message_count: 1, last_modified: 10 },
+    ]);
+    vi.mocked(api.readChatDraft).mockImplementation(async (_rootPath, chatId) => {
+      if (chatId === "__pending__") {
+        return { content: "pending no-chat paragraph", attachments: [], updatedAt: 7 };
+      }
+      return { content: "", attachments: [], updatedAt: 0 };
+    });
+
+    const { getByRole } = renderChatPanel({
+      initialChat: { activeChatId: "", chats: [], chatMessages: [] },
+    });
+    const input = getByRole("textbox") as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(input.value).toBe("pending no-chat paragraph");
+    });
+    expect(api.readChat).not.toHaveBeenCalled();
   });
 
   it("scrolls transcript content upward while the composer grows", () => {

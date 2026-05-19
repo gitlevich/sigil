@@ -91,6 +91,7 @@ export function App({ initialRootPath }: AppProps) {
           contentTab: ((saved.contentTab as string) === "map") ? "atlas" : (saved.contentTab || "language"),
           wordWrap: saved.wordWrap ?? false,
           collapsedPaths: saved.collapsedPaths ?? [],
+          activeChatId: saved.activeChatId ?? "",
         };
       };
 

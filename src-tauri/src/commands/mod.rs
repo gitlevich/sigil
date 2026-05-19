@@ -14,3 +14,4 @@ pub mod local_inference;
 pub mod tool_dispatcher;
 pub mod memory;
 pub mod spells;
+pub mod narrative;

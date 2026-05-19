@@ -5,7 +5,7 @@
 import { useEffect, useMemo, type RefObject } from "react";
 import { useWorkspaceState, useWorkspaceActions, useWorkspaceDispatch, scopeInfo } from "./state/WorkspaceContext";
 import { useLayoutState } from "./state/LayoutContext";
-import { useChatDispatch } from "./state/ChatContext";
+import { useChatDispatch, useChatState } from "./state/ChatContext";
 import { useFileWatcher } from "./hooks/useFileWatcher";
 import { useRightHemisphere } from "./hooks/useRightHemisphere";
 import type { BicameralCallbacks } from "./hooks/useRightHemisphere";
@@ -32,6 +32,7 @@ export function WorkspaceShell({ menuWorkspaceRef }: WorkspaceShellProps) {
   const ws = useWorkspaceState();
   const layout = useLayoutState();
   const dispatch = useWorkspaceDispatch();
+  const chat = useChatState();
   const chatDispatch = useChatDispatch();
   const { addToast } = useToast();
   const { readSpec } = useWorkspaceActions();
@@ -144,7 +145,7 @@ export function WorkspaceShell({ menuWorkspaceRef }: WorkspaceShellProps) {
     };
   }, [ws, layout, menuWorkspaceRef]);
 
-  useSettingsPersistence(ws, layout);
+  useSettingsPersistence(ws, layout, chat);
 
   return (
     <ExperienceProvider handle={{ getExperience, recordChat, recordObservation, getMemory }}>

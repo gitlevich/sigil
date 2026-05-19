@@ -13,6 +13,7 @@ import { useToast } from "../../hooks/useToast";
 import styles from "./ChatPanel.module.css";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "svg", "webp"]);
+const PENDING_CHAT_DRAFT_ID = "__pending__";
 
 function isImageFile(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
@@ -48,8 +49,25 @@ async function copyToClipboard(text: string): Promise<void> {
   await writeText(text);
 }
 
+function draftChatId(chatId: string): string {
+  return chatId || PENDING_CHAT_DRAFT_ID;
+}
+
 function draftKey(rootPath: string, chatId: string): string {
   return `sigil-draft:${rootPath}:${chatId}`;
+}
+
+function readLocalDraft(rootPath: string, chatId: string): string {
+  try {
+    const current = localStorage.getItem(draftKey(rootPath, chatId));
+    if (current) return current;
+    if (chatId === PENDING_CHAT_DRAFT_ID) {
+      return localStorage.getItem(draftKey(rootPath, "")) || "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
 }
 
 export function ChatPanel() {
@@ -62,8 +80,7 @@ export function ChatPanel() {
   const { sendMessage } = useChatStreamContext();
   const { addToast } = useToast();
   const [input, setInput] = useState(() => {
-    try { return localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || ""; }
-    catch { return ""; }
+    return readLocalDraft(ws.spec.rootPath, draftChatId(chat.activeChatId));
   });
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [chatRenameDraft, setChatRenameDraft] = useState("");
@@ -78,6 +95,12 @@ export function ChatPanel() {
   const chatRenameInputRef = useRef<HTMLInputElement>(null);
   const chatRenameClosedRef = useRef(false);
   const chatsLoadedRef = useRef(false);
+  const draftLoadedRef = useRef(false);
+  const draftDirtyRef = useRef(false);
+  const draftLoadTokenRef = useRef(0);
+  const skipNextEmptyDraftSaveRef = useRef(false);
+  const inputValueRef = useRef(input);
+  const pendingAttachmentsRef = useRef<ChatAttachment[]>([]);
 
   // Load chat list from disk on first mount. If there's no active chat yet
   // but previous chats exist, open the most recent one — otherwise the
@@ -91,7 +114,23 @@ export function ChatPanel() {
 
       const savedActiveExists = chat.activeChatId
         && chats.some((c) => c.id === chat.activeChatId);
-      if (savedActiveExists) return;
+      if (savedActiveExists) {
+        const loaded = await api.readChat(ws.spec.rootPath, chat.activeChatId).catch(() => null);
+        if (loaded) {
+          chatDispatch({
+            type: "SET_ACTIVE_CHAT",
+            chatId: chat.activeChatId,
+            messages: loaded.messages,
+          });
+        }
+        return;
+      }
+
+      const pendingDraft = await api.readChatDraft(ws.spec.rootPath, PENDING_CHAT_DRAFT_ID)
+        .catch(() => null);
+      if (pendingDraft && (pendingDraft.content || (pendingDraft.attachments?.length ?? 0) > 0)) {
+        return;
+      }
 
       const mostRecent = chats.reduce(
         (a, b) => (a.last_modified >= b.last_modified ? a : b),
@@ -133,21 +172,88 @@ export function ChatPanel() {
     prevOpen.current = layout.designPartnerPanelOpen;
   }, [layout.designPartnerPanelOpen]);
 
-  // Save draft on every keystroke
   useEffect(() => {
-    try { localStorage.setItem(draftKey(ws.spec.rootPath, chat.activeChatId), input); }
-    catch { /* ignore */ }
-  }, [input, ws.spec.rootPath, chat.activeChatId]);
+    inputValueRef.current = input;
+  }, [input]);
 
-  // Restore draft when switching chats
-  const prevChatId = useRef(chat.activeChatId);
   useEffect(() => {
-    if (chat.activeChatId === prevChatId.current) return;
-    prevChatId.current = chat.activeChatId;
+    pendingAttachmentsRef.current = pendingAttachments;
+  }, [pendingAttachments]);
+
+  const persistDraft = (
+    chatId: string,
+    content: string,
+    attachments: ChatAttachment[],
+  ) => {
+    const storageKey = draftKey(ws.spec.rootPath, chatId);
     try {
-      setInput(localStorage.getItem(draftKey(ws.spec.rootPath, chat.activeChatId)) || "");
-    } catch { setInput(""); }
-  }, [chat.activeChatId, ws.spec.rootPath]);
+      if (content || attachments.length > 0) {
+        localStorage.setItem(storageKey, content);
+      } else {
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // localStorage is only a fallback; disk is authoritative.
+    }
+    api.writeChatDraft(ws.spec.rootPath, chatId, {
+      content,
+      attachments,
+      updatedAt: Date.now(),
+    }).catch((err) => {
+      console.error("Failed to persist chat draft:", err);
+    });
+  };
+
+  // Restore the composer draft from disk when the active chat changes.
+  useEffect(() => {
+    const currentDraftId = draftChatId(chat.activeChatId);
+    const token = draftLoadTokenRef.current + 1;
+    draftLoadTokenRef.current = token;
+    draftLoadedRef.current = false;
+    draftDirtyRef.current = false;
+
+    const fallback = readLocalDraft(ws.spec.rootPath, currentDraftId);
+    setInput(fallback);
+    setPendingAttachments([]);
+
+    api.readChatDraft(ws.spec.rootPath, currentDraftId).then((draft) => {
+      if (draftLoadTokenRef.current !== token) return;
+      draftLoadedRef.current = true;
+      if (draftDirtyRef.current) {
+        persistDraft(currentDraftId, inputValueRef.current, pendingAttachmentsRef.current);
+        return;
+      }
+      setInput(draft.updatedAt > 0 ? draft.content : fallback);
+      setPendingAttachments(draft.attachments ?? []);
+    }).catch((err) => {
+      if (draftLoadTokenRef.current !== token) return;
+      console.error("Failed to restore chat draft:", err);
+      draftLoadedRef.current = true;
+      if (!draftDirtyRef.current) setInput(fallback);
+    });
+  }, [ws.spec.rootPath, chat.activeChatId]);
+
+  // Save the draft on every composer change. Disk storage survives Tauri restarts.
+  useEffect(() => {
+    if (!draftLoadedRef.current) return;
+    if (skipNextEmptyDraftSaveRef.current && !input && pendingAttachments.length === 0) {
+      skipNextEmptyDraftSaveRef.current = false;
+      return;
+    }
+    persistDraft(draftChatId(chat.activeChatId), input, pendingAttachments);
+  }, [input, pendingAttachments, ws.spec.rootPath, chat.activeChatId]);
+
+  const updateInput = (value: string) => {
+    draftDirtyRef.current = true;
+    setInput(value);
+  };
+
+  const updatePendingAttachments = (
+    next: ChatAttachment[] | ((prev: ChatAttachment[]) => ChatAttachment[]),
+  ) => {
+    draftDirtyRef.current = true;
+    setPendingAttachments(next);
+  };
 
   useEffect(() => {
     if (!renamingChatId) return;
@@ -214,6 +320,8 @@ export function ChatPanel() {
     ];
     chatDispatch({ type: "SET_CHATS", chats: newChats });
     chatDispatch({ type: "SET_ACTIVE_CHAT", chatId, messages: chat.chatMessages });
+    persistDraft(chatId, inputValueRef.current, pendingAttachmentsRef.current);
+    persistDraft(PENDING_CHAT_DRAFT_ID, "", []);
     return chatId;
   };
 
@@ -228,7 +336,7 @@ export function ChatPanel() {
       const data = Array.from(new Uint8Array(buffer));
       const filename = file.name || `clipboard-${Date.now()}.png`;
       const saved = await api.saveChatAttachmentFromBytes(ws.spec.rootPath, chatId, filename, data);
-      setPendingAttachments((prev) => [...prev, saved]);
+      updatePendingAttachments((prev) => [...prev, saved]);
     } catch (err) {
       addToast(`Attach failed: ${err instanceof Error ? err.message : String(err)}`, "error");
     }
@@ -243,7 +351,7 @@ export function ChatPanel() {
     try {
       const chatId = ensureActiveChatId();
       const saved = await api.saveChatAttachmentFromPath(ws.spec.rootPath, chatId, path);
-      setPendingAttachments((prev) => [...prev, saved]);
+      updatePendingAttachments((prev) => [...prev, saved]);
     } catch (err) {
       addToast(`Attach failed: ${err instanceof Error ? err.message : String(err)}`, "error");
     }
@@ -339,7 +447,7 @@ export function ChatPanel() {
   };
 
   const removePendingAttachment = (index: number) => {
-    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+    updatePendingAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSend = () => {
@@ -357,13 +465,25 @@ export function ChatPanel() {
       }
     }
 
-    sendMessage(trimmed, hasAttachments ? pendingAttachments : undefined).catch((err) => {
-      console.error("Send message failed:", err);
-    });
-    setInput("");
-    setPendingAttachments([]);
-    try { localStorage.removeItem(draftKey(ws.spec.rootPath, chat.activeChatId)); }
-    catch { /* ignore */ }
+    const sentInput = input;
+    const sentAttachments = pendingAttachments;
+    const sentDraftId = draftChatId(chat.activeChatId);
+    skipNextEmptyDraftSaveRef.current = true;
+    sendMessage(trimmed, hasAttachments ? pendingAttachments : undefined)
+      .then(() => {
+        if (!inputValueRef.current && pendingAttachmentsRef.current.length === 0) {
+          persistDraft(sentDraftId, "", []);
+        }
+      })
+      .catch((err) => {
+        console.error("Send message failed:", err);
+        if (!inputValueRef.current && pendingAttachmentsRef.current.length === 0) {
+          updateInput(sentInput);
+          updatePendingAttachments(sentAttachments);
+        }
+      });
+    updateInput("");
+    updatePendingAttachments([]);
   };
 
   const switchChat = async (chatId: string) => {
@@ -642,7 +762,7 @@ export function ChatPanel() {
             className={styles.input}
             style={{ height: `${textareaHeight}px` }}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => updateInput(e.target.value)}
             onPaste={handlePaste}
             placeholder="Ask the AI to review your sigil... (paste or drop an image to show it)"
             onKeyDown={(e) => {

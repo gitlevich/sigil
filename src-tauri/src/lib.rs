@@ -108,6 +108,8 @@ pub fn run() {
             commands::chat::list_chats,
             commands::chat::read_chat,
             commands::chat::write_chat,
+            commands::chat::read_chat_draft,
+            commands::chat::write_chat_draft,
             commands::chat::delete_chat,
             commands::chat::rename_chat,
             commands::chat::fork_chat,
@@ -134,6 +136,9 @@ pub fn run() {
             commands::memory::write_long_term_memory,
             commands::memory::read_long_term_memory,
             commands::spells::list_spells,
+            commands::narrative::list_narrative,
+            commands::narrative::reconstruct_workspace_at,
+            commands::narrative::reconstruct_sigil_at,
             take_pending_open_path,
         ])
         .build(tauri::generate_context!())

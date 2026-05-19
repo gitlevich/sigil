@@ -3,7 +3,7 @@ use std::path::Path;
 
 use base64::Engine as _;
 use tauri::{AppHandle, Emitter};
-use crate::models::chat::{Chat, ChatInfo, ChatAttachment, ChatMessage, ChatRole};
+use crate::models::chat::{Chat, ChatInfo, ChatAttachment, ChatDraft, ChatMessage, ChatRole};
 use crate::models::sigil::SigilFolder;
 use crate::models::settings::{AiProfile, AiProvider, DEFAULT_SYSTEM_PROMPT};
 use crate::commands::sigil::read_sigil_with_libs;
@@ -185,6 +185,26 @@ fn chat_file(root_path: &str, chat_id: &str) -> std::path::PathBuf {
     chats_dir(root_path).join(format!("{}.json", chat_id))
 }
 
+fn chat_drafts_dir(root_path: &str) -> std::path::PathBuf {
+    chats_dir(root_path).join("drafts")
+}
+
+fn chat_draft_file(root_path: &str, chat_id: &str) -> std::path::PathBuf {
+    chat_drafts_dir(root_path).join(format!("{}.json", chat_id))
+}
+
+fn validate_chat_id(chat_id: &str) -> Result<(), String> {
+    if chat_id.is_empty()
+        || chat_id == "."
+        || chat_id == ".."
+        || chat_id.contains('/')
+        || chat_id.contains('\\')
+    {
+        return Err("Invalid chat id".to_string());
+    }
+    Ok(())
+}
+
 /// Migrate legacy chat.json to chats/ directory if needed.
 fn migrate_legacy_chat(root_path: &str) -> Result<(), String> {
     let legacy = Path::new(root_path).join("chat.json");
@@ -260,11 +280,39 @@ pub fn read_chat(root_path: String, chat_id: String) -> Result<Chat, String> {
 pub fn write_chat(root_path: String, chat: Chat) -> Result<(), String> {
     let dir = chats_dir(&root_path);
     if !dir.exists() {
-        fs::create_dir(&dir).map_err(|e| e.to_string())?;
+        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     }
     let path = chat_file(&root_path, &chat.id);
     let content = serde_json::to_string_pretty(&chat).map_err(|e| e.to_string())?;
     fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn read_chat_draft(root_path: String, chat_id: String) -> Result<ChatDraft, String> {
+    validate_chat_id(&chat_id)?;
+    let path = chat_draft_file(&root_path, &chat_id);
+    if !path.exists() {
+        return Ok(ChatDraft::default());
+    }
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn write_chat_draft(root_path: String, chat_id: String, draft: ChatDraft) -> Result<(), String> {
+    validate_chat_id(&chat_id)?;
+    let path = chat_draft_file(&root_path, &chat_id);
+    if let Ok(existing) = read_chat_draft(root_path.clone(), chat_id.clone()) {
+        if existing.updated_at > draft.updated_at {
+            return Ok(());
+        }
+    }
+    let dir = chat_drafts_dir(&root_path);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let content = serde_json::to_string_pretty(&draft).map_err(|e| e.to_string())?;
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, content).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, &path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1490,6 +1538,30 @@ mod tests {
         let root = tmp.path().to_string_lossy().to_string();
         // Delete non-existent chat should not error
         delete_chat(root, "nonexistent".to_string()).unwrap();
+    }
+
+    #[test]
+    fn test_chat_draft_persists_and_rejects_stale_writes() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().to_string_lossy().to_string();
+
+        let draft = ChatDraft {
+            content: "unsent paragraph".to_string(),
+            attachments: Vec::new(),
+            updated_at: 10,
+        };
+        write_chat_draft(root.clone(), "chat-1".to_string(), draft).unwrap();
+
+        let stale = ChatDraft {
+            content: "old paragraph".to_string(),
+            attachments: Vec::new(),
+            updated_at: 9,
+        };
+        write_chat_draft(root.clone(), "chat-1".to_string(), stale).unwrap();
+
+        let loaded = read_chat_draft(root, "chat-1".to_string()).unwrap();
+        assert_eq!(loaded.content, "unsent paragraph");
+        assert_eq!(loaded.updated_at, 10);
     }
 
     #[test]
