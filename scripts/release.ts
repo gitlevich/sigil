@@ -110,7 +110,7 @@ if (cargoVersion !== version) fail(`Cargo.toml has ${cargoVersion}, expected ${v
 console.log(`Version: ${version} (package.json -> Cargo.toml, tauri.conf.json)\n`);
 
 // Commit the bump
-run("git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/tauri.conf.json");
+run("git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json");
 execSync(
   `git commit -m "release: v${version}\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"`,
   { cwd: root, stdio: "inherit" }
