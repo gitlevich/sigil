@@ -1,6 +1,7 @@
 mod commands;
 pub mod infrastructure;
 mod models;
+mod python_env;
 
 use commands::watcher::WatcherState;
 use commands::workspace_lock::WorkspaceLocks;

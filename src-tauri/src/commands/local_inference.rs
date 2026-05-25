@@ -18,22 +18,12 @@
 //! free once the client points at the local URL. The !stateless invariant
 //! holds because each request is self-contained from the model's view.
 //!
-//! Dev-mode path: looks for `sidecar/.venv/bin/python3` and `sidecar/main.py`
-//! relative to the project root. Production bundling (PyInstaller) comes
-//! later; the path layout will be overridable then.
-//!
-//! Resolution order for the sidecar directory:
-//!   1. `SIGIL_SIDECAR_DIR` environment variable, if set.
-//!   2. The first line of `~/Library/Application Support/com.sigilengineering.sigil/sidecar-path`.
-//!   3. Walks up from the current working directory (works in `cargo tauri dev`).
-//!   4. Walks up from the running executable (works for the bundled .app when
-//!      the sidecar sits next to or above the binary).
-//! The bundled .app starts with cwd=`/`, so (1) or (2) is what makes chat work
-//! from Finder until PyInstaller bundling lands.
+//! Development can set `SIGIL_DEV_PYTHON` to use `sidecar/.venv`. Production
+//! resolves a bundled runtime kit through `python_env`, extracts Python and
+//! dependencies into app data once, and reuses it while the manifest matches.
 //!
 //! The sidecar's stderr is inherited so logs surface in the Tauri console.
 
-use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -72,10 +62,10 @@ impl LocalInference {
 
     /// Ensure the sidecar is running and return (endpoint, model_id).
     /// Spawns on first call; subsequent calls reuse the running instance.
-    pub async fn ensure_running(&self) -> Result<(String, String), String> {
+    pub async fn ensure_running(&self, app: &tauri::AppHandle) -> Result<(String, String), String> {
         let mut guard = self.session.lock().await;
         if guard.is_none() {
-            *guard = Some(spawn_sidecar().await?);
+            *guard = Some(spawn_sidecar(app).await?);
         }
         let session = guard.as_ref().expect("session just set");
         Ok((session.endpoint.clone(), session.model.clone()))
@@ -91,12 +81,17 @@ impl LocalInference {
 
     /// Single-turn invocation — used by @LeftHemisphere callers outside chat.
     /// Talks to the local endpoint via OpenAI-compatible HTTP.
-    pub async fn invoke(&self, prompt: &str, max_tokens: u32) -> Result<String, String> {
+    pub async fn invoke(
+        &self,
+        app: &tauri::AppHandle,
+        prompt: &str,
+        max_tokens: u32,
+    ) -> Result<String, String> {
         let messages = vec![Message {
             role: "user".into(),
             content: prompt.into(),
         }];
-        self.invoke_messages(&messages, max_tokens).await
+        self.invoke_messages(app, &messages, max_tokens).await
     }
 
     /// Multi-turn invocation without tools. For tool-calling, the chat flow
@@ -104,10 +99,11 @@ impl LocalInference {
     /// endpoint this returns via `ensure_running`.
     pub async fn invoke_messages(
         &self,
+        app: &tauri::AppHandle,
         messages: &[Message],
         max_tokens: u32,
     ) -> Result<String, String> {
-        let (endpoint, model) = self.ensure_running().await?;
+        let (endpoint, model) = self.ensure_running(app).await?;
         let url = format!("{}/v1/chat/completions", endpoint.trim_end_matches('/'));
 
         let body = json!({
@@ -148,60 +144,14 @@ impl LocalInference {
     }
 }
 
-fn sidecar_dir() -> PathBuf {
-    if let Ok(explicit) = std::env::var("SIGIL_SIDECAR_DIR") {
-        let p = PathBuf::from(explicit);
-        if p.join("main.py").exists() {
-            return p;
-        }
-    }
-
-    if let Ok(home) = std::env::var("HOME") {
-        let pointer = PathBuf::from(&home)
-            .join("Library/Application Support/com.sigilengineering.sigil/sidecar-path");
-        if let Ok(contents) = std::fs::read_to_string(&pointer) {
-            let trimmed = contents.trim();
-            if !trimmed.is_empty() {
-                let p = PathBuf::from(trimmed);
-                if p.join("main.py").exists() {
-                    return p;
-                }
-            }
-        }
-    }
-
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let exe = std::env::current_exe().ok();
-    let mut roots: Vec<PathBuf> = vec![cwd.clone()];
-    if let Some(e) = exe.as_ref() {
-        let mut cursor = e.parent().map(PathBuf::from);
-        while let Some(dir) = cursor {
-            roots.push(dir.clone());
-            cursor = dir.parent().map(PathBuf::from);
-        }
-    }
-    for root in &roots {
-        for rel in ["sidecar", "../sidecar", "../../sidecar", "../../../sidecar"] {
-            let candidate = root.join(rel);
-            if candidate.join("main.py").exists() {
-                return candidate;
-            }
-        }
-    }
-
-    cwd.join("sidecar")
-}
-
-async fn spawn_sidecar() -> Result<Session, String> {
-    let dir = sidecar_dir();
-    let python = dir.join(".venv/bin/python3");
+async fn spawn_sidecar(app: &tauri::AppHandle) -> Result<Session, String> {
+    let env = crate::python_env::ensure(app).await?;
+    let python = env.python;
+    let dir = env.sidecar_dir;
     let main = dir.join("main.py");
 
     if !python.exists() {
-        return Err(format!(
-            "sidecar Python not found at {}. Set SIGIL_SIDECAR_DIR or write the sidecar path to ~/Library/Application Support/com.sigilengineering.sigil/sidecar-path, then run `cd sidecar && uv venv && uv pip install -e .`.",
-            python.display()
-        ));
+        return Err(format!("sidecar Python not found at {}", python.display()));
     }
     if !main.exists() {
         return Err(format!("sidecar main.py not found at {}", main.display()));

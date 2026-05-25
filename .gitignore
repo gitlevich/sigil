@@ -57,3 +57,5 @@ sidecar/__pycache__/
 sidecar/*.egg-info/
 sidecar/dist/
 sidecar/build/
+src-tauri/python-bootstrap/
+.bootstrap-cache/

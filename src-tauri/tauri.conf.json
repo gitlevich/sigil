@@ -6,8 +6,9 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeDevCommand": "./build-python-bootstrap.sh && npm run dev",
+    "beforeBuildCommand": "./build-python-bootstrap.sh && npm run build",
+    "beforeBundleCommand": "./build-python-bootstrap.sh"
   },
   "app": {
     "windows": [
@@ -28,7 +29,8 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../specification.sigil/Libs": "Libs"
+      "../specification.sigil/Libs": "Libs",
+      "python-bootstrap": "python-bootstrap"
     },
     "icon": [
       "icons/32x32.png",
@@ -53,7 +55,8 @@
     ],
     "macOS": {
       "signingIdentity": null,
-      "providerShortName": null
+      "providerShortName": null,
+      "entitlements": "Entitlements.plist"
     }
   },
   "plugins": {

@@ -1268,7 +1268,7 @@ async fn stream_local(
     local: crate::commands::local_inference::LocalInference,
     dispatcher: &crate::commands::tool_dispatcher::ToolDispatcher,
 ) -> Result<String, String> {
-    let (endpoint, model) = local.ensure_running().await?;
+    let (endpoint, model) = local.ensure_running(app).await?;
     let url = format!("{}/v1/chat/completions", endpoint.trim_end_matches('/'));
 
     let total_chars: usize = history.iter().map(|m| m.content.len()).sum::<usize>()

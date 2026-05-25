@@ -10,6 +10,7 @@
 set -euo pipefail
 
 PORT="${SIGIL_LLM_PORT:-8765}"
+DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "[up] cleaning stale sidecars"
 pkill -f "sidecar/main.py"   2>/dev/null || true
@@ -25,6 +26,14 @@ fi
 
 # Give the OS a moment to reap children before we spawn new ones.
 sleep 0.5
+
+# Dev shortcut: production uses the bundled Python bootstrap, while local
+# iteration uses the editable venv if it exists.
+if [ -x "$DIR/sidecar/.venv/bin/python3" ]; then
+  export SIGIL_DEV_PYTHON="$DIR/sidecar/.venv/bin/python3"
+elif [ -x "$DIR/sidecar/.venv/bin/python" ]; then
+  export SIGIL_DEV_PYTHON="$DIR/sidecar/.venv/bin/python"
+fi
 
 echo "[up] starting tauri dev"
 exec npm run tauri dev

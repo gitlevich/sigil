@@ -22,6 +22,7 @@ fn is_escalation_request(text: &str) -> bool {
 }
 
 async fn call_profile(
+    app: &AppHandle,
     client: &reqwest::Client,
     prompt: &str,
     profile: &AiProfile,
@@ -30,7 +31,7 @@ async fn call_profile(
     match profile.provider {
         AiProvider::Anthropic => invoke_anthropic(client, prompt, profile).await,
         AiProvider::OpenAI => invoke_openai(client, prompt, profile).await,
-        AiProvider::Local => local.invoke(prompt, 1024).await,
+        AiProvider::Local => local.invoke(app, prompt, 1024).await,
         AiProvider::Ollama => invoke_ollama(client, prompt, profile).await,
     }
 }
@@ -51,7 +52,7 @@ pub async fn invoke_left_hemisphere(
         prompt.clone()
     };
 
-    let primary = call_profile(&client, &primary_prompt, &profile, local.inner()).await?;
+    let primary = call_profile(&app, &client, &primary_prompt, &profile, local.inner()).await?;
 
     if is_local_tier && is_escalation_request(&primary) {
         let _ = app.emit(
@@ -59,7 +60,7 @@ pub async fn invoke_left_hemisphere(
             serde_json::json!({ "hasFallback": fallback_profile.is_some() }),
         );
         let result = match fallback_profile {
-            Some(fallback) => call_profile(&client, &prompt, &fallback, local.inner()).await,
+            Some(fallback) => call_profile(&app, &client, &prompt, &fallback, local.inner()).await,
             None => Ok(primary),
         };
         let _ = app.emit("resolution-increase:end", ());
