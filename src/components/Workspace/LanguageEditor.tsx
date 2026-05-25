@@ -260,6 +260,8 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
   onRenameStatusRef.current = onRenameStatus;
   const sigilDirRef = useRef(sigilDir);
   sigilDirRef.current = sigilDir;
+  const scopeContextRef = useRef({ scopeNames, scope, sigilRoot, currentContext, currentPath });
+  scopeContextRef.current = { scopeNames, scope, sigilRoot, currentContext, currentPath };
   onChangeRef.current = onChange;
   const prevPathRef = useRef<string>(currentPath.join("/"));
 
@@ -321,6 +323,21 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
           }
         }),
         EditorView.domEventHandlers({
+          focus: (_event, view) => {
+            const ctx = scopeContextRef.current;
+            view.dispatch({
+              effects: scopeCompartment.reconfigure(
+                buildScopeHighlighter(
+                  ctx.scopeNames,
+                  ctx.scope,
+                  ctx.sigilRoot ?? null,
+                  ctx.currentContext ?? null,
+                  ctx.currentPath,
+                ),
+              ),
+            });
+            return false;
+          },
           keydown: (event, view) => {
             if (event.key === "Meta" || event.key === "Control") {
               view.dom.classList.add("cm-cmd-held");

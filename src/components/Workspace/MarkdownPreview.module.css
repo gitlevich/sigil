@@ -16,6 +16,11 @@
   padding-bottom: 1px;
 }
 
+.preview :global(.ref-lib) {
+  border-bottom: 2px dotted #8b5cf6;
+  padding-bottom: 1px;
+}
+
 .preview :global(.ref-context) {
   border-bottom: 2px dashed #e8a040;
   padding-bottom: 1px;

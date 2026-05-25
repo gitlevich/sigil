@@ -61,5 +61,11 @@ describe("Alt+Enter autofix keybinding", () => {
     it("creates sigils via actions.createSigil", () => {
       expect(source).toContain("actions.createSigil");
     });
+
+    it("wires reference autocomplete in edit mode", () => {
+      expect(source).toContain("autocompletion({");
+      expect(source).toContain("override: [scopeCompletion]");
+      expect(source).toContain("activateOnTyping: true");
+    });
   });
 });
