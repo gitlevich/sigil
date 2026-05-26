@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   useWorkspaceState, useWorkspaceDispatch, useWorkspaceActions,
+  resolveCurrentFolder,
 } from "../../state/WorkspaceContext";
 import { api, SigilFolder } from "../../tauri";
 import { useAutoSave } from "../../hooks/useAutoSave";
@@ -9,7 +10,8 @@ import { useToast } from "../../hooks/useToast";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import { useOutgrownPlacements, type OutgrownPlacement } from "../../hooks/useOutgrownPlacements";
 import { getDragPropertySource, clearDragPropertySource } from "../Workspace/SigilPropertyEditor";
-import { findAllReferencesInTree } from "../Workspace/editorScope";
+import { findReferencesInWorkspace } from "../Workspace/referenceSearch";
+import { currentPathAfterRename } from "../Workspace/renamePath";
 import { RefsDropdown } from "../shared/RefsDropdown";
 import { ProposeReshapeModal } from "../Workspace/ProposeReshapeModal";
 import { ProposeDeleteModal } from "../Workspace/ProposeDeleteModal";
@@ -521,9 +523,16 @@ export function OntologyTree() {
   const handleRename = async (fsPath: string, oldName: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) { setRenaming(null); return; }
-    await actions.renameSigil(fsPath, trimmed, actionDeps);
-    const spec = await reload();
-    if (spec) await reloadDefinitions(spec.root);
+    const selectedBeforeRename = resolveCurrentFolder(ws);
+    const pathBeforeRename = [...ws.currentPath];
+    const result = await actions.renameSigil(fsPath, trimmed, actionDeps, { reloadAfter: false });
+    if (result) {
+      window.dispatchEvent(new CustomEvent("sigil-rename-completed", { detail: result }));
+      const nextPath = currentPathAfterRename(pathBeforeRename, selectedBeforeRename?.path, result);
+      if (nextPath) wsDispatch({ type: "REPLACE_CURRENT_PATH", path: nextPath });
+      const spec = await reload();
+      if (spec) await reloadDefinitions(spec.root);
+    }
     setRenaming(null);
   };
 
@@ -669,7 +678,11 @@ export function OntologyTree() {
             <button className={styles.menuItem} onClick={() => { setReshaping({ fsPath: contextMenu.node.fsPath, name: contextMenu.node.name }); setContextMenu(null); }}>Propose reshape…</button>
           )}
           <button className={styles.menuItem} onClick={() => {
-            const hits = findAllReferencesInTree(ws.spec.root, contextMenu.node.name, []);
+            const hits = findReferencesInWorkspace(
+              ws.spec.root,
+              ws.spec.importedOntologies ?? null,
+              { name: contextMenu.node.name, fsPath: contextMenu.node.fsPath },
+            );
             if (hits.length > 0) {
               setRefsState({ hits, x: contextMenu.x, y: contextMenu.y });
             } else {
@@ -731,4 +744,3 @@ export function OntologyTree() {
     </div>
   );
 }
-

@@ -5,10 +5,10 @@
  *   1. children of S
  *   2. neighbors of S (same level)
  *   3. ancestors connecting S to root
- *   4. imported ontologies at any depth
- *   5. proximity: walk outward through enclosing subtrees, unique name wins
+ *   4. proximity: walk outward through enclosing subtrees, unique name wins
+ *   5. imported ontologies at any depth
  *
- * Priority: child > sibling > ancestor > lib > proximity.
+ * Priority: child > sibling > ancestor > proximity > lib.
  * Ambiguity: multiple matches at the same level → does not resolve.
  */
 import type { Sigil } from "./types";
@@ -48,14 +48,13 @@ function findChildrenAll(parent: Sigil, name: string): Sigil[] {
 }
 
 function findAllInSubtree(
-  node: Sigil, name: string, basePath: string[], exclude: Set<string>,
+  node: Sigil, name: string, basePath: string[],
 ): { target: Sigil; path: string[] }[] {
   const hits = findDescendantsByName(node, name);
   const results: { target: Sigil; path: string[] }[] = [];
   for (const hit of hits) {
     const fullPath = basePath.length === 0 ? hit.path : [...basePath, ...hit.path];
-    const pathKey = fullPath.join("/");
-    if (!exclude.has(pathKey)) results.push({ target: hit.target, path: fullPath });
+    results.push({ target: hit.target, path: fullPath });
   }
   return results;
 }
@@ -117,7 +116,7 @@ export function resolve(
 /**
  * Build the complete lexical scope visible from `currentPath`.
  * Returns all in-scope names ordered by priority: children first, then
- * siblings, ancestors, imported ontology terms, proximity-reachable names.
+ * siblings, ancestors, proximity-reachable names, imported ontology terms.
  */
 export function buildScope(
   root: Sigil, currentPath: string[], importedOntologies?: Sigil | null,
@@ -158,18 +157,7 @@ export function buildScope(
   }
   add(root.name, root, "ancestor", []);
 
-  // Rule 4: imported ontologies at any depth
-  if (importedOntologies) {
-    for (const ontology of importedOntologies.children) {
-      const libItems = collectSubtree(ontology, [ontology.name], seen);
-      add(ontology.name, ontology, "lib", [ontology.name]);
-      for (const item of libItems) {
-        add(item.name, item.target, "lib", item.path);
-      }
-    }
-  }
-
-  // Rule 5: proximity — walk outward, collect unique names from each subtree level
+  // Rule 4: proximity — walk outward, collect unique names from each subtree level
   for (let depth = currentPath.length; depth >= 0; depth--) {
     const subtreeRoot = findContext(root, currentPath.slice(0, depth));
     const subtreePath = currentPath.slice(0, depth);
@@ -186,6 +174,18 @@ export function buildScope(
         add(name, matches[0].target, "proximity", matches[0].path);
       }
       // Ambiguous names at this level are skipped — they don't enter scope
+    }
+  }
+
+  // Rule 5: imported ontologies at any depth. They are ambient outer scope:
+  // visible everywhere, but shadowed by any local definition.
+  if (importedOntologies) {
+    for (const ontology of importedOntologies.children) {
+      const libItems = collectSubtree(ontology, [ontology.name], seen);
+      add(ontology.name, ontology, "lib", [ontology.name]);
+      for (const item of libItems) {
+        add(item.name, item.target, "lib", item.path);
+      }
     }
   }
 
@@ -238,34 +238,11 @@ function classify(
   }
   if (nameMatches(name, root.name)) return { kind: "ancestor", target: root, path: [] };
 
-  // Rule 4: imported ontologies
-  if (importedOntologies) {
-    const libResults = findAllInSubtree(importedOntologies, name, [], new Set());
-    if (libResults.length === 1) {
-      return { kind: "lib", target: libResults[0].target, path: libResults[0].path };
-    }
-    if (libResults.length > 1) {
-      return {
-        kind: "lib", target: libResults[0].target, path: libResults[0].path,
-        ambiguous: true,
-        candidates: libResults.map(r => ({ name: r.target.name, path: r.path })),
-      };
-    }
-  }
-
-  // Rule 5: proximity
-  const alreadyCovered = new Set<string>();
-  for (const child of current.children) alreadyCovered.add([...currentPath, child.name].join("/"));
-  if (currentPath.length > 0) {
-    const parent = findContext(root, currentPath.slice(0, -1));
-    for (const child of parent.children) alreadyCovered.add([...currentPath.slice(0, -1), child.name].join("/"));
-  }
-  for (let i = 0; i <= currentPath.length; i++) alreadyCovered.add(currentPath.slice(0, i).join("/"));
-
+  // Rule 4: proximity
   for (let depth = currentPath.length; depth >= 0; depth--) {
     const subtreeRoot = findContext(root, currentPath.slice(0, depth));
     const subtreePath = currentPath.slice(0, depth);
-    const matches = findAllInSubtree(subtreeRoot, name, subtreePath, alreadyCovered);
+    const matches = findAllInSubtree(subtreeRoot, name, subtreePath);
     if (matches.length === 1) {
       return { kind: "proximity", target: matches[0].target, path: matches[0].path };
     }
@@ -274,6 +251,22 @@ function classify(
         kind: "proximity", target: matches[0].target, path: matches[0].path,
         ambiguous: true,
         candidates: matches.map(r => ({ name: r.target.name, path: r.path })),
+      };
+    }
+  }
+
+  // Rule 5: imported ontologies. They are ambient outer scope, so local
+  // proximity matches eclipse same-named imported vocabulary.
+  if (importedOntologies) {
+    const libResults = findAllInSubtree(importedOntologies, name, []);
+    if (libResults.length === 1) {
+      return { kind: "lib", target: libResults[0].target, path: libResults[0].path };
+    }
+    if (libResults.length > 1) {
+      return {
+        kind: "lib", target: libResults[0].target, path: libResults[0].path,
+        ambiguous: true,
+        candidates: libResults.map(r => ({ name: r.target.name, path: r.path })),
       };
     }
   }

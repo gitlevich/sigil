@@ -4,7 +4,7 @@ import {
   EditorView, keymap, lineNumbers, highlightActiveLine,
   Decoration, DecorationSet,
 } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, undo } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
@@ -29,9 +29,9 @@ import {
   getGlobalSigilRoot,
   findInvariantFromEditor,
   findAffordanceFromEditor,
-  findAllReferencesInTree,
   navigationPathForResolution,
 } from "./editorScope";
+import { findReferencesInWorkspace, type ReferenceTarget } from "./referenceSearch";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
 import styles from "./LanguageEditor.module.css";
 
@@ -68,20 +68,25 @@ interface LanguageEditorProps {
   onChange: (content: string) => void;
   scopeNames?: string[];
   scope?: ScopeEntry[];
+  workspaceRoot?: SigilFolder;
+  importedOntologies?: SigilFolder | null;
   sigilRoot?: SigilFolder;
   currentContext?: SigilFolder;
   currentPath?: string[];
   sigilDir?: string;
   wordWrap?: boolean;
+  refreshSerial?: number;
   onCreateSigil?: (name: string) => void;
   onCreateAffordance?: (name: string, target?: SigilFolder) => void;
   onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onRenameStatus?: (oldValue: string, newValue: string) => void;
+  onUndoLastRename?: () => boolean;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   keybindings?: Record<string, string>;
+  findReferencesTarget?: ReferenceTarget | null;
   findReferencesName?: string | null;
   onFindReferencesClear?: () => void;
   goToLine?: number | null;
@@ -137,12 +142,15 @@ let globalPendingStatusRename: string | null = null;
 type RenameTarget = { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" };
 type SetRenameState = (s: RenameTarget | null) => void;
 type SetRefsState = (s: { hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null) => void;
+type ReferenceSearchContext = { workspaceRoot: SigilFolder | null; importedOntologies: SigilFolder | null };
 
 export function buildCustomKeymap(
   kb: Record<string, string>,
   setRenameState: SetRenameState,
   setRefsState: SetRefsState,
   onRenameStatusRef: React.MutableRefObject<((oldValue: string, newValue: string) => void) | undefined>,
+  onUndoLastRenameRef: React.MutableRefObject<(() => boolean) | undefined> = { current: undefined },
+  referenceSearchRef: React.MutableRefObject<ReferenceSearchContext> = { current: { workspaceRoot: null, importedOntologies: null } },
 ) {
   return keymap.of([
     {
@@ -211,9 +219,13 @@ export function buildCustomKeymap(
           const prop = findPropertyRefAtCursor(view);
           if (prop) symbolName = fromDashForm(prop.name);
         }
-        const sigilRoot = getGlobalSigilRoot();
+        const sigilRoot = referenceSearchRef.current.workspaceRoot ?? getGlobalSigilRoot();
         if (!symbolName || !sigilRoot) return false;
-        const hits = findAllReferencesInTree(sigilRoot, symbolName, []);
+        const hits = findReferencesInWorkspace(
+          sigilRoot,
+          referenceSearchRef.current.importedOntologies,
+          { name: symbolName },
+        );
         if (hits.length === 0) return false;
         const pos = view.state.selection.main.head;
         const coords = view.coordsAtPos(pos);
@@ -233,10 +245,17 @@ export function buildCustomKeymap(
         return true;
       },
     },
+    {
+      key: "Mod-z",
+      run: (view) => {
+        if (undo(view)) return true;
+        return onUndoLastRenameRef.current?.() ?? false;
+      },
+    },
   ]);
 }
 
-export function LanguageEditor({ content, onChange, scopeNames = [], scope = [], sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: LanguageEditorProps) {
+export function LanguageEditor({ content, onChange, scopeNames = [], scope = [], workspaceRoot, importedOntologies = null, sigilRoot, currentContext, currentPath = [], sigilDir, wordWrap = false, refreshSerial = 0, onCreateSigil, onCreateAffordance, onCreateInvariant, onRenameSigil, onRenameProperty, onRenameStatus, onUndoLastRename, onNavigateToSigil, onNavigateToAbsPath, keybindings = {}, findReferencesTarget, findReferencesName, onFindReferencesClear, goToLine, onGoToLineDone }: LanguageEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -258,21 +277,28 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
   const [refsState, setRefsState] = useState<{ hits: { contextName: string; contextPath: string[]; line: string }[]; x: number; y: number } | null>(null);
   const onRenameStatusRef = useRef(onRenameStatus);
   onRenameStatusRef.current = onRenameStatus;
+  const onUndoLastRenameRef = useRef(onUndoLastRename);
+  onUndoLastRenameRef.current = onUndoLastRename;
   const sigilDirRef = useRef(sigilDir);
   sigilDirRef.current = sigilDir;
   const scopeContextRef = useRef({ scopeNames, scope, sigilRoot, currentContext, currentPath });
   scopeContextRef.current = { scopeNames, scope, sigilRoot, currentContext, currentPath };
+  const referenceSearchRef = useRef<ReferenceSearchContext>({ workspaceRoot: null, importedOntologies: null });
+  referenceSearchRef.current = { workspaceRoot: workspaceRoot ?? sigilRoot ?? null, importedOntologies: importedOntologies ?? null };
   onChangeRef.current = onChange;
   const prevPathRef = useRef<string>(currentPath.join("/"));
+  const prevRefreshSerialRef = useRef(refreshSerial);
 
   useEffect(() => {
-    if (!findReferencesName || !sigilRoot) return;
+    const target = findReferencesTarget ?? (findReferencesName ? { name: findReferencesName } : null);
+    const searchRoot = workspaceRoot ?? sigilRoot;
+    if (!target || !searchRoot) return;
     onFindReferencesClear?.();
-    const hits = findAllReferencesInTree(sigilRoot, findReferencesName, []);
+    const hits = findReferencesInWorkspace(searchRoot, importedOntologies, target);
     if (hits.length === 0) return;
     // Position at top-left of editor since there's no cursor context
     setRefsState({ hits, x: 32, y: 32 });
-  }, [findReferencesName]);
+  }, [findReferencesTarget, findReferencesName, workspaceRoot, importedOntologies, sigilRoot]);
 
   // Scroll to a specific line when requested (e.g. from compile error navigation).
   // Uses requestAnimationFrame to ensure the EditorView is mounted after navigation.
@@ -303,7 +329,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
         lineNumbers(),
         highlightActiveLine(),
         history(),
-        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef)),
+        keymapCompartment.of(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef, onUndoLastRenameRef, referenceSearchRef)),
         search(),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
@@ -604,7 +630,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef)),
+      effects: keymapCompartment.reconfigure(buildCustomKeymap(keybindings, setRenameState, setRefsState, onRenameStatusRef, onUndoLastRenameRef, referenceSearchRef)),
     });
   }, [keybindings]);
 
@@ -639,21 +665,27 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
     const pathKey = currentPath.join("/");
     const navigated = pathKey !== prevPathRef.current;
     prevPathRef.current = pathKey;
+    const forcedRefresh = refreshSerial !== prevRefreshSerialRef.current;
+    prevRefreshSerialRef.current = refreshSerial;
 
+    const filePath = sigilDirRef.current ? `${sigilDirRef.current}/language.md` : null;
     const currentDoc = view.state.doc.toString();
-    if (currentDoc === content) return;
+    if (currentDoc === content) {
+      if (forcedRefresh && filePath) setBase(filePath, content);
+      return;
+    }
 
-    if (navigated) {
-      // Navigation to a different sigil. Replace content and clear undo history.
+    if (navigated || forcedRefresh) {
+      // Navigation or explicit disk refresh. Replace content and clear undo history.
       view.dispatch({
         changes: { from: 0, to: currentDoc.length, insert: content },
         annotations: [Transaction.addToHistory.of(false)],
       });
+      if (filePath) setBase(filePath, content);
       return;
     }
 
     // Same path. Decide by buffer dirtiness.
-    const filePath = sigilDirRef.current ? `${sigilDirRef.current}/language.md` : null;
     const base = filePath ? getBase(filePath) : null;
     if (base !== null && currentDoc !== base) return; // Dirty buffer — protect unsaved work.
     // base===null path falls through: no snapshot tracked (e.g., in tests or transient states),
@@ -680,7 +712,7 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
       annotations: [Transaction.addToHistory.of(false)],
     });
     if (filePath) setBase(filePath, content);
-  }, [content, currentPath]);
+  }, [content, currentPath, refreshSerial]);
 
   return (
     <div ref={containerRef} className={styles.editor}>

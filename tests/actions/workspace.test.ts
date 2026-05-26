@@ -97,9 +97,37 @@ describe("renameSigil", () => {
 
   it("calls api and reloads on success", async () => {
     const deps = makeDeps();
-    await actions.renameSigil("/mock/path", "NewName", deps);
+    vi.mocked(api.renameSigil).mockResolvedValueOnce(JSON.stringify({
+      old_name: "OldName",
+      new_name: "NewName",
+      old_path: "/mock/path",
+      new_path: "/mock/NewName",
+      files_updated: 1,
+    }));
+    const result = await actions.renameSigil("/mock/path", "NewName", deps);
     expect(api.renameSigil).toHaveBeenCalledWith("/mock/root", "/mock/path", "NewName");
     expect(deps.reload).toHaveBeenCalledWith("/mock/root");
+    expect(result).toEqual({
+      oldName: "OldName",
+      newName: "NewName",
+      oldPath: "/mock/path",
+      newPath: "/mock/NewName",
+      filesUpdated: 1,
+    });
+  });
+
+  it("can defer reload so callers preserve selection before refreshing", async () => {
+    const deps = makeDeps();
+    vi.mocked(api.renameSigil).mockResolvedValueOnce(JSON.stringify({
+      old_name: "OldName",
+      new_name: "NewName",
+      old_path: "/mock/path",
+      new_path: "/mock/NewName",
+      files_updated: 0,
+    }));
+    const result = await actions.renameSigil("/mock/path", "NewName", deps, { reloadAfter: false });
+    expect(result?.newPath).toBe("/mock/NewName");
+    expect(deps.reload).not.toHaveBeenCalled();
   });
 });
 
@@ -364,6 +392,16 @@ describe("error handling", () => {
     await actions.renameSigil("/mock/path", "Duplicate", deps);
     expect(deps.addToast).toHaveBeenCalledWith("already exists", "error");
     // Should not throw
+  });
+
+  it("reloads after a stale rename target error so ghost nodes disappear", async () => {
+    vi.mocked(api.renameSigil).mockRejectedValueOnce(new Error("Context no longer exists: /mock/path"));
+    const deps = makeDeps();
+
+    await actions.renameSigil("/mock/path", "Entanglement", deps);
+
+    expect(deps.reload).toHaveBeenCalledWith("/mock/root");
+    expect(deps.addToast).toHaveBeenCalledWith("Context no longer exists: /mock/path", "error");
   });
 
   it("toasts non-Error values", async () => {

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { isInScope, resolve } from "../../packages/sigil-core/src/lexicalScope";
+import { buildScope, isInScope, resolve } from "../../packages/sigil-core/src/lexicalScope";
 import type { Sigil } from "../../packages/sigil-core/src/types";
-import type { ScopeResolution } from "../../packages/sigil-core/src/lexicalScope";
 
 /** Convenience: resolve and return just the target sigil, or null. */
 function resolveTarget(root: Sigil, path: string[], ref: string, libs?: Sigil | null): Sigil | null {
@@ -166,6 +165,10 @@ describe("isInScope from Q", () => {
   it("Phantom is NOT in scope", () => {
     expect(isInScope(root, here, "Phantom")).toBe(false);
   });
+
+  it("empty reference text does not resolve", () => {
+    expect(resolve(root, here, "@")).toBeNull();
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -185,6 +188,149 @@ describe("priority: innermost wins", () => {
     expect(result?.kind).toBe("contained");
     expect(result?.path).toEqual(["Parent", "S", "Target"]);
   });
+
+  it("imported ontology resolves when there is no local binding", () => {
+    const editing = sigil("Editing");
+    const app = sigil("Application", { children: [editing] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Editing"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("lib");
+    expect(result?.target).toBe(importedNarrative);
+    expect(result?.path).toEqual(["AttentionLanguage", "Narrative"]);
+  });
+
+  it("local child wins over imported ontology", () => {
+    const localNarrative = sigil("Narrative");
+    const editing = sigil("Editing", { children: [localNarrative] });
+    const app = sigil("Application", { children: [editing] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Editing"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("contained");
+    expect(result?.target).toBe(localNarrative);
+    expect(result?.path).toEqual(["Application", "Editing", "Narrative"]);
+  });
+
+  it("local sibling wins over imported ontology", () => {
+    const localNarrative = sigil("Narrative");
+    const editing = sigil("Editing");
+    const app = sigil("Application", { children: [editing, localNarrative] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Editing"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("sibling");
+    expect(result?.target).toBe(localNarrative);
+    expect(result?.path).toEqual(["Application", "Narrative"]);
+  });
+
+  it("local ancestor wins over imported ontology", () => {
+    const editing = sigil("Editing");
+    const localNarrative = sigil("Narrative", { children: [editing] });
+    const r = sigil("Root", { children: [localNarrative] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Narrative", "Editing"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("ancestor");
+    expect(result?.target).toBe(localNarrative);
+    expect(result?.path).toEqual(["Narrative"]);
+  });
+
+  it("local proximity wins over imported ontology", () => {
+    const localNarrative = sigil("Narrative");
+    const editing = sigil("Editing");
+    const chapter = sigil("Chapter", { children: [editing] });
+    const vocabulary = sigil("Vocabulary", { children: [localNarrative] });
+    const app = sigil("Application", { children: [chapter, vocabulary] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Chapter", "Editing"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("proximity");
+    expect(result?.target).toBe(localNarrative);
+    expect(result?.path).toEqual(["Application", "Vocabulary", "Narrative"]);
+  });
+
+  it("scope list eclipses imported names with local proximity names", () => {
+    const localNarrative = sigil("Narrative");
+    const editing = sigil("Editing");
+    const chapter = sigil("Chapter", { children: [editing] });
+    const vocabulary = sigil("Vocabulary", { children: [localNarrative] });
+    const app = sigil("Application", { children: [chapter, vocabulary] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const narrative = buildScope(r, ["Application", "Chapter", "Editing"], libs).find((entry) => entry.name === "Narrative");
+
+    expect(narrative?.kind).toBe("proximity");
+    expect(narrative?.target).toBe(localNarrative);
+    expect(narrative?.path).toEqual(["Application", "Vocabulary", "Narrative"]);
+  });
+
+  it("ambiguous local proximity does not fall through to imported ontology", () => {
+    const editing = sigil("Editing");
+    const chapter = sigil("Chapter", { children: [editing] });
+    const vocabularyA = sigil("VocabularyA", { children: [sigil("Narrative")] });
+    const vocabularyB = sigil("VocabularyB", { children: [sigil("Narrative")] });
+    const app = sigil("Application", { children: [chapter, vocabularyA, vocabularyB] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Chapter", "Editing"], "@Narrative", libs);
+
+    expect(result?.ambiguous).toBe(true);
+    expect(result?.kind).toBe("proximity");
+    expect(result?.target).not.toBe(importedNarrative);
+  });
+
+  it("multi-segment imported references resolve through imported ontology children", () => {
+    const editing = sigil("Editing");
+    const app = sigil("Application", { children: [editing] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const attentionLanguage = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Editing"], "@AttentionLanguage@Narrative", libs);
+
+    expect(result?.kind).toBe("lib");
+    expect(result?.target).toBe(importedNarrative);
+    expect(result?.path).toEqual(["AttentionLanguage", "Narrative"]);
+  });
+
+  it("missing imported names stay unresolved instead of inventing a fallback", () => {
+    const editing = sigil("Editing");
+    const app = sigil("Application", { children: [editing] });
+    const r = sigil("Root", { children: [app] });
+    const attentionLanguage = sigil("AttentionLanguage", { children: [sigil("Narrative")] });
+    const libs = sigil("Imported Ontologies", { children: [attentionLanguage] });
+
+    const result = resolve(r, ["Application", "Editing"], "@Phantom", libs);
+
+    expect(result).toBeNull();
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -203,6 +349,24 @@ describe("ambiguity detection", () => {
     const result = resolve(r, ["S"], "@Widget");
     expect(result?.ambiguous).toBe(true);
     expect(result?.candidates).toHaveLength(2);
+  });
+
+  it("two siblings with same fuzzy name are ambiguous before imported scope", () => {
+    const s = sigil("S");
+    const a1 = sigil("Widget");
+    const a2 = sigil("widget");
+    const parent = sigil("Parent", { children: [s, a1, a2] });
+    const r = sigil("Root", { children: [parent] });
+    const libs = sigil("Imported Ontologies", { children: [sigil("Shapes", { children: [sigil("Widget")] })] });
+
+    const result = resolve(r, ["Parent", "S"], "@Widget", libs);
+
+    expect(result?.kind).toBe("sibling");
+    expect(result?.ambiguous).toBe(true);
+    expect(result?.candidates).toEqual([
+      { name: "Widget", path: ["Parent", "Widget"] },
+      { name: "widget", path: ["Parent", "widget"] },
+    ]);
   });
 
   it("two cousins with same name at same proximity level → ambiguous", () => {
@@ -240,6 +404,112 @@ describe("ambiguity detection", () => {
     const result = resolve(r, ["Parent", "S"], "@Gadget");
     expect(result?.ambiguous).toBeUndefined();
     expect(result?.kind).toBe("proximity");
+  });
+
+  it("two imported ontology matches are ambiguous", () => {
+    const s = sigil("S");
+    const r = sigil("Root", { children: [s] });
+    const ontologyA = sigil("OntologyA", { children: [sigil("Narrative")] });
+    const ontologyB = sigil("OntologyB", { children: [sigil("Narrative")] });
+    const libs = sigil("Imported Ontologies", { children: [ontologyA, ontologyB] });
+
+    const result = resolve(r, ["S"], "@Narrative", libs);
+
+    expect(result?.kind).toBe("lib");
+    expect(result?.ambiguous).toBe(true);
+    expect(result?.candidates).toEqual([
+      { name: "Narrative", path: ["OntologyA", "Narrative"] },
+      { name: "Narrative", path: ["OntologyB", "Narrative"] },
+    ]);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// buildScope — full visible name list
+// ══════════════════════════════════════════════════════════════
+
+describe("buildScope", () => {
+  it("lists children, siblings, ancestors, proximity names, and imported names in priority order", () => {
+    const localLeaf = sigil("LocalLeaf");
+    const current = sigil("Current", { children: [localLeaf] });
+    const sibling = sigil("Sibling");
+    const cousin = sigil("Cousin");
+    const branch = sigil("Branch", { children: [current, sibling] });
+    const other = sigil("Other", { children: [cousin] });
+    const r = sigil("Root", { children: [branch, other] });
+    const importedLeaf = sigil("ImportedLeaf");
+    const importedOntology = sigil("ImportedOntology", { children: [importedLeaf] });
+    const libs = sigil("Imported Ontologies", { children: [importedOntology] });
+
+    const scope = buildScope(r, ["Branch", "Current"], libs);
+
+    expect(scope.map((item) => [item.name, item.kind, item.path])).toEqual([
+      ["LocalLeaf", "contained", ["Branch", "Current", "LocalLeaf"]],
+      ["Sibling", "sibling", ["Branch", "Sibling"]],
+      ["Current", "ancestor", ["Branch", "Current"]],
+      ["Branch", "ancestor", ["Branch"]],
+      ["Root", "ancestor", []],
+      ["Other", "proximity", ["Other"]],
+      ["Cousin", "proximity", ["Other", "Cousin"]],
+      ["ImportedOntology", "lib", ["ImportedOntology"]],
+      ["ImportedLeaf", "lib", ["ImportedOntology", "ImportedLeaf"]],
+    ]);
+  });
+
+  it("does not add imported names that are shadowed by local names", () => {
+    const current = sigil("Current");
+    const localNarrative = sigil("Narrative");
+    const localAttentionLanguage = sigil("AttentionLanguage");
+    const app = sigil("Application", { children: [current, localNarrative, localAttentionLanguage] });
+    const r = sigil("Root", { children: [app] });
+    const importedNarrative = sigil("Narrative");
+    const importedOntology = sigil("AttentionLanguage", { children: [importedNarrative] });
+    const libs = sigil("Imported Ontologies", { children: [importedOntology] });
+
+    const scope = buildScope(r, ["Application", "Current"], libs);
+    const narrativeItems = scope.filter((item) => item.name === "Narrative");
+    const attentionLanguageItems = scope.filter((item) => item.name === "AttentionLanguage");
+
+    expect(narrativeItems).toEqual([
+      {
+        kind: "sibling",
+        name: "Narrative",
+        target: localNarrative,
+        path: ["Application", "Narrative"],
+      },
+    ]);
+    expect(attentionLanguageItems).toEqual([
+      {
+        kind: "sibling",
+        name: "AttentionLanguage",
+        target: localAttentionLanguage,
+        path: ["Application", "AttentionLanguage"],
+      },
+    ]);
+  });
+
+  it("skips names that are ambiguous at a proximity level", () => {
+    const current = sigil("Current");
+    const branch = sigil("Branch", { children: [current] });
+    const vocabularyA = sigil("VocabularyA", { children: [sigil("Narrative")] });
+    const vocabularyB = sigil("VocabularyB", { children: [sigil("Narrative")] });
+    const r = sigil("Root", { children: [branch, vocabularyA, vocabularyB] });
+
+    const scope = buildScope(r, ["Branch", "Current"]);
+
+    expect(scope.some((item) => item.name === "Narrative")).toBe(false);
+  });
+
+  it("works at root without siblings or imported ontologies", () => {
+    const child = sigil("Child");
+    const r = sigil("Root", { children: [child] });
+
+    const scope = buildScope(r, []);
+
+    expect(scope.map((item) => [item.name, item.kind, item.path])).toEqual([
+      ["Child", "contained", ["Child"]],
+      ["Root", "ancestor", []],
+    ]);
   });
 });
 

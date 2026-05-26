@@ -24,6 +24,18 @@ export interface ActionDeps {
   confirm?: (summary: string) => void;
 }
 
+export interface RenameSigilResult {
+  oldName: string;
+  newName: string;
+  oldPath: string;
+  newPath: string;
+  filesUpdated: number;
+}
+
+export interface RenameSigilOptions {
+  reloadAfter?: boolean;
+}
+
 // ── Precondition helpers ──
 
 function requireNonEmpty(value: string, label: string): string {
@@ -61,6 +73,9 @@ async function execute(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("no longer exists")) {
+      await deps.reload(deps.rootPath).catch(() => undefined);
+    }
     deps.addToast(message, "error");
   }
 }
@@ -110,22 +125,41 @@ export async function renameSigil(
   targetPath: string,
   newName: string,
   deps: ActionDeps,
-): Promise<void> {
+  options: RenameSigilOptions = {},
+): Promise<RenameSigilResult | null> {
+  let renameResult: RenameSigilResult | null = null;
   await execute(deps, async () => {
     requireNonEmpty(newName, "Sigil name");
     const result = await api.renameSigil(deps.rootPath, targetPath, newName);
     // Rust returns a JSON string: { new_path, files_updated }
     let filesUpdated = 0;
+    let parsedResult: RenameSigilResult | null = null;
     try {
       const parsed = JSON.parse(result);
       if (typeof parsed?.files_updated === "number") filesUpdated = parsed.files_updated;
+      parsedResult = {
+        oldName: typeof parsed?.old_name === "string" ? parsed.old_name : targetPath.split("/").pop() ?? "",
+        newName: typeof parsed?.new_name === "string" ? parsed.new_name : newName,
+        oldPath: typeof parsed?.old_path === "string" ? parsed.old_path : targetPath,
+        newPath: typeof parsed?.new_path === "string" ? parsed.new_path : result,
+        filesUpdated,
+      };
     } catch {
       // Older returns are just the new path; that's fine — we just omit the count.
+      parsedResult = {
+        oldName: targetPath.split("/").pop() ?? "",
+        newName,
+        oldPath: targetPath,
+        newPath: result,
+        filesUpdated,
+      };
     }
+    renameResult = parsedResult;
     return filesUpdated > 0
       ? `Renamed to @${newName}; updated ${filesUpdated} reference${filesUpdated === 1 ? "" : "s"}.`
       : `Renamed to @${newName}.`;
-  });
+  }, { reloadAfter: options.reloadAfter ?? true });
+  return renameResult;
 }
 
 /**

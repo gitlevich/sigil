@@ -424,6 +424,20 @@ describe("LanguageEditor component", () => {
     expect(container.querySelector(".cm-content")!.textContent).toContain("Reloaded");
   });
 
+  it("content sync: manual refresh replaces focused editor content", async () => {
+    const onChange = vi.fn();
+    const { rerender, container } = render(
+      <LanguageEditor content="Original" onChange={onChange} currentPath={["A"]} refreshSerial={0} />,
+    );
+    (container.querySelector(".cm-content") as HTMLElement).focus();
+
+    await act(async () => {
+      rerender(<LanguageEditor content="Reloaded" onChange={onChange} currentPath={["A"]} refreshSerial={1} />);
+    });
+
+    expect(container.querySelector(".cm-content")!.textContent).toContain("Reloaded");
+  });
+
   it("DOM keydown/keyup events are wired on CodeMirror content", async () => {
     let container: HTMLElement;
     await act(async () => {
@@ -634,6 +648,52 @@ describe("LanguageEditor component", () => {
     // RefsDropdown should be rendered with hits
     const dropdown = container!.querySelector("[class*='dropdown']");
     expect(dropdown).not.toBeNull();
+  });
+
+  it("renders refs for an imported target by resolved filesystem path", async () => {
+    const onClear = vi.fn();
+    const importedTarget = folder("EntanglementTTTT", {
+      path: "/mock/App/Libs/AttentionLanguage/EntanglementTTTT",
+    });
+    const imported = folder("Libs", {
+      path: "/mock/App/Libs",
+      children: [
+        folder("AttentionLanguage", {
+          path: "/mock/App/Libs/AttentionLanguage",
+          children: [
+            folder("ContrastSpace", {
+              path: "/mock/App/Libs/AttentionLanguage/ContrastSpace",
+              language: "Imported @EntanglementTTTT.",
+            }),
+            importedTarget,
+          ],
+        }),
+      ],
+    });
+    const root = folder("App", {
+      path: "/mock/App",
+      language: "Workspace @EntanglementTTTT.",
+    });
+
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(
+        <LanguageEditor
+          content="Editing imported target."
+          onChange={vi.fn()}
+          workspaceRoot={root}
+          importedOntologies={imported}
+          sigilRoot={imported}
+          findReferencesTarget={{ name: "EntanglementTTTT", fsPath: importedTarget.path }}
+          onFindReferencesClear={onClear}
+        />,
+      );
+      container = result.container;
+    });
+
+    expect(onClear).toHaveBeenCalled();
+    expect(container!.textContent).toContain("Workspace @EntanglementTTTT.");
+    expect(container!.textContent).toContain("Imported @EntanglementTTTT.");
   });
 
   it("mount effect creates EditorView with all configured extensions", async () => {
@@ -850,6 +910,26 @@ describe("buildCustomKeymap", () => {
     const result = km.value![4].run!(view);
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe("Line 1\nLine 3");
+    view.destroy();
+  });
+
+  it("Mod-z keymap: falls back to undoing the last rename", () => {
+    const onUndoLastRename = vi.fn(() => true);
+    const km = buildCustomKeymap(
+      {}, vi.fn(), vi.fn(),
+      makeRef(),
+      makeRef(onUndoLastRename),
+    );
+    const parent = document.createElement("div");
+    const view = new EditorView({
+      state: EditorState.create({ doc: "plain text", extensions: [km] }),
+      parent,
+    });
+
+    const result = km.value![5].run!(view);
+
+    expect(result).toBe(true);
+    expect(onUndoLastRename).toHaveBeenCalled();
     view.destroy();
   });
 

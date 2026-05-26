@@ -70,6 +70,7 @@ interface SigilPropertyEditorProps {
   onCreateInvariant?: (name: string, target?: SigilFolder) => void;
   onRenameSigil?: (oldName: string, newName: string) => void;
   onRenameProperty?: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
+  onUndoLastRename?: () => boolean;
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   keybindings?: Record<string, string>;
@@ -464,6 +465,7 @@ export function SigilPropertyEditor({
   onCreateInvariant,
   onRenameSigil,
   onRenameProperty,
+  onUndoLastRename,
   onNavigateToSigil,
   onNavigateToAbsPath,
   keybindings = {},
@@ -492,6 +494,7 @@ export function SigilPropertyEditor({
     onCreateInvariant,
     onRenameSigil,
     onRenameProperty,
+    onUndoLastRename,
     onNavigateToSigil,
     onNavigateToAbsPath,
     keybindings,

@@ -65,6 +65,19 @@ describe("WorkspaceProvider integration", () => {
     expect(result.current.s.targetLine).toBe(42);
   });
 
+  it("REPLACE_CURRENT_PATH updates path without changing history", () => {
+    const { result } = renderHook(() => {
+      const s = useWorkspaceState();
+      const d = useWorkspaceDispatch();
+      return { s, d };
+    }, { wrapper });
+    act(() => result.current.d({ type: "NAVIGATE", path: ["Child"], targetLine: 42 }));
+    act(() => result.current.d({ type: "REPLACE_CURRENT_PATH", path: ["RenamedChild"] }));
+    expect(result.current.s.currentPath).toEqual(["RenamedChild"]);
+    expect(result.current.s.history).toEqual([[]]);
+    expect(result.current.s.targetLine).toBeNull();
+  });
+
   it("CLEAR_TARGET_LINE", () => {
     const { result } = renderHook(() => {
       const s = useWorkspaceState();

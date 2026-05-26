@@ -39,6 +39,7 @@ export interface WorkspaceState {
 
 export type WorkspaceAction =
   | { type: "NAVIGATE"; path: string[]; targetLine?: number }
+  | { type: "REPLACE_CURRENT_PATH"; path: string[] }
   | { type: "CLEAR_TARGET_LINE" }
   | { type: "BACK" }
   | { type: "UPDATE_SPEC"; spec: Idea }
@@ -55,6 +56,8 @@ export function reducer(state: WorkspaceState, action: WorkspaceAction): Workspa
       const history = [...state.history, state.currentPath];
       return { ...state, currentPath: action.path, history, targetLine: action.targetLine ?? null };
     }
+    case "REPLACE_CURRENT_PATH":
+      return { ...state, currentPath: action.path, targetLine: null };
     case "CLEAR_TARGET_LINE":
       return { ...state, targetLine: null };
     case "BACK": {

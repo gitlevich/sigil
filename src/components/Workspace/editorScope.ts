@@ -7,11 +7,13 @@ import {
   EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate,
   hoverTooltip, WidgetType, keymap,
 } from "@codemirror/view";
+import { undo } from "@codemirror/commands";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { SigilFolder } from "../../tauri";
+import { findAllReferencesInTree } from "./referenceSearch";
 import {
-  resolveRefName, nameMatches, findAffordance, findInvariantInScope, findAffordanceInScope,
+  resolveRefName, findAffordance, findInvariantInScope, findAffordanceInScope,
   fromDashForm, buildNameIndex,
   resolve,
   allRefsPattern, isInCodeSpan,
@@ -25,6 +27,8 @@ export interface ScopeEntry {
   absolutePath?: string[];
   libPrefix?: string;
 }
+
+export { findAllReferencesInTree } from "./referenceSearch";
 
 // ── Editor context (set by buildScopeHighlighter, read by completion/decoration) ──
 //
@@ -1022,6 +1026,7 @@ export interface PropertyEditorCallbacks {
   onNavigateToSigil?: (name: string) => void;
   onNavigateToAbsPath?: (path: string[]) => void;
   onRenameStart?: (target: { oldName: string; x: number; y: number; kind: "sigil" | "affordance" | "invariant" }) => void;
+  onUndoLastRename?: () => boolean;
   onFindReferences?: (hits: { contextName: string; contextPath: string[]; line: string }[], x: number, y: number) => void;
   keybindings?: Record<string, string>;
 }
@@ -1041,6 +1046,19 @@ export function buildPropertyExtensions(
       activateOnTypingDelay: 0,
     }),
   ];
+
+  if (cb.onUndoLastRename) {
+    const onUndoLastRename = cb.onUndoLastRename;
+    extensions.push(
+      keymap.of([{
+        key: "Mod-z",
+        run: (view) => {
+          if (undo(view)) return true;
+          return onUndoLastRename();
+        },
+      }]),
+    );
+  }
 
   // Alt+Enter: create affordance/invariant
   if (onCreateAffordance || onCreateInvariant) {
@@ -1206,38 +1224,4 @@ export function buildPropertyExtensions(
   }
 
   return extensions;
-}
-
-/** Find all references to a symbol across the entire sigil tree. */
-export function findAllReferencesInTree(ctx: SigilFolder, symbolName: string, path: string[]): { contextName: string; contextPath: string[]; line: string }[] {
-  const results: { contextName: string; contextPath: string[]; line: string }[] = [];
-  const lines = ctx.language.split("\n");
-  for (const line of lines) {
-    let match;
-    allRefsPattern.lastIndex = 0;
-    while ((match = allRefsPattern.exec(line)) !== null) {
-      if (isInCodeSpan(line, match.index)) continue;
-      const text = match[0];
-      let refName: string;
-      if (text.startsWith("@")) {
-        const parts = text.slice(1).split("@");
-        const lastPart = parts[parts.length - 1];
-        const propMatch = lastPart.search(/[#!]/);
-        if (propMatch >= 0) parts[parts.length - 1] = lastPart.slice(0, propMatch);
-        refName = parts[parts.length - 1];
-      } else if (text.startsWith("#")) {
-        refName = fromDashForm(text.slice(1));
-      } else {
-        refName = fromDashForm(text.slice(1));
-      }
-      if (nameMatches(refName, symbolName)) {
-        results.push({ contextName: ctx.name, contextPath: path, line: line.trim() });
-        break;
-      }
-    }
-  }
-  for (const child of ctx.children) {
-    results.push(...findAllReferencesInTree(child, symbolName, [...path, child.name]));
-  }
-  return results;
 }

@@ -182,6 +182,14 @@ async function buildMenu(
     },
   });
 
+  const reloadFromDiskItem = await MenuItem.new({
+    text: "Reload Sigil From Disk",
+    accelerator: "CmdOrCtrl+R",
+    action: () => {
+      window.dispatchEvent(new CustomEvent("sigil-refresh-from-disk"));
+    },
+  });
+
   const fileSubmenu = await Submenu.new({
     text: "File",
     items: [
@@ -190,6 +198,7 @@ async function buildMenu(
       await PredefinedMenuItem.new({ item: "Separator" }),
       recentSubmenu,
       await PredefinedMenuItem.new({ item: "Separator" }),
+      reloadFromDiskItem,
       installOntologiesItem,
       exportItem,
       await PredefinedMenuItem.new({ item: "Separator" }),

@@ -15,6 +15,7 @@ import {
 } from "../../../src/components/OntologyTree/VisionEditor";
 
 vi.mock("../../../src/tauri", () => ({
+  DEFAULT_KEYBINDINGS: {},
   api: {
     writeFile: vi.fn().mockResolvedValue(undefined),
     readSigil: vi.fn(),

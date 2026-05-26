@@ -336,6 +336,10 @@ pub fn rename_context(root_path: String, path: String, new_name: String) -> Resu
         .and_then(|n| n.to_str())
         .ok_or_else(|| "Cannot determine current name".to_string())?
         .to_string();
+    if !old_path.exists() {
+        return Err(format!("Context no longer exists: {}", old_path.display()));
+    }
+
     let parent = old_path
         .parent()
         .ok_or_else(|| "Cannot rename root".to_string())?;
@@ -348,6 +352,7 @@ pub fn rename_context(root_path: String, path: String, new_name: String) -> Resu
 
     let root = Path::new(&root_path);
     let before = narrative::snapshot_sigil_tree(root, old_path)?;
+    let reference_updates = collect_rename_reference_updates(root, old_path, &old_name, &new_name)?;
 
     if case_only {
         let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
@@ -357,7 +362,7 @@ pub fn rename_context(root_path: String, path: String, new_name: String) -> Resu
         fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
     }
 
-    update_references(root, &old_name, &new_name)?;
+    write_scoped_reference_updates(reference_updates, old_path, &new_path)?;
     narrative::record_renamed_sigil(root, before, &new_path)?;
 
     Ok(new_path.to_string_lossy().to_string())
@@ -428,6 +433,7 @@ fn name_variants(old_name: &str, new_name: &str) -> Vec<(String, String)> {
 ///   - `@OldName` → `@NewName` and plural/case variants
 ///   - Multi-segment refs like `@Lib@OldName` → `@Lib@NewName`
 ///   - Exact heading lines: `## OldName` → `## NewName`
+#[cfg(test)]
 fn replace_references(content: &str, old_name: &str, new_name: &str) -> String {
     let variants = name_variants(old_name, new_name);
 
@@ -475,19 +481,355 @@ fn replace_references(content: &str, old_name: &str, new_name: &str) -> String {
     result
 }
 
-/// Walk all text files under root and replace old_name with new_name everywhere.
-/// Also renames any sub-directories that match old_name (except the root itself).
-fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usize, String> {
-    let mut count = 0;
+fn flatten_name(s: &str) -> String {
+    s.to_lowercase().chars().filter(|c| !matches!(c, ' ' | '-' | '_')).collect()
+}
 
-    // First pass: replace references in all readable files
+fn inflections_of(canonical: &str) -> Vec<String> {
+    let lower = canonical.to_lowercase();
+    let mut forms = std::collections::BTreeSet::new();
+    let mut add = |s: String| { forms.insert(flatten_name(&s)); };
+
+    add(lower.clone());
+    add(format!("{}s", lower));
+    if lower.ends_with('y') && lower.len() > 2 {
+        let stem = &lower[..lower.len() - 1];
+        add(format!("{}ies", stem));
+        add(format!("{}iful", stem));
+    }
+    if lower.ends_with("iful") && lower.len() > 5 {
+        add(format!("{}y", &lower[..lower.len() - 4]));
+    }
+    if lower.ends_with('e') {
+        add(format!("{}d", lower));
+        add(format!("{}ing", &lower[..lower.len() - 1]));
+    } else {
+        add(format!("{}ed", lower));
+        add(format!("{}ing", lower));
+    }
+
+    forms.into_iter().collect()
+}
+
+fn name_matches_ref(ref_name: &str, canonical: &str) -> bool {
+    let written = flatten_name(ref_name);
+    inflections_of(canonical).into_iter().any(|form| form == written)
+}
+
+fn replacement_for_written_name(written: &str, old_name: &str, new_name: &str) -> String {
+    for (old_variant, new_variant) in name_variants(old_name, new_name) {
+        if written == old_variant {
+            return new_variant;
+        }
+    }
+    new_name.to_string()
+}
+
+fn child_matches<'a>(parent: &'a SigilFolder, name: &str) -> Vec<&'a SigilFolder> {
+    parent.children.iter().filter(|child| name_matches_ref(name, &child.name)).collect()
+}
+
+fn context_at_path<'a>(root: &'a SigilFolder, path: &[String]) -> Option<&'a SigilFolder> {
+    let mut current = root;
+    for segment in path {
+        let child = current.children.iter().find(|child| child.name == *segment)?;
+        current = child;
+    }
+    Some(current)
+}
+
+fn collect_descendants_by_name<'a>(
+    node: &'a SigilFolder,
+    name: &str,
+    base_path: &[String],
+    excluded: &std::collections::BTreeSet<String>,
+    out: &mut Vec<(&'a SigilFolder, Vec<String>)>,
+) {
+    for child in &node.children {
+        let mut path = base_path.to_vec();
+        path.push(child.name.clone());
+        if name_matches_ref(name, &child.name) && !excluded.contains(&path.join("/")) {
+            out.push((child, path.clone()));
+        }
+        collect_descendants_by_name(child, name, &path, excluded, out);
+    }
+}
+
+enum FirstResolution<'a> {
+    Found(&'a SigilFolder, Vec<String>),
+    Ambiguous,
+    Missing,
+}
+
+fn resolve_first_local<'a>(
+    root: &'a SigilFolder,
+    current_path: &[String],
+    name: &str,
+) -> FirstResolution<'a> {
+    let Some(current) = context_at_path(root, current_path) else {
+        return FirstResolution::Missing;
+    };
+
+    let direct_child_matches = child_matches(current, name);
+    if direct_child_matches.len() == 1 {
+        let child = direct_child_matches[0];
+        let mut path = current_path.to_vec();
+        path.push(child.name.clone());
+        return FirstResolution::Found(child, path);
+    }
+    if direct_child_matches.len() > 1 {
+        return FirstResolution::Ambiguous;
+    }
+
+    if !current_path.is_empty() {
+        let parent_path = &current_path[..current_path.len() - 1];
+        let Some(parent) = context_at_path(root, parent_path) else {
+            return FirstResolution::Missing;
+        };
+        let sibling_matches: Vec<&SigilFolder> = child_matches(parent, name)
+            .into_iter()
+            .filter(|child| child.name != current.name)
+            .collect();
+        if sibling_matches.len() == 1 {
+            let sibling = sibling_matches[0];
+            let mut path = parent_path.to_vec();
+            path.push(sibling.name.clone());
+            return FirstResolution::Found(sibling, path);
+        }
+        if sibling_matches.len() > 1 {
+            return FirstResolution::Ambiguous;
+        }
+    }
+
+    for idx in (0..current_path.len()).rev() {
+        if name_matches_ref(name, &current_path[idx]) {
+            let path = current_path[..=idx].to_vec();
+            return match context_at_path(root, &path) {
+                Some(target) => FirstResolution::Found(target, path),
+                None => FirstResolution::Missing,
+            };
+        }
+    }
+    if name_matches_ref(name, &root.name) {
+        return FirstResolution::Found(root, Vec::new());
+    }
+
+    let mut excluded = std::collections::BTreeSet::new();
+    for child in &current.children {
+        let mut path = current_path.to_vec();
+        path.push(child.name.clone());
+        excluded.insert(path.join("/"));
+    }
+    if !current_path.is_empty() {
+        let parent_path = &current_path[..current_path.len() - 1];
+        if let Some(parent) = context_at_path(root, parent_path) {
+            for child in &parent.children {
+                let mut path = parent_path.to_vec();
+                path.push(child.name.clone());
+                excluded.insert(path.join("/"));
+            }
+        }
+    }
+    for idx in 0..=current_path.len() {
+        excluded.insert(current_path[..idx].join("/"));
+    }
+
+    for depth in (0..=current_path.len()).rev() {
+        let subtree_path = current_path[..depth].to_vec();
+        let Some(subtree_root) = context_at_path(root, &subtree_path) else {
+            return FirstResolution::Missing;
+        };
+        let mut matches = Vec::new();
+        collect_descendants_by_name(subtree_root, name, &subtree_path, &excluded, &mut matches);
+        if matches.len() == 1 {
+            let (target, path) = matches.into_iter().next().unwrap();
+            return FirstResolution::Found(target, path);
+        }
+        if matches.len() > 1 {
+            return FirstResolution::Ambiguous;
+        }
+    }
+
+    FirstResolution::Missing
+}
+
+fn resolve_first_imported<'a>(imported_root: &'a SigilFolder, name: &str) -> FirstResolution<'a> {
+    let excluded = std::collections::BTreeSet::new();
+    let mut matches = Vec::new();
+    collect_descendants_by_name(imported_root, name, &[], &excluded, &mut matches);
+    if matches.len() == 1 {
+        let (target, path) = matches.into_iter().next().unwrap();
+        FirstResolution::Found(target, path)
+    } else if matches.len() > 1 {
+        FirstResolution::Ambiguous
+    } else {
+        FirstResolution::Missing
+    }
+}
+
+fn path_for_sigil(sigil: &SigilFolder) -> PathBuf {
+    PathBuf::from(&sigil.path)
+}
+
+fn resolve_ref_segments<'a>(
+    root: &'a SigilFolder,
+    imported_root: Option<&'a SigilFolder>,
+    current_path: &[String],
+    segments: &[&str],
+) -> Vec<(&'a SigilFolder, Vec<String>, usize)> {
+    let mut resolved = Vec::new();
+    let (mut target, mut path) = match resolve_first_local(root, current_path, segments[0]) {
+        FirstResolution::Found(target, path) => (target, path),
+        FirstResolution::Ambiguous => return resolved,
+        FirstResolution::Missing => {
+            let Some(imported_root) = imported_root else {
+                return resolved;
+            };
+            match resolve_first_imported(imported_root, segments[0]) {
+                FirstResolution::Found(target, path) => (target, path),
+                FirstResolution::Ambiguous | FirstResolution::Missing => return resolved,
+            }
+        }
+    };
+    resolved.push((target, path.clone(), 0));
+
+    for (idx, segment) in segments.iter().enumerate().skip(1) {
+        let matches = child_matches(target, segment);
+        if matches.len() != 1 {
+            break;
+        }
+        target = matches[0];
+        path.push(target.name.clone());
+        resolved.push((target, path.clone(), idx));
+    }
+
+    resolved
+}
+
+fn rewrite_ref_token(
+    token: &str,
+    root_tree: &SigilFolder,
+    imported_tree: Option<&SigilFolder>,
+    current_path: &[String],
+    target_old_path: &Path,
+    old_name: &str,
+    new_name: &str,
+) -> String {
+    let segments: Vec<&str> = token.trim_start_matches('@').split('@').collect();
+    if segments.is_empty() {
+        return token.to_string();
+    }
+
+    let resolved = resolve_ref_segments(root_tree, imported_tree, current_path, &segments);
+    let Some((_, _, segment_idx)) = resolved
+        .into_iter()
+        .find(|(sigil, _, _)| path_for_sigil(sigil) == target_old_path)
+    else {
+        return token.to_string();
+    };
+
+    let mut rewritten: Vec<String> = segments.iter().map(|segment| (*segment).to_string()).collect();
+    rewritten[segment_idx] = replacement_for_written_name(segments[segment_idx], old_name, new_name);
+    format!("@{}", rewritten.join("@"))
+}
+
+fn replace_scoped_references(
+    content: &str,
+    root_tree: &SigilFolder,
+    imported_tree: Option<&SigilFolder>,
+    current_path: &[String],
+    target_old_path: &Path,
+    old_name: &str,
+    new_name: &str,
+) -> String {
+    let re = Regex::new(r"@(?:[a-zA-Z_][\w-]*)(?:@[a-zA-Z_][\w-]*)*").unwrap();
+    re.replace_all(content, |caps: &regex::Captures| {
+        rewrite_ref_token(&caps[0], root_tree, imported_tree, current_path, target_old_path, old_name, new_name)
+    }).to_string()
+}
+
+fn replace_target_headings(content: &str, old_name: &str, new_name: &str) -> String {
+    let variants = name_variants(old_name, new_name);
+    let lines: Vec<String> = content.lines().map(|line| {
+        for depth in 1usize..=6 {
+            let hashes = "#".repeat(depth);
+            for (old_var, new_var) in &variants {
+                if line.trim_end() == format!("{} {}", hashes, old_var) {
+                    return format!("{} {}", hashes, new_var);
+                }
+            }
+        }
+        line.to_string()
+    }).collect();
+
+    let mut result = lines.join("\n");
+    if content.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+fn path_is_inside_workspace_private_or_libs(root: &Path, path: &Path) -> bool {
+    let rel = match path.strip_prefix(root) {
+        Ok(rel) => rel,
+        Err(_) => return false,
+    };
+
+    rel.components().any(|component| {
+        let text = component.as_os_str().to_string_lossy();
+        text == "Libs" || text.starts_with('.')
+    })
+}
+
+fn imported_ontologies_dir_for_target(root: &Path, target: &Path) -> Option<PathBuf> {
+    let local_libs = root.join("Libs");
+    if local_libs.exists() && target.starts_with(&local_libs) {
+        return Some(local_libs);
+    }
+
+    let sibling_libs = root.parent().map(|parent| parent.join("Libs"))?;
+    if sibling_libs.exists() && target.starts_with(&sibling_libs) {
+        return Some(sibling_libs);
+    }
+
+    None
+}
+
+fn context_path_for_file(root: &SigilFolder, path: &Path) -> Option<Vec<String>> {
+    fn walk(node: &SigilFolder, path: &Path, prefix: &[String], best: &mut Option<Vec<String>>) {
+        let node_path = Path::new(&node.path);
+        if path.starts_with(node_path) {
+            *best = Some(prefix.to_vec());
+            for child in &node.children {
+                let mut child_prefix = prefix.to_vec();
+                child_prefix.push(child.name.clone());
+                walk(child, path, &child_prefix, best);
+            }
+        }
+    }
+
+    let mut best = None;
+    walk(root, path, &[], &mut best);
+    best
+}
+
+fn collect_scoped_reference_updates(
+    root: &Path,
+    root_tree: &SigilFolder,
+    imported_tree: Option<&SigilFolder>,
+    target_old_path: &Path,
+    old_name: &str,
+    new_name: &str,
+) -> Result<Vec<(PathBuf, String)>, String> {
+    let mut updates = Vec::new();
+
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
+        .filter_entry(|entry| !path_is_inside_workspace_private_or_libs(root, entry.path()))
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
     {
         let path = entry.path();
-        // Skip binary files and hidden files
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if !matches!(ext, "md" | "json" | "txt" | "") {
             continue;
@@ -496,37 +838,80 @@ fn update_references(root: &Path, old_name: &str, new_name: &str) -> Result<usiz
             Ok(c) => c,
             Err(_) => continue,
         };
-        let updated = replace_references(&content, old_name, new_name);
+        let Some(current_path) = context_path_for_file(root_tree, path) else {
+            continue;
+        };
+        let mut updated = replace_scoped_references(
+            &content,
+            root_tree,
+            imported_tree,
+            &current_path,
+            target_old_path,
+            old_name,
+            new_name,
+        );
+        if path.starts_with(target_old_path) {
+            updated = replace_target_headings(&updated, old_name, new_name);
+        }
         if updated != content {
-            narrative::write_text_file(path, &updated, "update-reference")?;
-            count += 1;
+            updates.push((path.to_path_buf(), updated));
         }
     }
 
-    // Second pass: rename sub-directories matching old_name (bottom-up to avoid path issues)
-    let mut dirs_to_rename: Vec<std::path::PathBuf> = Vec::new();
-    for entry in walkdir::WalkDir::new(root)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir() && e.path() != root)
-    {
-        if entry.file_name().to_str() == Some(old_name) {
-            dirs_to_rename.push(entry.path().to_path_buf());
-        }
+    Ok(updates)
+}
+
+fn collect_rename_reference_updates(
+    root: &Path,
+    target_old_path: &Path,
+    old_name: &str,
+    new_name: &str,
+) -> Result<Vec<(PathBuf, String)>, String> {
+    let app_tree = read_context(root, false, true)?;
+    let libs_root = imported_ontologies_dir_for_target(root, target_old_path);
+    let libs_tree = match &libs_root {
+        Some(path) => Some(read_context(path, true, false)?),
+        None => None,
+    };
+
+    let mut updates = collect_scoped_reference_updates(
+        root,
+        &app_tree,
+        libs_tree.as_ref(),
+        target_old_path,
+        old_name,
+        new_name,
+    )?;
+
+    if let (Some(libs_root), Some(libs_tree)) = (libs_root.as_ref(), libs_tree.as_ref()) {
+        updates.extend(collect_scoped_reference_updates(
+            libs_root,
+            libs_tree,
+            None,
+            target_old_path,
+            old_name,
+            new_name,
+        )?);
     }
-    // Rename deepest first
-    let case_only = old_name.to_lowercase() == new_name.to_lowercase();
-    dirs_to_rename.sort_by(|a, b| b.components().count().cmp(&a.components().count()));
-    for dir in dirs_to_rename {
-        let parent = dir.parent().unwrap();
-        let new_dir = parent.join(new_name);
-        if case_only {
-            let tmp = parent.join(format!("__rename_tmp_{}", old_name));
-            fs::rename(&dir, &tmp).map_err(|e| e.to_string())?;
-            fs::rename(&tmp, &new_dir).map_err(|e| e.to_string())?;
-        } else if !new_dir.exists() {
-            fs::rename(&dir, &new_dir).map_err(|e| e.to_string())?;
-        }
+
+    Ok(updates)
+}
+
+fn write_scoped_reference_updates(
+    updates: Vec<(PathBuf, String)>,
+    target_old_path: &Path,
+    target_new_path: &Path,
+) -> Result<usize, String> {
+    let mut count = 0;
+    for (old_file_path, updated) in updates {
+        let file_path = if old_file_path.starts_with(target_old_path) {
+            let rel = old_file_path.strip_prefix(target_old_path).map_err(|e| e.to_string())?;
+            target_new_path.join(rel)
+        } else {
+            old_file_path
+        };
+        narrative::write_text_file(&file_path, &updated, "update-reference")?;
+        count += 1;
     }
 
     Ok(count)
@@ -540,6 +925,9 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
         .and_then(|n| n.to_str())
         .ok_or_else(|| "Cannot determine current name".to_string())?
         .to_string();
+    if !old_path.exists() {
+        return Err(format!("Context no longer exists: {}", old_path.display()));
+    }
 
     let parent = old_path
         .parent()
@@ -553,6 +941,7 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
 
     let root = Path::new(&root_path);
     let before = narrative::snapshot_sigil_tree(root, old_path)?;
+    let reference_updates = collect_rename_reference_updates(root, old_path, &old_name, &new_name)?;
 
     if case_only {
         let tmp_path = parent.join(format!("__rename_tmp_{}", old_name));
@@ -562,10 +951,13 @@ pub fn rename_sigil(root_path: String, path: String, new_name: String) -> Result
         fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
     }
 
-    let files_updated = update_references(root, &old_name, &new_name)?;
+    let files_updated = write_scoped_reference_updates(reference_updates, old_path, &new_path)?;
     narrative::record_renamed_sigil(root, before, &new_path)?;
 
     Ok(serde_json::json!({
+        "old_name": old_name,
+        "new_name": new_name,
+        "old_path": old_path.to_string_lossy(),
         "new_path": new_path.to_string_lossy(),
         "files_updated": files_updated,
     }).to_string())
@@ -631,6 +1023,9 @@ pub fn preview_rename_sigil(
         .and_then(|n| n.to_str())
         .ok_or_else(|| "Cannot determine current name".to_string())?
         .to_string();
+    if !old_path.exists() {
+        return Err(format!("Context no longer exists: {}", old_path.display()));
+    }
 
     let parent = old_path
         .parent()
@@ -643,87 +1038,98 @@ pub fn preview_rename_sigil(
     }
 
     let root = Path::new(&root_path);
+    let app_tree = read_context(root, false, true)?;
+    let libs_root = imported_ontologies_dir_for_target(root, old_path);
+    let libs_tree = match &libs_root {
+        Some(path) => Some(read_context(path, true, false)?),
+        None => None,
+    };
     let mut file_changes: Vec<FileReferenceChange> = Vec::new();
     let mut total_match_count = 0usize;
 
-    for entry in walkdir::WalkDir::new(root)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-    {
-        let file_path = entry.path();
-        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !matches!(ext, "md" | "json" | "txt" | "") {
-            continue;
-        }
-        let content = match fs::read_to_string(file_path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-        let updated = replace_references(&content, &old_name, &new_name);
-        if updated == content {
-            continue;
-        }
+    let mut scan_roots: Vec<(&Path, &SigilFolder, Option<&SigilFolder>)> = vec![
+        (root, &app_tree, libs_tree.as_ref()),
+    ];
+    if let (Some(libs_root), Some(libs_tree)) = (libs_root.as_ref(), libs_tree.as_ref()) {
+        scan_roots.push((libs_root.as_path(), libs_tree, None));
+    }
 
-        let old_lines: Vec<&str> = content.lines().collect();
-        let new_lines: Vec<&str> = updated.lines().collect();
-        let mut sample_lines: Vec<ReferenceChangeLine> = Vec::new();
-        let mut match_count = 0usize;
+    for (scan_root, root_tree, imported_tree) in scan_roots {
+        for entry in walkdir::WalkDir::new(scan_root)
+            .into_iter()
+            .filter_entry(|entry| !path_is_inside_workspace_private_or_libs(scan_root, entry.path()))
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_file())
+        {
+            let file_path = entry.path();
+            let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if !matches!(ext, "md" | "json" | "txt" | "") {
+                continue;
+            }
+            let content = match fs::read_to_string(file_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let Some(current_path) = context_path_for_file(&root_tree, file_path) else {
+                continue;
+            };
+            let mut updated = replace_scoped_references(
+                &content,
+                root_tree,
+                imported_tree,
+                &current_path,
+                old_path,
+                &old_name,
+                &new_name,
+            );
+            if file_path.starts_with(old_path) {
+                updated = replace_target_headings(&updated, &old_name, &new_name);
+            }
+            if updated == content {
+                continue;
+            }
 
-        let limit = old_lines.len().max(new_lines.len());
-        for i in 0..limit {
-            let old_line = old_lines.get(i).copied().unwrap_or("");
-            let new_line = new_lines.get(i).copied().unwrap_or("");
-            if old_line != new_line {
-                match_count += 1;
-                if sample_lines.len() < MAX_SAMPLE_LINES {
-                    sample_lines.push(ReferenceChangeLine {
-                        line_number: i + 1,
-                        before: old_line.to_string(),
-                        after: new_line.to_string(),
-                    });
+            let old_lines: Vec<&str> = content.lines().collect();
+            let new_lines: Vec<&str> = updated.lines().collect();
+            let mut sample_lines: Vec<ReferenceChangeLine> = Vec::new();
+            let mut match_count = 0usize;
+
+            let limit = old_lines.len().max(new_lines.len());
+            for i in 0..limit {
+                let old_line = old_lines.get(i).copied().unwrap_or("");
+                let new_line = new_lines.get(i).copied().unwrap_or("");
+                if old_line != new_line {
+                    match_count += 1;
+                    if sample_lines.len() < MAX_SAMPLE_LINES {
+                        sample_lines.push(ReferenceChangeLine {
+                            line_number: i + 1,
+                            before: old_line.to_string(),
+                            after: new_line.to_string(),
+                        });
+                    }
                 }
             }
-        }
 
-        let rel_path = file_path
-            .strip_prefix(root)
-            .unwrap_or(file_path)
-            .to_string_lossy()
-            .replace('\\', "/");
-        file_changes.push(FileReferenceChange {
-            path: rel_path,
-            match_count,
-            sample_lines,
-        });
-        total_match_count += match_count;
-    }
-
-    // Directories whose basename equals old_name (excluding the root) would also rename.
-    let mut directory_renames: Vec<DirectoryRename> = Vec::new();
-    for entry in walkdir::WalkDir::new(root)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir() && e.path() != root && e.path() != old_path)
-    {
-        if entry.file_name().to_str() == Some(old_name.as_str()) {
-            let from = entry.path();
-            let parent_dir = from.parent().unwrap();
-            let to = parent_dir.join(&new_name);
-            directory_renames.push(DirectoryRename {
-                from_path: from.to_string_lossy().to_string(),
-                to_path: to.to_string_lossy().to_string(),
+            let rel_path = file_path
+                .strip_prefix(root)
+                .unwrap_or(file_path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            file_changes.push(FileReferenceChange {
+                path: rel_path,
+                match_count,
+                sample_lines,
             });
+            total_match_count += match_count;
         }
     }
-    // The target sigil itself — always first in the list.
-    directory_renames.insert(
-        0,
+
+    let directory_renames = vec![
         DirectoryRename {
             from_path: old_path.to_string_lossy().to_string(),
             to_path: new_path.to_string_lossy().to_string(),
         },
-    );
+    ];
 
     Ok(ReshapePreview {
         operation: "rename-sigil".to_string(),
@@ -1103,6 +1509,381 @@ mod tests {
         let result = rename_context(root_path.clone(), auth_path, "Billing".to_string());
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("already exists"));
+    }
+
+    #[test]
+    fn test_rename_sigil_missing_source_reports_stale_before_collision() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "").unwrap();
+
+        let attention = root.join("Libs").join("AttentionLanguage");
+        let existing = attention.join("Entanglement");
+        let stale = attention.join("EntanglementTTTT");
+        fs::create_dir_all(&existing).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(attention.join("language.md"), "").unwrap();
+        fs::write(existing.join("language.md"), "# Entanglement\n").unwrap();
+
+        let result = rename_sigil(
+            root.to_string_lossy().to_string(),
+            stale.to_string_lossy().to_string(),
+            "Entanglement".to_string(),
+        );
+
+        assert!(result.is_err());
+        let message = result.unwrap_err();
+        assert!(message.contains("Context no longer exists"));
+        assert!(!message.contains("already exists"));
+    }
+
+    #[test]
+    fn test_preview_rename_sigil_missing_source_reports_stale_before_collision() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "").unwrap();
+
+        let attention = root.join("Libs").join("AttentionLanguage");
+        let existing = attention.join("Entanglement");
+        let stale = attention.join("EntanglementTTTT");
+        fs::create_dir_all(&existing).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(attention.join("language.md"), "").unwrap();
+        fs::write(existing.join("language.md"), "# Entanglement\n").unwrap();
+
+        let result = preview_rename_sigil(
+            root.to_string_lossy().to_string(),
+            stale.to_string_lossy().to_string(),
+            "Entanglement".to_string(),
+        );
+
+        assert!(result.is_err());
+        let message = result.unwrap_err();
+        assert!(message.contains("Context no longer exists"));
+        assert!(!message.contains("already exists"));
+    }
+
+    #[test]
+    fn test_rename_sigil_local_scope_eclipses_imported_ontology() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "See @AttentionLanguage@Narrative.\n").unwrap();
+
+        let app = root.join("Application");
+        fs::create_dir(&app).unwrap();
+        fs::write(app.join("language.md"), "").unwrap();
+
+        let chapter = app.join("Chapter");
+        fs::create_dir(&chapter).unwrap();
+        fs::write(chapter.join("language.md"), "").unwrap();
+
+        let editing = chapter.join("Editing");
+        fs::create_dir(&editing).unwrap();
+        fs::write(editing.join("language.md"), "Local ref @Narrative.\n").unwrap();
+
+        let vocabulary = app.join("Vocabulary");
+        fs::create_dir(&vocabulary).unwrap();
+        fs::write(vocabulary.join("language.md"), "").unwrap();
+
+        let narrative = vocabulary.join("Narrative");
+        fs::create_dir(&narrative).unwrap();
+        fs::write(narrative.join("language.md"), "# Narrative\n").unwrap();
+
+        let imported_narrative = root.join("Libs").join("AttentionLanguage").join("Narrative");
+        fs::create_dir_all(&imported_narrative).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(root.join("Libs").join("AttentionLanguage").join("language.md"), "").unwrap();
+        fs::write(imported_narrative.join("language.md"), "Imported @Narrative.\n").unwrap();
+
+        rename_sigil(
+            root.to_string_lossy().to_string(),
+            narrative.to_string_lossy().to_string(),
+            "Collage".to_string(),
+        ).unwrap();
+
+        assert!(vocabulary.join("Collage").exists());
+        assert!(imported_narrative.exists());
+        assert!(!root.join("Libs").join("AttentionLanguage").join("Collage").exists());
+        assert_eq!(fs::read_to_string(editing.join("language.md")).unwrap(), "Local ref @Collage.\n");
+        assert_eq!(fs::read_to_string(root.join("language.md")).unwrap(), "See @AttentionLanguage@Narrative.\n");
+        assert_eq!(fs::read_to_string(imported_narrative.join("language.md")).unwrap(), "Imported @Narrative.\n");
+    }
+
+    #[test]
+    fn test_rename_sigil_allows_imported_ontology_scope() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "Local @Narrative. Imported @AttentionLanguage@Narrative.\n").unwrap();
+
+        let vocabulary = root.join("Vocabulary");
+        fs::create_dir(&vocabulary).unwrap();
+        fs::write(vocabulary.join("language.md"), "").unwrap();
+        let local_narrative = vocabulary.join("Narrative");
+        fs::create_dir(&local_narrative).unwrap();
+        fs::write(local_narrative.join("language.md"), "# Narrative\n").unwrap();
+
+        let imported_narrative = root.join("Libs").join("AttentionLanguage").join("Narrative");
+        fs::create_dir_all(&imported_narrative).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(root.join("Libs").join("AttentionLanguage").join("language.md"), "").unwrap();
+        fs::write(imported_narrative.join("language.md"), "Imported @Narrative.\n").unwrap();
+
+        rename_sigil(
+            root.to_string_lossy().to_string(),
+            imported_narrative.to_string_lossy().to_string(),
+            "Story".to_string(),
+        ).unwrap();
+
+        let imported_story = root.join("Libs").join("AttentionLanguage").join("Story");
+        assert!(imported_story.exists());
+        assert!(!imported_narrative.exists());
+        assert!(local_narrative.exists());
+        assert_eq!(
+            fs::read_to_string(root.join("language.md")).unwrap(),
+            "Local @Narrative. Imported @AttentionLanguage@Story.\n"
+        );
+        assert_eq!(fs::read_to_string(imported_story.join("language.md")).unwrap(), "Imported @Story.\n");
+    }
+
+    #[test]
+    fn test_rename_sigil_imported_bare_refs_update_when_unshadowed() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(
+            root.join("language.md"),
+            "Bare @Narrative. Qualified @AttentionLanguage@Narrative.\n",
+        )
+        .unwrap();
+
+        let imported_narrative = root.join("Libs").join("AttentionLanguage").join("Narrative");
+        fs::create_dir_all(&imported_narrative).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(root.join("Libs").join("AttentionLanguage").join("language.md"), "").unwrap();
+        fs::write(imported_narrative.join("language.md"), "Self @Narrative.\n").unwrap();
+
+        rename_sigil(
+            root.to_string_lossy().to_string(),
+            imported_narrative.to_string_lossy().to_string(),
+            "Story".to_string(),
+        )
+        .unwrap();
+
+        let imported_story = root.join("Libs").join("AttentionLanguage").join("Story");
+        assert!(imported_story.exists());
+        assert_eq!(
+            fs::read_to_string(root.join("language.md")).unwrap(),
+            "Bare @Story. Qualified @AttentionLanguage@Story.\n"
+        );
+        assert_eq!(fs::read_to_string(imported_story.join("language.md")).unwrap(), "Self @Story.\n");
+    }
+
+    #[test]
+    fn test_rename_sigil_imported_bare_refs_stay_when_local_scope_is_ambiguous() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(
+            root.join("language.md"),
+            "Ambiguous @Narrative. Qualified @AttentionLanguage@Narrative.\n",
+        )
+        .unwrap();
+
+        for vocabulary in ["VocabularyA", "VocabularyB"] {
+            let local_narrative = root.join(vocabulary).join("Narrative");
+            fs::create_dir_all(&local_narrative).unwrap();
+            fs::write(root.join(vocabulary).join("language.md"), "").unwrap();
+            fs::write(local_narrative.join("language.md"), "# Narrative\n").unwrap();
+        }
+
+        let imported_narrative = root.join("Libs").join("AttentionLanguage").join("Narrative");
+        fs::create_dir_all(&imported_narrative).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(root.join("Libs").join("AttentionLanguage").join("language.md"), "").unwrap();
+        fs::write(imported_narrative.join("language.md"), "Self @Narrative.\n").unwrap();
+
+        rename_sigil(
+            root.to_string_lossy().to_string(),
+            imported_narrative.to_string_lossy().to_string(),
+            "Story".to_string(),
+        )
+        .unwrap();
+
+        let imported_story = root.join("Libs").join("AttentionLanguage").join("Story");
+        assert!(imported_story.exists());
+        assert!(root.join("VocabularyA").join("Narrative").exists());
+        assert!(root.join("VocabularyB").join("Narrative").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("language.md")).unwrap(),
+            "Ambiguous @Narrative. Qualified @AttentionLanguage@Story.\n"
+        );
+        assert_eq!(fs::read_to_string(imported_story.join("language.md")).unwrap(), "Self @Story.\n");
+    }
+
+    #[test]
+    fn test_rename_sigil_imported_entanglement_fixture_updates_workspace_and_undoes() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Sigil");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(
+            root.join("language.md"),
+            "Local @Entanglement. Qualified @AttentionLanguage@Entanglement. Lower @entanglement.\n",
+        )
+        .unwrap();
+
+        let outside = root.join("Idea").join("Workspace").join("Outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("language.md"), "@Entanglement is proximity.\n").unwrap();
+
+        let attention = root.join("Libs").join("AttentionLanguage");
+        let imported_entanglement = attention.join("Entanglement");
+        let contrast_space = attention.join("ContrastSpace");
+        fs::create_dir_all(&imported_entanglement).unwrap();
+        fs::create_dir_all(&contrast_space).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(attention.join("language.md"), "").unwrap();
+        fs::write(imported_entanglement.join("language.md"), "# Entanglement\n").unwrap();
+        fs::write(contrast_space.join("language.md"), "Structure @Entanglement.\n").unwrap();
+
+        let first = rename_sigil(
+            root.to_string_lossy().to_string(),
+            imported_entanglement.to_string_lossy().to_string(),
+            "EntanglementTTTT".to_string(),
+        )
+        .unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&first).unwrap();
+        let renamed_path = parsed["new_path"].as_str().unwrap().to_string();
+        assert_eq!(parsed["files_updated"].as_u64(), Some(4));
+
+        let renamed_entanglement = attention.join("EntanglementTTTT");
+        assert!(renamed_entanglement.exists());
+        assert!(!imported_entanglement.exists());
+        assert_eq!(
+            fs::read_to_string(root.join("language.md")).unwrap(),
+            "Local @EntanglementTTTT. Qualified @AttentionLanguage@EntanglementTTTT. Lower @entanglementtttt.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(outside.join("language.md")).unwrap(),
+            "@EntanglementTTTT is proximity.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(contrast_space.join("language.md")).unwrap(),
+            "Structure @EntanglementTTTT.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(renamed_entanglement.join("language.md")).unwrap(),
+            "# EntanglementTTTT\n"
+        );
+
+        rename_sigil(
+            root.to_string_lossy().to_string(),
+            renamed_path,
+            "Entanglement".to_string(),
+        )
+        .unwrap();
+
+        assert!(imported_entanglement.exists());
+        assert!(!renamed_entanglement.exists());
+        assert_eq!(
+            fs::read_to_string(root.join("language.md")).unwrap(),
+            "Local @Entanglement. Qualified @AttentionLanguage@Entanglement. Lower @entanglement.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(outside.join("language.md")).unwrap(),
+            "@Entanglement is proximity.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(contrast_space.join("language.md")).unwrap(),
+            "Structure @Entanglement.\n"
+        );
+        assert_eq!(
+            fs::read_to_string(imported_entanglement.join("language.md")).unwrap(),
+            "# Entanglement\n"
+        );
+    }
+
+    #[test]
+    fn test_preview_rename_sigil_matches_imported_ontology_scope() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("Scoped");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("vision.md"), "").unwrap();
+        fs::write(root.join("language.md"), "Local @Narrative. Imported @AttentionLanguage@Narrative.\n")
+            .unwrap();
+
+        let vocabulary = root.join("Vocabulary");
+        fs::create_dir(&vocabulary).unwrap();
+        fs::write(vocabulary.join("language.md"), "").unwrap();
+        let local_narrative = vocabulary.join("Narrative");
+        fs::create_dir(&local_narrative).unwrap();
+        fs::write(local_narrative.join("language.md"), "# Narrative\n").unwrap();
+
+        let imported_narrative = root.join("Libs").join("AttentionLanguage").join("Narrative");
+        fs::create_dir_all(&imported_narrative).unwrap();
+        fs::write(root.join("Libs").join("language.md"), "").unwrap();
+        fs::write(root.join("Libs").join("AttentionLanguage").join("language.md"), "").unwrap();
+        fs::write(imported_narrative.join("language.md"), "Imported @Narrative.\n").unwrap();
+
+        let preview = preview_rename_sigil(
+            root.to_string_lossy().to_string(),
+            imported_narrative.to_string_lossy().to_string(),
+            "Story".to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(preview.directory_renames.len(), 1);
+        assert_eq!(
+            preview.directory_renames[0].from_path,
+            imported_narrative.to_string_lossy().to_string()
+        );
+        assert_eq!(
+            preview.directory_renames[0].to_path,
+            root.join("Libs")
+                .join("AttentionLanguage")
+                .join("Story")
+                .to_string_lossy()
+                .to_string()
+        );
+
+        let root_change = preview
+            .file_changes
+            .iter()
+            .find(|change| change.path == "language.md")
+            .expect("root language should preview qualified imported reference update");
+        assert_eq!(root_change.match_count, 1);
+        assert_eq!(
+            root_change.sample_lines[0].before,
+            "Local @Narrative. Imported @AttentionLanguage@Narrative."
+        );
+        assert_eq!(
+            root_change.sample_lines[0].after,
+            "Local @Narrative. Imported @AttentionLanguage@Story."
+        );
+
+        let imported_change = preview
+            .file_changes
+            .iter()
+            .find(|change| change.path == "Libs/AttentionLanguage/Narrative/language.md")
+            .expect("imported language should preview bare imported reference update");
+        assert_eq!(imported_change.match_count, 1);
+        assert_eq!(imported_change.sample_lines[0].before, "Imported @Narrative.");
+        assert_eq!(imported_change.sample_lines[0].after, "Imported @Story.");
+
+        assert!(!preview
+            .file_changes
+            .iter()
+            .any(|change| change.path == "Vocabulary/Narrative/language.md"));
     }
 
     #[test]

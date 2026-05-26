@@ -3,9 +3,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, act, waitFor } from "@testing-library/react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import type { SigilFolder, Idea } from "../../../src/tauri";
-import { WorkspaceProvider } from "../../../src/state/WorkspaceContext";
+import { WorkspaceProvider, useWorkspaceState } from "../../../src/state/WorkspaceContext";
 import { ToastContext } from "../../../src/hooks/useToast";
 import type { Toast } from "../../../src/hooks/useToast";
 import {
@@ -88,12 +88,20 @@ function node(name: string, opts?: Partial<OntologyNode>): OntologyNode {
 
 const toastCtx = { toasts: [] as Toast[], addToast: vi.fn(), removeToast: vi.fn() };
 
-function Wrapper({ spec, children }: { spec: Idea; children: ReactNode }) {
+function Wrapper({ spec, children, initialPath = [] }: { spec: Idea; children: ReactNode; initialPath?: string[] }) {
   return (
     <ToastContext.Provider value={toastCtx}>
-      <WorkspaceProvider spec={spec}>{children}</WorkspaceProvider>
+      <WorkspaceProvider spec={spec} initialPath={initialPath}>{children}</WorkspaceProvider>
     </ToastContext.Provider>
   );
+}
+
+function CurrentPathProbe({ onPath }: { onPath: (path: string[]) => void }) {
+  const ws = useWorkspaceState();
+  useEffect(() => {
+    onPath(ws.currentPath);
+  }, [onPath, ws.currentPath]);
+  return null;
 }
 
 // ── Pure helper tests ──
@@ -388,6 +396,15 @@ describe("OntologyTree component", () => {
 
   it("rename dialog: Enter commits rename", async () => {
     const { api } = await import("../../../src/tauri");
+    vi.mocked(api.renameSigil).mockResolvedValueOnce(JSON.stringify({
+      old_name: "Child",
+      new_name: "NewName",
+      old_path: "/mock/App/Child",
+      new_path: "/mock/App/NewName",
+      files_updated: 2,
+    }));
+    const renamed = vi.fn();
+    window.addEventListener("sigil-rename-completed", renamed);
     const root = makeFolder("App", { children: [makeFolder("Child", { path: "/mock/App/Child" })], path: "/mock/App" });
     let container: HTMLElement;
     await act(async () => {
@@ -408,9 +425,60 @@ describe("OntologyTree component", () => {
           fireEvent.change(renameInput, { target: { value: "NewName" } });
           await act(async () => { fireEvent.keyDown(renameInput, { key: "Enter" }); });
           expect(api.renameSigil).toHaveBeenCalled();
+          await waitFor(() => expect(renamed).toHaveBeenCalled());
+          expect((renamed.mock.calls[0][0] as CustomEvent).detail).toMatchObject({
+            oldName: "Child",
+            newName: "NewName",
+            oldPath: "/mock/App/Child",
+            newPath: "/mock/App/NewName",
+            filesUpdated: 2,
+          });
         }
       }
     }
+    window.removeEventListener("sigil-rename-completed", renamed);
+  });
+
+  it("rename keeps current ontology selection on the renamed sigil", async () => {
+    const { api } = await import("../../../src/tauri");
+    vi.mocked(api.renameSigil).mockResolvedValueOnce(JSON.stringify({
+      old_name: "Child",
+      new_name: "NewName",
+      old_path: "/mock/App/Child",
+      new_path: "/mock/App/NewName",
+      files_updated: 0,
+    }));
+    vi.mocked(api.readSigil).mockResolvedValueOnce(makeSpec(makeFolder("App", {
+      children: [makeFolder("NewName", { path: "/mock/App/NewName" })],
+      path: "/mock/App",
+    })));
+
+    const observedPaths: string[][] = [];
+    const root = makeFolder("App", { children: [makeFolder("Child", { path: "/mock/App/Child" })], path: "/mock/App" });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(
+        <Wrapper spec={makeSpec(root)} initialPath={["Child"]}>
+          <OntologyTree />
+          <CurrentPathProbe onPath={(path) => observedPaths.push(path)} />
+        </Wrapper>,
+      );
+      container = result.container;
+    });
+
+    const childSpan = Array.from(container!.querySelectorAll("[class*='term']")).find(el => el.textContent === "Child");
+    const row = childSpan?.closest("[class*='row']") || childSpan?.parentElement;
+    expect(row).toBeTruthy();
+    await act(async () => { fireEvent.contextMenu(row!, { clientX: 50, clientY: 50 }); });
+    const renameBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Rename");
+    expect(renameBtn).toBeTruthy();
+    await act(async () => { fireEvent.click(renameBtn!); });
+    const renameInput = container!.querySelector("[class*='renameInput']") as HTMLInputElement;
+    fireEvent.change(renameInput, { target: { value: "NewName" } });
+    await act(async () => { fireEvent.keyDown(renameInput, { key: "Enter" }); });
+
+    await waitFor(() => expect(observedPaths[observedPaths.length - 1]).toEqual(["NewName"]));
+    expect(api.renameSigil).toHaveBeenCalledWith("/mock/App", "/mock/App/Child", "NewName");
   });
 
   it("rename dialog: Escape cancels", async () => {
@@ -459,6 +527,54 @@ describe("OntologyTree component", () => {
         await act(async () => { fireEvent.click(findRefsBtn); });
       }
     }
+  });
+
+  it("context menu Find References resolves imported ontology refs across workspace and Libs", async () => {
+    const importedEntanglement = makeFolder("EntanglementTTTT", {
+      path: "/mock/App/Libs/AttentionLanguage/EntanglementTTTT",
+      isImported: true,
+    });
+    const imported = makeFolder("Libs", {
+      path: "/mock/App/Libs",
+      isImported: true,
+      children: [
+        makeFolder("AttentionLanguage", {
+          path: "/mock/App/Libs/AttentionLanguage",
+          isImported: true,
+          children: [
+            makeFolder("ContrastSpace", {
+              path: "/mock/App/Libs/AttentionLanguage/ContrastSpace",
+              language: "Structure sees @EntanglementTTTT.",
+              isImported: true,
+            }),
+            importedEntanglement,
+          ],
+        }),
+      ],
+    });
+    const root = makeFolder("App", {
+      path: "/mock/App",
+      language: "Workspace uses @EntanglementTTTT.",
+    });
+    let container: HTMLElement;
+    await act(async () => {
+      const result = render(<Wrapper spec={makeSpec(root, imported)}><OntologyTree /></Wrapper>);
+      container = result.container;
+    });
+
+    const entanglementSpan = Array.from(container!.querySelectorAll("[class*='term']"))
+      .find(el => el.textContent === "EntanglementTTTT");
+    const row = entanglementSpan?.closest("[class*='row']") || entanglementSpan?.parentElement;
+    expect(row).toBeTruthy();
+    await act(async () => { fireEvent.contextMenu(row!, { clientX: 50, clientY: 50 }); });
+    const findRefsBtn = Array.from(container!.querySelectorAll("button")).find(b => b.textContent === "Find References");
+    expect(findRefsBtn).toBeTruthy();
+    await act(async () => { fireEvent.click(findRefsBtn!); });
+
+    await waitFor(() => {
+      expect(container!.textContent).toContain("Workspace uses @EntanglementTTTT.");
+      expect(container!.textContent).toContain("Structure sees @EntanglementTTTT.");
+    });
   });
 
   it("context menu Open in Finder calls api", async () => {

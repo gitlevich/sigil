@@ -28,6 +28,10 @@ import { setGlobalImportedOntologies } from "./editorScope";
 import { useAutoSave, setBase } from "../../hooks/useAutoSave";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
+import type { RenameSigilResult } from "../../actions/workspace";
+import type { ReferenceTarget } from "./referenceSearch";
+import { currentPathAfterRename } from "./renamePath";
+import { recordCompletedRename, undoLastRename } from "./renameUndo";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SpatialDesktop } from "./SpatialDesktop";
@@ -95,17 +99,47 @@ export function Workspace() {
   const appState = useAppState();
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
-  const { navigate, back } = useWorkspaceActions();
+  const { navigate, back, reload } = useWorkspaceActions();
   const layout = useLayoutState();
   const layoutDispatch = useLayoutDispatch();
   const { save } = useAutoSave();
 
   // Ephemeral UI state
   const [menuRenaming, setMenuRenaming] = useState<{ name: string } | null>(null);
+  const [refreshSerial, setRefreshSerial] = useState(0);
   const menuRenameRef = useRef<HTMLInputElement>(null);
-  const findReferencesNameRef = useRef<string | null>(null);
+  const [findReferencesTarget, setFindReferencesTarget] = useState<ReferenceTarget | null>(null);
+  const renameUndoStackRef = useRef<RenameSigilResult[]>([]);
+  const undoingRenameRef = useRef(false);
 
   const actionDeps = useActionDeps();
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
+
+  const preserveCurrentPathAfterRename = useCallback((
+    pathSnapshot: string[],
+    selectedFolderPath: string | null | undefined,
+    result: RenameSigilResult | null,
+  ) => {
+    const nextPath = currentPathAfterRename(pathSnapshot, selectedFolderPath, result);
+    if (nextPath) wsDispatch({ type: "REPLACE_CURRENT_PATH", path: nextPath });
+  }, [wsDispatch]);
+
+  const handleUndoLastRename = useCallback((): boolean => {
+    return undoLastRename(
+      renameUndoStackRef,
+      undoingRenameRef,
+      async (targetPath, newName) => {
+        const current = wsRef.current;
+        const selectedBeforeRename = resolveCurrentFolder(current);
+        const pathBeforeRename = [...current.currentPath];
+        const result = await actions.renameSigil(targetPath, newName, actionDeps, { reloadAfter: false });
+        preserveCurrentPathAfterRename(pathBeforeRename, selectedBeforeRename?.path, result);
+        if (result) await reload();
+        return result;
+      },
+    );
+  }, [actionDeps, preserveCurrentPathAfterRename, reload]);
 
   // Keep the ontology tree's expansion in sync with the inhabited sigil, so
   // that whenever the panel is next opened the current sigil is already
@@ -185,7 +219,15 @@ export function Workspace() {
         if (!cm) {
           e.preventDefault();
           const currentFolder = resolveCurrentFolder(ws);
-          if (currentFolder) findReferencesNameRef.current = currentFolder.name;
+          if (currentFolder) setFindReferencesTarget({ name: currentFolder.name, fsPath: currentFolder.path });
+        }
+        return;
+      }
+      if (matchesBinding(e, "Mod-z")) {
+        const cm = (e.target as HTMLElement)?.closest(".cm-editor");
+        if (!cm && renameUndoStackRef.current.length > 0) {
+          e.preventDefault();
+          handleUndoLastRename();
         }
         return;
       }
@@ -193,7 +235,7 @@ export function Workspace() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [ws, appState.settings.keybindings, layoutDispatch]);
+  }, [ws, appState.settings.keybindings, layoutDispatch, handleUndoLastRename]);
 
   useEffect(() => {
     const handler = () => {
@@ -206,6 +248,36 @@ export function Workspace() {
   }, [ws]);
 
   useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<RenameSigilResult>).detail;
+      recordCompletedRename(renameUndoStackRef, detail, undoingRenameRef);
+    };
+    window.addEventListener("sigil-rename-completed", handler);
+    return () => window.removeEventListener("sigil-rename-completed", handler);
+  }, []);
+
+  const handleRefreshFromDisk = useCallback(async () => {
+    await reload();
+    setRefreshSerial((serial) => serial + 1);
+    actionDeps.confirm?.("Reloaded from disk.");
+  }, [reload, actionDeps]);
+
+  useEffect(() => {
+    const handler = () => { void handleRefreshFromDisk(); };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (!matchesBinding(e, "Mod-r")) return;
+      e.preventDefault();
+      void handleRefreshFromDisk();
+    };
+    window.addEventListener("sigil-refresh-from-disk", handler);
+    window.addEventListener("keydown", keyHandler, true);
+    return () => {
+      window.removeEventListener("sigil-refresh-from-disk", handler);
+      window.removeEventListener("keydown", keyHandler, true);
+    };
+  }, [handleRefreshFromDisk]);
+
+  useEffect(() => {
     if (menuRenaming && menuRenameRef.current) {
       menuRenameRef.current.focus();
       menuRenameRef.current.select();
@@ -213,8 +285,6 @@ export function Workspace() {
   }, [menuRenaming]);
 
   const dispatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wsRef = useRef(ws);
-  wsRef.current = ws;
 
   // Cancel any pending debounced state update when navigating away.
   // Also set the base version for the new path so conflict detection works.
@@ -300,13 +370,18 @@ export function Workspace() {
   }, [ws, actionDeps]);
 
   const handleRenameSigil = useCallback(async (oldName: string, newName: string) => {
+    const selectedBeforeRename = resolveCurrentFolder(ws);
+    const pathBeforeRename = [...ws.currentPath];
     const { scopeRoot, scopePath } = scopeInfo(ws);
     const result = coreResolve(scopeRoot as Sigil, scopePath, `@${oldName}`, ws.spec.importedOntologies);
     if (result && !result.ambiguous) {
       const target = result.target as SigilFolder;
-      await actions.renameSigil(target.path, newName, actionDeps);
+      const renameResult = await actions.renameSigil(target.path, newName, actionDeps, { reloadAfter: false });
+      recordCompletedRename(renameUndoStackRef, renameResult, undoingRenameRef);
+      preserveCurrentPathAfterRename(pathBeforeRename, selectedBeforeRename?.path, renameResult);
+      if (renameResult) await reload();
     }
-  }, [ws, actionDeps]);
+  }, [ws, actionDeps, preserveCurrentPathAfterRename, reload]);
 
   const handleNavigateToSigil = useCallback((name: string) => {
     const { scopeRoot, scopePath } = scopeInfo(ws);
@@ -418,15 +493,19 @@ export function Workspace() {
               scopeNames={scopeNames}
               scopeRoot={scopeRoot}
               scopePath={scopePath}
+              workspaceRoot={ws.spec.root}
+              importedOntologies={ws.spec.importedOntologies ?? null}
               coreRefs={coreRefs}
               keybindings={appState.settings.keybindings as unknown as Record<string, string>}
               actionDeps={actionDeps}
+              refreshSerial={refreshSerial}
               onCreateSigil={handleCreateSigil}
               onCreateAffordance={handleCreateAffordance}
               onCreateInvariant={handleCreateInvariant}
               onRenameSigil={handleRenameSigil}
               onRenameProperty={handleRenameProperty}
               onRenameStatus={handleRenameStatus}
+              onUndoLastRename={handleUndoLastRename}
               onNavigateToSigil={handleNavigateToSigil}
               onNavigateToAbsPath={(path) => {
                 // The editor resolves refs against its local scopeRoot, which
@@ -440,8 +519,8 @@ export function Workspace() {
                 const alreadyPrefixed = path[0] === "Imported Ontologies";
                 navigate(inImported && !alreadyPrefixed ? ["Imported Ontologies", ...path] : path);
               }}
-              findReferencesName={findReferencesNameRef.current}
-              onFindReferencesClear={() => { findReferencesNameRef.current = null; }}
+              findReferencesTarget={findReferencesTarget}
+              onFindReferencesClear={() => { setFindReferencesTarget(null); }}
               goToLine={ws.targetLine}
               onGoToLineDone={() => wsDispatch({ type: "CLEAR_TARGET_LINE" })}
             />

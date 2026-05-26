@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useLayoutState } from "../../state/LayoutContext";
 import { SigilFolder } from "../../tauri";
 import type { ScopeEntry } from "./editorScope";
+import type { ReferenceTarget } from "./referenceSearch";
 import type { Ref } from "sigil-core";
 import type { ActionDeps } from "../../actions/workspace";
 import { LanguageEditor } from "./LanguageEditor";
@@ -24,18 +25,22 @@ interface SigilEditorProps {
   scopeNames: string[];
   scopeRoot: SigilFolder;
   scopePath: string[];
+  workspaceRoot: SigilFolder;
+  importedOntologies: SigilFolder | null;
   coreRefs: Ref[];
   keybindings: Record<string, string>;
   actionDeps: ActionDeps;
+  refreshSerial: number;
   onCreateSigil: (name: string) => void;
   onCreateAffordance: (name: string, target?: SigilFolder) => void;
   onCreateInvariant: (name: string, target?: SigilFolder) => void;
   onRenameSigil: (oldName: string, newName: string) => void;
   onRenameProperty: (kind: "affordance" | "invariant", oldName: string, newName: string) => void;
   onRenameStatus: (oldValue: string, newValue: string) => void;
+  onUndoLastRename: () => boolean;
   onNavigateToSigil: (name: string) => void;
   onNavigateToAbsPath: (path: string[]) => void;
-  findReferencesName: string | null;
+  findReferencesTarget: ReferenceTarget | null;
   onFindReferencesClear: () => void;
   goToLine: number | null;
   onGoToLineDone: () => void;
@@ -49,18 +54,22 @@ export function SigilEditor({
   scopeNames,
   scopeRoot,
   scopePath,
+  workspaceRoot,
+  importedOntologies,
   coreRefs,
   keybindings,
   actionDeps,
+  refreshSerial,
   onCreateSigil,
   onCreateAffordance,
   onCreateInvariant,
   onRenameSigil,
   onRenameProperty,
   onRenameStatus,
+  onUndoLastRename,
   onNavigateToSigil,
   onNavigateToAbsPath,
-  findReferencesName,
+  findReferencesTarget,
   onFindReferencesClear,
   goToLine,
   onGoToLineDone,
@@ -78,6 +87,7 @@ export function SigilEditor({
     onCreateInvariant,
     onRenameSigil,
     onRenameProperty,
+    onUndoLastRename,
     onNavigateToSigil,
     onNavigateToAbsPath: onNavigateToAbsPath,
     keybindings,
@@ -110,21 +120,25 @@ export function SigilEditor({
               onChange={onChange}
               scopeNames={scopeNames}
               scope={scope}
+              workspaceRoot={workspaceRoot}
+              importedOntologies={importedOntologies}
               sigilRoot={scopeRoot}
               currentContext={sigil}
               currentPath={scopePath}
               sigilDir={sigil.path}
               wordWrap={layout.wordWrap}
+              refreshSerial={refreshSerial}
               onCreateSigil={onCreateSigil}
               onCreateAffordance={onCreateAffordance}
               onCreateInvariant={onCreateInvariant}
               onRenameSigil={onRenameSigil}
               onRenameProperty={onRenameProperty}
               onRenameStatus={onRenameStatus}
+              onUndoLastRename={onUndoLastRename}
               onNavigateToSigil={onNavigateToSigil}
               onNavigateToAbsPath={onNavigateToAbsPath}
               keybindings={keybindings}
-              findReferencesName={findReferencesName}
+              findReferencesTarget={findReferencesTarget}
               onFindReferencesClear={onFindReferencesClear}
               goToLine={goToLine}
               onGoToLineDone={onGoToLineDone}
