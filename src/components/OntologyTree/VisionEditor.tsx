@@ -13,7 +13,8 @@ import {
   type Ref,
   type Sigil,
 } from "sigil-core";
-import type { SigilFolder } from "../../tauri";
+import { DEFAULT_KEYBINDINGS, type Keybindings, type SigilFolder } from "../../tauri";
+import { useAppState } from "../../state/AppContext";
 import { useWorkspaceState, useWorkspaceDispatch } from "../../state/WorkspaceContext";
 import { getBase, setBase, useAutoSave } from "../../hooks/useAutoSave";
 import { useThemeObserver } from "../../hooks/useThemeObserver";
@@ -29,10 +30,12 @@ import {
 import { resolveCurrentFolder } from "../../state/WorkspaceContext";
 import { useActionDeps } from "../../hooks/useActionDeps";
 import * as actions from "../../actions/workspace";
+import { deleteActiveLine } from "../Workspace/editorShortcuts";
 import styles from "./VisionEditor.module.css";
 
 const themeCompartment = new Compartment();
 const scopeCompartment = new Compartment();
+const keymapCompartment = new Compartment();
 
 function mapScopeKind(kind: string): ScopeEntry["kind"] {
   if (kind === "lib") return "lib";
@@ -93,11 +96,22 @@ function minimalChange(current: string, next: string) {
   return { from: prefix, to: oldEnd, insert: next.slice(prefix, newEnd) };
 }
 
+function buildVisionKeymap(kb: Partial<Keybindings>) {
+  return keymap.of([
+    {
+      key: kb["delete-line"] || "Mod-d",
+      run: deleteActiveLine,
+    },
+  ]);
+}
+
 export function VisionEditor() {
+  const appState = useAppState();
   const ws = useWorkspaceState();
   const wsDispatch = useWorkspaceDispatch();
   const { save } = useAutoSave();
   const actionDeps = useActionDeps();
+  const keybindings = appState.settings.keybindings || DEFAULT_KEYBINDINGS;
   const visionPath = `${ws.spec.rootPath}/vision.md`;
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +157,7 @@ export function VisionEditor() {
         highlightActiveLine(),
         history(),
         search(),
+        keymapCompartment.of(buildVisionKeymap(keybindings)),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         markdown({ codeLanguages: languages }),
         themeCompartment.of(getThemeExtension()),
@@ -216,6 +231,12 @@ export function VisionEditor() {
   }, []);
 
   useThemeObserver(viewRef, themeCompartment);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: keymapCompartment.reconfigure(buildVisionKeymap(keybindings)),
+    });
+  }, [keybindings]);
 
   // Sync external content from disk reloads. Dirty local buffers take
   // precedence so a reload cannot overwrite active typing.
