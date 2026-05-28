@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 /// Resolve a sigil-path argument from the model against the workspace root.
 ///
@@ -724,8 +724,16 @@ async fn execute_tool_inner(
                 "to_line": input.get("to_line"),
                 "excerpt": input.get("excerpt"),
             });
-            if let Some(app) = app {
-                let _ = app.emit("select-text", payload.to_string());
+            if app.is_some() || dispatcher.is_some() {
+                let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+                return crate::commands::tool_dispatcher::dispatch(
+                    dispatcher_h,
+                    app_h,
+                    "tool:select_text",
+                    payload,
+                    10,
+                )
+                .await;
             }
             // Return the selected text so the partner can see what was selected
             if let Some(ctx) = editor_ctx {
@@ -2080,6 +2088,25 @@ mod tests {
         )
         .await;
         assert!(result.is_err(), "missing text param should be rejected");
+        let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn select_text_refuses_partial_dispatcher() {
+        let (tmp, ctx) = workspace_with_two_sigils();
+        let dispatcher = crate::commands::tool_dispatcher::ToolDispatcher::new();
+        let result = execute_tool(
+            "select_text",
+            &serde_json::json!({ "excerpt": "disposable sigil for tool tests" }),
+            None,
+            Some(&ctx),
+            Some(&dispatcher),
+        )
+        .await;
+        assert!(
+            result.is_err(),
+            "select_text cannot acknowledge editor selection without both app handle and dispatcher",
+        );
         let _ = tmp;
     }
 

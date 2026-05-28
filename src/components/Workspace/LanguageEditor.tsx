@@ -527,31 +527,49 @@ export function LanguageEditor({ content, onChange, scopeNames = [], scope = [],
 
   // Listen for select-text and replace-selected-text events from AI tools
   useEffect(() => {
-    const unlistenSelect = events.onSelectText((payload: string) => {
+    const unlistenSelect = events.onToolSelectText(({ request_id, payload }) => {
+      const reply = (ok: boolean, message: string) => {
+        api.toolResult(request_id, ok, message).catch((err) => {
+          console.error("[tool:select_text] toolResult failed:", err);
+        });
+      };
       const view = viewRef.current;
-      if (!view) return;
-      const data = JSON.parse(payload);
+      if (!view) {
+        reply(false, "no active editor for the current sigil");
+        return;
+      }
       const doc = view.state.doc;
 
       let from = -1, to = -1;
-      if (data.excerpt) {
+      if (payload.excerpt) {
         const text = doc.toString();
-        const idx = text.indexOf(data.excerpt);
-        if (idx !== -1) { from = idx; to = idx + data.excerpt.length; }
-      } else if (data.from_line != null) {
-        const fromLine = Math.max(1, Math.min(data.from_line, doc.lines));
-        const toLine = Math.max(fromLine, Math.min(data.to_line ?? data.from_line, doc.lines));
+        const idx = text.indexOf(payload.excerpt);
+        if (idx !== -1) { from = idx; to = idx + payload.excerpt.length; }
+        else {
+          reply(false, `excerpt not found in active editor: "${payload.excerpt}"`);
+          return;
+        }
+      } else if (payload.from_line != null) {
+        const fromLine = Math.max(1, Math.min(payload.from_line, doc.lines));
+        const toLine = Math.max(fromLine, Math.min(payload.to_line ?? payload.from_line, doc.lines));
         from = doc.line(fromLine).from;
         to = doc.line(toLine).to;
+      } else {
+        reply(false, "select_text needs either excerpt or from_line");
+        return;
       }
-      if (from >= 0 && to >= 0) {
-        view.dispatch({
-          selection: { anchor: from },
-          effects: setAiHighlight.of({ from, to }),
-          scrollIntoView: true,
-        });
-        view.focus();
+      if (from < 0 || to < 0) {
+        reply(false, "could not resolve selection range");
+        return;
       }
+      view.dispatch({
+        selection: { anchor: from, head: to },
+        effects: setAiHighlight.of({ from, to }),
+        scrollIntoView: true,
+      });
+      view.focus();
+      const selected = view.state.doc.sliceString(from, to);
+      reply(true, `Selected text:\n\n${selected}`);
     });
 
     const unlistenReplace = events.onToolReplaceSelectedText(async ({ request_id, payload }) => {

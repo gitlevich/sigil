@@ -224,6 +224,16 @@ describe("events", () => {
     expect(handler).toHaveBeenCalledWith("selected");
   });
 
+  it("onToolSelectText forwards payload", async () => {
+    const handler = vi.fn();
+    await events.onToolSelectText(handler);
+    expect(mockListen).toHaveBeenCalledWith("tool:select_text", expect.any(Function));
+    mockListen.mock.calls[0][1]({
+      payload: { request_id: "req-select", payload: { excerpt: "selected" } },
+    });
+    expect(handler).toHaveBeenCalledWith({ request_id: "req-select", payload: { excerpt: "selected" } });
+  });
+
   it("onToolReplaceSelectedText forwards payload", async () => {
     const handler = vi.fn();
     await events.onToolReplaceSelectedText(handler);

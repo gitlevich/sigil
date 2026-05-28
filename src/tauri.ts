@@ -609,6 +609,11 @@ export const events = {
   onSelectText: (handler: (payload: string) => void): Promise<UnlistenFn> =>
     listen<string>("select-text", (event) => handler(event.payload)),
 
+  onToolSelectText: (
+    handler: (req: { request_id: string; payload: { from_line?: number | null; to_line?: number | null; excerpt?: string | null } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:select_text", (event) => handler(event.payload as { request_id: string; payload: { from_line?: number | null; to_line?: number | null; excerpt?: string | null } })),
+
   onToolReplaceSelectedText: (
     handler: (req: { request_id: string; payload: { text: string } }) => void,
   ): Promise<UnlistenFn> =>

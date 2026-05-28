@@ -4,21 +4,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup, fireEvent } from "@testing-library/react";
 
-const selectTextListeners: Array<(payload: string) => void> = [];
+const selectTextListeners: Array<(req: { request_id: string; payload: { from_line?: number | null; to_line?: number | null; excerpt?: string | null } }) => void> = [];
 const replaceTextListeners: Array<(req: { request_id: string; payload: { text: string } }) => void> = [];
 
 vi.mock("../../../src/tauri", () => ({
   api: {
     writeImageBytes: vi.fn().mockResolvedValue("/mock/img.png"),
+    writeFile: vi.fn().mockResolvedValue(undefined),
     readFile: vi.fn().mockResolvedValue(""),
     readSigil: vi.fn(),
     toolResult: vi.fn().mockResolvedValue(undefined),
   },
   events: {
-    onSelectText: vi.fn((cb: (payload: string) => void) => {
+    onToolSelectText: vi.fn((cb: (req: { request_id: string; payload: { from_line?: number | null; to_line?: number | null; excerpt?: string | null } }) => void) => {
       selectTextListeners.push(cb);
       return Promise.resolve(() => {});
     }),
+    onSelectText: vi.fn().mockResolvedValue(() => {}),
     onToolReplaceSelectedText: vi.fn((cb: (req: { request_id: string; payload: { text: string } }) => void) => {
       replaceTextListeners.push(cb);
       return Promise.resolve(() => {});
@@ -29,6 +31,7 @@ vi.mock("../../../src/tauri", () => ({
 
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { api } from "../../../src/tauri";
 import { LanguageEditor, isImageFile, findStatusAtCursor, buildCustomKeymap } from "../../../src/components/Workspace/LanguageEditor";
 import { setEditorScopeForTest } from "../../../src/components/Workspace/editorScope";
 import type { SigilFolder } from "../../../src/tauri";
@@ -746,32 +749,34 @@ describe("LanguageEditor component", () => {
       container = result.container;
     });
 
-    // The onSelectText listener should have been registered
+    // The onToolSelectText listener should have been registered
     expect(selectTextListeners.length).toBeGreaterThan(0);
 
     // Fire the select-text event with an excerpt
     await act(async () => {
-      selectTextListeners[0](JSON.stringify({ excerpt: "Line two" }));
+      selectTextListeners[0]({ request_id: "select-1", payload: { excerpt: "Line two" } });
     });
 
     // The editor should still be mounted
     expect(container!.querySelector(".cm-content")).not.toBeNull();
+    expect(api.toolResult).toHaveBeenCalledWith("select-1", true, "Selected text:\n\nLine two");
   });
 
   it("AI select-text event with line range", async () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <LanguageEditor content="Line 1\nLine 2\nLine 3\nLine 4" onChange={vi.fn()} />,
+        <LanguageEditor content={"Line 1\nLine 2\nLine 3\nLine 4"} onChange={vi.fn()} />,
       );
       container = result.container;
     });
 
     await act(async () => {
-      selectTextListeners[0](JSON.stringify({ from_line: 2, to_line: 3 }));
+      selectTextListeners[0]({ request_id: "select-lines", payload: { from_line: 2, to_line: 3 } });
     });
 
     expect(container!.querySelector(".cm-content")).not.toBeNull();
+    expect(api.toolResult).toHaveBeenCalledWith("select-lines", true, "Selected text:\n\nLine 2\nLine 3");
   });
 
   it("AI replace-selected-text replaces highlighted range", async () => {
@@ -779,14 +784,14 @@ describe("LanguageEditor component", () => {
     let container: HTMLElement;
     await act(async () => {
       const result = render(
-        <LanguageEditor content="Hello World" onChange={onChange} />,
+        <LanguageEditor content="Hello World" onChange={onChange} sigilDir="/mock/sigil" />,
       );
       container = result.container;
     });
 
     // First select text via excerpt
     await act(async () => {
-      selectTextListeners[0](JSON.stringify({ excerpt: "World" }));
+      selectTextListeners[0]({ request_id: "select-replace", payload: { excerpt: "World" } });
     });
 
     // Then replace
@@ -797,6 +802,12 @@ describe("LanguageEditor component", () => {
     // The change should have been dispatched
     const cmContent = container!.querySelector(".cm-content");
     expect(cmContent).not.toBeNull();
+    expect(api.writeFile).toHaveBeenCalledWith("/mock/sigil/language.md", "Hello Universe");
+    expect(api.toolResult).toHaveBeenCalledWith(
+      "req-1",
+      true,
+      'Replaced 5 chars with 8. Persisted excerpt: "Hello Universe"',
+    );
   });
 });
 
