@@ -1,5 +1,5 @@
 /**
- * StructuralView3D — the structural stance.
+ * StructuralView3D — the structural stance ("Outside").
  *
  * A sigil rendered as a sphere with one opening: the way back to its parent.
  * Children float inside as smaller spheres, entangled by lines where their
@@ -10,21 +10,40 @@
  *
  * View from everywhere: orbit the camera freely. Double-click a child sphere
  * to focus on it; click the opening to ascend.
+ *
+ * Shared component: the host passes the resolved folder, the current path, the
+ * roots, a navigate callback, and the theme. The editor and the web viewer
+ * both wrap it with their own state.
  */
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text, Line } from "@react-three/drei";
 import * as THREE from "three";
-import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
-import { findContext, stripFrontmatter } from "sigil-core";
-import type { Sigil } from "sigil-core";
-import { extractArcs } from "../../lib/sentenceArcs";
+import { findContext } from "../tree";
+import { stripFrontmatter } from "../frontmatter";
+import type { Sigil } from "../types";
+import { extractArcs } from "../sentenceArcs";
 
 const FOCUSED_RADIUS = 10;
 const CHILD_RADIUS_FRACTION = 0.14;
 const CHILD_PLACEMENT_FRACTION = 0.55;
 const WALL_DISK_RADIUS = 0.85;
 const OPENING_THETA = Math.PI * 0.82; // where the cap ends; south pole becomes the hole
+
+export interface StructuralView3DProps {
+  /** The currently-inhabited sigil. */
+  folder: Sigil;
+  /** Absolute path to the folder in the workspace tree. */
+  currentPath: string[];
+  /** Display name of the app root, used for the ascend label at depth 1. */
+  rootName: string;
+  /** Root of the main spec tree. */
+  mainRoot: Sigil;
+  /** Root of the imported-ontologies subtree, if any. */
+  importedRoot?: Sigil | null;
+  navigate: (path: string[]) => void;
+  dark: boolean;
+}
 
 /** Golden-angle spiral points on a sphere of given radius. */
 function fibonacciSphere(n: number, radius: number): [number, number, number][] {
@@ -41,42 +60,37 @@ function fibonacciSphere(n: number, radius: number): [number, number, number][] 
   return out;
 }
 
-export function StructuralView3D() {
-  const ws = useWorkspaceState();
-  const { navigate } = useWorkspaceActions();
-  const folder = resolveCurrentFolder(ws);
-  const darkRef = useRef(document.documentElement.getAttribute("data-theme") === "dark");
-  const dark = darkRef.current;
-
-  if (!folder) return null;
-
-  const hasParent = ws.currentPath.length > 0;
-  const parentName = hasParent
-    ? (ws.currentPath.length > 1
-        ? ws.currentPath[ws.currentPath.length - 2]
-        : (ws.currentPath[0] === "Imported Ontologies" ? "Imported Ontologies" : ws.spec.name))
-    : null;
-
+export function StructuralView3D({
+  folder,
+  currentPath,
+  rootName,
+  mainRoot,
+  importedRoot,
+  navigate,
+  dark,
+}: StructuralView3DProps) {
   // Children with positions on a fibonacci shell inside the focused sphere.
   const childPositions = useMemo(
-    () => fibonacciSphere(folder.children.length, FOCUSED_RADIUS * CHILD_PLACEMENT_FRACTION),
-    [folder.children.length],
+    () => fibonacciSphere(folder?.children.length ?? 0, FOCUSED_RADIUS * CHILD_PLACEMENT_FRACTION),
+    [folder?.children.length],
   );
+
+  const hasParent = currentPath.length > 0;
 
   // Siblings — the parent's other children. Rendered as flat disks on the
   // inner wall, distributed on the remaining sphere area (away from the
   // opening so they don't crowd it).
   const siblings = useMemo(() => {
-    if (!hasParent) return [] as Sigil[];
-    const parentPath = ws.currentPath.slice(0, -1);
-    const isImported = ws.currentPath[0] === "Imported Ontologies";
-    const root = (isImported ? ws.spec.importedOntologies : ws.spec.root) as Sigil | undefined;
+    if (!folder || !hasParent) return [] as Sigil[];
+    const parentPath = currentPath.slice(0, -1);
+    const isImported = currentPath[0] === "Imported Ontologies";
+    const root = (isImported ? importedRoot : mainRoot) as Sigil | undefined;
     if (!root) return [] as Sigil[];
     const relativePath = isImported ? parentPath.slice(1) : parentPath;
     const parent = findContext(root, relativePath);
     if (!parent) return [] as Sigil[];
     return parent.children.filter((c) => c.name !== folder.name) as Sigil[];
-  }, [hasParent, ws.currentPath, ws.spec, folder.name]);
+  }, [folder, hasParent, currentPath, mainRoot, importedRoot]);
 
   // Place sibling disks on the upper hemisphere (away from the south-pole
   // opening). Fibonacci-on-cap: same spiral but over 0..OPENING_THETA.
@@ -105,7 +119,7 @@ export function StructuralView3D() {
   // lifted from the narrative. Drawn as straight 3D lines between child
   // positions. Dedupe per unordered pair.
   const entanglementLines = useMemo(() => {
-    if (folder.children.length < 2) return [];
+    if (!folder || folder.children.length < 2) return [];
     const childNames = folder.children.map((c) => c.name);
     const text = stripFrontmatter(folder.language ?? "");
     const arcs = extractArcs(text, childNames, "sentence");
@@ -125,6 +139,14 @@ export function StructuralView3D() {
     return lines;
   }, [folder, childPositions]);
 
+  if (!folder) return null;
+
+  const parentName = hasParent
+    ? (currentPath.length > 1
+        ? currentPath[currentPath.length - 2]
+        : (currentPath[0] === "Imported Ontologies" ? "Imported Ontologies" : rootName))
+    : null;
+
   // Opening rim — ring at the boundary of the cap cut-out.
   const openingRimY = FOCUSED_RADIUS * Math.cos(OPENING_THETA);
   const openingRimRadius = FOCUSED_RADIUS * Math.sin(OPENING_THETA);
@@ -138,7 +160,20 @@ export function StructuralView3D() {
 
   return (
     <div style={{ position: "absolute", inset: 0, background: dark ? "#10161c" : "#f5f6f7" }}>
-      <Canvas camera={{ position: [0, 2, FOCUSED_RADIUS * 2.6], fov: 45 }}>
+      <Canvas
+        camera={{ position: [0, 2, FOCUSED_RADIUS * 2.6], fov: 45 }}
+        onCreated={({ gl, invalidate }) => {
+          // Recover from WebGL context loss instead of dying with a blank,
+          // broken canvas. React StrictMode's dev double-mount disposes the
+          // renderer (forceContextLoss); the GPU can also drop the context
+          // under memory pressure or tab backgrounding. Calling preventDefault
+          // on the loss lets the browser fire `webglcontextrestored`, after
+          // which we re-render the scene.
+          const canvas = gl.domElement;
+          canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); }, false);
+          canvas.addEventListener("webglcontextrestored", () => { invalidate(); }, false);
+        }}
+      >
         <ambientLight intensity={0.55} />
         <directionalLight position={[12, 18, 12]} intensity={0.6} />
         <directionalLight position={[-12, -4, -8]} intensity={0.25} />
@@ -183,7 +218,7 @@ export function StructuralView3D() {
               color={textColor}
               anchorX="center"
               anchorY="middle"
-              onClick={() => navigate(ws.currentPath.slice(0, -1))}
+              onClick={() => navigate(currentPath.slice(0, -1))}
             >
               ↑ {parentName}
             </Text>
@@ -211,7 +246,7 @@ export function StructuralView3D() {
               <mesh
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  navigate([...ws.currentPath, child.name]);
+                  navigate([...currentPath, child.name]);
                 }}
               >
                 <sphereGeometry args={[r, 32, 24]} />
@@ -245,7 +280,7 @@ export function StructuralView3D() {
               <mesh
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  navigate([...ws.currentPath.slice(0, -1), sib.name]);
+                  navigate([...currentPath.slice(0, -1), sib.name]);
                 }}
               >
                 <circleGeometry args={[WALL_DISK_RADIUS, 48]} />

@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, type ReactNode } from "react";
 import type { Sigil } from "./types";
 
-export type ContentTab = "language" | "atlas";
+export type ContentTab = "language" | "atlas" | "space" | "flowing";
 export type SidebarTab = "tree" | "vision";
 export type Theme = "light" | "dark";
 
@@ -50,9 +50,9 @@ export function ViewerProvider({
 
   const [state, dispatch] = useReducer(reducer, {
     sigil,
-    currentPath: sigil.children.length > 0 ? [sigil.children[0].name] : [],
+    currentPath: [],
     contentTab: "language",
-    sidebarTab: "tree",
+    sidebarTab: "vision",
     theme: initialTheme,
   });
 

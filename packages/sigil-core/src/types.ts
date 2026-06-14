@@ -1,3 +1,5 @@
+import type { SpatialLayout } from "./spatialLayout";
+
 export interface Affordance {
   name: string;
   content: string;
@@ -19,6 +21,12 @@ export interface Sigil {
   invariants: Invariant[];
   children: Sigil[];
   isImported?: boolean;
+  /** The vision document (vision.md): a standalone document parallel to the
+   * taxonomy, present only at the root. */
+  vision?: string;
+  /** This sigil's saved Spatial-desktop layout (spatial.layout.json), baked
+   * into the export so the read-only web viewer mirrors the editor arrangement. */
+  spatialLayout?: SpatialLayout;
 }
 
 // ── Backward compatibility aliases (deprecated, remove after migration) ──

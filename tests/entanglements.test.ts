@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractEntanglements } from "../src/lib/entanglements";
+import { extractEntanglements } from "sigil-core/entanglements";
 import type { Sigil } from "sigil-core";
 
 function sigil(name: string, children: Sigil[] = [], language = ""): Sigil {

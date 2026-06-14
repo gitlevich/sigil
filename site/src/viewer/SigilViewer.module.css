@@ -206,6 +206,15 @@
   flex-direction: column;
 }
 
+/* Left pane of the Flowing split: the language prose, scrolling within itself
+   while the Spatial desktop fills the right pane. */
+.flowingText {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
 /* Responsive: collapse sidebar on small screens */
 @media (max-width: 768px) {
   .sidebar {
