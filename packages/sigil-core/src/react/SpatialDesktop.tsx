@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { regionPosition, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../spatialLayout";
 import { extractArcs, arcLabel, type ArcScope } from "../sentenceArcs";
 import { extractEntanglements } from "../entanglements";
+import type { LayoutStore } from "../layoutStore";
 import type { Sigil } from "../types";
 import { findContext } from "../tree";
 import { stripFrontmatter } from "../frontmatter";
@@ -116,11 +117,9 @@ export interface SpatialDesktopProps {
   /** Root of the imported-ontologies subtree, if any. */
   importedRoot?: Sigil | null;
   navigate: (path: string[]) => void;
-  /** Read a sigil's persisted layout. The editor reads the file via Tauri; the
-   * web viewer returns a layout baked into the exported spec. */
-  readLayout: (folder: Sigil) => Promise<SpatialLayout>;
-  /** Persist a sigil's layout. The web viewer passes a no-op (read-only). */
-  writeLayout: (folder: Sigil, layout: SpatialLayout) => Promise<void>;
+  /** Where the icon arrangement is persisted. The editor injects a Tauri
+   * file-backed store; the web viewer injects a localStorage-backed one. */
+  layoutStore: LayoutStore;
   /** Theme, forwarded to the 3D "Outside" view. */
   dark: boolean;
   /** Optional "Through" POV mode. When omitted, the Through button is hidden. */
@@ -134,8 +133,7 @@ export function SpatialDesktop({
   mainRoot,
   importedRoot,
   navigate,
-  readLayout,
-  writeLayout,
+  layoutStore,
   dark,
   renderThrough,
 }: SpatialDesktopProps) {
@@ -193,7 +191,7 @@ export function SpatialDesktop({
   useEffect(() => {
     if (!folder) { setLayout(null); setLayoutPath(null); return; }
     let cancelled = false;
-    readLayout(folder).then((l) => {
+    layoutStore.load(folder, currentPath).then((l) => {
       if (cancelled) return;
       setLayout(l);
       setLayoutPath(folderKey);
@@ -210,9 +208,9 @@ export function SpatialDesktop({
   const queueSave = useCallback((target: Sigil, next: SpatialLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      writeLayout(target, next).catch((err) => console.error("spatial layout save failed:", err));
+      layoutStore.save(target, currentPath, next).catch((err) => console.error("spatial layout save failed:", err));
     }, SAVE_DEBOUNCE_MS);
-  }, [writeLayout]);
+  }, [layoutStore, currentPath]);
 
   // Ascension target — the containing sigil. Rendered as a separate UP
   // button, not as a canvas icon.

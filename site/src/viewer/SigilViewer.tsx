@@ -3,6 +3,7 @@ import sigilSpec from "../data/sigil-spec.json";
 import type { Sigil } from "./types";
 import { ViewerProvider, useViewerState, useViewerDispatch } from "./ViewerState";
 import { findContext, buildLexicalScope, buildPath } from "./utils";
+import { loadChrome, saveChrome } from "./persistence";
 import { TreeView } from "./TreeView";
 import { Breadcrumb } from "./Breadcrumb";
 import { Atlas } from "./Atlas";
@@ -86,10 +87,13 @@ function ViewerContent() {
   const { sigil, currentPath, contentTab, sidebarTab, theme } = useViewerState();
   const dispatch = useViewerDispatch();
   const currentCtx = findContext(sigil, currentPath);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  const [sidebarOpen, setSidebarOpen] = useState(() => loadChrome().sidebarOpen ?? true);
+  const [sidebarWidth, setSidebarWidth] = useState(() => loadChrome().sidebarWidth ?? DEFAULT_WIDTH);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const displayWidth = dragWidth ?? sidebarWidth;
+
+  useEffect(() => { saveChrome({ sidebarOpen }); }, [sidebarOpen]);
+  useEffect(() => { saveChrome({ sidebarWidth }); }, [sidebarWidth]);
 
   const refs = useMemo(
     () => buildLexicalScope(sigil, currentPath),

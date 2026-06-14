@@ -4,7 +4,7 @@
  * editor-only "Through" POV view.
  */
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
-import { readLayout, writeLayout } from "../../lib/spatialLayout";
+import { tauriLayoutStore } from "../../lib/spatialLayout";
 import type { Sigil } from "sigil-core";
 import { SpatialDesktop as SpatialDesktopView } from "sigil-core/react/SpatialDesktop";
 import { ThroughView } from "./ThroughView";
@@ -23,8 +23,7 @@ export function SpatialDesktop() {
       mainRoot={ws.spec.root as unknown as Sigil}
       importedRoot={(ws.spec.importedOntologies as unknown as Sigil) ?? null}
       navigate={navigate}
-      readLayout={(f) => readLayout((f as unknown as { path: string }).path)}
-      writeLayout={(f, layout) => writeLayout((f as unknown as { path: string }).path, layout)}
+      layoutStore={tauriLayoutStore}
       dark={dark}
       renderThrough={() => <ThroughView />}
     />
