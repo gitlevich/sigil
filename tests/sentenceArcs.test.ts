@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitSentences, splitParagraphs, extractArcs, arcLabel } from "../src/lib/sentenceArcs";
+import { splitSentences, splitParagraphs, extractArcs, arcLabel } from "sigil-core/sentenceArcs";
 
 describe("splitSentences", () => {
   it("splits on sentence-end punctuation", () => {

@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, type ReactNode } from "react";
 import type { Sigil } from "./types";
 
-export type ContentTab = "language" | "atlas";
+export type ContentTab = "language" | "atlas" | "space" | "flowing";
 export type SidebarTab = "tree" | "vision";
 export type Theme = "light" | "dark";
 

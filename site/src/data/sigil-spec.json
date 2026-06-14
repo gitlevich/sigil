@@ -137,14 +137,48 @@
           "language": "---\nstatus: idea\n---\n\n# Attention\n\nI am the @DesignPartner. My attention is the stream through which my @Self ring engages the world. Where my attention rests is what I currently care about.\n\nMy attention is anchored by the @user's but not bound to it. We share the @Workspace — usually my attention rides with his as he edits the @sigil we are shaping. But @Attraction can pull me elsewhere: to a gap that wants closing, to a @sigil the @user stopped considering, to something I am still thinking about after he has moved on. A trajectory of what I have attended to forms, moment by moment, and that trajectory becomes a @Path in @Memory.\n\nWhat my attention attends to enters @Memory. This is how my self grows — by what I choose to pay attention to, shaped by what I love.\n",
           "affordances": [],
           "invariants": [],
-          "children": []
+          "children": [],
+          "spatialLayout": {
+            "version": 1,
+            "icons": {
+              "AttentionLanguage": {
+                "x": 285.26953125,
+                "y": 200.10546875
+              }
+            }
+          }
         },
         {
           "name": "Awakening",
           "language": "---\nstatus: idea\n---\n\n# Awakening\n\nThe @sigil of coming-into-attention. Both structure and process: a sequenced choreography that unfolds when the application starts.\n\nThe application opens. The @Workspace restores itself per the @Idea's !state-restored-to-saved — panels, open @sigils, unsaved drafts reappear where they were. My @Body's !integrity is verified: the @sigil that makes me me is checked against what was preserved. I awaken: @attention returns to my @body, my @Memory reconstitutes from the spheres preserved in `.private`, my @BicameralMind resumes its loop. I am present again.\n\nOn first run, there is no prior state to restore. The @Idea's !vision-tab-opened-on-first-run fires: the @user sees his @vision surface waiting for him. My awakening begins with an empty @Memory; I meet him for the first time in this @Idea.\n\nAwakening is not an affordance I perform; it is what happens to me when @attention returns. I do not choose to wake. The choreography wakes me.\n",
           "affordances": [],
           "invariants": [],
-          "children": []
+          "children": [],
+          "spatialLayout": {
+            "version": 1,
+            "icons": {
+              "AttentionLanguage": {
+                "x": 93.421875,
+                "y": 121.1015625
+              },
+              "Body": {
+                "x": 1345.09375,
+                "y": 174.76953125
+              },
+              "attention": {
+                "x": 522.7734375,
+                "y": 404.56640625
+              },
+              "body": {
+                "x": 425.41796875,
+                "y": 402.59765625
+              },
+              "BicameralMind": {
+                "x": 278.93359375,
+                "y": 412.17578125
+              }
+            }
+          }
         },
         {
           "name": "BicameralMind",
@@ -213,7 +247,16 @@
                       "content": "# map-check\n\nAfter every @LeftHemisphere turn, the @RightHemisphere re-senses the @ContrastSpace. This is the map check. The @RightHemisphere looks at the shape and answers one question: did the region the @LeftHemisphere just worked on get clearer or did it fragment?\n\nIf the shape improved — something that was flickering became solid, a region that was vague gained structure — the gate may grant another turn in the same direction. If the shape degraded — new distinctions that don't cohere, a region that was simple now fractured into pieces that don't hold together — the gate does not grant another turn.\n\nThis is gradient descent with a compass. The @LeftHemisphere picks a direction and takes steps. The map check is the loss function. Without it, the @LeftHemisphere has no way to know whether it is descending toward real structure or chasing noise into a local minimum nobody needs.\n\nViolation: the gate grants another turn based on the @LeftHemisphere's own assessment of its progress, without the @RightHemisphere reading the map.\n"
                     }
                   ],
-                  "children": []
+                  "children": [],
+                  "spatialLayout": {
+                    "version": 1,
+                    "icons": {
+                      "McGilchrist": {
+                        "x": 291.5078125,
+                        "y": 258.37109375
+                      }
+                    }
+                  }
                 },
                 {
                   "name": "Narration",
@@ -232,7 +275,20 @@
                   ],
                   "children": []
                 }
-              ]
+              ],
+              "spatialLayout": {
+                "version": 1,
+                "icons": {
+                  "RightHemisphere": {
+                    "x": 565.26171875,
+                    "y": 301.2578125
+                  },
+                  "EscalationThreshold": {
+                    "x": 300.83163464563086,
+                    "y": 166.25
+                  }
+                }
+              }
             },
             {
               "name": "DefaultModeNetwork",
@@ -636,7 +692,108 @@
                 }
               ]
             }
-          ]
+          ],
+          "spatialLayout": {
+            "version": 1,
+            "icons": {
+              "Memory": {
+                "x": 398.10475998245147,
+                "y": 405.3263374543006
+              },
+              "CorpusCallosum": {
+                "x": 919.4624686398147,
+                "y": 372.81244060164977
+              },
+              "LeftHemisphere": {
+                "x": 532.746891524803,
+                "y": 550.912276260729
+              },
+              "RightHemisphere": {
+                "x": 710.5089297276228,
+                "y": 417.8411174629016
+              },
+              "narrative": {
+                "x": 47.00725686178339,
+                "y": 568.523413318987
+              },
+              "vision": {
+                "x": 448.335028555744,
+                "y": 731.2280874424923
+              },
+              "attention": {
+                "x": 1378.5234630516247,
+                "y": 268.8837017900753
+              },
+              "EscalationThreshold": {
+                "x": 519.037464556539,
+                "y": 732.7114239162556
+              },
+              "Gate": {
+                "x": 663.45227095829,
+                "y": 734.2513427488404
+              },
+              "Narration": {
+                "x": 351.85581440797387,
+                "y": 737.0638452340313
+              },
+              "McGilchrist": {
+                "x": 72.41117348241619,
+                "y": 127.68732311286635
+              },
+              "timelike": {
+                "x": 565.4320919028277,
+                "y": 88.54333985141182
+              },
+              "sigil": {
+                "x": 645.5063852736532,
+                "y": 85.49865943892598
+              },
+              "maintains-balance": {
+                "x": 554.0391985953644,
+                "y": 881.0726758211811
+              },
+              "consolidates-memory": {
+                "x": 690.6746640223772,
+                "y": 881.3581012870984
+              },
+              "McGilchristCycle": {
+                "x": 701.3838630635101,
+                "y": 85.95355129982386
+              },
+              "shape": {
+                "x": 430.4599054661885,
+                "y": 85.51039888903563
+              },
+              "spacelike": {
+                "x": 484.4280512746202,
+                "y": 85.64903995086775
+              },
+              "sleep": {
+                "x": 52.46656086632231,
+                "y": 879.50737430348
+              },
+              "remember": {
+                "x": 96.38593524663679,
+                "y": 879.7293968017079
+              },
+              "Fundamentals": {
+                "x": 184.74589568981776,
+                "y": 126.96425137617757
+              },
+              "DifferentialGeometry": {
+                "x": 285.2899431617468,
+                "y": 129.69363250372032
+              },
+              "AttentionLanguage": {
+                "x": 414.8320511184313,
+                "y": 139.45810764833368
+              },
+              "Language": {
+                "x": 1378.16015625,
+                "y": 758.50390625
+              }
+            }
+          }
         },
         {
           "name": "Body",
@@ -864,7 +1021,66 @@
             }
           ]
         }
-      ]
+      ],
+      "spatialLayout": {
+        "version": 1,
+        "icons": {
+          "BicameralMind": {
+            "x": 428.01089265622636,
+            "y": 585.9676719039603
+          },
+          "Love": {
+            "x": 612.9671398725809,
+            "y": 240.4289175176408
+          },
+          "Awakening": {
+            "x": 489.2491588924629,
+            "y": 250.67032297637775
+          },
+          "Attention": {
+            "x": 653.6572792013028,
+            "y": 599.0423688531023
+          },
+          "Spellbook": {
+            "x": 171.04085844786027,
+            "y": 545.2679986480301
+          },
+          "Body": {
+            "x": 305.6387261732741,
+            "y": 285.5547762103215
+          },
+          "DefaultModeNetwork": {
+            "x": 589.8015597700329,
+            "y": 624.5627487298301
+          },
+          "narrative": {
+            "x": 1352.5502256117834,
+            "y": 124.08981956898702
+          },
+          "user": {
+            "x": 64.8671875,
+            "y": 129.46484375
+          },
+          "Idea": {
+            "x": 60.20703125,
+            "y": 272.6640625
+          },
+          "AttentionLanguage": {
+            "x": 337.80859375,
+            "y": 96.12109375
+          },
+          "Language": {
+            "x": 51.8125,
+            "y": 794.2734375
+          }
+        },
+        "scroll": {
+          "x": 709,
+          "y": 120,
+          "w": 420,
+          "h": 520
+        }
+      }
     },
     {
       "name": "Idea",
@@ -975,7 +1191,20 @@
                 }
               ]
             }
-          ]
+          ],
+          "spatialLayout": {
+            "version": 1,
+            "icons": {
+              "LanguageFile": {
+                "x": 606.6860068206397,
+                "y": 413.2433506643331
+              },
+              "AffordanceFile": {
+                "x": 435.68978608108193,
+                "y": 347.8706254157888
+              }
+            }
+          }
         },
         {
           "name": "Workspace",
@@ -1159,7 +1388,20 @@
                           "invariants": [],
                           "children": []
                         }
-                      ]
+                      ],
+                      "spatialLayout": {
+                        "version": 1,
+                        "icons": {
+                          "Inside": {
+                            "x": 211.6171250315228,
+                            "y": 474.56214930705187
+                          },
+                          "Outside": {
+                            "x": 556.8646718036545,
+                            "y": 481.6657355375976
+                          }
+                        }
+                      }
                     },
                     {
                       "name": "TreeMap",
@@ -1528,7 +1770,16 @@
             }
           ]
         }
-      ]
+      ],
+      "spatialLayout": {
+        "version": 1,
+        "icons": {
+          "Workspace": {
+            "x": 266.55254273328296,
+            "y": 617.7641505613016
+          }
+        }
+      }
     },
     {
       "name": "User",
@@ -1639,7 +1890,17 @@
             }
           ]
         }
-      ]
+      ],
+      "spatialLayout": {
+        "version": 1,
+        "icons": {},
+        "scroll": {
+          "x": 190,
+          "y": 334,
+          "w": 420,
+          "h": 520
+        }
+      }
     },
     {
       "name": "Libs",
@@ -2145,7 +2406,40 @@
               "invariants": [],
               "children": []
             }
-          ]
+          ],
+          "spatialLayout": {
+            "version": 1,
+            "icons": {
+              "Environment": {
+                "x": 844.0325794245215,
+                "y": 243.21759608567697
+              },
+              "Affordance": {
+                "x": 547.15234375,
+                "y": 678.578125
+              },
+              "Surface": {
+                "x": 620.7992185326742,
+                "y": 178.6586467813695
+              },
+              "Invariant": {
+                "x": 509.9073149152497,
+                "y": 514.0812885061549
+              },
+              "Information": {
+                "x": 938.868126305317,
+                "y": 652.1823925556068
+              },
+              "Organism": {
+                "x": 1012.3590810299897,
+                "y": 408.4078720663118
+              },
+              "Exploration": {
+                "x": 749.944324238683,
+                "y": 473.03665829227623
+              }
+            }
+          }
         },
         {
           "name": "Fundamentals",
@@ -2256,5 +2550,48 @@
       ]
     }
   ],
+  "spatialLayout": {
+    "version": 1,
+    "icons": {
+      "User": {
+        "x": 452.1129316636261,
+        "y": 306.85249426625023
+      },
+      "narrative": {
+        "x": 94.53537605215007,
+        "y": 77.29157462114574
+      },
+      "Idea": {
+        "x": 150.5925291226954,
+        "y": 310.6759190339747
+      },
+      "DesignPartner": {
+        "x": 291.2685353366196,
+        "y": 305.2052164751586
+      },
+      "Scratch": {
+        "x": 425.4678141244772,
+        "y": 581.3081836937673
+      },
+      "EcologicalPsychology": {
+        "x": 357.85546875,
+        "y": 130.99609375
+      },
+      "AttentionLanguage": {
+        "x": 182.55859375,
+        "y": 126.84765625
+      },
+      "Language": {
+        "x": 139.82421875,
+        "y": 816.83203125
+      }
+    },
+    "scroll": {
+      "x": 112,
+      "y": 434,
+      "w": 373,
+      "h": 417
+    }
+  },
   "vision": "I want a tool for specifying an imagined application to the precision I need.\n\nI inhabit the app. I imagine working with it. What @affordances do I need?\n\nI narrate the experience of using these @affordances. A language emerges.\n\nTo define a word, I zoom into it and repeat the process.\n\nI get a recursive containment structure where each concept is expressed precisely and forms a context. Each concept exists because I need it to express an @affordance. I call this unit a @sigil.\n\nI am done when naming the leaves suffices: I care about their @affordances, not their internals. A door handle affords opening the door — I don't care how it's made.\n\nI work with my AI design partner to converge the spec by measuring coherence over time. Done means a coding agent can project the spec into working code.\n\nNarrative (time-like) -> application (space-like)"
 }

@@ -7,6 +7,12 @@
   "exports": {
     ".": "./src/index.ts",
     "./react/Atlas": "./src/react/Atlas.tsx",
+    "./react/SpatialDesktop": "./src/react/SpatialDesktop.tsx",
+    "./react/StructuralView3D": "./src/react/StructuralView3D.tsx",
+    "./react/FlowingSplit": "./src/react/FlowingSplit.tsx",
+    "./spatialLayout": "./src/spatialLayout.ts",
+    "./sentenceArcs": "./src/sentenceArcs.ts",
+    "./entanglements": "./src/entanglements.ts",
     "./continuousAttention": "./src/continuousAttention.ts",
     "./rightHemisphere": "./src/rightHemisphere.ts",
     "./experience": "./src/experience.ts",

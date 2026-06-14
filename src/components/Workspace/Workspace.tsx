@@ -35,7 +35,7 @@ import { recordCompletedRename, undoLastRename } from "./renameUndo";
 import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SpatialDesktop } from "./SpatialDesktop";
-import { FlowingSplit } from "./FlowingSplit";
+import { FlowingSplit } from "sigil-core/react/FlowingSplit";
 import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,

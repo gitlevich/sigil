@@ -3,7 +3,7 @@
  * of a sigil's @language. Feeds the Spatial desktop so the prose itself
  * provides layout signal.
  */
-import { flattenName, inflectionsOf } from "sigil-core";
+import { flattenName, inflectionsOf } from "./refs";
 
 /** One arc connects two child-by-name, labeled with the index and text of the enclosing unit (sentence or paragraph). */
 export interface SentenceArc {

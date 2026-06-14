@@ -6,6 +6,8 @@ import { findContext, buildLexicalScope, buildPath } from "./utils";
 import { TreeView } from "./TreeView";
 import { Breadcrumb } from "./Breadcrumb";
 import { Atlas } from "./Atlas";
+import { SpatialDesktop } from "./SpatialDesktop";
+import { FlowingSplit } from "sigil-core/react/FlowingSplit";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { PropertyBar } from "./PropertyBar";
 import { SubContextBar } from "./SubContextBar";
@@ -168,6 +170,18 @@ function ViewerContent() {
               >
                 Atlas
               </button>
+              <button
+                className={`${styles.tabBtn} ${contentTab === "space" ? styles.tabActive : ""}`}
+                onClick={() => dispatch({ type: "SET_TAB", tab: "space" })}
+              >
+                Space
+              </button>
+              <button
+                className={`${styles.tabBtn} ${contentTab === "flowing" ? styles.tabActive : ""}`}
+                onClick={() => dispatch({ type: "SET_TAB", tab: "flowing" })}
+              >
+                Flowing
+              </button>
             </div>
             <Breadcrumb />
             <div className={styles.toolbarRight}>
@@ -188,7 +202,7 @@ function ViewerContent() {
               </a>
             </div>
           </div>
-          {contentTab !== "atlas" && (
+          {contentTab === "language" && (
             <PropertyBar
               title="Affordances"
               refPrefix="#"
@@ -199,6 +213,21 @@ function ViewerContent() {
           <div className={styles.content}>
             {contentTab === "atlas" ? (
               <Atlas />
+            ) : contentTab === "space" ? (
+              <SpatialDesktop />
+            ) : contentTab === "flowing" ? (
+              <FlowingSplit
+                left={
+                  <div className={styles.flowingText}>
+                    <MarkdownPreview
+                      content={currentCtx.language}
+                      refs={refs}
+                      onNavigate={handleRefNavigate}
+                    />
+                  </div>
+                }
+                right={<SpatialDesktop />}
+              />
             ) : (
               <MarkdownPreview
                 content={currentCtx.language}
@@ -207,7 +236,7 @@ function ViewerContent() {
               />
             )}
           </div>
-          {contentTab !== "atlas" && (
+          {contentTab === "language" && (
             <PropertyBar
               title="Invariants"
               refPrefix="!"
@@ -215,7 +244,7 @@ function ViewerContent() {
               items={currentCtx.invariants}
             />
           )}
-          <SubContextBar context={currentCtx} />
+          {contentTab === "language" && <SubContextBar context={currentCtx} />}
         </main>
       </div>
     </div>

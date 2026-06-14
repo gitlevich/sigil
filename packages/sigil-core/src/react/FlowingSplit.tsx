@@ -5,7 +5,7 @@
  * as the prose names it. Draggable divider in the middle; split ratio
  * persists to localStorage so the panes remember their balance.
  */
-import { ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import styles from "./FlowingSplit.module.css";
 
 const STORAGE_KEY = "sigil.flowing.leftFrac";

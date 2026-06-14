@@ -12,6 +12,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
     "@tailwindcss/vite": "^4.2.2",
     "framer-motion": "^12.38.0",
     "react": "^19.2.4",
@@ -20,11 +22,13 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "sigil-core": "*",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@types/node": "^24.12.0",
+    "@types/three": "^0.183.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

@@ -5,8 +5,8 @@
  * they have their own icon kind on the desktop; ancestors are excluded
  * because the structural parent has its own chevron.
  */
-import type { Sigil } from "sigil-core";
-import { resolve as coreResolve } from "sigil-core";
+import type { Sigil } from "./types";
+import { resolve as coreResolve } from "./lexicalScope";
 
 export type EntanglementKind = "neighbor" | "god" | "landmark";
 

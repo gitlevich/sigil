@@ -20,6 +20,12 @@ interface Invariant {
   content: string;
 }
 
+interface SpatialLayout {
+  version: 1;
+  icons: Record<string, { x: number; y: number }>;
+  scroll?: { x: number; y: number; w: number; h: number; open?: boolean };
+}
+
 interface Sigil {
   name: string;
   language: string;
@@ -27,6 +33,21 @@ interface Sigil {
   invariants: Invariant[];
   children: Sigil[];
   vision?: string;
+  spatialLayout?: SpatialLayout;
+}
+
+/** Read a sigil's saved Spatial-desktop layout, if any, so the read-only web
+ * viewer can mirror the arrangement saved in the editor. */
+function readSpatialLayout(dir: string): SpatialLayout | undefined {
+  const file = path.join(dir, "spatial.layout.json");
+  if (!fs.existsSync(file)) return undefined;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as SpatialLayout;
+    if (parsed && parsed.version === 1 && typeof parsed.icons === "object") return parsed;
+  } catch {
+    // Malformed layout — fall back to deterministic placement in the viewer.
+  }
+  return undefined;
 }
 
 function languageFile(dir: string): string {
@@ -86,7 +107,9 @@ function readSigil(dir: string): Sigil {
     return 0;
   });
 
-  return { name, language, affordances, invariants, children };
+  const spatialLayout = readSpatialLayout(dir);
+
+  return { name, language, affordances, invariants, children, ...(spatialLayout ? { spatialLayout } : {}) };
 }
 
 const scriptDir = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));
