@@ -1,5 +1,6 @@
-import { createContext, useContext, useReducer, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useReducer, type ReactNode } from "react";
 import type { Sigil } from "./types";
+import { loadChrome, saveChrome } from "./persistence";
 
 export type ContentTab = "language" | "atlas" | "space" | "flowing";
 export type SidebarTab = "tree" | "vision";
@@ -48,13 +49,20 @@ export function ViewerProvider({
       ? "dark"
       : "light");
 
+  const chrome = loadChrome();
   const [state, dispatch] = useReducer(reducer, {
     sigil,
     currentPath: [],
-    contentTab: "language",
-    sidebarTab: "vision",
+    // First run (no stored chrome): vision tab + language content, per the
+    // vision-tab-opened-on-first-run invariant. Later runs restore the choice.
+    contentTab: chrome.contentTab ?? "language",
+    sidebarTab: chrome.sidebarTab ?? "vision",
     theme: initialTheme,
   });
+
+  useEffect(() => {
+    saveChrome({ contentTab: state.contentTab, sidebarTab: state.sidebarTab });
+  }, [state.contentTab, state.sidebarTab]);
 
   return (
     <StateContext.Provider value={state}>

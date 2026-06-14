@@ -1,14 +1,12 @@
 /**
  * SpatialDesktop (site wrapper) — feeds the shared sigil-core component the
- * read-only viewer's state. Layout comes from the spec exported with each
- * sigil's saved arrangement baked in; writes are no-ops, so dragging works
- * in-session but does not persist. "Through" is omitted (editor-only).
+ * read-only viewer's state and a localStorage-backed layout store, so a
+ * hand-arranged desktop survives reloads. "Through" is omitted (editor-only).
  */
 import { useViewerState, useViewerDispatch } from "./ViewerState";
 import { findContext } from "./utils";
-import { emptyLayout } from "sigil-core/spatialLayout";
-import type { Sigil } from "sigil-core";
 import { SpatialDesktop as SpatialDesktopView } from "sigil-core/react/SpatialDesktop";
+import { browserLayoutStore } from "./persistence";
 
 export function SpatialDesktop() {
   const { sigil, currentPath, theme } = useViewerState();
@@ -23,8 +21,7 @@ export function SpatialDesktop() {
       mainRoot={sigil}
       importedRoot={null}
       navigate={(path) => dispatch({ type: "NAVIGATE", path })}
-      readLayout={(f: Sigil) => Promise.resolve(f.spatialLayout ?? emptyLayout())}
-      writeLayout={() => Promise.resolve()}
+      layoutStore={browserLayoutStore}
       dark={theme === "dark"}
     />
   );
