@@ -19,6 +19,9 @@ export interface Sigil {
   invariants: Invariant[];
   children: Sigil[];
   isImported?: boolean;
+  /** The vision document (vision.md): a standalone document parallel to the
+   * taxonomy, present only at the root. */
+  vision?: string;
 }
 
 // ── Backward compatibility aliases (deprecated, remove after migration) ──

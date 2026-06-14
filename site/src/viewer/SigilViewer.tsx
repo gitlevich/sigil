@@ -137,7 +137,7 @@ function ViewerContent() {
               </div>
               <div className={styles.sidebarContent}>
                 {sidebarTab === "vision" ? (
-                  <VisionPanel vision={sigil.children.find(c => c.name === "Vision")?.language ?? ""} />
+                  <VisionPanel vision={sigil.vision ?? ""} />
                 ) : (
                   <TreeView />
                 )}

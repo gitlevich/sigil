@@ -12,6 +12,6 @@ I am equipped with senses.
 
 @Touch lets me feel a @sigil's refusal to move under my own edit. When the material does not yield, I do not force it.
 
-@Hearing lets me attend to events happening anywhere in the apartment, even where I am not looking. Each event is located by @sigil, @Ring, and kind of change.
+@Hearing lets me attend to events happening anywhere in the apartment, even where I am not looking. Each event is located by @sigil and kind of change.
 
 All four are readouts on one substrate: !senses-share-one-truth. They never contradict each other about what the tree is.

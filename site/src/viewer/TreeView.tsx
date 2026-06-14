@@ -87,15 +87,12 @@ export function TreeView({ onNavigate: onNavigateCallback }: { onNavigate?: () =
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {sigil.children.map((child) => (
-        <TreeNode
-          key={child.name}
-          context={child}
-          path={[child.name]}
-          currentPath={currentPath}
-          onNavigate={handleNavigate}
-        />
-      ))}
+      <TreeNode
+        context={sigil}
+        path={[]}
+        currentPath={currentPath}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }

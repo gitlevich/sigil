@@ -26,6 +26,7 @@ interface Sigil {
   affordances: Affordance[];
   invariants: Invariant[];
   children: Sigil[];
+  vision?: string;
 }
 
 function languageFile(dir: string): string {
@@ -105,6 +106,13 @@ if (!fs.existsSync(sigilRoot)) {
 }
 
 const sigil = readSigil(sigilRoot) as Sigil;
+
+// The vision document lives at the root, parallel to the taxonomy (matching the
+// Rust backend, which reads root vision.md into Idea.vision).
+const rootVisionPath = path.join(sigilRoot, "vision.md");
+if (fs.existsSync(rootVisionPath)) {
+  sigil.vision = fs.readFileSync(rootVisionPath, "utf-8");
+}
 
 // Ensure output directory exists
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });

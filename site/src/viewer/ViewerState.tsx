@@ -50,9 +50,9 @@ export function ViewerProvider({
 
   const [state, dispatch] = useReducer(reducer, {
     sigil,
-    currentPath: sigil.children.length > 0 ? [sigil.children[0].name] : [],
+    currentPath: [],
     contentTab: "language",
-    sidebarTab: "tree",
+    sidebarTab: "vision",
     theme: initialTheme,
   });
 
