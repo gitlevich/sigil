@@ -8,11 +8,11 @@ import { useExperience } from "../state/ExperienceContext";
 import { useToast } from "./useToast";
 import { useHearing, type HearingEvent } from "./useHearing";
 import { useCompileCheck, type RefError } from "./useCompileCheck";
+import { registerToolDispatchHandlers } from "./toolDispatchHandlers";
 import { useSpellbook } from "./useSpellbook";
 import { consultSpellbook, compressSigil, allRefsPattern, type Disturbance } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import { useActionDeps } from "./useActionDeps";
-import * as actions from "../actions/workspace";
 
 /**
  * A provider whose stream costs the @user money. The remote-call indicator
@@ -119,95 +119,14 @@ export function useChatStream() {
     // catches disk changes too, but this is a direct path that doesn't
     // depend on watcher latency.
     // Tool dispatches from Bicameron route through the same workspace
-    // actions a user click would — deleteSigil, renameSigil, etc.
-    // Each handler: run the action, echo result back via toolResult.
-    const handleTool = async (
-      request_id: string,
-      label: string,
-      run: () => Promise<string>,
-    ) => {
-      console.info(`[${label}] dispatched`);
-      try {
-        const message = await run();
-        await api.toolResult(request_id, true, message);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        await api.toolResult(request_id, false, msg);
-      }
-    };
-
-    const unlistenToolDelete = events.onToolDeleteSigil(({ request_id, payload }) =>
-      handleTool(request_id, "tool:delete_sigil", async () => {
-        await actions.deleteSigil(payload.abs_path, actionDepsRef.current);
-        return `Deleted @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolRename = events.onToolRenameSigil(({ request_id, payload }) =>
-      handleTool(request_id, "tool:rename_sigil", async () => {
-        await actions.renameSigil(payload.abs_path, payload.new_name, actionDepsRef.current);
-        return `Renamed @${payload.sigil_path} to @${payload.new_name}.`;
-      }));
-
-    const unlistenToolMove = events.onToolMoveSigil(({ request_id, payload }) =>
-      handleTool(request_id, "tool:move_sigil", async () => {
-        await actions.moveSigil(payload.abs_path, payload.new_parent_abs_path, actionDepsRef.current);
-        return `Moved @${payload.sigil_path} under @${payload.new_parent_sigil_path}.`;
-      }));
-
-    const unlistenToolWriteSigil = events.onToolWriteSigil(({ request_id, payload }) =>
-      handleTool(request_id, "tool:write_sigil", async () => {
-        await api.writeFile(`${payload.abs_path}/language.md`, payload.content);
-        return `Wrote @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolCreateSigil = events.onToolCreateSigil(({ request_id, payload }) =>
-      handleTool(request_id, "tool:create_sigil", async () => {
-        const newFolder = await api.createSigil(payload.parent_abs_path, payload.name);
-        if (payload.content) {
-          await api.writeFile(`${newFolder.path}/language.md`, payload.content);
-        }
-        return `Created @${payload.name} under @${payload.parent_sigil_path || "(root)"}.`;
-      }));
-
-    const unlistenToolWriteAff = events.onToolWriteAffordance(({ request_id, payload }) =>
-      handleTool(request_id, "tool:write_affordance", async () => {
-        await api.writeFile(`${payload.abs_path}/affordance-${payload.name}.md`, payload.content);
-        return `Wrote #${payload.name} on @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolDeleteAff = events.onToolDeleteAffordance(({ request_id, payload }) =>
-      handleTool(request_id, "tool:delete_affordance", async () => {
-        await api.deleteFile(`${payload.abs_path}/affordance-${payload.name}.md`);
-        return `Deleted #${payload.name} from @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolWriteInv = events.onToolWriteInvariant(({ request_id, payload }) =>
-      handleTool(request_id, "tool:write_invariant", async () => {
-        await api.writeFile(`${payload.abs_path}/invariant-${payload.name}.md`, payload.content);
-        return `Wrote !${payload.name} on @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolDeleteInv = events.onToolDeleteInvariant(({ request_id, payload }) =>
-      handleTool(request_id, "tool:delete_invariant", async () => {
-        await api.deleteFile(`${payload.abs_path}/invariant-${payload.name}.md`);
-        return `Deleted !${payload.name} from @${payload.sigil_path}.`;
-      }));
-
-    const unlistenToolWriteVision = events.onToolWriteVision(({ request_id, payload }) =>
-      handleTool(request_id, "tool:write_vision", async () => {
-        const ws = workspaceRef.current;
-        await api.writeFile(`${ws.spec.rootPath}/vision.md`, payload.content);
-        return `Wrote vision.md.`;
-      }));
-
-    const unlistenToolMarkPlacement = events.onToolMarkPlacement(({ request_id, payload }) =>
-      handleTool(request_id, "tool:mark_placement", async () => {
-        const langPath = `${payload.abs_path}/language.md`;
-        const existing = await api.readFile(langPath).catch(() => "");
-        const updated = upsertFrontmatterField(existing, "placement", payload.category);
-        await api.writeFile(langPath, updated);
-        return `Marked @${payload.sigil_path} placement as ${payload.category}.`;
-      }));
+    // actions a user click would — deleteSigil, renameSigil, etc. The
+    // handlers live in toolDispatchHandlers.ts so they are testable
+    // without standing up this hook; navigate stays below because it
+    // round-trips through workspace navigation state.
+    const unlistenToolHandlers = registerToolDispatchHandlers({
+      getWorkspace: () => workspaceRef.current,
+      getActionDeps: () => actionDepsRef.current,
+    });
 
     const unlistenSigilChanged = events.onSigilChanged(() => {
       console.info("[sigil-changed] discarding pending autosave and reloading spec");
@@ -287,17 +206,7 @@ export function useChatStream() {
       unlistenToken.then((fn) => fn());
       unlistenError.then((fn) => fn());
       unlistenToolUse.then((fn) => fn());
-      unlistenToolDelete.then((fn) => fn());
-      unlistenToolRename.then((fn) => fn());
-      unlistenToolMove.then((fn) => fn());
-      unlistenToolWriteSigil.then((fn) => fn());
-      unlistenToolCreateSigil.then((fn) => fn());
-      unlistenToolWriteAff.then((fn) => fn());
-      unlistenToolDeleteAff.then((fn) => fn());
-      unlistenToolWriteInv.then((fn) => fn());
-      unlistenToolDeleteInv.then((fn) => fn());
-      unlistenToolWriteVision.then((fn) => fn());
-      unlistenToolMarkPlacement.then((fn) => fn());
+      for (const unlisten of unlistenToolHandlers) unlisten.then((fn) => fn());
       unlistenSigilChanged.then((fn) => fn());
       unlistenToolNavigate.then((fn) => fn());
       unlistenResetAssistant.then((fn) => fn());
@@ -451,32 +360,6 @@ export function useChatStream() {
   }, [appState.settings, chatDispatch, addToast, appDispatch]);
 
   return { sendMessage };
-}
-
-/**
- * Insert or replace a single key/value in a markdown file's YAML frontmatter.
- *
- * The frontmatter is a `---\n…\n---` block at the very top of the file. If
- * absent, one is created. If the key exists, its value is replaced; otherwise
- * the key is appended to the end of the existing block. The body below the
- * frontmatter is untouched.
- *
- * Used by the mark_placement tool to set `placement: <category>` on a sigil's
- * language.md without disturbing its narrative or other metadata.
- */
-function upsertFrontmatterField(content: string, key: string, value: string): string {
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!fmMatch) {
-    // No frontmatter — synthesize one.
-    return `---\n${key}: ${value}\n---\n\n${content}`;
-  }
-  const fmBody = fmMatch[1];
-  const after = content.slice(fmMatch[0].length);
-  const lineRe = new RegExp(`^${key}:\\s*.*$`, "m");
-  const newFmBody = lineRe.test(fmBody)
-    ? fmBody.replace(lineRe, `${key}: ${value}`)
-    : `${fmBody}\n${key}: ${value}`;
-  return `---\n${newFmBody}\n---\n${after.startsWith("\n") ? "" : "\n"}${after}`;
 }
 
 /**
