@@ -13,3 +13,5 @@ I am done when naming the leaves suffices: I care about their @affordances, not 
 I work with my AI design partner to converge the spec by measuring coherence over time. Done means a coding agent can project the spec into working code.
 
 Narrative (time-like) -> application (space-like)
+
+The arrow bends back: the application also holds the narratives. Sigil is both views of the same work — the space-like view, where I move laterally between siblings or vertically between abstractions, always at the same bounded complexity, and the time-like view, where @narratives of work flow through a declared span of my @attention. What the five-children wall is to space, the span is to time. Never more in scope than my attention holds.

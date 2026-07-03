@@ -6,7 +6,7 @@ status: implemented
 
 The thing I am shaping. The @User's @vision, distilled into structure precise enough to be projected into a running application by a coding @agent. The whole spec — root to leaves — is this Idea.
 
-The Idea contains a @Workspace where the @User works and a @SigilFolder where the work is stored.
+The Idea contains a @Workspace where the @User works, a @SigilFolder where the work is stored, and a @Backlog where the work unfolds in time as @narratives.
 
 !vision-tab-opened-on-first-run. !state-restored-to-saved on subsequent runs. !state-saved-on-exit. !is-an-image-centric-application.
 
