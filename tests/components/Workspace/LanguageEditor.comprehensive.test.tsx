@@ -514,7 +514,7 @@ describe("LanguageEditor component", () => {
     setEditorScopeForTest({
       scope: [{ name: "Chat", summary: "chat" }],
       scopeNames: ["Chat"],
-      nameIndex: new Map([["chat", "Chat"]]),
+      nameIndex: new Map([["chat", ["Chat"]]]),
       sigilRoot: root, currentContext: root,
       currentPath: [], importedOntologies: null,
     });
@@ -953,7 +953,7 @@ describe("buildCustomKeymap", () => {
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
-      nameIndex: new Map([["observer", "Observer"]]),
+      nameIndex: new Map([["observer", ["Observer"]]]),
       sigilRoot: root, currentContext: root,
       currentPath: [], importedOntologies: null,
     });
@@ -1003,7 +1003,7 @@ describe("buildCustomKeymap", () => {
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches" }],
       scopeNames: ["Observer"],
-      nameIndex: new Map([["observer", "Observer"]]),
+      nameIndex: new Map([["observer", ["Observer"]]]),
       sigilRoot: root, currentContext: root,
       currentPath: [], importedOntologies: null,
     });
