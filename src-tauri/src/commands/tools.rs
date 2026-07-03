@@ -329,6 +329,20 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
             }
         }),
         serde_json::json!({
+            "name": "compile_check",
+            "description": "Compile the sigil tree: check that every @sigil, #affordance, and !invariant reference resolves in scope. Returns the same diagnostics the user sees in the workspace compile panel — file, line, token, and reason per unresolved reference. Optional `path` scopes the walk to a subtree; resolution still uses the whole tree. Run this after edits to verify your changes leave the spec coherent.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Optional sigil path to scope the check (e.g. 'DesignPartner/BicameralMind'). Omit or pass empty string to compile from the workspace root."
+                    }
+                },
+                "required": []
+            }
+        }),
+        serde_json::json!({
             "name": "rename_sigil",
             "description": "Rename a sigil and update all @references across the entire sigil tree. Pass dry_run=true to preview the rename — confirms preconditions and reports source/target paths without mutating. Note: the preview cannot enumerate every @reference that would update because that scan happens frontend-side; use dry_run primarily to validate paths and the new_name before letting the rename run.",
             "input_schema": {
@@ -852,6 +866,29 @@ async fn execute_tool_inner(
             let mut output = String::new();
             render_context(&sigil.root, 0, &mut output);
             Ok(output)
+        }
+        "compile_check" => {
+            let path = input
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim_matches('/')
+                .to_string();
+            if path.contains("..") {
+                return Err(format!("Path traversal refused: {}", path));
+            }
+            let (app_h, dispatcher_h) = require_app_and_dispatcher(app, dispatcher)?;
+            // The compiler lives frontend-side (sigil-core over the in-memory
+            // tree), so this round-trips through the dispatcher and returns
+            // the same diagnostics the user sees in the compile panel.
+            crate::commands::tool_dispatcher::dispatch(
+                dispatcher_h,
+                app_h,
+                "tool:compile_check",
+                serde_json::json!({ "path": path }),
+                10,
+            )
+            .await
         }
         "read_tree" => {
             let root_path = input["root_path"]
@@ -2340,5 +2377,38 @@ mod tests {
         );
 
         let _ = tmp;
+    }
+
+    #[tokio::test]
+    async fn compile_check_is_defined_as_a_tool() {
+        let defs = tool_definitions();
+        let def = defs
+            .iter()
+            .find(|d| d["name"] == "compile_check")
+            .expect("compile_check must be in tool_definitions");
+        assert!(
+            def["input_schema"]["properties"]["path"].is_object(),
+            "compile_check must accept an optional path"
+        );
+    }
+
+    #[tokio::test]
+    async fn compile_check_refuses_parent_traversal() {
+        let (_tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({ "path": "../escape" });
+        let result = execute_tool("compile_check", &input, None, Some(&ctx), None).await;
+        assert!(result.is_err(), "../ traversal should be refused");
+    }
+
+    #[tokio::test]
+    async fn compile_check_requires_dispatcher() {
+        let (_tmp, ctx) = workspace_with_scratch();
+        let input = serde_json::json!({});
+        let result = execute_tool("compile_check", &input, None, Some(&ctx), None).await;
+        assert!(
+            result.is_err(),
+            "without app handle and dispatcher the tool must refuse, got: {:?}",
+            result
+        );
     }
 }

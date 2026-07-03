@@ -148,6 +148,29 @@ export function compileCheck(root: Sigil, startPath: string[] = []): CompileResu
 }
 
 /**
+ * Render a CompileResult as the compiler's text report — the same shape the
+ * CLI script prints and the compile panel lists: errors grouped per file with
+ * line, token, and reason, then a summary line.
+ */
+export function formatCompileResult(result: CompileResult): string {
+  if (result.errors.length === 0) {
+    return `compile-check: ${result.totalRefs} references checked — all resolve`;
+  }
+  const byFile = new Map<string, RefError[]>();
+  for (const err of result.errors) {
+    const key = [...err.path, err.file].join("/");
+    const list = byFile.get(key) ?? [];
+    list.push(err);
+    byFile.set(key, list);
+  }
+  const sections: string[] = [];
+  for (const [file, errs] of byFile) {
+    sections.push(`${file}\n${errs.map((e) => `  ${e.line}: ${e.ref}  — ${e.reason}`).join("\n")}`);
+  }
+  return `${sections.join("\n\n")}\n\n${result.totalRefs} references checked, ${result.errors.length} unresolved, ${byFile.size} file(s) with errors`;
+}
+
+/**
  * Run compile check against the in-memory sigil tree.
  * Libs/imported ontologies must be passed separately — they are mounted as a
  * child of root (mirroring the CLI script) so references to library sigils resolve.
