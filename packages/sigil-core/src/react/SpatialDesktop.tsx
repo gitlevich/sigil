@@ -172,7 +172,7 @@ export function SpatialDesktop({
   // Stable identity for the inhabited sigil — used to gate per-sigil layout
   // loading and the scroll panel. Replaces the editor's folder.path, which the
   // web viewer doesn't have.
-  const folderKey = currentPath.join(" ");
+  const folderKey = currentPath.join("/");
 
   // Track canvas size so default positions map to real pixels.
   useEffect(() => {
