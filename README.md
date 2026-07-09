@@ -44,6 +44,10 @@ Each context contains:
 - **Auto-save** — every edit writes to disk immediately. No save button, no lost work.
 - **Light and dark themes** — follows your system preference or set manually.
 
+## Built with Sigil
+
+[SigilAtlas](https://sigilatlas.com) — an instrument for seeing a photographic archive by structure rather than by folders — was designed this way. Its [Genesis](https://sigilatlas.com/conversations/) is a chronicle of the build: dated dialogues between its maker and the AI, refining the domain language of the system as an entangled pair.
+
 ## Technology
 
 Tauri 2 desktop application. Rust backend for file system operations and AI API integration with tool use. React + TypeScript frontend with CodeMirror 6 for markdown editing. macOS first.
