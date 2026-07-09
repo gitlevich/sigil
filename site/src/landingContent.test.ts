@@ -43,13 +43,13 @@ describe("landingContent", () => {
     expect(implementation).toContain("the same tools I hold");
   });
 
-  it("closes the loop and exposes the spec, repository, and release links", () => {
+  it("closes the loop and exposes the model, repository, and release links", () => {
     expect(landingContent.links.title).toBe("The loop closes.");
     expect(landingContent.links.intro).toContain("written with the method");
     expect(landingContent.links.intro).toContain("work in progress");
     expect(landingContent.links.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ href: "#/viewer", title: "Read the spec" }),
+        expect.objectContaining({ href: "#/viewer", title: "Read the model" }),
         expect.objectContaining({ href: "https://github.com/gitlevich/sigil", external: true }),
         expect.objectContaining({
           href: "https://github.com/gitlevich/sigil/releases",

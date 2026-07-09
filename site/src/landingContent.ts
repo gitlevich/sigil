@@ -73,18 +73,18 @@ export const landingContent = {
     intro: toParagraphs(proof.body).join(" "),
     items: [
       {
-        eyebrow: "Specification",
-        title: "Read the spec",
+        eyebrow: "Model",
+        title: "Read the model",
         description:
-          "The method's spec, from which the editor was projected: every sigil's language, affordances, and invariants.",
-        action: "Open the spec viewer",
+          "The domain model the editor was projected from: every sigil's language, affordances, and invariants.",
+        action: "Open the model viewer",
         href: "#/viewer",
       },
       {
         eyebrow: "Repository",
         title: "Read the code",
         description:
-          "The editor, this site, and the spec live in one public repository.",
+          "The editor, this site, and the model live in one public repository.",
         action: "Visit GitHub",
         href: "https://github.com/gitlevich/sigil",
         external: true,
