@@ -1,0 +1,33 @@
+# What is a sigil?
+
+A sigil is a named region of language. Inside it, words have exact meanings. Its boundary carries two lists: affordances — what can be done here — and invariants — what must stay true here. In the spec on this site, each sigil is a directory: a narrative written in the names of its children, one file per affordance, one per invariant, and the child sigils as subdirectories.
+
+A door is a good model. From outside, a door is a name and a recognizable boundary, and it matters for what it affords: entry. From inside, it is a whole place. A sigil can be referred to by name without entering, or entered and worked in.
+
+## Attention
+
+The definition rests on a small model of attention, imported into the spec as a library and specified there with the same rigor as the application itself.
+
+Attention is the given. An observer is attention paid from a point of view. Attention works in two modes: space-like, taking in what is present all at once as a field of possible distinctions, and time-like, following one sequence — a narrative, a conversation, a text. Token streams are time-like. The structures they describe are space-like. An application lives in both: imagined all at once, written one sentence at a time.
+
+Each distinction attention can make — inside or outside, allowed or forbidden, mine or not — is a contrast. Together the contrasts span a space, and a thing is a region in that space: the set of distinctions that hold about it. A sigil names such a region and writes its boundary down. The invariants state which contrasts must keep holding. The affordances state what can be done while they do.
+
+## Why it helps
+
+Attention is finite: a few concepts at a time, no more. A sigil protects attention. While I work inside one, only its language is in scope, and everything outside is reachable by name — the way an identifier resolves outward through enclosing scopes in a programming language. The tree as a whole can grow past what anyone can hold. No single room in it may.
+
+## The map
+
+A narrative of using an application traces one path across its domain. A narrative is compressed: it keeps only what serves its goal and discards everything off the path, and the goal it compresses toward is one arbitrary relevance among many — the difference between reaching it and not. A map keeps the whole terrain instead, so a goal can be chosen after the fact and any route taken. Many narratives, told and refined, begin to agree about such a shape. A domain expert is a person who sees the shape and can choose any route across it, orienting by sight rather than by remembered steps. A person who has memorized one procedure can only walk the path, and is lost when the terrain shifts. Sigil engineering makes the shape explicit: a tree of named scopes, precise enough that a coding agent can walk it and produce the application.
+
+## Inhabiting a sigil
+
+A specification is usually read as a plan to execute later: build the thing it describes. But a sigil can also be inhabited directly. Give an attention one tool for each affordance — a service that carries it out — and let it wear the sigil. From inside, it reads the domain language and already knows which contrasts must hold and what may be done; the boundary tells it what is relevant. Building the application becomes building the tools and wiring them into the sigil. The running application is the attention that lives there.
+
+To inhabit a sigil is to be embodied by it. Inside, an attention has state — a position in the contrast space, a place in an ongoing narrative — and that is a kind of body: a here from which the rest is periphery. The interaction surface is the cockpit of that body. A cockpit has to bring the right affordance to hand at the right moment, which is what Christopher Alexander meant by a pattern language: each element answering a recurring need in its context. A sigil made well focuses the attention that powers it, human or otherwise.
+
+## The name
+
+In its older use, a sigil is a sign that binds an intention. The borrowed sense is exact: a sigil binds meaning to a name and holds it.
+
+The vocabulary on this page — attention, contrast, affordance, invariant, sigil — is itself specified, as sigils, in the spec's library of imported ontologies. The definitions do not sit underneath the method; they are written in it. [Read them in the spec viewer.](#/viewer)

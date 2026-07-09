@@ -21,11 +21,74 @@ export function fromDashForm(dashed: string): string {
 }
 
 /**
+ * Irregular verb pasts and participles the suffix rules cannot derive:
+ * base → written forms. Consulted at registration time like every other rule,
+ * so recognition stays a flat lookup.
+ */
+const IRREGULAR_VERB_FORMS: Record<string, string[]> = {
+  bring: ["brought"],
+  build: ["built"],
+  buy: ["bought"],
+  catch: ["caught"],
+  choose: ["chose", "chosen"],
+  come: ["came"],
+  do: ["did", "done"],
+  draw: ["drew", "drawn"],
+  fight: ["fought"],
+  find: ["found"],
+  forget: ["forgot", "forgotten"],
+  get: ["got", "gotten"],
+  give: ["gave", "given"],
+  go: ["went", "gone"],
+  grow: ["grew", "grown"],
+  hear: ["heard"],
+  hide: ["hid", "hidden"],
+  hold: ["held"],
+  keep: ["kept"],
+  know: ["knew", "known"],
+  lay: ["laid"],
+  lead: ["led"],
+  leave: ["left"],
+  lend: ["lent"],
+  lose: ["lost"],
+  make: ["made"],
+  mean: ["meant"],
+  meet: ["met"],
+  pay: ["paid"],
+  run: ["ran"],
+  say: ["said"],
+  see: ["saw", "seen"],
+  seek: ["sought"],
+  sell: ["sold"],
+  send: ["sent"],
+  show: ["shown"],
+  sit: ["sat"],
+  speak: ["spoke", "spoken"],
+  spend: ["spent"],
+  stand: ["stood"],
+  take: ["took", "taken"],
+  teach: ["taught"],
+  tell: ["told"],
+  think: ["thought"],
+  understand: ["understood"],
+  wake: ["woke", "woken"],
+  wear: ["wore", "worn"],
+  win: ["won"],
+  write: ["wrote", "written"],
+};
+
+/** Ends consonant-vowel-consonant (final not w/x/y): doubles before -ed/-ing. */
+const DOUBLING_END = /[b-df-hj-np-tv-z][aeiou]([b-df-hj-np-tvz])$/;
+
+/** A consonant directly before a final -y, the condition for -ies/-ied. */
+const CONSONANT_Y_END = /[b-df-hj-np-tv-z]y$/;
+
+/**
  * All written forms that should resolve to this canonical name:
- * the name itself, its plural, its verb conjugations, and its adjective/noun
- * dual. Returned flattened, so a single {@link flattenName} on the lookup key
- * is enough to match. Computed once per canonical at registration time;
- * recognition then never inflects.
+ * the name itself, its plural, its verb conjugations (regular and irregular),
+ * and its adjective/noun dual. Returned flattened, so a single
+ * {@link flattenName} on the lookup key is enough to match. Computed once per
+ * canonical at registration time; recognition then never inflects.
  */
 export function inflectionsOf(canonical: string): string[] {
   const lower = canonical.toLowerCase();
@@ -33,9 +96,13 @@ export function inflectionsOf(canonical: string): string[] {
   const add = (s: string) => forms.add(flattenName(s));
   add(lower);
   add(lower + "s");
-  if (lower.endsWith("y") && lower.length > 2) {
+  if (/(?:s|x|z|ch|sh)$/.test(lower)) {
+    add(lower + "es");
+  }
+  if (CONSONANT_Y_END.test(lower) && lower.length > 2) {
     const stem = lower.slice(0, -1);
     add(stem + "ies");
+    add(stem + "ied");
     add(stem + "iful");
   }
   if (lower.endsWith("iful") && lower.length > 5) {
@@ -47,6 +114,14 @@ export function inflectionsOf(canonical: string): string[] {
   } else {
     add(lower + "ed");
     add(lower + "ing");
+    const doubling = lower.match(DOUBLING_END);
+    if (doubling) {
+      add(lower + doubling[1] + "ed");
+      add(lower + doubling[1] + "ing");
+    }
+  }
+  for (const irregular of IRREGULAR_VERB_FORMS[lower] ?? []) {
+    add(irregular);
   }
   return [...forms];
 }
@@ -72,15 +147,28 @@ export function buildNameIndex(canonicalNames: string[]): NameIndex {
   return index;
 }
 
-/** Resolve a (possibly inflected) written ref to its canonical name, or undefined. */
+/**
+ * Resolve a (possibly inflected) written ref to its canonical name, or undefined.
+ * A canonical whose own name equals the written form wins over one that only
+ * matches through inflection, so an exact name is never shadowed by another
+ * canonical that happens to inflect to it (e.g. `done` resolves to `done`, not
+ * to `do`), regardless of registration order.
+ */
 export function resolveRefName(refName: string, index: NameIndex): string | undefined {
-  return index.get(flattenName(refName))?.[0];
+  const key = flattenName(refName);
+  const matches = index.get(key);
+  if (!matches) return undefined;
+  return matches.find((c) => flattenName(c) === key) ?? matches[0];
 }
 
-/** All canonical names that accept this written form. Empty array if none. */
+/** All canonical names that accept this written form, exact base matches first. Empty array if none. */
 export function resolveRefNameAll(refName: string, index: NameIndex): string[] {
-  const matches = index.get(flattenName(refName));
-  return matches ? [...matches] : [];
+  const key = flattenName(refName);
+  const matches = index.get(key);
+  if (!matches) return [];
+  const exact = matches.filter((c) => flattenName(c) === key);
+  const inflected = matches.filter((c) => flattenName(c) !== key);
+  return [...exact, ...inflected];
 }
 
 /** Does `refName` resolve to `canonical`? Thin wrapper over {@link inflectionsOf}. */

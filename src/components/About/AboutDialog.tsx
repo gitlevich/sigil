@@ -23,15 +23,17 @@ export function AboutDialog() {
         <div className={styles.body}>
           <p>
             A structured representation of how you think about a system.
-            Each sigil is a tree of bounded contexts, each with its own domain
-            language and technical decisions. The hard limit of five sub-contexts
-            per level forces you to find the right abstractions.
+            A sigil is a bounded context: a named scope with its own domain
+            language, affordances — what can be done in it — and invariants —
+            what must hold in it. Sigils nest, up to five per level, and the
+            nesting makes the tree. The constraint forces you to find the
+            right abstractions.
           </p>
           <p>
-            When you talk to the AI agent, it sees the entire sigil. It inhabits
-            your mental model. You and the agent agree on the level of abstraction
-            to focus on, and the structure holds everything else so neither of
-            you has to.
+            When you talk to the design partner, it sees the whole tree. It
+            inhabits your mental model. You and the partner agree on the level
+            of abstraction to focus on, and the structure holds everything
+            else so neither of you has to.
           </p>
         </div>
 

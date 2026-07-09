@@ -438,7 +438,7 @@ describe("findPropertyRefAtCursor", () => {
     setEditorScopeForTest({
       scope: [{ name: "Widget", summary: "" }],
       scopeNames: ["Widget"],
-      nameIndex: new Map([["widget", "Widget"]]),
+      nameIndex: new Map([["widget", ["Widget"]]]),
       sigilRoot: root,
       currentContext: root,
       currentPath: [],
@@ -898,7 +898,7 @@ describe("scopeCompletion", () => {
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
       scopeNames: ["Observer"],
-      nameIndex: new Map([["observer", "Observer"]]),
+      nameIndex: new Map([["observer", ["Observer"]]]),
       sigilRoot: root,
       currentContext: root,
       currentPath: [],
@@ -964,7 +964,7 @@ describe("scopeCompletion: chained @A@B ref", () => {
     setEditorScopeForTest({
       scope: [{ name: "Parent", summary: "parent", kind: "contained" }],
       scopeNames: ["Parent"],
-      nameIndex: new Map([["parent", "Parent"]]),
+      nameIndex: new Map([["parent", ["Parent"]]]),
       sigilRoot: root,
       currentContext: root,
       currentPath: [],
@@ -992,7 +992,7 @@ describe("scopeCompletion: @Sigil#affordance property completion", () => {
     setEditorScopeForTest({
       scope: [{ name: "Widget", summary: "", kind: "contained" }],
       scopeNames: ["Widget"],
-      nameIndex: new Map([["widget", "Widget"]]),
+      nameIndex: new Map([["widget", ["Widget"]]]),
       sigilRoot: root,
       currentContext: root,
       currentPath: [],
@@ -1047,7 +1047,7 @@ describe("refCompletion", () => {
     setEditorScopeForTest({
       scope: [{ name: "Observer", summary: "watches", kind: "contained" }],
       scopeNames: ["Observer"],
-      nameIndex: new Map([["observer", "Observer"]]),
+      nameIndex: new Map([["observer", ["Observer"]]]),
       sigilRoot: folder("Root", { children: [folder("Observer")] }),
       currentContext: folder("Root"),
       currentPath: [],

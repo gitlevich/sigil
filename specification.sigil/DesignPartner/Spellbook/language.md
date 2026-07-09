@@ -10,6 +10,8 @@ The @Gate consults the @Spellbook when it recognizes a situation. If a @Spell is
 
 This is how automation grows. Each new @Spell is a local habit turned into structure. The @Spellbook is the record of what I no longer have to think about.
 
+Some @Spells I do not derive — I am taught. The @user distills a repeated ask into named steps with a postcondition — he calls these routines — and hands them to me. A taught @Spell is the same as a learned one once it is in the book: the @Gate casts it, and neither of us thinks about it again.
+
 This is what people mean by *autopilot*: @attention is elsewhere while routine motions run on home turf from the book. The driver thinks about her day while the familiar route is cast by old spells; her @LeftHemisphere is not needed for the turns. When something unexpected happens — a cyclist, a detour — the @Gate fails to match, wakes her, and she attends again.
 
 Spells do not think. They run.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildLexicalScope, findAffordanceInScope, findInvariantInScope,
-  resolveRefName, findAffordance, flattenName, buildNameIndex, fromDashForm,
+  resolveRefName, resolveRefNameAll, findAffordance, flattenName, buildNameIndex, fromDashForm,
 } from "../../packages/sigil-core/src/refs";
 import type { Sigil } from "../../packages/sigil-core/src/types";
 
@@ -273,6 +273,49 @@ describe("resolveRefName", () => {
   it("returns undefined for unknown", () => {
     expect(resolveRefName("Unknown", index)).toBeUndefined();
   });
+
+  it("past tense -ied to -y", () => {
+    expect(resolveRefName("satisfied", buildNameIndex(["satisfy"]))).toBe("satisfy");
+  });
+
+  it("third person -es after sibilant", () => {
+    expect(resolveRefName("teaches", buildNameIndex(["teach"]))).toBe("teach");
+    expect(resolveRefName("passes", buildNameIndex(["pass"]))).toBe("pass");
+  });
+
+  it("irregular past tense", () => {
+    expect(resolveRefName("taught", buildNameIndex(["teach"]))).toBe("teach");
+    expect(resolveRefName("thought", buildNameIndex(["think"]))).toBe("think");
+    expect(resolveRefName("caught", buildNameIndex(["catch"]))).toBe("catch");
+  });
+
+  it("irregular past participle", () => {
+    expect(resolveRefName("written", buildNameIndex(["write"]))).toBe("write");
+    expect(resolveRefName("held", buildNameIndex(["hold"]))).toBe("hold");
+  });
+
+  it("consonant doubling before -ed and -ing", () => {
+    expect(resolveRefName("swapped", buildNameIndex(["swap"]))).toBe("swap");
+    expect(resolveRefName("pinning", buildNameIndex(["pin"]))).toBe("pin");
+  });
+
+  it("exact name wins over an inflected collision, either order", () => {
+    expect(resolveRefName("done", buildNameIndex(["do", "done"]))).toBe("done");
+    expect(resolveRefName("done", buildNameIndex(["done", "do"]))).toBe("done");
+    // the inflected form still resolves when no exact canonical competes
+    expect(resolveRefName("done", buildNameIndex(["do"]))).toBe("do");
+  });
+
+  it("exact matches lead resolveRefNameAll", () => {
+    expect(resolveRefNameAll("done", buildNameIndex(["do", "done"]))).toEqual(["done", "do"]);
+  });
+
+  it("regular -ed/-ing for vowel+y, no -ied", () => {
+    expect(resolveRefName("played", buildNameIndex(["play"]))).toBe("play");
+    expect(resolveRefName("playing", buildNameIndex(["play"]))).toBe("play");
+    // vowel+y does not inflect through -ies/-ied
+    expect(resolveRefName("plaied", buildNameIndex(["play"]))).toBeUndefined();
+  });
 });
 
 // ── findAffordance ──
@@ -295,6 +338,11 @@ describe("findAffordance", () => {
   it("finds via fuzzy matching (plural)", () => {
     const sigil = ctx("S", { affordances: [{ name: "observer", content: "watch" }] });
     expect(findAffordance(sigil, "observers")?.content).toBe("watch");
+  });
+
+  it("finds via past-tense inflection (satisfied -> satisfy)", () => {
+    const sigil = ctx("S", { affordances: [{ name: "satisfy", content: "meet the criteria" }] });
+    expect(findAffordance(sigil, "satisfied")?.content).toBe("meet the criteria");
   });
 
   it("returns undefined when not found", () => {

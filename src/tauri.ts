@@ -546,6 +546,11 @@ export const events = {
   ): Promise<UnlistenFn> =>
     listen("tool:navigate", (event) => handler(event.payload as { request_id: string; payload: { sigil_path: string } })),
 
+  onToolCompileCheck: (
+    handler: (req: { request_id: string; payload: { path: string } }) => void,
+  ): Promise<UnlistenFn> =>
+    listen("tool:compile_check", (event) => handler(event.payload as { request_id: string; payload: { path: string } })),
+
   /**
    * Tool-dispatch events: mutating tools ask the frontend to perform the
    * action via its own workspace API. Each payload carries a request_id

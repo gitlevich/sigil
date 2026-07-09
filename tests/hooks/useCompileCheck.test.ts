@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Sigil } from "sigil-core";
-import { compileCheck } from "../../src/../src/hooks/useCompileCheck";
+import { compileCheck, formatCompileResult } from "../../src/hooks/useCompileCheck";
 
 function sigil(name: string, opts?: {
   language?: string;
@@ -255,5 +255,31 @@ describe("compileCheck", () => {
     const result = compileCheck(root);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].path).toEqual(["Idea", "DesignPartner"]);
+  });
+});
+
+describe("formatCompileResult", () => {
+  it("reports all-resolve with the total count", () => {
+    const root = sigil("Root", {
+      language: "See @Child.",
+      children: [sigil("Child")],
+    });
+    const text = formatCompileResult(compileCheck(root));
+    expect(text).toBe("compile-check: 1 references checked — all resolve");
+  });
+
+  it("groups errors per file with line, token, and reason, then a summary", () => {
+    const root = sigil("Root", {
+      children: [
+        sigil("Idea", {
+          language: "Uses @Ghost twice: @Ghost.",
+          affordances: [{ name: "act", content: "Calls #missing." }],
+        }),
+      ],
+    });
+    const text = formatCompileResult(compileCheck(root));
+    expect(text).toContain("Idea/language.md\n  1: @Ghost  — unresolved sigil");
+    expect(text).toContain("Idea/affordance-act.md\n  1: #missing  — unresolved affordance");
+    expect(text).toContain("3 references checked, 3 unresolved, 2 file(s) with errors");
   });
 });

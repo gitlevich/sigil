@@ -3,10 +3,12 @@
  *
  * A sigil rendered as a sphere with one opening: the way back to its parent.
  * Children float inside as smaller spheres, entangled by lines where their
- * names co-occur in this sigil's narrative. Siblings — the other children of
- * the parent — appear as flat named disks pressed into this sphere's inner
- * wall: they don't live here, but the wall holds their footprint. At the app
- * root the sphere has no opening.
+ * names co-occur in this sigil's narrative. Siblings — neighbors living in
+ * parallel sigils, the parent's other children — sit on the wall and change
+ * with the point of view: while the camera is inside my sphere they are
+ * translucent bubbles overlapping mine (parallel sigils sharing a boundary);
+ * once it pulls outside they become connections reaching out to those
+ * neighboring sigils. At the app root the sphere has no opening.
  *
  * View from everywhere: orbit the camera freely. Double-click a child sphere
  * to focus on it; click the opening to ascend.
@@ -15,19 +17,22 @@
  * roots, a navigate callback, and the theme. The editor and the web viewer
  * both wrap it with their own state.
  */
-import { useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Text, Line } from "@react-three/drei";
+import { useMemo, useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Text, Line, Billboard } from "@react-three/drei";
 import * as THREE from "three";
 import { findContext } from "../tree";
 import { stripFrontmatter } from "../frontmatter";
 import type { Sigil } from "../types";
 import { extractArcs } from "../sentenceArcs";
+import { fibonacciSphere, siblingWallPlacements, connectionNode } from "../structuralGeometry";
 
 const FOCUSED_RADIUS = 10;
 const CHILD_RADIUS_FRACTION = 0.14;
 const CHILD_PLACEMENT_FRACTION = 0.55;
-const WALL_DISK_RADIUS = 0.85;
+const NEIGHBOR_RADIUS = 2.6; // neighbor bubble, centered on the wall so it half-overlaps mine
+const CONNECTION_LEN = 3.2; // how far a connection reaches out past the wall
+const CONNECTION_NODE_RADIUS = 0.5; // the marker at the connection's far end
 const OPENING_THETA = Math.PI * 0.82; // where the cap ends; south pole becomes the hole
 
 export interface StructuralView3DProps {
@@ -45,19 +50,66 @@ export interface StructuralView3DProps {
   dark: boolean;
 }
 
-/** Golden-angle spiral points on a sphere of given radius. */
-function fibonacciSphere(n: number, radius: number): [number, number, number][] {
-  if (n === 0) return [];
-  if (n === 1) return [[0, 0, 0]];
-  const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-  const out: [number, number, number][] = [];
-  for (let i = 0; i < n; i++) {
-    const y = 1 - (2 * (i + 0.5)) / n;
-    const r = Math.sqrt(1 - y * y);
-    const theta = GOLDEN * i;
-    out.push([Math.cos(theta) * r * radius, y * radius, Math.sin(theta) * r * radius]);
-  }
-  return out;
+/** Ignore raycasts — visual-only labels never intercept clicks meant for the object. */
+const noRaycast = () => {};
+
+/**
+ * Reports whether the camera has crossed inside the focused sphere. Reads the
+ * camera each frame but only calls back on a transition, so the parent
+ * re-renders when the point of view flips, not every frame.
+ */
+function CameraInsideProbe({ radius, onChange }: { radius: number; onChange: (inside: boolean) => void }) {
+  const insideRef = useRef(false);
+  useFrame(({ camera }) => {
+    const inside = camera.position.length() < radius;
+    if (inside !== insideRef.current) {
+      insideRef.current = inside;
+      onChange(inside);
+    }
+  });
+  return null;
+}
+
+/**
+ * A billboarded label — always faces the camera, so it is never edge-on or
+ * mirrored. `frontOffset` floats it toward the camera by the object's radius
+ * so it reads as painted on the object's near face. Visual only unless a
+ * handler is passed.
+ */
+function SigilLabel({
+  position,
+  frontOffset = 0,
+  fontSize,
+  color,
+  outlineColor,
+  text,
+  onClick,
+}: {
+  position: [number, number, number];
+  frontOffset?: number;
+  fontSize: number;
+  color: string;
+  outlineColor: string;
+  text: string;
+  onClick?: () => void;
+}) {
+  return (
+    <Billboard position={position}>
+      <Text
+        position={[0, 0, frontOffset]}
+        fontSize={fontSize}
+        color={color}
+        outlineWidth={fontSize * 0.08}
+        outlineColor={outlineColor}
+        anchorX="center"
+        anchorY="middle"
+        onClick={onClick}
+        raycast={onClick ? undefined : noRaycast}
+      >
+        {text}
+      </Text>
+    </Billboard>
+  );
 }
 
 export function StructuralView3D({
@@ -69,6 +121,10 @@ export function StructuralView3D({
   navigate,
   dark,
 }: StructuralView3DProps) {
+  // Whether the camera has drifted inside the focused sphere — flips the
+  // neighbor rendering between overlapping bubbles and outward connections.
+  const [cameraInside, setCameraInside] = useState(false);
+
   // Children with positions on a fibonacci shell inside the focused sphere.
   const childPositions = useMemo(
     () => fibonacciSphere(folder?.children.length ?? 0, FOCUSED_RADIUS * CHILD_PLACEMENT_FRACTION),
@@ -77,9 +133,9 @@ export function StructuralView3D({
 
   const hasParent = currentPath.length > 0;
 
-  // Siblings — the parent's other children. Rendered as flat disks on the
-  // inner wall, distributed on the remaining sphere area (away from the
-  // opening so they don't crowd it).
+  // Siblings — the parent's other children, placed on the wall away from the
+  // opening so they don't crowd it. Rendered as bubbles or connections
+  // depending on the point of view.
   const siblings = useMemo(() => {
     if (!folder || !hasParent) return [] as Sigil[];
     const parentPath = currentPath.slice(0, -1);
@@ -92,28 +148,12 @@ export function StructuralView3D({
     return parent.children.filter((c) => c.name !== folder.name) as Sigil[];
   }, [folder, hasParent, currentPath, mainRoot, importedRoot]);
 
-  // Place sibling disks on the upper hemisphere (away from the south-pole
-  // opening). Fibonacci-on-cap: same spiral but over 0..OPENING_THETA.
-  const siblingPlacements = useMemo(() => {
-    const n = siblings.length;
-    if (n === 0) return [] as { pos: [number, number, number]; inward: THREE.Vector3 }[];
-    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-    const thetaMax = OPENING_THETA - 0.08; // pull disks slightly clear of the rim
-    const yMin = Math.cos(thetaMax);
-    const yMax = Math.cos(0) - 0.001;
-    const out: { pos: [number, number, number]; inward: THREE.Vector3 }[] = [];
-    for (let i = 0; i < n; i++) {
-      const y = yMax - ((yMax - yMin) * (i + 0.5)) / n;
-      const r = Math.sqrt(Math.max(0, 1 - y * y));
-      const theta = GOLDEN * i;
-      const ux = Math.cos(theta) * r;
-      const uz = Math.sin(theta) * r;
-      const pos: [number, number, number] = [ux * FOCUSED_RADIUS, y * FOCUSED_RADIUS, uz * FOCUSED_RADIUS];
-      const inward = new THREE.Vector3(-ux, -y, -uz).normalize();
-      out.push({ pos, inward });
-    }
-    return out;
-  }, [siblings.length]);
+  // Place sibling contact points on the upper hemisphere (away from the
+  // south-pole opening). Fibonacci-on-cap: same spiral but over 0..OPENING_THETA.
+  const siblingPlacements = useMemo(
+    () => siblingWallPlacements(siblings.length, FOCUSED_RADIUS, OPENING_THETA),
+    [siblings.length],
+  );
 
   // Entanglements — sentence-level co-occurrence between named children,
   // lifted from the narrative. Drawn as straight 3D lines between child
@@ -153,8 +193,10 @@ export function StructuralView3D({
 
   const childColor = dark ? "#6b8aa6" : "#7a9bb5";
   const wallColor = dark ? "#2a3440" : "#a8b8c8";
-  const wallDiskColor = dark ? "#3a4555" : "#d8cfbf";
+  const siblingColor = dark ? "#a99add" : "#9d8ec8"; // muted lavender — a distinct kind from the blue children
+  const siblingRingColor = dark ? "#c7b8f2" : "#6d5ba6";
   const textColor = dark ? "#dde3ea" : "#2a333e";
+  const labelOutline = dark ? "#10161c" : "#f5f6f7"; // scene background — a halo that lifts labels off any surface
   const edgeColor = dark ? "#8aa3bc" : "#4a6b8a";
   const rimColor = dark ? "#c0cad6" : "#5a6a7a";
 
@@ -179,6 +221,8 @@ export function StructuralView3D({
         <directionalLight position={[-12, -4, -8]} intensity={0.25} />
 
         <OrbitControls enablePan enableRotate enableZoom />
+
+        <CameraInsideProbe radius={FOCUSED_RADIUS} onChange={setCameraInside} />
 
         {/* Focused sphere — translucent wall, cap removed at south pole when
             a parent exists. DoubleSide so we see inside and outside alike. */}
@@ -211,17 +255,14 @@ export function StructuralView3D({
               <torusGeometry args={[openingRimRadius, 0.06, 12, 64]} />
               <meshBasicMaterial color={rimColor} />
             </mesh>
-            <Text
-              position={[0, -0.6, 0]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              fontSize={0.42}
+            <SigilLabel
+              position={[0, -0.7, 0]}
+              fontSize={0.5}
               color={textColor}
-              anchorX="center"
-              anchorY="middle"
+              outlineColor={labelOutline}
+              text={`↑ ${parentName}`}
               onClick={() => navigate(currentPath.slice(0, -1))}
-            >
-              ↑ {parentName}
-            </Text>
+            />
           </group>
         )}
 
@@ -237,7 +278,7 @@ export function StructuralView3D({
           />
         ))}
 
-        {/* Children — smaller spheres placed inside, each named. */}
+        {/* Children — smaller spheres placed inside, each named on its face. */}
         {folder.children.map((child, i) => {
           const pos = childPositions[i];
           const r = FOCUSED_RADIUS * CHILD_RADIUS_FRACTION;
@@ -252,63 +293,87 @@ export function StructuralView3D({
                 <sphereGeometry args={[r, 32, 24]} />
                 <meshStandardMaterial color={childColor} roughness={0.6} metalness={0.05} />
               </mesh>
-              <Text
-                position={[0, r + 0.35, 0]}
-                fontSize={0.38}
+              <SigilLabel
+                position={[0, 0, 0]}
+                frontOffset={r + 0.05}
+                fontSize={0.5}
                 color={textColor}
-                anchorX="center"
-                anchorY="bottom"
-              >
-                {child.name}
-              </Text>
+                outlineColor={labelOutline}
+                text={child.name}
+              />
             </group>
           );
         })}
 
-        {/* Sibling wall disks — siblings of this sigil, printed on the inner
-            wall because they live in parent space, not here. Oriented to
-            face inward (toward the sphere center) so their labels read
-            from the camera orbiting outside. */}
+        {/* Neighbors — parallel sigils (the parent's other children), sitting
+            on the wall. From inside they are translucent bubbles overlapping
+            mine, at the same opacity as my own wall; from outside they become
+            connections reaching out to those sigils. Double-click navigates
+            to the neighbor either way. */}
         {siblings.map((sib, i) => {
           const { pos, inward } = siblingPlacements[i];
-          const quaternion = new THREE.Quaternion().setFromUnitVectors(
-            new THREE.Vector3(0, 0, 1),
-            inward,
-          );
+          const goToNeighbor = (e: { stopPropagation: () => void }) => {
+            e.stopPropagation();
+            navigate([...currentPath.slice(0, -1), sib.name]);
+          };
+          if (cameraInside) {
+            // Bubble centered on the wall — half overlaps my space.
+            return (
+              <group key={`sib-${sib.name}`} position={pos}>
+                <mesh onDoubleClick={goToNeighbor}>
+                  <sphereGeometry args={[NEIGHBOR_RADIUS, 48, 32]} />
+                  <meshStandardMaterial
+                    color={siblingColor}
+                    transparent
+                    opacity={0.09}
+                    side={THREE.DoubleSide}
+                    depthWrite={false}
+                  />
+                </mesh>
+                <mesh>
+                  <sphereGeometry args={[NEIGHBOR_RADIUS, 24, 16]} />
+                  <meshBasicMaterial color={siblingColor} wireframe transparent opacity={0.2} />
+                </mesh>
+                <SigilLabel
+                  position={[0, 0, 0]}
+                  frontOffset={NEIGHBOR_RADIUS + 0.05}
+                  fontSize={0.5}
+                  color={textColor}
+                  outlineColor={labelOutline}
+                  text={sib.name}
+                />
+              </group>
+            );
+          }
+          // Connection reaching out past the wall to the neighbor sigil.
+          const node = connectionNode(pos, inward, CONNECTION_LEN);
           return (
-            <group key={`sib-${sib.name}`} position={pos} quaternion={quaternion}>
-              <mesh
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  navigate([...currentPath.slice(0, -1), sib.name]);
-                }}
-              >
-                <circleGeometry args={[WALL_DISK_RADIUS, 48]} />
-                <meshBasicMaterial color={wallDiskColor} side={THREE.DoubleSide} />
+            <group key={`sib-${sib.name}`}>
+              <Line points={[pos, node]} color={siblingRingColor} lineWidth={1.5} transparent opacity={0.8} />
+              <mesh position={node} onDoubleClick={goToNeighbor}>
+                <sphereGeometry args={[CONNECTION_NODE_RADIUS, 24, 16]} />
+                <meshStandardMaterial color={siblingColor} roughness={0.55} metalness={0.05} />
               </mesh>
-              <Text
-                position={[0, 0, 0.02]}
-                fontSize={0.28}
+              <SigilLabel
+                position={node}
+                frontOffset={CONNECTION_NODE_RADIUS + 0.05}
+                fontSize={0.5}
                 color={textColor}
-                anchorX="center"
-                anchorY="middle"
-              >
-                {sib.name}
-              </Text>
+                outlineColor={labelOutline}
+                text={sib.name}
+              />
             </group>
           );
         })}
 
         {/* Focused sigil's own name — floating above the sphere. */}
-        <Text
-          position={[0, FOCUSED_RADIUS + 0.9, 0]}
-          fontSize={0.65}
+        <SigilLabel
+          position={[0, FOCUSED_RADIUS + 1.2, 0]}
+          fontSize={0.72}
           color={textColor}
-          anchorX="center"
-          anchorY="bottom"
-        >
-          {folder.name}
-        </Text>
+          outlineColor={labelOutline}
+          text={folder.name}
+        />
       </Canvas>
     </div>
   );

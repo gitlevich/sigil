@@ -24,7 +24,7 @@ You also know that AI can be a powerful thinking partner — but only when it ha
 
 ## What Sigil does
 
-A sigil is a bounded context. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils. The constraint is the point.
+A sigil is a bounded context. It has a name, a boundary, and domain language written at its level of abstraction. The boundary carries two lists: affordances — what can be done here — and invariants — what must stay true here. Inside, a sigil can contain up to five other sigils. The constraint is the point.
 
 The sigil becomes the AI agent's context. When you navigate to a context, you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside becomes periphery. The structure holds what neither of you needs to hold in mind.
 
@@ -32,6 +32,7 @@ The sigil becomes the AI agent's context. When you navigate to a context, you an
 
 Each context is a directory containing:
 - **language.md** — the domain language for this bounded context
+- **affordance-\\*.md / invariant-\\*.md** — one file per affordance, one per invariant
 - Up to 5 sub-context directories
 
 Put it in git and it versions like code.

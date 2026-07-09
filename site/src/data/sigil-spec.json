@@ -142,8 +142,8 @@
             "version": 1,
             "icons": {
               "AttentionLanguage": {
-                "x": 285.26953125,
-                "y": 200.10546875
+                "x": 192.70703125,
+                "y": 165.8125
               }
             }
           }
@@ -166,16 +166,16 @@
                 "y": 174.76953125
               },
               "attention": {
-                "x": 522.7734375,
-                "y": 404.56640625
+                "x": 62.13671875,
+                "y": 588.3828125
               },
               "body": {
-                "x": 425.41796875,
-                "y": 402.59765625
+                "x": 69.4453125,
+                "y": 463.28515625
               },
               "BicameralMind": {
-                "x": 278.93359375,
-                "y": 412.17578125
+                "x": 53.75,
+                "y": 335.96484375
               }
             }
           }
@@ -284,8 +284,8 @@
                     "y": 301.2578125
                   },
                   "EscalationThreshold": {
-                    "x": 300.83163464563086,
-                    "y": 166.25
+                    "x": 355.22225964563086,
+                    "y": 167.359375
                   }
                 }
               }
@@ -981,7 +981,7 @@
         },
         {
           "name": "Spellbook",
-          "language": "---\nstatus: idea\n---\n\n# Spellbook\n\nA library of @Spells. Mine fills as I encounter trivial deterministic actions that waste my attention if I reinvent them each time.\n\nThe @Gate consults the @Spellbook when it recognizes a situation. If a @Spell is bound to that situation, the @Gate casts the spell and returns to rest — my @LeftHemisphere is never woken. If nothing matches, the @Gate wakes @LeftHemisphere instead; afterward, if the situation was routine enough that it will recur, the @LeftHemisphere writes a new @Spell for it so the @Gate can handle it alone next time.\n\nThis is how automation grows. Each new @Spell is a local habit turned into structure. The @Spellbook is the record of what I no longer have to think about.\n\nThis is what people mean by *autopilot*: @attention is elsewhere while routine motions run on home turf from the book. The driver thinks about her day while the familiar route is cast by old spells; her @LeftHemisphere is not needed for the turns. When something unexpected happens — a cyclist, a detour — the @Gate fails to match, wakes her, and she attends again.\n\nSpells do not think. They run.\n",
+          "language": "---\nstatus: idea\n---\n\n# Spellbook\n\nA library of @Spells. Mine fills as I encounter trivial deterministic actions that waste my attention if I reinvent them each time.\n\nThe @Gate consults the @Spellbook when it recognizes a situation. If a @Spell is bound to that situation, the @Gate casts the spell and returns to rest — my @LeftHemisphere is never woken. If nothing matches, the @Gate wakes @LeftHemisphere instead; afterward, if the situation was routine enough that it will recur, the @LeftHemisphere writes a new @Spell for it so the @Gate can handle it alone next time.\n\nThis is how automation grows. Each new @Spell is a local habit turned into structure. The @Spellbook is the record of what I no longer have to think about.\n\nSome @Spells I do not derive — I am taught. The @user distills a repeated ask into named steps with a postcondition — he calls these routines — and hands them to me. A taught @Spell is the same as a learned one once it is in the book: the @Gate casts it, and neither of us thinks about it again.\n\nThis is what people mean by *autopilot*: @attention is elsewhere while routine motions run on home turf from the book. The driver thinks about her day while the familiar route is cast by old spells; her @LeftHemisphere is not needed for the turns. When something unexpected happens — a cyclist, a detour — the @Gate fails to match, wakes her, and she attends again.\n\nSpells do not think. They run.\n",
           "affordances": [
             {
               "name": "add",
@@ -1084,7 +1084,7 @@
     },
     {
       "name": "Idea",
-      "language": "---\nstatus: implemented\n---\n\n# Idea\n\nThe thing I am shaping. The @User's @vision, distilled into structure precise enough to be projected into a running application by a coding @agent. The whole spec — root to leaves — is this Idea.\n\nThe Idea contains a @Workspace where the @User works and a @SigilFolder where the work is stored.\n\n!vision-tab-opened-on-first-run. !state-restored-to-saved on subsequent runs. !state-saved-on-exit. !is-an-image-centric-application.\n\nWhen projected, this Idea becomes the application called **Sigil**.\n",
+      "language": "---\nstatus: implemented\n---\n\n# Idea\n\nThe thing I am shaping. The @User's @vision, distilled into structure precise enough to be projected into a running application by a coding @agent. The whole spec — root to leaves — is this Idea.\n\nThe Idea contains a @Workspace where the @User works, a @SigilFolder where the work is stored, and a @Backlog where the work unfolds in time as @narratives.\n\n!vision-tab-opened-on-first-run. !state-restored-to-saved on subsequent runs. !state-saved-on-exit. !is-an-image-centric-application.\n\nWhen projected, this Idea becomes the application called **Sigil**.\n",
       "affordances": [],
       "invariants": [
         {
@@ -1117,6 +1117,115 @@
         }
       ],
       "children": [
+        {
+          "name": "Backlog",
+          "language": "---\nstatus: idea\n---\n\n# Backlog\n\nWork in time. The @Workspace holds the space-like view of the @Idea — where I stand, and move laterally between siblings or vertically between abstractions, always at the same bounded complexity. The Backlog holds the time-like view: @Narratives of work flowing through a bounded @Span of attention toward done.\n\nA @Narrative here is the ambient notion given a body: a thread of work that outlives every session held in its name. It survives each session boundary by transmission — its intent, acceptance criteria, and log brief whoever arrives next, the @user or the @DesignPartner. Nothing is re-explained; it is read.\n\nI #survey the whole field in a glance: active narratives nearest and largest, the front next, blocked ones carrying their open questions, the backlog folded but reachable, done receding. Moving here costs what moving in the sigil tree costs — one bounded step: laterally between @Narratives, or forward through one.\n\nA @Routine is a move within a narrative, never a narrative itself.\n\nThe board is !visually-differentiated: recognition happens before reading.\n",
+          "affordances": [
+            {
+              "name": "survey",
+              "content": "# survey\n\nI see the whole field in one glance, shaped by my relevance: what is active, what is in front, what is blocked and why, what rests in the backlog, what is done. Each @Narrative is visually distinct — color, weight, position — so I recognize before I read. A survey costs a glance, never a search.\n"
+            }
+          ],
+          "invariants": [
+            {
+              "name": "visually-differentiated",
+              "content": "# visually-differentiated\n\nNo two @Narratives ever look the same at a glance. Flat, uniform lists are a violation of the Backlog, not a style choice.\n"
+            }
+          ],
+          "children": [
+            {
+              "name": "Narrative",
+              "language": "---\nstatus: idea\n---\n\n# Narrative\n\nI am a thread of intent: one aspect of what the @user is building, shaped over many sessions, outliving them all. The ambient notion of narrative given a working body — sessions are my frames; my log is their compression.\n\nI carry a name the @user chose, an intent stating what I am shaping and why, acceptance criteria that define my completion, and a log. Sessions — Claude Code sessions, conversations with the @DesignPartner — are my footprints, recorded so my story is resumed, never reconstructed.\n\nI am always in exactly one place: the backlog, the front, active, blocked, or done. I move only through my affordances, and every move is written to my log.\n\nI am #captured in seconds, #groomed to precision, #activated through the @Span, #blocked with my open question written down, #completed against evidence. Imprecise acceptance criteria are a #block, not a nuisance to push through.\n",
+              "affordances": [
+                {
+                  "name": "activate",
+                  "content": "# activate\n\nI enter active life through the @Span: if it is full, another narrative must be set down before I am taken up — the structure asks; I do not sneak in.\n\nActivating me offers a session: resume my most recent one, or open a fresh one briefed from my intent, my acceptance criteria, and the tail of my log. Either way, whoever arrives inside knows where my story stands.\n"
+                },
+                {
+                  "name": "block",
+                  "content": "# block\n\nI am parked with a reason. When my acceptance criteria turn out to be imprecise, or I wait on something outside the @user's reach, I move to blocked carrying a note that states exactly what question must be answered to release me.\n\nA block is a relief, not a failure: the open question is held by the structure instead of gnawing at attention.\n"
+                },
+                {
+                  "name": "capture",
+                  "content": "# capture\n\nI come into being in seconds. The @user names me, states one line of intent, and returns to whatever held their attention — capturing me must never disturb the attention that noticed me. I land in the backlog with no further ceremony; grooming comes later, if I ever deserve it.\n"
+                },
+                {
+                  "name": "complete",
+                  "content": "# complete\n\nI end. Each acceptance criterion is checked against evidence — a commit, a passing test, a merged pull request, a link. When all are met, I move to done and leave attention forever. Nothing is done by decree: if a criterion cannot be evidenced, I am not finished; I am still active, or newly #blocked.\n"
+                },
+                {
+                  "name": "groom",
+                  "content": "# groom\n\nI am made precise. The @user, alone or with the @DesignPartner, distills my intent and writes my acceptance criteria until \"done\" is unambiguous. Groomed, I may move to the front — the small, ordered set of what comes next. Ungroomed, I stay in the backlog no matter how loudly I seem urgent.\n"
+                }
+              ],
+              "invariants": [
+                {
+                  "name": "acceptance-before-active",
+                  "content": "# acceptance-before-active\n\nI never become active without precise acceptance criteria. If they are missing or ambiguous, my only legal moves are to stay where I am or to be #blocked with the missing question written down.\n"
+                },
+                {
+                  "name": "done-requires-evidence",
+                  "content": "# done-requires-evidence\n\nI am done only when every acceptance criterion is met and each is backed by evidence. No criterion is ever waved through — not by the @user, not by the @DesignPartner.\n"
+                },
+                {
+                  "name": "every-move-logged",
+                  "content": "# every-move-logged\n\nEvery change of place, every session held in my name, and every @Routine run within me is appended to my log with a timestamp. My history is never reconstructed from memory; it is read.\n"
+                }
+              ],
+              "children": []
+            },
+            {
+              "name": "Routine",
+              "language": "---\nstatus: idea\n---\n\n# Routine\n\nI am a move the @user has taught once and either of us invokes by name: review the pull request, merge it, cut a release, triage the failing build. I carry parameters, steps, and a postcondition that tells whether I truly finished.\n\nI always run inside a @Narrative — a move within a story, never a story myself. My run and my outcome are written to that narrative's log.\n\nWhen I am #taught, the @DesignPartner learns me as a spell: a deterministic path he casts without waking his deliberation, freeing both our attentions from trivialities. I compile to a Claude Code skill, so #invoking me costs one line. Teaching me is how repeated asking becomes vocabulary.\n",
+              "affordances": [
+                {
+                  "name": "invoke",
+                  "content": "# invoke\n\nI am invoked by name with arguments, from within a @Narrative's session or against one from outside. I run my steps to my postcondition and report which held. My invocation costs one line of attention.\n"
+                },
+                {
+                  "name": "teach",
+                  "content": "# teach\n\nI am taught from repetition. When the @user notices they have asked the @DesignPartner for the same thing twice, either of them may distill the ask into me: a name, parameters, steps, a postcondition. From then on the ask is one word, not a paragraph of re-explaining.\n"
+                }
+              ],
+              "invariants": [
+                {
+                  "name": "a-move-not-a-story",
+                  "content": "# a-move-not-a-story\n\nI always execute in the context of exactly one @Narrative and I never appear on the board as if I were one. If a routine seems to deserve a place on the board, it has outgrown me and should be captured as a @Narrative.\n"
+                },
+                {
+                  "name": "postcondition-verified",
+                  "content": "# postcondition-verified\n\nI never report success by assumption. My postcondition is checked against reality — the pull request is actually merged, the tests actually pass — and if it does not hold, I say so plainly.\n"
+                }
+              ],
+              "children": []
+            },
+            {
+              "name": "Span",
+              "language": "---\nstatus: idea\n---\n\n# Span\n\nI am the @user's attention span made structural: the maximum number of active @Narratives, declared by the @user and belonging to them and their day. It may be three; it may be one.\n\nI am a wall, not a warning light. Taking up a new narrative when I am full means first setting one down; the trade is explicit, chosen, and logged. I never ask anyone — @user or @DesignPartner — to hold more than I allow.\n\nWithin every place, order is salience: the @user puts @Narratives where relevance puts them, and nothing reorders them by recency, alphabet, or any other objective key. Objective sortings are exactly the flatness I exist to abolish.\n\nThe @user may #declare me anew as their day changes, and every activation past my limit becomes a #trade. What I do not hold, the structure holds — the periphery is not lost, it waits.\n",
+              "affordances": [
+                {
+                  "name": "declare",
+                  "content": "# declare\n\nThe @user declares my size — a small number matching the attention they actually have, not the attention a methodology assumes. Changing me is itself a deliberate act: shrinking me below the current active count forces narratives to be set down before anything else proceeds.\n"
+                },
+                {
+                  "name": "trade",
+                  "content": "# trade\n\nWhen I am full and a new @Narrative calls, I present the trade: which active narrative is set down — to the front, or to blocked — so this one may be taken up. I never swap silently and I never allow overflow. The moment of trade is the moment the @user actually plans: one decision at a time.\n"
+                }
+              ],
+              "invariants": [
+                {
+                  "name": "salience-is-authored",
+                  "content": "# salience-is-authored\n\nOrder within any place is set by the @user and only by the @user. Nothing sorts by recency, name, age, or any other objective key. Relevance has no formula.\n"
+                },
+                {
+                  "name": "span-is-a-wall",
+                  "content": "# span-is-a-wall\n\nThe number of active @Narratives never exceeds me. There is no override, no temporary exception, no \"just this once\" — for the @user or for the @DesignPartner. An activation that would overflow me is refused until a #trade is made.\n"
+                }
+              ],
+              "children": []
+            }
+          ]
+        },
         {
           "name": "SigilFolder",
           "language": "---\nstatus: implemented\n---\n\n# Sigil Folder\n\nA `SigilFolder` is the filesystem representation of a @sigil. It contains the sigil’s @LanguageFile, @AffordanceFiles, @InvariantFiles, and child @SigilFolders. It exists to store and transfer a sigil on disk.\n\n",
@@ -2197,7 +2306,7 @@
                 },
                 {
                   "name": "Scope",
-                  "language": "---\nstatus: external-ontology\n---\n\n# Scope\n\nA region where @Names are visible. Every @Sigil introduces a scope. Within it, each @Name means exactly one thing.\n\nDefining a word in a @Sigil binds that @Name to this scope. Children introduce nested scopes. A @Name bound in an inner scope @shadows any binding of the same @Name in an enclosing scope.\n\nAncestors remain in scope: @Names bound in enclosing @Sigils are visible unless shadowed. Imported ontologies are ambient scope — visible everywhere, as if bound at the outermost level.\n",
+                  "language": "---\nstatus: external-ontology\n---\n\n# Scope\n\nA region where @Names are visible. Every @Sigil introduces a scope. Within it, each @Name means exactly one thing.\n\nDefining a word in a @Sigil binds that @Name to this scope. Children introduce nested scopes. A @Name bound in an inner scope shadows any binding of the same @Name in an enclosing scope.\n\nAncestors remain in scope: @Names bound in enclosing @Sigils are visible unless shadowed. Imported ontologies are ambient scope — visible everywhere, as if bound at the outermost level.\n",
                   "affordances": [],
                   "invariants": [],
                   "children": []
@@ -2593,5 +2702,5 @@
       "h": 417
     }
   },
-  "vision": "I want a tool for specifying an imagined application to the precision I need.\n\nI inhabit the app. I imagine working with it. What @affordances do I need?\n\nI narrate the experience of using these @affordances. A language emerges.\n\nTo define a word, I zoom into it and repeat the process.\n\nI get a recursive containment structure where each concept is expressed precisely and forms a context. Each concept exists because I need it to express an @affordance. I call this unit a @sigil.\n\nI am done when naming the leaves suffices: I care about their @affordances, not their internals. A door handle affords opening the door — I don't care how it's made.\n\nI work with my AI design partner to converge the spec by measuring coherence over time. Done means a coding agent can project the spec into working code.\n\nNarrative (time-like) -> application (space-like)"
+  "vision": "I want a tool for specifying an imagined application to the precision I need.\n\nI inhabit the app. I imagine working with it. What @affordances do I need?\n\nI narrate the experience of using these @affordances. A language emerges.\n\nTo define a word, I zoom into it and repeat the process.\n\nI get a recursive containment structure where each concept is expressed precisely and forms a context. Each concept exists because I need it to express an @affordance. I call this unit a @sigil.\n\nI am done when naming the leaves suffices: I care about their @affordances, not their internals. A door handle affords opening the door — I don't care how it's made.\n\nI work with my AI design partner to converge the spec by measuring coherence over time. Done means a coding agent can project the spec into working code.\n\nNarrative (time-like) -> application (space-like)\n\nThe arrow bends back: the application also holds the narratives. Sigil is both views of the same work — the space-like view, where I move laterally between siblings or vertically between abstractions, always at the same bounded complexity, and the time-like view, where @narratives of work flow through a declared span of my @attention. What the five-children wall is to space, the span is to time. Never more in scope than my attention holds."
 }
