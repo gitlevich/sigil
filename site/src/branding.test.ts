@@ -25,43 +25,43 @@ describe("branding assets", () => {
     expect(favicon).not.toMatch(/<rect\b/);
   });
 
-  it("shows the logo in the hero and relaxes the mobile title spacing", () => {
+  it("sets the landing in paper, ink, and one vermilion accent", () => {
+    const css = readText("./App.css");
+
+    expect(css).toContain("--paper: #fdfdfc;");
+    expect(css).toContain("--vermilion: #bb3a1d;");
+    expect(css).toContain('--serif: "Newsreader"');
+    expect(css).toContain('--mono: "Fragment Mono"');
+    expect(css).toContain("prefers-color-scheme: dark");
+  });
+
+  it("shows the logo in the hero and keeps the title at document scale", () => {
     const app = readText("./App.tsx");
     const css = readText("./App.css");
 
     expect(app).toContain('src="/favicon.svg"');
     expect(app).toContain('className="hero-logo"');
-    expect(css).toContain("max-width: 9.8ch;");
-    expect(css).toContain("font-size: clamp(2.45rem, 12.5vw, 4rem);");
-    expect(css).toContain("line-height: 1;");
-    expect(css).toContain("letter-spacing: -0.03em;");
+    expect(css).toContain("font-size: clamp(2.1rem, 4.5vw, 2.75rem);");
+    expect(css).toContain("max-width: 24ch;");
     expect(css).toContain("@media (max-width: 540px)");
-    expect(css).toContain("max-width: 10.6ch;");
-    expect(css).toContain("font-size: clamp(2.15rem, 11.2vw, 3.35rem);");
-    expect(css).toContain("letter-spacing: -0.022em;");
   });
 
-  it("keeps the landing page scrollable and the card grid narrower than the text block", () => {
-    const appCss = readText("./App.css");
+  it("keeps body copy at reading size on a single measure", () => {
+    const css = readText("./App.css");
+
+    expect(css).toContain("width: min(40rem, calc(100vw - 3rem));");
+    expect(css).toContain("font-size: 1.375rem;");
+    expect(css).toContain("line-height: 1.6;");
+  });
+
+  it("renders links as a hairline index, not cards", () => {
+    const css = readText("./App.css");
     const indexCss = readText("./index.css");
 
-    expect(appCss).toContain("padding: 3rem 0 max(6rem, 12vh);");
-    expect(appCss).toContain("grid-template-columns: repeat(3, minmax(0, 1fr));");
-    expect(appCss).toContain("width: min(100%, 43rem);");
-    expect(appCss).toContain("width: min(100%, 46rem);");
+    expect(css).toContain("border-bottom: 1px solid var(--line);");
+    expect(css).not.toContain("box-shadow: 0 24px");
     expect(indexCss).toContain("overflow-y: auto;");
     expect(indexCss).toContain("overflow-x: hidden;");
     expect(indexCss).toContain("#root");
-  });
-
-  it("keeps body copy readable and pulls the hero lede closer to the title", () => {
-    const css = readText("./App.css");
-
-    expect(css).toContain("padding-bottom: 2.35rem;");
-    expect(css).toContain("margin: 1.15rem 0 0;");
-    expect(css).toContain("font-size: clamp(1.22rem, 2vw, 1.56rem);");
-    expect(css).toContain("font-size: 1.22rem;");
-    expect(css).toContain("line-height: 1.68;");
-    expect(css).toContain("font-size: 1.04rem;");
   });
 });

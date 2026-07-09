@@ -1,3 +1,5 @@
+import landingSource from "./landing.md?raw";
+
 export interface LandingLink {
   eyebrow: string;
   title: string;
@@ -7,42 +9,74 @@ export interface LandingLink {
   external?: boolean;
 }
 
+// The prose lives in landing.md. This module parses it into the structure
+// App.tsx renders. Section order in the file is fixed: hero (before the
+// first ##), Story, Pull quote, Tool, Proof, Contact. A section heading of
+// the form "Label: Title." splits into eyebrow label and section title.
+
+function toParagraphs(block: string): string[] {
+  return block
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter((paragraph) => paragraph.length > 0);
+}
+
+function splitHeading(heading: string): { label: string; title: string } {
+  const colon = heading.indexOf(":");
+  if (colon === -1) {
+    return { label: heading.trim(), title: heading.trim() };
+  }
+  return {
+    label: heading.slice(0, colon).trim(),
+    title: heading.slice(colon + 1).trim(),
+  };
+}
+
+function splitSection(section: string): { heading: string; body: string } {
+  const newline = section.indexOf("\n");
+  return {
+    heading: section.slice(0, newline).trim(),
+    body: section.slice(newline + 1),
+  };
+}
+
+const sections = landingSource.split(/^## /m);
+if (sections.length !== 6) {
+  throw new Error(
+    `landing.md must have 5 "## " sections (story, pull quote, tool, proof, contact); found ${sections.length - 1}`,
+  );
+}
+
+const [kicker, heroTitle, heroLede] = toParagraphs(
+  sections[0].replace(/^# /, ""),
+);
+const story = toParagraphs(splitSection(sections[1]).body);
+const pullQuote = toParagraphs(splitSection(sections[2]).body)[0];
+const tool = splitSection(sections[3]);
+const proof = splitSection(sections[4]);
+const contact = splitSection(sections[5]);
+
 export const landingContent = {
   hero: {
-    kicker: "Sigil Engineering",
-    title: "How to speak an app into being.",
-    lede:
-      "A method and an implemented editor for turning an application-shaped intuition into bounded language that an AI can refine and a coding agent can project into code.",
+    kicker,
+    title: heroTitle,
+    lede: heroLede,
   },
-  story: [
-    "I do not first get an application as a backlog. I get it as a shape: something I can almost inhabit, with things that belong inside it, things that do not, and actions it should afford for me.",
-    "The application arrives space-like, all at once. A specification and the code projected from it have to be written time-like, one sequence after another. Sigil engineering is the work of converting one into the other without losing the shape.",
-    "I begin with a vision and keep it nearby, because attention drifts. Then I name the few things the application must let me do. Those affordances are the first handles on the shape.",
-    "As I narrate those affordances, certain words stop feeling casual. They start carrying load. I enter one of them, define it at the next level of abstraction down, and narrate again from inside it.",
-    "If the language inside is still vague, I descend again. Each bounded region becomes a sigil: a lexical scope with its own affordances and invariants. The tree can go as deep as it needs to, but each level stays small enough to hold in attention. Depth is fine. Sprawl is not.",
-    "Because the tree holds the periphery, I and the AI can fully inhabit the current scope without losing the whole. The partner reads the entire structure, traces the vision through it, measures where the language drifts, and surfaces the places where the spec still falls off the edge.",
-    "When the leaves are sharp enough that naming them suffices, the spec stops being notes about the application and becomes the application's shape rendered into language. At that point implementation is no longer guesswork. It is projection.",
-  ],
-  pullQuote: "The spec, the method, and the tool are the same shape.",
+  story,
+  pullQuote,
   implementation: {
-    label: "Implemented Example",
-    title: "Sigil Editor is the worked example.",
-    paragraphs: [
-      "I keep the vision one click away so I can refocus when attention wanders. I narrate in a comfortable editor, define affordances and invariants as they become clear, and let the language tell me where the boundaries actually are.",
-      "While I write, the ontology tree shows the structure that is emerging. Atlas flattens that tree so I can see density and holes in the whole. The design partner inhabits the full sigil, helps me refine names and boundaries, imports precise ontology when my own language is too blunt, and tells me when the spec is precise enough to hand off.",
-    ],
+    ...splitHeading(tool.heading),
+    paragraphs: toParagraphs(tool.body),
   },
   links: {
-    label: "Public Artifact",
-    title: "Read the actual thing.",
-    intro:
-      "This is a work in progress. I am still doing it and I do not know where it goes. I found it interesting enough to become obsessed with, and possibly interesting enough to publish now so other people can have opinions.",
+    ...splitHeading(proof.heading),
+    intro: toParagraphs(proof.body).join(" "),
     items: [
       {
         eyebrow: "Specification",
-        title: "Browse the worked example",
+        title: "Read the spec",
         description:
-          "Open the specification that drove the implementation and inspect the method in its native form.",
+          "The method's spec, from which the editor was projected: every sigil's language, affordances, and invariants.",
         action: "Open the spec viewer",
         href: "#/viewer",
       },
@@ -50,35 +84,49 @@ export const landingContent = {
         eyebrow: "Repository",
         title: "Read the code",
         description:
-          "The editor, the site, and the spec live in the public GitHub repository.",
+          "The editor, this site, and the spec live in one public repository.",
         action: "Visit GitHub",
         href: "https://github.com/gitlevich/sigil",
         external: true,
       },
       {
-        eyebrow: "Application",
-        title: "Download the editor",
+        eyebrow: "In practice",
+        title: "SigilAtlas",
         description:
-          "Use the macOS app to write your own sigils and work this way directly.",
+          "An application designed this way and inhabited by an agent, entangling with its maker over a photographic corpus. The method at work on something real.",
+        action: "Visit SigilAtlas",
+        href: "https://sigilatlas.com",
+        external: true,
+      },
+      {
+        eyebrow: "Application",
+        title: "Run the editor",
+        description:
+          "The macOS app the method is tested in — an early experiment, not a finished tool.",
         action: "Open releases",
         href: "https://github.com/gitlevich/sigil/releases",
         external: true,
       },
+      {
+        eyebrow: "Appendix",
+        title: "What is a sigil?",
+        description:
+          "The term, the model of attention behind it, and why the method is named for it.",
+        action: "Read the note",
+        href: "#/sigil",
+      },
     ] satisfies LandingLink[],
   },
   contact: {
-    label: "Contact",
-    title: "Send a note.",
-    lede:
-      "If you want to try the editor, talk through the method, or discuss a project, send a message. I read these directly.",
+    ...splitHeading(contact.heading),
+    lede: toParagraphs(contact.body).join(" "),
     directLabel: "Prefer email?",
     directAction: "Write directly",
-    success:
-      "Message sent. If this address has not been activated with the form endpoint yet, the submission will be held until it is confirmed.",
+    success: "Message sent.",
     error:
       "The form did not send. Use the direct email link below and I will still get it.",
     buttonIdle: "Send message",
     buttonSending: "Sending...",
   },
   footer: "sigilengineering.com",
-} as const;
+};

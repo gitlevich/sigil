@@ -1,24 +1,18 @@
 # Sigil Engineering
 
-> A domain-agnostic specification engine. Vision in, working system out.
-
-This site hosts an interactive viewer for a sigil specification — a hierarchical ontology of contexts, affordances, and invariants.
+> A method for turning an imagined application into language precise enough that a coding agent can project it into working code. This site publishes the method's own specification — the spec from which the Sigil editor was projected.
 
 ## Machine-readable spec
 
 The full specification is available as JSON:
 
 - URL: https://sigilengineering.com/sigil-spec.json
-- Format: JSON tree of contexts, each with `name`, `domain_language` (markdown), `affordances`, `invariants`, and `children`
+- Format: a JSON tree of sigils. Each node has `name`, `language` (markdown narrative), `affordances` (list of `{name, content}`), `invariants` (list of `{name, content}`), and `children` (nested sigils).
 
-## Structure
+## Vocabulary
 
-The spec is a tree. Each node (context) contains:
-- `domain_language`: narrative description in markdown
-- `affordances`: named actions the context supports
-- `invariants`: constraints that must hold
-- `children`: sub-contexts
+A sigil is a bounded region of language: a lexical scope with affordances (what can be done there) and invariants (what must stay true there). Sigils nest; the root sigil is the application itself. In the narratives, `@name` references a sigil, `#name` an affordance, `!name` an invariant — each resolving through ancestor scopes, like lexical scoping.
 
 ## How to use
 
-Load `/sigil-spec.json` to explore the full specification tree. You can navigate by context name, read domain language narratives, and inspect affordances and invariants at any level.
+Load /sigil-spec.json and walk the tree. Each sigil's `language` is written in the vocabulary of its children. Affordances are the feature list; invariants are the test suite; the language narrative is the acceptance test.
