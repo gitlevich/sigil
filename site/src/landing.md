@@ -40,7 +40,7 @@ The editor is an early experiment, not a finished tool: the design partner's mem
 
 ## The Proof: The loop closes.
 
-The method's model is written with the method. A coding agent projected the editor from that model, and the model is written inside the editor, with the partner the model describes: the loop closes on itself. That self-hosting editor is only a small proof, and a rough one. The larger one is SigilAtlas — an application designed this way and now inhabited by an agent that entangles with its maker over a photographic corpus. Every piece here is public. The method is a work in progress: I do not know yet where it leads, and I am publishing it so other people can have opinions.
+The method's model is written with the method. A coding agent projected the editor from that model, and the model is written inside the editor, with the partner the model describes: the loop closes on itself. That self-hosting editor is only a small proof, and a rough one. The larger one is SigilAtlas — an application designed this way and now inhabited by an agent that entangles with its maker over a photographic corpus. Sigil is public in every piece — editor, model, and site; SigilAtlas is a public app whose own code stays private. The method is a work in progress: I do not know yet where it leads, and I am publishing it so other people can have opinions.
 
 ## Contact: Send a note.
 
