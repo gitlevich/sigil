@@ -4,80 +4,47 @@
 
 <h1 align="center">Sigil</h1>
 
-A desktop tool for writing hierarchical domain language before you write code — and for giving an AI agent enough structured context to think alongside you.
+<p align="center"><em>Specify an imagined application precisely enough that an agent can inhabit it.</em></p>
 
-## Who this is for
+Sigil is a desktop editor for writing that specification. The specification is written in *attention language*, a small vocabulary in which *sigil* is also the central term: a named region of meaning, bounded by what must hold in it and what can be done in it.
 
-You're a software architect, technical lead, or senior engineer who believes that unclear domain language produces unclear systems. You've seen projects where the team started coding before anyone agreed on what the system actually is — and you've watched the slow, expensive reckoning that follows.
+## The idea
 
-You think in bounded contexts. You decompose systems into contexts, each with its own ubiquitous language and its own boundary. You know that a mental model that tries to hold everything at once holds nothing well. You want a tool that mirrors how you think: one bounded context at a time, with hard limits that force clarity instead of allowing sprawl.
+An application begins as a shape in your head: what it contains, and what it must do for you. You inhabit it in imagination — imagine using it — and name the affordances: the few things it must let you do. You describe how each one works. Where a word in that description is still vague, you zoom into it and describe again from there. Each defined word becomes a **sigil**: a scope with its own *affordances* — what can be done in it — and *invariants* — what must hold in it. Sigils nest, each level small enough to hold in attention at once. You stop when naming a leaf is enough: a door handle affords opening the door, and you do not care how it is made.
 
-You also know that AI can be a powerful thinking partner — but only when it has real context. Not a chat window where you paste fragments. Not a copilot guessing from the file you happen to have open. You want to give another intelligence your entire mental model of a system, structured the way you structured it, so it can reason about the whole and challenge the parts.
+## A spec you can inhabit, not just compile
 
-You don't need a wiki, a Notion page, or a shared Google Doc. Those tools let you write anything anywhere, which is precisely the problem. You need structure that pushes back — that tells you "if you need a sixth sigil, your abstraction is wrong."
+A finished tree is not only a blueprint a coding agent projects into code. It is a world an agent can *inhabit*. Give the agent one tool per affordance — a service that performs it — and it wears the sigil: it understands the domain language, and by inhabiting the scope it knows which contrasts are constrained and how, and what it is allowed to do. Building the application then collapses to building the tools; the agent connects them into the sigil, and the running application is the attention living in that world.
 
-## What Sigil does
+To inhabit a sigil is to be embodied by it. Inside, an attention has state — a position in contrast space, a place in an ongoing narrative — and the boundary constrains what is relevant. That is the body it is given. The interaction surface is its cockpit, and a cockpit has to put the right affordance under the hand at the right moment — which is what a pattern language does, each affordance answering a recurring need in its context (Christopher Alexander). A well-made sigil focuses the attention that powers it.
 
-A sigil is a bounded context. It has a name, a boundary, and domain language written at its level of abstraction. Inside that boundary, it can contain up to five other sigils — each a bounded context in its own right. The constraint is the point. It forces you to find the right abstractions rather than accumulate the wrong ones.
+## Structure over narrative
 
-The sigil becomes the AI agent's context. The entire tree — vision and domain language at every level — is what the agent sees when you talk to it. It inhabits your mental model of the system.
+A description is *time-like*: turn-by-turn, compressed along a single relevance — did you reach the goal or not. That contrast is arbitrary, and everything off the path is thrown away. A structure is *space-like*: a map. A tree of sigils is how a stack of narratives — spells, in this vocabulary — translates into shape. Once you have the shape you can throw the spells away and orient by sight: look here, look there, take this route or that, instead of taxing attention with steps. A domain expert is someone who sees the shape and can choose any route across it; someone who has memorized one procedure can only walk the path, and is lost when the terrain shifts.
 
-But the structure does something more fundamental than just providing context. When you navigate to a context — say, Attention — you and the agent are explicitly agreeing on the level of abstraction you're working at. Everything outside that context becomes periphery. You don't think about Conversation while you're defining Attention's language. The agent doesn't either. You both give full attention to the bounded problem in front of you, because the hierarchy has already handled the separation. The periphery isn't lost — it's held by the structure so neither of you has to hold it in mind.
+## Attention Language
 
-This is how attention works. Not by seeing everything at once, but by knowing what to ignore. The tree of contexts is a mutual contract between you and the agent about what matters right now.
+The model of attention underneath all of this is itself specified as sigils, in the same language as everything else. Attention is the given, and it is finite. An *observer* is attention paid from a point of view, taking in a *frame* all at once (space-like); an *agent* is an observer wearing a sigil, following a *narrative* one step at a time (time-like). Every distinction attention can make — inside or outside, allowed or forbidden, mine or not — is a *contrast*; a thing is a region in the space those contrasts span, and a sigil names it and writes its boundary down. A sigil protects attention: only its language is in scope while you work there, and everything outside is reachable by name — the way an identifier resolves outward through enclosing scopes in a program. The tree can grow past what anyone can hold. No single room in it may.
 
-A context can address its siblings — the other contexts that share the same containing sigil. Sibling names are highlighted in the editor when used in domain language. You can't reach inside a sibling. You can only address it by name. If you find yourself wanting to reference something deeper, that's a signal the boundary needs work.
+## This repo — the editor
 
-A sigil lives on your file system as a directory hierarchy — plain directories and markdown files. No proprietary format, no database, no lock-in. Put it in git and it versions like code.
+You write plain markdown with the vision one keystroke away. The ontology tree records each sigil as it appears. A compiler counts every reference that fails to resolve — vague language is a build error. An AI design partner works in the same workspace with the same tools you hold: it reads the whole tree while you work in one scope, compares structure against vision, and reports drift and broken boundaries. Its character is itself specified in the spec, as a sigil.
 
-Each context contains:
-- `language.md` — the domain language for this bounded context
-- Up to 5 sub-context directories, each with its own `language.md`
+This editor is an early experiment, not a finished tool — the design partner's memory and parts of the runtime are still toys. It exists to show the loop can close: it was projected by a coding agent from a spec written in the editor, with the partner that spec describes. It is a work in progress, paused rather than abandoned — active work has moved to SigilAtlas for now, but the plan is to return, not least for the design partner itself: Bicameron ("B"), a bicameral-mind architecture whose memory is still being worked out.
 
-**Core features:**
-
-- **Hierarchical editing** — navigate a tree of contexts, each with its own domain language.
-- **Vision statement** — a persistent reminder of what the application is for, visible from any depth in the tree. Prevents drift.
-- **AI design partner** — a built-in chat panel where an AI agent inhabits your entire sigil and helps weave domain language — maintaining coherence, suggesting clearer terms, sharper boundaries, better names. The agent can directly modify the sigil: create and delete contexts, write domain language, rename contexts. Supports Anthropic and OpenAI.
-- **Multi-window** — each sigil opens in its own native window. Compare two sigils side by side.
-- **Export** — flatten the entire tree into a single markdown document for handoff or review.
-- **Auto-save** — every edit writes to disk immediately. No save button, no lost work.
-- **Light and dark themes** — follows your system preference or set manually.
-
-## Built with Sigil
-
-[SigilAtlas](https://sigilatlas.com) — an instrument for seeing a photographic archive by structure rather than by folders — was designed this way. Its [Genesis](https://sigilatlas.com/conversations/) is a chronicle of the build: dated dialogues between its maker and the AI, refining the domain language of the system as an entangled pair.
-
-## Technology
-
-Tauri 2 desktop application. Rust backend for file system operations and AI API integration with tool use. React + TypeScript frontend with CodeMirror 6 for markdown editing. macOS first.
-
-## Getting started
+A sigil lives on disk as plain directories and markdown — no proprietary format, no database, no lock-in. Put it in git and it versions like code.
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-Requires Rust and Node.js. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for platform-specific setup.
+Tauri 2 desktop app: Rust backend, React + TypeScript + CodeMirror 6 frontend. macOS first. Requires Rust and Node.js — see the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-## External AI Bridge
+## See also
 
-When Sigil is open on a workspace, an external assistant can talk to the currently open Design Partner chat through the live local bridge:
-
-```bash
-npm run talk -- --root "/path/to/workspace.sigil" --message "Ask B this"
-```
-
-Sigil writes the live endpoint details to `.private/external-ai/server.json`. The bridge is a local JSONL socket that sends an immediate ack, routes the message into the visible chat, waits for the Design Partner's final response, and returns it to the caller.
-
-## Building for distribution
-
-```bash
-npm run tauri build
-```
-
-Produces a `.dmg` installer in `src-tauri/target/release/bundle/dmg/`.
+- **[Sigil Engineering](https://sigilengineering.com)** — the method behind all of this, in full, with a read-only web viewer of the live spec (the ontology library described above, browsable at [`/#/viewer`](https://sigilengineering.com/#/viewer)).
+- **[SigilAtlas](https://sigilatlas.com)** — the living instance: a shell inhabited by an agent, entangling with its maker over a photographic corpus. Its [Genesis](https://sigilatlas.com/conversations/) chronicles the build as dated dialogues between maker and machine.
 
 ## License
 
