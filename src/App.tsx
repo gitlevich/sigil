@@ -5,7 +5,7 @@ import { LayoutProvider, DEFAULT_LAYOUT_STATE, LayoutState } from "./state/Layou
 import { ChatProvider, ChatState } from "./state/ChatContext";
 import { useTheme } from "./hooks/useTheme";
 import { useSettingsPersistence, getPersistedDocState } from "./hooks/useSettingsPersistence";
-import { useUpdater } from "./hooks/useUpdater";
+import { useUpdate } from "./hooks/useUpdate";
 import { useFontZoom } from "./hooks/useFontZoom";
 import { useSelectAll } from "./hooks/useSelectAll";
 import { useSigil } from "./hooks/useSigil";
@@ -17,6 +17,7 @@ import { WorkspaceShell } from "./WorkspaceShell";
 import { SettingsDialog } from "./components/Settings/SettingsDialog";
 import { AboutDialog } from "./components/About/AboutDialog";
 import { HelpDialog } from "./components/Help/HelpDialog";
+import { UpdateAffordance } from "./components/UpdateAffordance/UpdateAffordance";
 
 interface AppProps {
   initialRootPath: string | null;
@@ -37,11 +38,11 @@ export function App({ initialRootPath }: AppProps) {
   const opened = useRef(false);
   const menuWorkspaceRef = useRef<MenuWorkspaceRef | null>(null);
   const [workspace, setWorkspace] = useState<OpenedWorkspace | null>(null);
+  const update = useUpdate();
 
-  useAppMenu(menuWorkspaceRef);
+  useAppMenu(menuWorkspaceRef, update.checkForUpdate);
   useTheme();
   useSettingsPersistence();
-  useUpdater();
   useFontZoom();
   useSelectAll();
   useResolutionIncrease();
@@ -144,6 +145,13 @@ export function App({ initialRootPath }: AppProps) {
       <SettingsDialog />
       <AboutDialog />
       <HelpDialog />
+      {update.affordance && (
+        <UpdateAffordance
+          version={update.affordance.version}
+          onInstall={update.install}
+          onDismiss={update.dismiss}
+        />
+      )}
     </>
   );
 }

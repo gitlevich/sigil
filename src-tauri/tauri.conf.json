@@ -28,6 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "resources": {
       "../specification.sigil/Libs": "Libs",
       "python-bootstrap": "python-bootstrap"

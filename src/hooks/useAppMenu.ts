@@ -16,7 +16,10 @@ export interface MenuWorkspaceRef {
   layout: LayoutState | null;
 }
 
-export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null>) {
+export function useAppMenu(
+  workspaceRef: React.RefObject<MenuWorkspaceRef | null>,
+  checkForUpdate: (reportResult?: boolean) => Promise<void>,
+) {
   const dispatch = useAppDispatch();
   const state = useAppState();
   const stateRef = useRef(state);
@@ -29,6 +32,7 @@ export function useAppMenu(workspaceRef: React.RefObject<MenuWorkspaceRef | null
       () => workspaceRef.current?.layout ?? null,
       () => stateRef.current.ui,
       () => stateRef.current.settings.keybindings || DEFAULT_KEYBINDINGS,
+      checkForUpdate,
     ).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -40,6 +44,7 @@ async function buildMenu(
   _getLayout: () => LayoutState | null,
   getUI: () => ReturnType<typeof useAppState>["ui"],
   getKB: () => ReturnType<typeof useAppState>["settings"]["keybindings"],
+  checkForUpdate: (reportResult?: boolean) => Promise<void>,
 ) {
   // ── Sigil (app) menu ──
   const aboutItem = await MenuItem.new({
@@ -326,11 +331,19 @@ async function buildMenu(
     },
   });
 
+  const checkForUpdatesItem = await MenuItem.new({
+    text: "Check for Updates...",
+    action: () => {
+      void checkForUpdate(true);
+    },
+  });
+
   const helpSubmenu = await Submenu.new({
     text: "Help",
     items: [helpItem],
   });
   await helpSubmenu.setAsHelpMenuForNSApp();
+  await helpSubmenu.append(checkForUpdatesItem);
 
   const menu = await Menu.new({
     items: [appSubmenu, fileSubmenu, editSubmenu, findSubmenu, viewSubmenu, windowSubmenu, helpSubmenu],

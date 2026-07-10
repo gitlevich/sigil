@@ -19,6 +19,7 @@
     "dialog:allow-confirm",
     "store:default",
     "core:menu:default",
+    "process:allow-restart",
     "updater:default",
     "clipboard-manager:allow-write-text"
   ]

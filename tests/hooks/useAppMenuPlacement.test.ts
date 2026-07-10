@@ -18,4 +18,14 @@ describe("useAppMenu placement", () => {
     expect(viewMenu).not.toContain("reloadFromDiskItem");
     expect(source).toContain('text: "Reload Sigil From Disk"');
   });
+
+  it("exposes update checks from Help", () => {
+    const helpMenu = source.slice(source.indexOf("// ── Help menu ──"));
+
+    expect(helpMenu).toContain('text: "Check for Updates..."');
+    expect(helpMenu).toContain("void checkForUpdate(true)");
+    expect(helpMenu).toContain("items: [helpItem]");
+    expect(helpMenu).toContain("setAsHelpMenuForNSApp");
+    expect(helpMenu).toContain("helpSubmenu.append(checkForUpdatesItem)");
+  });
 });

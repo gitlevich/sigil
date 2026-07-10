@@ -10,4 +10,6 @@ The Idea contains a @Workspace where the @User works, a @SigilFolder where the w
 
 !vision-tab-opened-on-first-run. !state-restored-to-saved on subsequent runs. !state-saved-on-exit. !is-an-image-centric-application.
 
+I #update from public GitHub releases. When a newer version exists, it appears as a non-blocking affordance for one minute. I can also check from the Help menu.
+
 When projected, this Idea becomes the application called **Sigil**.

@@ -1,0 +1,47 @@
+.affordance {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 7px;
+  box-shadow: 0 3px 14px var(--shadow);
+  transform: translateX(-50%);
+  animation: appear 180ms ease-out;
+}
+
+.affordance button {
+  padding: 0.25rem 0.55rem;
+  color: var(--bg-primary);
+  font: inherit;
+  font-weight: 600;
+  background: var(--accent);
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.affordance .dismiss {
+  padding-inline: 0.2rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  background: transparent;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
