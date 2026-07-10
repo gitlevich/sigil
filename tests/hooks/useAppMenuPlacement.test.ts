@@ -19,13 +19,18 @@ describe("useAppMenu placement", () => {
     expect(source).toContain('text: "Reload Sigil From Disk"');
   });
 
-  it("exposes update checks from Help", () => {
+  it("places update checks under Settings in the Sigil menu", () => {
+    const appMenu = menuBlock("appSubmenu", "File");
     const helpMenu = source.slice(source.indexOf("// ── Help menu ──"));
+    const updateItem = source.slice(
+      source.indexOf("const checkForUpdatesItem"),
+      source.indexOf("const appSubmenu"),
+    );
 
-    expect(helpMenu).toContain('text: "Check for Updates..."');
-    expect(helpMenu).toContain("void checkForUpdate(true)");
-    expect(helpMenu).toContain("items: [helpItem]");
+    expect(updateItem).toContain('text: "Check for Updates..."');
+    expect(updateItem).toContain("void checkForUpdate(true)");
+    expect(appMenu.indexOf("settingsItem")).toBeLessThan(appMenu.indexOf("checkForUpdatesItem"));
+    expect(helpMenu).not.toContain('text: "Check for Updates..."');
     expect(helpMenu).toContain("setAsHelpMenuForNSApp");
-    expect(helpMenu).toContain("helpSubmenu.append(checkForUpdatesItem)");
   });
 });

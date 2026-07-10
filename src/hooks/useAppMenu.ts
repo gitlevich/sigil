@@ -62,12 +62,20 @@ async function buildMenu(
     },
   });
 
+  const checkForUpdatesItem = await MenuItem.new({
+    text: "Check for Updates...",
+    action: () => {
+      void checkForUpdate(true);
+    },
+  });
+
   const appSubmenu = await Submenu.new({
     text: "Sigil",
     items: [
       aboutItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       settingsItem,
+      checkForUpdatesItem,
       await PredefinedMenuItem.new({ item: "Separator" }),
       await PredefinedMenuItem.new({ item: "Hide" }),
       await PredefinedMenuItem.new({ item: "HideOthers" }),
@@ -331,19 +339,11 @@ async function buildMenu(
     },
   });
 
-  const checkForUpdatesItem = await MenuItem.new({
-    text: "Check for Updates...",
-    action: () => {
-      void checkForUpdate(true);
-    },
-  });
-
   const helpSubmenu = await Submenu.new({
     text: "Help",
     items: [helpItem],
   });
   await helpSubmenu.setAsHelpMenuForNSApp();
-  await helpSubmenu.append(checkForUpdatesItem);
 
   const menu = await Menu.new({
     items: [appSubmenu, fileSubmenu, editSubmenu, findSubmenu, viewSubmenu, windowSubmenu, helpSubmenu],
