@@ -54,6 +54,7 @@ Put it in git and it versions like code.
 - **Cmd+O** — Open sigil
 - **Cmd+W** — Close window
 - **Cmd+,** — Settings
+- **Shift+Cmd+F** — Arrange the current Inside space from its prose connections
 - **Enter** — Send chat message (Shift+Enter for newline)
 `;
 

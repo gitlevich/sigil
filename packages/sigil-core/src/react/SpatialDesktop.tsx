@@ -4,10 +4,8 @@
  * A flat canvas of icons, one per sigil I am currently entangled with. Shape
  * encodes ring: Children are filled squares, Neighbors are circles, Gods are
  * funnel silhouettes, the structural parent is an upward chevron. Positions
- * persist per sigil in `spatial.layout.json`; unplaced icons fall back to a
- * deterministic hashed default.
- *
- * Phase A: Children + structural parent. Neighbors and Gods land next.
+ * persist per sigil in `spatial.layout.json`; unplaced icons are composed from
+ * the sentence connections between children.
  */
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +17,7 @@ import type { LayoutStore } from "../layoutStore";
 import type { Sigil } from "../types";
 import { findContext } from "../tree";
 import { stripFrontmatter } from "../frontmatter";
+import { matchesKeybinding } from "../keybinding";
 import styles from "./SpatialDesktop.module.css";
 
 // The 3D "Outside" view pulls in three.js — a heavy dependency. Load it lazily
@@ -122,6 +121,10 @@ export interface SpatialDesktopProps {
   layoutStore: LayoutStore;
   /** Theme, forwarded to the 3D "Outside" view. */
   dark: boolean;
+  /** Human-readable host shortcut shown by the visible Arrange affordance. */
+  arrangeShortcutLabel?: string;
+  /** Host-configured CodeMirror-style shortcut for Arrange. */
+  arrangeShortcut?: string;
   /** Optional "Through" POV mode. When omitted, the Through button is hidden. */
   renderThrough?: () => ReactNode;
 }
@@ -135,6 +138,8 @@ export function SpatialDesktop({
   navigate,
   layoutStore,
   dark,
+  arrangeShortcutLabel,
+  arrangeShortcut,
   renderThrough,
 }: SpatialDesktopProps) {
   // Bind to a const so TypeScript preserves `!folder` narrowing inside the
@@ -212,6 +217,27 @@ export function SpatialDesktop({
     }, SAVE_DEBOUNCE_MS);
   }, [layoutStore, currentPath]);
 
+  const arrange = useCallback((): boolean => {
+    if (mode !== "inside" || !folder || !layout || layoutPath !== folderKey) return false;
+    const next: SpatialLayout = { ...layout, icons: {} };
+    setLayout(next);
+    queueSave(folder, next);
+    return true;
+  }, [mode, folder, layout, layoutPath, folderKey, queueSave]);
+
+  const arrangeRef = useRef(arrange);
+  arrangeRef.current = arrange;
+
+  useEffect(() => {
+    if (!arrangeShortcut) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!matchesKeybinding(event, arrangeShortcut)) return;
+      if (arrangeRef.current()) event.preventDefault();
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [arrangeShortcut]);
+
   // Ascension target — the containing sigil. Rendered as a separate UP
   // button, not as a canvas icon.
   const ascend = useMemo(() => {
@@ -287,13 +313,15 @@ export function SpatialDesktop({
     return unique;
   }, [folder, currentPath, rootName, mainRoot, importedRoot]);
 
-  // The sentence graph is stable regardless of which arc detail the user is
-  // currently viewing. It gives unplaced children a meaningful default shape.
+  const childNames = useMemo(() => icons
+    .filter((icon) => icon.kind === "child")
+    .map((icon) => icon.name), [icons]);
+
   const layoutConnections = useMemo(() => {
     if (!folder) return [];
-    return extractArcs(folder.language ?? "", folder.children.map((child) => child.name), "sentence")
+    return extractArcs(folder.language ?? "", childNames, "sentence")
       .map(({ a, b }) => ({ a, b }));
-  }, [folder]);
+  }, [folder, childNames]);
 
   const arrangedPositions = useMemo(() => arrangeSpatialIcons(
     icons
@@ -330,14 +358,10 @@ export function SpatialDesktop({
   const affordances = useMemo(() => folder?.affordances ?? [], [folder]);
   const invariants = useMemo(() => folder?.invariants ?? [], [folder]);
 
-  // Arcs between children that co-occur — deduped per pair, with per-arc
-  // scope classification. An arc is "sentence" scope if the pair ever shares
-  // a sentence; otherwise "paragraph" (only co-occurring across sentences in
-  // the same paragraph). Each pair produces at most one arc regardless of
-  // how many sentences it appears in — duplicate lines don't blend.
+  // Lines belong to child relations. Doors and landmarks remain quiet spatial
+  // cues; wiring every prose reference would turn the desktop into a graph.
   const arcs: Array<{ a: string; b: string; scope: "sentence" | "paragraph"; sentences: string[]; sentence: string }> = useMemo(() => {
     if (!folder) return [];
-    const childNames = folder.children.map((c) => c.name);
     const text = folder.language ?? "";
     const sentenceArcs = extractArcs(text, childNames, "sentence");
 
@@ -367,7 +391,7 @@ export function SpatialDesktop({
         ? p.sentences[0]
         : `${p.sentences.length} sentences: ${p.sentences.join(" ⧫ ")}`,
     }));
-  }, [folder, arcScope]);
+  }, [folder, childNames, arcScope]);
 
   // Resolve an arc endpoint to its on-canvas position by looking up the icon's
   // position. If either end isn't placed on the current desktop, skip the arc.
@@ -637,6 +661,17 @@ export function SpatialDesktop({
             title="POV — attention walking the reach of affordances"
           >Through</button>
         )}
+        <span className={styles.modeSeparator} aria-hidden="true" />
+        <button
+          className={`${styles.modeBtn} ${styles.arrangeBtn}`}
+          onClick={arrange}
+          disabled={!folder || !layout || layoutPath !== folderKey}
+          aria-label="Arrange Space"
+          title={`Arrange from prose connections${arrangeShortcutLabel ? ` (${arrangeShortcutLabel})` : ""}`}
+        >
+          <ArrangeGlyph />
+          <span>Arrange</span>
+        </button>
       </div>
       <div className={styles.arcScopeBar}>
         <button
@@ -957,6 +992,19 @@ function LandmarkGlyph() {
   return (
     <svg viewBox="0 0 48 48" aria-hidden>
       <path d={path} strokeWidth={1.5} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ArrangeGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.5" y="2" width="2.5" height="4.5" rx="0.4" />
+      <rect x="1.5" y="9" width="2.5" height="4.5" rx="0.4" />
+      <circle cx="8" cy="5" r="1.6" />
+      <circle cx="8" cy="11" r="1.6" />
+      <path d="M13 2.8 15.2 5 13 7.2 10.8 5Z" />
+      <path d="M13 8.8 15.2 11 13 13.2 10.8 11Z" />
     </svg>
   );
 }

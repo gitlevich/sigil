@@ -216,6 +216,7 @@ export interface Keybindings {
   "panel-ontology": string;
   "find-references": string;
   "navigate-back": string;
+  "arrange-space": string;
 }
 
 export const DEFAULT_KEYBINDINGS: Keybindings = {
@@ -229,6 +230,7 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   "panel-ontology": "Ctrl-g",
   "find-references": "Alt-Mod-f",
   "navigate-back": "Alt-[",
+  "arrange-space": "Shift-Mod-f",
 };
 
 export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
@@ -242,6 +244,7 @@ export const KEYBINDING_LABELS: Record<keyof Keybindings, string> = {
   "panel-ontology": "Panel: Ontology",
   "find-references": "Find References",
   "navigate-back": "Navigate Back",
+  "arrange-space": "Arrange Space",
 };
 
 /** Convert CodeMirror key format to Tauri menu accelerator format */

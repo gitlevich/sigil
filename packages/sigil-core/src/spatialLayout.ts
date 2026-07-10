@@ -85,17 +85,20 @@ export function arrangeSpatialIcons(
   const godStartX = Math.min(280, Math.max(190, width * 0.22));
   placeLine(byKind.god, godStartX, 126, 176, 0, positions);
 
-  // Landmarks are named territory elsewhere: visible across the room, but
-  // never confused with a door through the left threshold.
-  placeLine(byKind.landmark, width - 96, 144, 0, 112, positions);
   placeLine(byKind.parent, Math.max(170, width * 0.18), 126, 0, 0, positions);
+
+  // Distant named territory has its own compact region opposite the doors.
+  // Ring identity remains legible before any individual relation is read.
+  arrangeLandmarks(byKind.landmark, width, height, positions);
 
   arrangeChildren(
     byKind.child.map((icon) => icon.name),
     connections,
     {
       left: 164,
-      right: Math.max(404, width - 112),
+      right: byKind.landmark.length > 0
+        ? Math.max(404, width * 0.66)
+        : Math.max(404, width - 112),
       top: Math.max(248, Math.min(326, height * 0.36)),
       bottom: Math.max(418, height - 174),
     },
@@ -105,7 +108,7 @@ export function arrangeSpatialIcons(
   // Language is a surface of my body, kept low and close to the threshold.
   // On a crowded desktop it follows the last door or child into scrollable
   // space instead of occupying the same coordinates.
-  const lowestContent = [...byKind.neighbor, ...byKind.child]
+  const lowestContent = [...byKind.neighbor, ...byKind.child, ...byKind.landmark]
     .reduce((lowest, icon) => Math.max(lowest, positions[icon.name]?.y ?? 0), 0);
   placeLine(byKind.narrative, 60, Math.max(height - 104, lowestContent + 120), 0, 0, positions);
 
@@ -135,6 +138,30 @@ function placeLine(
 ): void {
   icons.forEach((icon, index) => {
     positions[icon.name] = { x: x + dx * index, y: y + dy * index };
+  });
+}
+
+function arrangeLandmarks(
+  icons: readonly SpatialLayoutIcon[],
+  width: number,
+  height: number,
+  positions: Record<string, IconPosition>,
+): void {
+  if (icons.length === 0) return;
+
+  const columns = icons.length >= 4 ? 2 : 1;
+  const left = Math.max(430, width * 0.75);
+  const right = width - 96;
+  const top = icons.length === 1 ? 144 : Math.max(218, Math.min(260, height * 0.28));
+  const rowGap = 120;
+
+  icons.forEach((icon, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    positions[icon.name] = {
+      x: columns === 1 ? right : coordinateInRange(column, columns, left, right),
+      y: top + row * rowGap,
+    };
   });
 }
 

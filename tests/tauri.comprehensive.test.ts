@@ -57,13 +57,17 @@ describe("enabledProviders", () => {
 });
 
 describe("DEFAULT_KEYBINDINGS", () => {
-  const expectedKeys = ["rename-sigil", "create-sigil", "delete-line", "toggle-word-wrap", "export", "facet-map", "panel-vision", "panel-ontology", "find-references", "navigate-back"];
+  const expectedKeys = ["rename-sigil", "create-sigil", "delete-line", "toggle-word-wrap", "export", "facet-map", "panel-vision", "panel-ontology", "find-references", "navigate-back", "arrange-space"];
   it("has all expected keys with non-empty string values", () => {
     for (const key of expectedKeys) {
       expect(DEFAULT_KEYBINDINGS).toHaveProperty(key);
       expect(typeof (DEFAULT_KEYBINDINGS as any)[key]).toBe("string");
       expect((DEFAULT_KEYBINDINGS as any)[key].length).toBeGreaterThan(0);
     }
+  });
+
+  it("uses Shift-Command-F semantics for arranging Space", () => {
+    expect(DEFAULT_KEYBINDINGS["arrange-space"]).toBe("Shift-Mod-f");
   });
 });
 

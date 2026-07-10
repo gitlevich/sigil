@@ -171,6 +171,27 @@
   opacity: 0.4;
 }
 
+.modeSeparator {
+  width: 1px;
+  margin: 2px 2px;
+  background: var(--border);
+}
+
+.arrangeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-primary);
+}
+
+.arrangeBtn svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--bg-primary);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
 .canvas {
   position: relative;
   width: 100%;
@@ -481,7 +502,7 @@
 .affordanceRow {
   top: 12px;
   left: 56px;   /* leave room for the UP button that sits before the row */
-  right: 156px; /* leave room for the Inside/Outside mode bar on the right */
+  right: 262px; /* leave room for modes and the visible Arrange affordance */
   z-index: 7;
   border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
 }

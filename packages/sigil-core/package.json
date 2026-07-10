@@ -12,6 +12,7 @@
     "./react/FlowingSplit": "./src/react/FlowingSplit.tsx",
     "./spatialLayout": "./src/spatialLayout.ts",
     "./layoutStore": "./src/layoutStore.ts",
+    "./keybinding": "./src/keybinding.ts",
     "./sentenceArcs": "./src/sentenceArcs.ts",
     "./entanglements": "./src/entanglements.ts",
     "./continuousAttention": "./src/continuousAttention.ts",

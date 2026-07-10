@@ -45,26 +45,43 @@ describe("arrangeSpatialIcons", () => {
     expect(positions.Recognition.x).toBeLessThan(positions.Consolidation.x);
     expect(positions.Consolidation.x).toBeLessThan(positions.Decay.x);
     expect(positions.Decay.x).toBeLessThan(positions.Relevance.x);
-    expect(new Set(icons.map(({ name }) => positions[name].y)).size).toBe(1);
+    expect(positions.Relevance.x - positions.Path.x).toBeGreaterThan(CANVAS.width / 2);
   });
 
-  it("places a secondary sentence path in a separate lane", () => {
-    const icons = ["Spellbook", "BicameralMind", "Attention", "Love", "Body", "Awakening"]
-      .map((name) => ({ name, kind: "child" as const }));
-    const positions = arrange(icons, [
-      { a: "BicameralMind", b: "Body" },
-      { a: "BicameralMind", b: "Spellbook" },
-      { a: "Attention", b: "BicameralMind" },
-      { a: "Awakening", b: "Body" },
-      { a: "Love", b: "Attention" },
-    ]);
+  it("groups doors left, children in the middle, and referenced sigils right", () => {
+    const neighbors = ["LeftHemisphere", "RightHemisphere", "CorpusCallosum", "Memory"];
+    const landmarks = ["Subconscious", "Spellbook", "Experience", "Relevance", "Gate", "Narration", "Spell", "Recognition"];
+    const icons: SpatialLayoutIcon[] = [
+      ...neighbors.map((name) => ({ name, kind: "neighbor" as const })),
+      { name: "ChildA", kind: "child" },
+      { name: "ChildB", kind: "child" },
+      ...landmarks.map((name) => ({ name, kind: "landmark" as const })),
+    ];
+    const positions = arrange(icons, [{ a: "ChildA", b: "ChildB" }]);
 
-    expect(positions.Spellbook.x).toBeLessThan(positions.BicameralMind.x);
-    expect(positions.BicameralMind.x).toBeLessThan(positions.Attention.x);
-    expect(positions.Attention.x).toBeLessThan(positions.Love.x);
-    expect(positions.Body.y).toBeLessThan(positions.BicameralMind.y);
-    expect(positions.Awakening.y).toBe(positions.Body.y);
-    expect(positions.Awakening.x).toBeGreaterThan(positions.Body.x);
+    for (const door of neighbors) expect(positions[door].x).toBe(72);
+    expect(positions.ChildA.x).toBeGreaterThan(positions.LeftHemisphere.x);
+    expect(positions.ChildB.x).toBeGreaterThan(positions.ChildA.x);
+    for (const landmark of landmarks) expect(positions[landmark].x).toBeGreaterThan(positions.ChildB.x);
+
+    const landmarkXs = new Set(landmarks.map((name) => positions[name].x));
+    const landmarkYs = new Set(landmarks.map((name) => positions[name].y));
+    expect(landmarkXs.size).toBe(2);
+    expect(landmarkYs.size).toBe(4);
+    expect(new Set(landmarks.map((name) => `${positions[name].x}:${positions[name].y}`)).size)
+      .toBe(landmarks.length);
+  });
+
+  it("keeps a lone landmark on the upper horizon when children inhabit the field", () => {
+    const positions = arrange([
+      { name: "Elsewhere", kind: "landmark" },
+      { name: "A", kind: "child" },
+      { name: "B", kind: "child" },
+    ], [{ a: "A", b: "B" }]);
+
+    expect(positions.Elsewhere.x).toBe(CANVAS.width - 96);
+    expect(positions.Elsewhere.y).toBeLessThan(positions.A.y);
+    expect(positions.A.y).toBe(positions.B.y);
   });
 
   it("uses a compact deterministic grid when prose does not connect children", () => {

@@ -36,6 +36,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { Atlas } from "./Atlas";
 import { SpatialDesktop } from "./SpatialDesktop";
 import { FlowingSplit } from "sigil-core/react/FlowingSplit";
+import { matchesKeybinding } from "sigil-core/keybinding";
 import { SigilEditor } from "./SigilEditor";
 import {
   buildBreadcrumb as coreBuildBreadcrumb,
@@ -46,35 +47,6 @@ import {
 } from "sigil-core";
 import type { Sigil } from "sigil-core";
 import styles from "./Workspace.module.css";
-
-/** Match a browser KeyboardEvent against a CodeMirror key string (e.g. "Ctrl-1", "Alt-Mod-r"). */
-function matchesBinding(e: KeyboardEvent, cmKey: string): boolean {
-  const parts = cmKey.split("-");
-  const keyChar = parts[parts.length - 1].toLowerCase();
-  const mods = new Set(parts.slice(0, -1).map((p) => p.toLowerCase()));
-
-  const needsCtrl = mods.has("ctrl");
-  const needsMod = mods.has("mod");
-  const needsAlt = mods.has("alt");
-  const needsShift = mods.has("shift");
-
-  if (needsCtrl && !e.ctrlKey) return false;
-  if (!needsCtrl && !needsMod && e.ctrlKey) return false;
-  if (needsMod && !(e.metaKey || e.ctrlKey)) return false;
-  if (!needsMod && e.metaKey) return false;
-  if (needsAlt && !e.altKey) return false;
-  if (!needsAlt && e.altKey) return false;
-  if (needsShift && !e.shiftKey) return false;
-  if (!needsShift && e.shiftKey) return false;
-
-  // On macOS, Alt changes e.key to a special character (e.g. Alt+[ → "å").
-  // Fall back to e.code for physical key identity.
-  const codeKey = e.code.replace(/^(Key|Digit)/, "").toLowerCase();
-  const bracket = keyChar === "[" ? "bracketleft" : keyChar === "]" ? "bracketright" : null;
-  return e.key.toLowerCase() === keyChar
-    || codeKey === keyChar
-    || (bracket !== null && e.code.toLowerCase() === bracket);
-}
 
 function updateFolderInTree(
   root: SigilFolder,
@@ -176,37 +148,37 @@ export function Workspace() {
         layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: false });
         return;
       }
-      if (matchesBinding(e, kb["navigate-back"] || "Alt-[")) {
+      if (matchesKeybinding(e, kb["navigate-back"] || "Alt-[")) {
         e.preventDefault();
         back();
         return;
       }
-      if (matchesBinding(e, kb["facet-map"] || "Ctrl-5")) {
+      if (matchesKeybinding(e, kb["facet-map"] || "Ctrl-5")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_CONTENT_TAB", tab: layout.contentTab === "atlas" ? "language" : "atlas" });
         return;
       }
-      if (matchesBinding(e, "Ctrl-6")) {
+      if (matchesKeybinding(e, "Ctrl-6")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_DESIGN_PARTNER_PANEL", open: true, tab: "experience" });
         return;
       }
-      if (matchesBinding(e, "Ctrl-7")) {
+      if (matchesKeybinding(e, "Ctrl-7")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_CONTENT_TAB", tab: layout.contentTab === "space" ? "language" : "space" });
         return;
       }
-      if (matchesBinding(e, kb["panel-vision"] || "Ctrl-v")) {
+      if (matchesKeybinding(e, kb["panel-vision"] || "Ctrl-v")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "vision" });
         return;
       }
-      if (matchesBinding(e, kb["panel-ontology"] || "Ctrl-g")) {
+      if (matchesKeybinding(e, kb["panel-ontology"] || "Ctrl-g")) {
         e.preventDefault();
         layoutDispatch({ type: "SET_ONTOLOGY_PANEL", open: true, tab: "ontology" });
         return;
       }
-      if (matchesBinding(e, kb["rename-sigil"] || "Alt-Mod-r")) {
+      if (matchesKeybinding(e, kb["rename-sigil"] || "Alt-Mod-r")) {
         const cm = (e.target as HTMLElement)?.closest(".cm-editor");
         if (!cm) {
           e.preventDefault();
@@ -214,7 +186,7 @@ export function Workspace() {
         }
         return;
       }
-      if (matchesBinding(e, kb["find-references"] || "Alt-Mod-f")) {
+      if (matchesKeybinding(e, kb["find-references"] || "Alt-Mod-f")) {
         const cm = (e.target as HTMLElement)?.closest(".cm-editor");
         if (!cm) {
           e.preventDefault();
@@ -223,7 +195,7 @@ export function Workspace() {
         }
         return;
       }
-      if (matchesBinding(e, "Mod-z")) {
+      if (matchesKeybinding(e, "Mod-z")) {
         const cm = (e.target as HTMLElement)?.closest(".cm-editor");
         if (!cm && renameUndoStackRef.current.length > 0) {
           e.preventDefault();
@@ -235,7 +207,7 @@ export function Workspace() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [ws, appState.settings.keybindings, layoutDispatch, handleUndoLastRename]);
+  }, [ws, appState.settings.keybindings, layout.contentTab, layoutDispatch, handleUndoLastRename]);
 
   useEffect(() => {
     const handler = () => {
@@ -265,7 +237,7 @@ export function Workspace() {
   useEffect(() => {
     const handler = () => { void handleRefreshFromDisk(); };
     const keyHandler = (e: KeyboardEvent) => {
-      if (!matchesBinding(e, "Mod-r")) return;
+      if (!matchesKeybinding(e, "Mod-r")) return;
       e.preventDefault();
       void handleRefreshFromDisk();
     };

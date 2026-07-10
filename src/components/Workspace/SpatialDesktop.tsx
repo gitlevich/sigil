@@ -4,16 +4,20 @@
  * editor-only "Through" POV view.
  */
 import { useWorkspaceState, useWorkspaceActions, resolveCurrentFolder } from "../../state/WorkspaceContext";
+import { useAppState } from "../../state/AppContext";
 import { tauriLayoutStore } from "../../lib/spatialLayout";
+import { DEFAULT_KEYBINDINGS, toDisplayShortcut } from "../../tauri";
 import type { Sigil } from "sigil-core";
 import { SpatialDesktop as SpatialDesktopView } from "sigil-core/react/SpatialDesktop";
 import { ThroughView } from "./ThroughView";
 
 export function SpatialDesktop() {
+  const appState = useAppState();
   const ws = useWorkspaceState();
   const { navigate } = useWorkspaceActions();
   const folder = resolveCurrentFolder(ws) as unknown as Sigil | null;
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  const arrangeShortcut = (appState.settings.keybindings || DEFAULT_KEYBINDINGS)["arrange-space"];
 
   return (
     <SpatialDesktopView
@@ -25,6 +29,8 @@ export function SpatialDesktop() {
       navigate={navigate}
       layoutStore={tauriLayoutStore}
       dark={dark}
+      arrangeShortcut={arrangeShortcut}
+      arrangeShortcutLabel={toDisplayShortcut(arrangeShortcut)}
       renderThrough={() => <ThroughView />}
     />
   );
