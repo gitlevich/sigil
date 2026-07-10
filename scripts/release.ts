@@ -42,6 +42,10 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+// Generated sources are ignored, so a clean clone never contains them. Build
+// them before checking the tree rather than only when unrelated changes exist.
+run('PATH="/opt/homebrew/bin:$PATH" npx tsx scripts/generate-partner-prompt.ts');
+
 // ── Step 1: Commit pending changes ──────────────────────────────────
 
 console.log("\n=== Step 1: Checking working tree ===\n");
@@ -49,9 +53,6 @@ console.log("\n=== Step 1: Checking working tree ===\n");
 const status = runCapture("git status --porcelain");
 if (status) {
   console.log("Uncommitted changes found, committing...\n");
-
-  // Regenerate partner prompt before committing
-  run('PATH="/opt/homebrew/bin:$PATH" npx tsx scripts/generate-partner-prompt.ts');
 
   // Build the commit message from recent changes
   const lastTag = runCapture("git describe --tags --abbrev=0 2>/dev/null || echo ''");
