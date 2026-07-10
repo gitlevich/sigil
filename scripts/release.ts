@@ -42,9 +42,10 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-// Generated sources are ignored, so a clean clone never contains them. Build
-// them before checking the tree rather than only when unrelated changes exist.
+// Generated sources and bundle resources are ignored, so a clean clone never
+// contains them. Build both before checking the tree.
 run('PATH="/opt/homebrew/bin:$PATH" npx tsx scripts/generate-partner-prompt.ts');
+run("./build-python-bootstrap.sh");
 
 // ── Step 1: Commit pending changes ──────────────────────────────────
 
