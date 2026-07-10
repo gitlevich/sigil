@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { regionPosition, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../spatialLayout";
+import { arrangeSpatialIcons, type IconPosition, type SpatialLayout, type ScrollPanelLayout, type IconKindForLayout } from "../spatialLayout";
 import { extractArcs, arcLabel, type ArcScope } from "../sentenceArcs";
 import { extractEntanglements } from "../entanglements";
 import type { LayoutStore } from "../layoutStore";
@@ -287,32 +287,30 @@ export function SpatialDesktop({
     return unique;
   }, [folder, currentPath, rootName, mainRoot, importedRoot]);
 
-  // Per-kind indices for region-based placement. Preserves appearance order
-  // inside each kind so new items fall at the next slot, not random.
-  const kindIndex = useMemo(() => {
-    const counters: Record<string, number> = {};
-    const byName = new Map<string, { kind: IconKind; index: number }>();
-    for (const icon of icons) {
-      // Affordances and invariants live in fixed rows, not on the canvas.
-      if (icon.kind === "affordance" || icon.kind === "invariant") continue;
-      const n = counters[icon.kind] ?? 0;
-      byName.set(icon.name, { kind: icon.kind, index: n });
-      counters[icon.kind] = n + 1;
-    }
-    return { byName, counters };
-  }, [icons]);
+  // The sentence graph is stable regardless of which arc detail the user is
+  // currently viewing. It gives unplaced children a meaningful default shape.
+  const layoutConnections = useMemo(() => {
+    if (!folder) return [];
+    return extractArcs(folder.language ?? "", folder.children.map((child) => child.name), "sentence")
+      .map(({ a, b }) => ({ a, b }));
+  }, [folder]);
+
+  const arrangedPositions = useMemo(() => arrangeSpatialIcons(
+    icons
+      .filter((icon) => icon.kind !== "affordance" && icon.kind !== "invariant")
+      .map((icon) => ({ name: icon.name, kind: icon.kind as IconKindForLayout })),
+    layoutConnections,
+    size.w,
+    size.h,
+  ), [icons, layoutConnections, size]);
 
   const positionFor = useCallback((name: string): IconPosition => {
-    const entry = kindIndex.byName.get(name);
-    if (!entry) return { x: size.w / 2, y: size.h / 2 };
-    // User-dragged positions win for every icon. The region default is only
+    // User-dragged positions win for every icon. The composed default is only
     // the initial placement; once dragged, the sigil owns its layout.
     const stored = layout?.icons[name];
     if (stored) return stored;
-    const kindForLayout = entry.kind as IconKindForLayout;
-    const count = kindIndex.counters[entry.kind] ?? 1;
-    return regionPosition(kindForLayout, entry.index, count, size.w, size.h);
-  }, [layout, size, kindIndex]);
+    return arrangedPositions[name] ?? { x: size.w / 2, y: size.h / 2 };
+  }, [layout, arrangedPositions, size]);
 
   // Content bounds — grow the canvas to contain every positioned icon so the
   // root can scroll when content exceeds the visible viewport.

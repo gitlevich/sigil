@@ -17,12 +17,13 @@ import type { Sigil } from "sigil-core";
 export {
   LAYOUT_FILENAME,
   emptyLayout,
-  defaultPosition,
-  regionPosition,
+  arrangeSpatialIcons,
   type IconPosition,
   type ScrollPanelLayout,
   type SpatialLayout,
   type IconKindForLayout,
+  type SpatialConnection,
+  type SpatialLayoutIcon,
 } from "sigil-core/spatialLayout";
 
 export async function readLayout(sigilPath: string): Promise<SpatialLayout> {
