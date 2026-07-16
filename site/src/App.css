@@ -64,10 +64,6 @@
 
 /* ---- hero ---- */
 
-.hero {
-  padding-bottom: 3.2rem;
-}
-
 .hero > * {
   animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
@@ -541,10 +537,6 @@
   .site-shell {
     width: min(100vw - 2.2rem, 38rem);
     padding-top: 3rem;
-  }
-
-  .hero {
-    padding-bottom: 2.4rem;
   }
 
   .hero-brand {

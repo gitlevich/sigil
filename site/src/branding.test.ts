@@ -46,6 +46,14 @@ describe("branding assets", () => {
     expect(css).toContain("@media (max-width: 540px)");
   });
 
+  it("keeps one vertical rhythm between the hero and opening story", () => {
+    const css = readText("./App.css");
+
+    expect(css).not.toMatch(/\.hero\s*\{\s*padding-bottom:/);
+    expect(css).toContain(".prose-section {\n  padding: 2.6rem 0;");
+    expect(css).toContain("margin: 0 0 2.2rem;");
+  });
+
   it("keeps body copy at reading size on a single measure", () => {
     const css = readText("./App.css");
 
