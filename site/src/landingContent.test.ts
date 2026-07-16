@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import pageSource from "../index.html?raw";
 import { landingContent } from "./landingContent";
+import essaySource from "./what-is-a-sigil.md?raw";
 
 describe("landingContent", () => {
   it("frames sigil engineering as recovering structure from narratives", () => {
@@ -34,6 +36,23 @@ describe("landingContent", () => {
 
     expect(fullText).toContain("design partner");
     expect(fullText).not.toMatch(/\bthe AI\b(?! resident)/);
+  });
+
+  it("states the public argument directly", () => {
+    const publicProse = [
+      landingContent.hero.lede,
+      ...landingContent.story,
+      ...landingContent.implementation.paragraphs,
+      landingContent.links.intro,
+      ...landingContent.links.items.map((item) => item.description),
+      landingContent.contact.error,
+      essaySource,
+    ].join(" ");
+
+    expect(publicProse).not.toMatch(/\b(?:not|without)\b/i);
+    expect(pageSource).toContain(
+      'content="Sigil Engineering recovers stable conceptual structures from narratives so people and AI agents can inhabit them."',
+    );
   });
 
   it("anchors the tool section in what the editor implements", () => {

@@ -102,7 +102,7 @@ export const landingContent = {
         eyebrow: "Application",
         title: "Run the editor",
         description:
-          "The macOS app the method is tested in — an early experiment, not a finished tool.",
+          "The macOS editor where the method is tested and practiced.",
         action: "Open releases",
         href: "https://github.com/gitlevich/sigil/releases",
         external: true,
@@ -123,8 +123,7 @@ export const landingContent = {
     directLabel: "Prefer email?",
     directAction: "Write directly",
     success: "Message sent.",
-    error:
-      "The form did not send. Use the direct email link below and I will still get it.",
+    error: "Use the direct email link below to send your message.",
     buttonIdle: "Send message",
     buttonSending: "Sending...",
   },
