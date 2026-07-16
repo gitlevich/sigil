@@ -1,6 +1,6 @@
 # Sigil Engineering
 
-> A method for turning an imagined application into language precise enough that a coding agent can project it into working code. This site publishes the method's own specification — the spec from which the Sigil editor was projected.
+> The discipline of recovering stable conceptual structures from narratives, precisely enough that people and AI agents can inhabit them. This site publishes the method's own specification — the spec from which the Sigil editor was projected.
 
 ## Machine-readable spec
 

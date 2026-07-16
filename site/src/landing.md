@@ -1,32 +1,32 @@
 # Sigil Engineering
 
-How to speak an app into being.
+How to recover the shape behind words.
 
-A method for writing an imagined application down precisely enough that an agent can inhabit it — not only build it.
+Humans communicate in narratives. Minds understand in structures. Sigil engineering recovers those structures precisely enough that people and AI agents can inhabit them.
 
 ## Story
 
-An application begins as a shape in my head: what it contains and what it must do for me.
+Every conversation, example, and user story is a path through an unseen conceptual space. Most development records the paths. Sigil engineering reconstructs the space itself.
 
-The shape is space-like: all of it at once. Language is time-like: one sentence after another. Sigil engineering turns the shape into a domain model — the application in words, in the sense of domain-driven design — without losing the shape.
+An application does not begin as code. It begins as a shape: everything it contains, everything it permits, everything that must remain true.
 
-I write the vision first and keep it visible, because attention drifts. Then I name the affordances: the few things the application must let me do.
+That shape exists all at once. Language does not. Language unfolds through time, one sentence after another. Every explanation is another traversal across the same conceptual landscape.
 
-I describe how each affordance works. Some words in the description need definitions of their own. I define each one a level down and describe again from there. Where the language is still vague, I go down again.
+Sigil engineering treats those traversals as observations. Each narrative constrains the underlying structure. As observations accumulate, the latent shape becomes visible enough to name, navigate, and inhabit.
 
-Each defined word becomes a [sigil](#/sigil): a bounded context with its own affordances (what can be done in it) and invariants (what must hold), inside which every word is overridden to mean one exact thing. Sigils nest. The tree gets as deep as needed; each level stays small enough to hold in attention at once.
+That inhabitable structure is a [sigil](#/sigil).
 
-An AI design partner works in the same workspace. It reads the whole tree while I work in one context, compares the structure against the vision, and reports drift and broken boundaries.
+A sigil is not a specification. It is a stable conceptual structure that attention can inhabit. Specifications, documentation, implementations, tests, and conversations are projections of the same sigil.
 
-I stop when naming a leaf is enough: a door handle affords opening the door, and I do not care how it is made. At that point the model carries the full shape, and a coding agent can project it into code. Implementation is projection.
+To recover one, I write the vision first, then name its affordances: what it lets me do. I define its invariants: what must remain true. When a word remains vague, I define it one level deeper. Sigils nest until the language carries the shape without ambiguity.
 
-But projection into code is not the only way to run a model. A model is a world, and an agent can inhabit it. Give the agent one tool for each affordance — a service that performs it — and let it wear the sigil: it reads the domain language, and from inside the context it already knows which contrasts must hold and what may be done. Building the application collapses to building the tools; the agent wires them into the sigil and lives there. The running application is the attention that lives there.
+A design partner works in the same structure. It reads the whole tree while I attend to one context, tests each new observation against the vision, and reveals drift, gaps, and broken boundaries.
 
-Inside, the agent has a body. It has state — a position in the contrast space, a place in an ongoing narrative — and the boundary decides what is relevant. The interaction surface is the cockpit of that body, and a cockpit has to bring the right affordance to hand at the right moment. That is what a pattern language is, in Christopher Alexander's sense: each affordance answering a recurring need in its context. A sigil made well focuses the attention that powers it.
+Software is simply the first domain where this becomes obvious. Once an application's structure is explicit, a coding agent can project it into code — or wear the sigil, take up its affordances as tools, and inhabit the application itself.
 
 ## Pull quote
 
-The model, the method, and the tool are the same shape.
+Narratives are measurements. Sigils are the latent structures that explain them.
 
 ## The Attempt: Sigil, an editor.
 

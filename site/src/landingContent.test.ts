@@ -2,21 +2,26 @@ import { describe, expect, it } from "vitest";
 import { landingContent } from "./landingContent";
 
 describe("landingContent", () => {
-  it("keeps the landing page as a narrative from shape to inhabitation", () => {
+  it("frames sigil engineering as recovering structure from narratives", () => {
     const narrative = landingContent.story.join(" ");
 
+    expect(landingContent.hero.title).toBe("How to recover the shape behind words.");
+    expect(landingContent.hero.lede).toContain("Humans communicate in narratives");
+    expect(landingContent.hero.lede).toContain("Minds understand in structures");
     expect(landingContent.story).toHaveLength(9);
     expect(narrative).toContain("shape");
-    expect(narrative).toContain("space-like");
-    expect(narrative).toContain("time-like");
+    expect(narrative).toContain("paths");
+    expect(narrative).toContain("observations");
+    expect(narrative).toContain("latent shape");
     expect(narrative).toContain("vision");
     expect(narrative).toContain("affordances");
     expect(narrative).toContain("sigil");
     expect(narrative).toContain("invariants");
-    expect(narrative).toContain("projection");
+    expect(narrative).toContain("projections");
     expect(narrative).toContain("inhabit");
-    expect(narrative).toContain("body");
-    expect(narrative).toContain("cockpit");
+    expect(landingContent.pullQuote).toBe(
+      "Narratives are measurements. Sigils are the latent structures that explain them.",
+    );
   });
 
   it("introduces the design partner once and never renames it", () => {
