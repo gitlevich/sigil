@@ -14,8 +14,10 @@ import hashlib
 import logging
 import os
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
@@ -24,7 +26,54 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 GENESIS_DIR = PROJECT_ROOT / "docs" / "genesis"
 STATE_FILE = GENESIS_DIR / ".export_state.json"
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
-CODEX_SESSIONS = Path.home() / ".codex" / "sessions"
+CODEX_SESSION_ROOTS = (
+    Path.home() / ".codex" / "sessions",
+    Path.home() / ".codex" / "archived_sessions",
+)
+
+
+def repository_identity(repository_url: str) -> str | None:
+    """Return a protocol-independent identity for a Git repository URL."""
+    value = repository_url.strip().rstrip("/")
+    if not value:
+        return None
+
+    if "://" in value:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        path = parsed.path.lstrip("/")
+        value = f"{host}/{path}" if host else path
+    else:
+        scp_match = re.fullmatch(r"(?:[^@/]+@)?([^:/]+):(.+)", value)
+        if scp_match:
+            value = f"{scp_match.group(1)}/{scp_match.group(2)}"
+
+    return value.removesuffix(".git").casefold()
+
+
+def project_repository_identities(project_root: Path) -> set[str]:
+    """Return the repository identities configured for the project root."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(project_root), "remote", "get-url", "--all", "origin"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return set()
+
+    identities = {
+        identity
+        for line in result.stdout.splitlines()
+        if (identity := repository_identity(line)) is not None
+    }
+    return identities
+
+
+PROJECT_ROOT_RESOLVED = PROJECT_ROOT.resolve()
+PROJECT_ROOT_STR = str(PROJECT_ROOT)
+PROJECT_REPOSITORY_IDENTITIES = project_repository_identities(PROJECT_ROOT)
 
 def project_slug(project_root: Path) -> str:
     """Build the Claude project slug for a project root."""
@@ -62,6 +111,12 @@ def find_claude_session_dirs() -> list[Path]:
         matches.append(exact_dir)
         seen.add(exact_dir)
 
+    descendant_prefix = f"-{PROJECT_SLUG}-"
+    for descendant_dir in sorted(CLAUDE_PROJECTS.glob(f"{descendant_prefix}*")):
+        if descendant_dir.is_dir() and descendant_dir not in seen:
+            matches.append(descendant_dir)
+            seen.add(descendant_dir)
+
     project_memory_name = f"project_{PROJECT_ROOT.name}.md"
     home = Path.home().resolve()
     for ancestor in PROJECT_ROOT.parents:
@@ -96,8 +151,19 @@ def find_claude_session_files() -> list[Path]:
     return matches
 
 
+def path_is_within_project(path: str) -> bool:
+    """Return True when a path is the project root or one of its descendants."""
+    if not path:
+        return False
+    try:
+        Path(path).resolve().relative_to(PROJECT_ROOT_RESOLVED)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
+
+
 def is_codex_project_session(jsonl_path: Path) -> bool:
-    """Return True when a Codex session belongs to this project root."""
+    """Return True when cwd or Git identity places a Codex session in the project."""
     with open(jsonl_path) as f:
         for line in f:
             record = json.loads(line)
@@ -105,21 +171,31 @@ def is_codex_project_session(jsonl_path: Path) -> bool:
                 continue
             payload = record.get("payload", {})
             cwd = payload.get("cwd", "")
-            try:
-                return str(Path(cwd).resolve()) == PROJECT_ROOT_STR
-            except OSError:
-                return False
+            if path_is_within_project(cwd):
+                return True
+
+            session_identity = repository_identity(
+                payload.get("git", {}).get("repository_url", "")
+            )
+            return (
+                session_identity is not None
+                and session_identity in PROJECT_REPOSITORY_IDENTITIES
+            )
     return False
 
 
 def find_codex_session_files() -> list[Path]:
-    """Return Codex session files whose cwd matches this project root."""
-    if not CODEX_SESSIONS.exists():
-        return []
+    """Return Codex sessions owned by this project path or Git repository."""
     matches = []
-    for path in sorted(CODEX_SESSIONS.rglob("*.jsonl")):
-        if is_codex_project_session(path):
+    seen_names = set()
+    for session_root in CODEX_SESSION_ROOTS:
+        if not session_root.exists():
+            continue
+        for path in sorted(session_root.rglob("*.jsonl")):
+            if path.name in seen_names or not is_codex_project_session(path):
+                continue
             matches.append(path)
+            seen_names.add(path.name)
     return matches
 
 
@@ -141,7 +217,6 @@ def strip_system_tags(text: str) -> str:
 
 
 FILE_PATH_TOOLS = {"Read", "Write", "Edit"}
-PROJECT_ROOT_STR = str(PROJECT_ROOT)
 CODEX_BOOTSTRAP_RE = re.compile(
     r"^# AGENTS\.md instructions for .*?</INSTRUCTIONS>\s*"
     r"(?:<environment_context>.*?</environment_context>\s*)?",
@@ -354,8 +429,23 @@ def codex_session_metadata(jsonl_path: Path) -> dict:
     }
 
 
+def transcript_session_id(path: Path) -> str | None:
+    """Read the session identity recorded in a generated transcript header."""
+    try:
+        with open(path) as handle:
+            for line in handle:
+                match = re.fullmatch(r"\*\*Session ID\*\*: `([^`]+)`\s*", line)
+                if match:
+                    return match.group(1)
+                if line.startswith("---"):
+                    break
+    except OSError:
+        return None
+    return None
+
+
 def markdown_filename(meta: dict) -> str:
-    """Generate a markdown filename from session metadata."""
+    """Generate a stable, collision-safe markdown filename."""
     ts = meta["first_timestamp"]
     if ts:
         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -365,7 +455,23 @@ def markdown_filename(meta: dict) -> str:
 
     slug = meta["slug"]
     if slug:
-        return f"{date_str}_{slug}.md"
+        legacy_filename = f"{date_str}_{slug}.md"
+        if meta.get("source") != "codex":
+            return legacy_filename
+
+        canonical_filename = f"{date_str}_codex-{meta['session_id']}.md"
+        if (GENESIS_DIR / canonical_filename).exists():
+            return canonical_filename
+
+        collision_pattern = f"{date_str}_codex-{meta['session_id'][:8]}-*.md"
+        if any(GENESIS_DIR.glob(collision_pattern)):
+            return canonical_filename
+
+        existing_session_id = transcript_session_id(GENESIS_DIR / legacy_filename)
+        if existing_session_id in (None, meta["session_id"]):
+            return legacy_filename
+
+        return canonical_filename
     return f"{date_str}_{meta['session_id'][:8]}.md"
 
 

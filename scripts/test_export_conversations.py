@@ -154,8 +154,18 @@ Real user request.
             exporter.strip_codex_boilerplate(text),
         )
 
-    def test_is_codex_project_session_matches_by_cwd(self):
-        matching = self.write_jsonl(
+    def test_repository_identity_ignores_transport(self):
+        self.assertEqual(
+            "github.com/gitlevich/sigilatlas",
+            exporter.repository_identity("git@github.com:gitlevich/SigilAtlas.git"),
+        )
+        self.assertEqual(
+            "github.com/gitlevich/sigilatlas",
+            exporter.repository_identity("https://github.com/gitlevich/SigilAtlas.git"),
+        )
+
+    def test_is_codex_project_session_matches_root_and_descendant(self):
+        root = self.write_jsonl(
             [
                 {
                     "timestamp": "2026-03-09T00:00:00Z",
@@ -164,20 +174,116 @@ Real user request.
                 }
             ]
         )
-        non_matching = self.write_jsonl(
+        descendant = self.write_jsonl(
             [
                 {
                     "timestamp": "2026-03-09T00:00:00Z",
                     "type": "session_meta",
-                    "payload": {"cwd": "/tmp/not-this-project"},
+                    "payload": {"cwd": str(exporter.PROJECT_ROOT / "src")},
+                }
+            ]
+        )
+        sibling = self.write_jsonl(
+            [
+                {
+                    "timestamp": "2026-03-09T00:00:00Z",
+                    "type": "session_meta",
+                    "payload": {"cwd": f"{exporter.PROJECT_ROOT}-other"},
                 }
             ]
         )
 
-        self.assertTrue(exporter.is_codex_project_session(matching))
-        self.assertFalse(exporter.is_codex_project_session(non_matching))
+        self.assertTrue(exporter.is_codex_project_session(root))
+        self.assertTrue(exporter.is_codex_project_session(descendant))
+        self.assertFalse(exporter.is_codex_project_session(sibling))
 
-    def test_find_claude_session_files_includes_ancestor_workspace_with_project_memory(self):
+    def test_is_codex_project_session_matches_external_worktree_by_repository(self):
+        worktree = self.write_jsonl(
+            [
+                {
+                    "timestamp": "2026-03-09T00:00:00Z",
+                    "type": "session_meta",
+                    "payload": {
+                        "cwd": "/missing/codex/worktree/sigil",
+                        "git": {
+                            "repository_url": "git@github.com:gitlevich/sigil.git"
+                        },
+                    },
+                }
+            ]
+        )
+        self.patch_exporter_globals(
+            PROJECT_REPOSITORY_IDENTITIES={"github.com/gitlevich/sigil"}
+        )
+
+        self.assertTrue(exporter.is_codex_project_session(worktree))
+
+    def test_find_codex_session_files_includes_active_and_archived_sources(self):
+        temp_root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, temp_root, True)
+        active_root = temp_root / "sessions"
+        archived_root = temp_root / "archived_sessions"
+        active_root.mkdir()
+        archived_root.mkdir()
+
+        payload = {
+            "timestamp": "2026-03-09T00:00:00Z",
+            "type": "session_meta",
+            "payload": {"cwd": str(exporter.PROJECT_ROOT)},
+        }
+        active_file = active_root / "active.jsonl"
+        archived_file = archived_root / "archived.jsonl"
+        active_file.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        archived_file.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+        self.patch_exporter_globals(
+            CODEX_SESSION_ROOTS=(active_root, archived_root)
+        )
+
+        self.assertEqual(
+            [active_file, archived_file], exporter.find_codex_session_files()
+        )
+
+    def test_markdown_filename_disambiguates_codex_session_collision(self):
+        temp_root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, temp_root, True)
+        self.patch_exporter_globals(GENESIS_DIR=temp_root)
+        meta = {
+            "source": "codex",
+            "session_id": "01a00b8e-first-session",
+            "slug": "codex-01a00b8e",
+            "first_timestamp": "2026-08-16T17:11:00Z",
+        }
+        legacy_path = temp_root / "2026-08-16_1711_codex-01a00b8e.md"
+        legacy_path.write_text(
+            "# Session\n**Session ID**: `01a00b8e-other-session`\n\n---\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            "2026-08-16_1711_codex-01a00b8e-first-session.md",
+            exporter.markdown_filename(meta),
+        )
+
+        legacy_path.write_text(
+            "# Session\n**Session ID**: `01a00b8e-first-session`\n\n---\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(legacy_path.name, exporter.markdown_filename(meta))
+
+        collision_path = (
+            temp_root / "2026-08-16_1711_codex-01a00b8e-other-session.md"
+        )
+        collision_path.write_text(
+            "# Session\n**Session ID**: `01a00b8e-other-session`\n\n---\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(
+            "2026-08-16_1711_codex-01a00b8e-first-session.md",
+            exporter.markdown_filename(meta),
+        )
+
+    def test_find_claude_session_files_includes_descendants_and_ancestor_workspace(self):
         temp_root = Path(tempfile.mkdtemp(dir=Path.home()))
         self.addCleanup(shutil.rmtree, temp_root, True)
 
@@ -191,6 +297,11 @@ Real user request.
         exact_dir.mkdir(parents=True)
         exact_file = exact_dir / "exact.jsonl"
         exact_file.write_text("", encoding="utf-8")
+
+        descendant_dir = claude_projects / f"-{exporter.project_slug(project_root)}-src"
+        descendant_dir.mkdir(parents=True)
+        descendant_file = descendant_dir / "descendant.jsonl"
+        descendant_file.write_text("", encoding="utf-8")
 
         ancestor_dir = claude_projects / f"-{exporter.project_slug(workspace)}"
         (ancestor_dir / "memory").mkdir(parents=True)
@@ -210,7 +321,7 @@ Real user request.
         )
 
         self.assertEqual(
-            [exact_file, ancestor_file],
+            [exact_file, descendant_file, ancestor_file],
             exporter.find_claude_session_files(),
         )
 
